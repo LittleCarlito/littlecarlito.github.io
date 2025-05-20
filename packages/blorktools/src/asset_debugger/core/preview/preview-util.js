@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createTextureFromIframe } from '../texture-util';
-import { originalAnimationStartTime, showStatus } from '../../ui/scripts/html-editor-modal';
+import { originalAnimationStartTime, showStatus, PreviewSettings } from '../../ui/scripts/html-editor-modal';
 import { animationDuration, isAnimationFinite, preRenderedFrames, preRenderingInProgress, resetPreRender, startImage2TexturePreRendering, startCss3dPreRendering } from '../animation-util';
 import { sanitizeHtml } from '../string-serder';
 import { getState } from '../state';
@@ -22,6 +22,9 @@ let lastTextureUpdateTime = 0;
 export let maxCaptureRate = 0.5; // Reduce to 0.5ms between captures for more frames (was 1)
 export let isPreviewActive = false; // Track if preview is currently active
 
+// Store current preview settings
+export let currentPreviewSettings = null;
+
 /**
  * Initialize the preview based on the selected mode
  * @param {string} previewMode - The preview mode (threejs or css3d)
@@ -30,11 +33,13 @@ export let isPreviewActive = false; // Track if preview is currently active
  * @param {number} currentMeshId - The ID of the current mesh
  * @param {boolean} startAnimation - Whether to start the animation immediately
  * @param {boolean} createInfoPanel - Whether to create the info panel
+ * @param {string} animationType - The type of animation
+ * @param {PreviewSettings} settings - Complete settings object
  */
-function initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId, startAnimation = true, createInfoPanel = true) {
-    // Get animation type
-    const animationTypeSelect = document.getElementById('html-animation-type');
-    const animationType = animationTypeSelect ? animationTypeSelect.value : 'none';
+function initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId, startAnimation = true, createInfoPanel = true, animationType = 'none', settings = null) {
+    // Remove DOM access for animation type
+    // const animationTypeSelect = document.getElementById('html-animation-type');
+    // const animationType = animationTypeSelect ? animationTypeSelect.value : 'none';
 
     // Remove the special case for long exposure that immediately pauses animation
     // For long exposure, we want to see the actual animation
@@ -51,45 +56,47 @@ function initializePreview(previewMode, canvasContainer, renderIframe, currentMe
         console.log('CSS3D initialization will happen after pre-rendering');
     } else {
         // Default to threejs mode
-        showStatus('Initializing 3D cube preview...', 'info');
+        if (settings && typeof settings.updateStatus === 'function') {
+            settings.updateStatus('Initializing 3D cube preview...', 'info');
+        } else {
+            showStatus('Initializing 3D cube preview...', 'info');
+        }
         initThreeJsPreview(canvasContainer, renderIframe, currentMeshId, createInfoPanel);
     }
 }
 
 /**
  * Preview HTML code using Three.js
- * @param {string} html - The HTML code to preview
+ * @param {PreviewSettings} settings - Object containing all settings for the preview
+ * @param {HTMLElement} previewContent - Container element for the preview
+ * @param {Function} setModalData - Function to set modal data attributes
  */
-export function previewHtml(html) {
-    const previewContent = document.getElementById('html-preview-content');
+export function previewHtml(settings, previewContent, setModalData) {
     if (!previewContent) return;
 
     try {
-        // Get current mesh ID from the modal
-        const modal = document.getElementById('html-editor-modal');
-        const currentMeshId = parseInt(modal.dataset.meshId);
-
-        // Get preview mode from render type dropdown
-        const renderTypeSelect = document.getElementById('html-render-type');
-        let previewMode = renderTypeSelect ? renderTypeSelect.value : 'threejs';
-
-        // Get playback speed from dropdown
-        const playbackSpeedSelect = document.getElementById('html-playback-speed');
-        const playbackSpeed = playbackSpeedSelect ? parseFloat(playbackSpeedSelect.value) : 1.0;
-
-        // Get animation type from dropdown
-        const animationTypeSelect = document.getElementById('html-animation-type');
-        const animationType = animationTypeSelect ? animationTypeSelect.value : 'none';
-
+        // Extract values from settings
+        const html = settings.html;
+        const currentMeshId = settings.meshId;
+        const previewMode = settings.previewMode;
+        const playbackSpeed = settings.playbackSpeed;
+        const animationType = settings.animationType;
+        
+        // Store settings for use in animatePreview
+        currentPreviewSettings = settings;
+        
         // For long exposure, set a flag to indicate we should create the long exposure immediately
         // This prevents showing the first frame before the long exposure
-        const isLongExposureMode = animationType === 'longExposure';
+        const isLongExposureMode = settings.isLongExposureMode;
+        window.showPreviewBorders = settings.showPreviewBorders;
         window.createLongExposureImmediately = isLongExposureMode;
 
         resetPreRender();
 
-        // Store the preview mode in the modal dataset for access elsewhere
-        modal.dataset.previewMode = previewMode;
+        // Store the preview mode in the modal dataset if setModalData function is provided
+        if (setModalData) {
+            setModalData('previewMode', previewMode);
+        }
 
         // Always do a full cleanup for a new preview
         console.log('Cleaning up previous preview');
@@ -130,9 +137,9 @@ export function previewHtml(html) {
 
         // For long exposure, show a different status message
         if (isLongExposureMode) {
-            showStatus('Pre-rendering animation for long exposure capture...', 'info');
+            settings.updateStatus('Pre-rendering animation for long exposure capture...', 'info');
         } else {
-            showStatus('Pre-rendering animation for smooth playback...', 'info');
+            settings.updateStatus('Pre-rendering animation for smooth playback...', 'info');
         }
 
         // Wait for iframe to be ready
@@ -258,7 +265,7 @@ export function previewHtml(html) {
 
             // Initialize the preview first, but don't start animation yet
             // Pass false for createInfoPanel to prevent creating the info panel until pre-rendering is complete
-            initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId, false, false);
+            initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId, false, false, animationType, settings);
 
             // Start pre-rendering with a callback for when it's done
             switch (previewMode) {
@@ -274,7 +281,7 @@ export function previewHtml(html) {
                         console.log('CSS3D pre-rendering complete, initializing preview');
                         
                         // Now create and show the CSS3D preview
-                        showStatus('Initializing CSS3D preview...', 'info');
+                        settings.updateStatus('Initializing CSS3D preview...', 'info');
                         
                         // Pass true for createInfoPanel to ensure the info panel is created
                         initCSS3DPreview(canvasContainer, renderIframe, currentMeshId, true);
@@ -305,25 +312,29 @@ export function previewHtml(html) {
             renderIframe.contentDocument.close();
         }
     } catch (error) {
-        logPreviewError(`Preview error: ${error.message}`);
+        logPreviewError(`Preview error: ${error.message}`, previewContent, settings.errorContainer, settings.statusCallback);
         console.error('HTML Preview error:', error);
-        showStatus('Error generating preview: ' + error.message, 'error');
+        settings.handleError('Error generating preview: ' + error.message);
     }
 }
 
 /**
  * Log errors to the preview error console
  * @param {string} message - Error message to display
+ * @param {HTMLElement} previewContent - The preview content container
+ * @param {HTMLElement} existingErrorLog - Existing error log element (optional)
+ * @param {Function} statusCallback - Function to call to show status messages
  */
-function logPreviewError(message) {
-    const errorLog = document.getElementById('html-preview-error-log') || 
-                     document.createElement('div');
+function logPreviewError(message, previewContent, existingErrorLog, statusCallback) {
+    // Get or create error log element
+    let errorLog = existingErrorLog;
     
-    if (!errorLog.id) {
+    // Create error log if it doesn't exist
+    if (!errorLog) {
+        errorLog = document.createElement('div');
         errorLog.id = 'html-preview-error-log';
         errorLog.className = 'preview-error-log';
         
-        const previewContent = document.getElementById('html-preview-content');
         if (previewContent) {
             previewContent.appendChild(errorLog);
         }
@@ -348,7 +359,12 @@ function logPreviewError(message) {
     errorLog.appendChild(errorEntry);
     
     // Show the error in the editor status as well
-    showStatus(message, 'error');
+    if (statusCallback) {
+        statusCallback(message, 'error');
+    } else {
+        // Fallback to imported showStatus if available
+        showStatus(message, 'error');
+    }
     
     console.error(message);
 }
@@ -409,14 +425,12 @@ export function animatePreview() {
         
         // Apply any animation effects to the mesh based on settings
         if (previewPlane) {
-            // Get current mesh ID from the modal
-            const modal = document.getElementById('html-editor-modal');
-            const currentMeshId = parseInt(modal.dataset.meshId);
+            // Use currentPreviewSettings instead of accessing DOM
+            const currentMeshId = currentPreviewSettings?.meshId;
             
-            // Get animation settings for this mesh
-            const settings = getHtmlSettingsForMesh(currentMeshId);
-            const animationType = settings.animation?.type || 'none';
-            const playbackSpeed = settings.playbackSpeed || 1.0;
+            // Get animation settings from currentPreviewSettings
+            const animationType = currentPreviewSettings?.animationType || 'none';
+            const playbackSpeed = currentPreviewSettings?.playbackSpeed || 1.0;
             
             // Apply animation based on type
             if (animationType !== 'none' && !isPreviewAnimationPaused) {
@@ -479,12 +493,10 @@ export function animatePreview() {
             }
         }
         
-        // Get current mesh ID from the modal
-        const modal = document.getElementById('html-editor-modal');
-        const currentMeshId = parseInt(modal.dataset.meshId);
-        const settings = getHtmlSettingsForMesh(currentMeshId);
-        const playbackSpeed = settings.playbackSpeed || 1.0;
-        const animationType = settings.animation?.type || 'none';
+        // Use currentPreviewSettings instead of accessing DOM
+        const currentMeshId = currentPreviewSettings?.meshId;
+        const playbackSpeed = currentPreviewSettings?.playbackSpeed || 1.0;
+        const animationType = currentPreviewSettings?.animationType || 'none';
         
         // Skip frame updates if animation is paused or we're in long exposure mode
         if (isPreviewAnimationPaused || animationType === 'longExposure') {
@@ -552,7 +564,11 @@ export function animatePreview() {
                                 updateMeshTexture(preRenderedFrames[preRenderedFrames.length - 1].texture);
                                 
                                 // Show a message that playback has ended
-                                showStatus('Animation playback complete', 'info');
+                                if (currentPreviewSettings && typeof currentPreviewSettings.updateStatus === 'function') {
+                                    currentPreviewSettings.updateStatus('Animation playback complete', 'info');
+                                } else {
+                                    showStatus('Animation playback complete', 'info');
+                                }
                             }
                             return; // Exit early to avoid further processing
                         } else {

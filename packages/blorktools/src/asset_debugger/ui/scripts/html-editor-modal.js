@@ -64,9 +64,65 @@ let htmlEditorState = {
 // Debounce timer for linting
 let lintDebounceTimer = null;
 
-
-
-
+// Add this class before the previewBtn event listener
+/**
+ * Class to encapsulate all settings needed for HTML preview
+ */
+export class PreviewSettings {
+    /**
+     * Create a new PreviewSettings object
+     * @param {string} html - HTML content to preview
+     * @param {number} meshId - ID of the mesh
+     * @param {string} previewMode - Type of preview (threejs or css3d)
+     * @param {number} playbackSpeed - Animation playback speed
+     * @param {string} animationType - Type of animation (none, loop, bounce, longExposure)
+     * @param {boolean} showPreviewBorders - Whether to show borders in the preview
+     * @param {Function} statusCallback - Function to update status messages
+     * @param {Function} errorCallback - Function to handle errors
+     * @param {HTMLElement} errorContainer - Container for error messages
+     */
+    constructor(html, meshId, previewMode, playbackSpeed, animationType, showPreviewBorders, 
+                statusCallback = null, errorCallback = null, errorContainer = null) {
+        this.html = html;
+        this.meshId = meshId;
+        this.previewMode = previewMode;
+        this.playbackSpeed = playbackSpeed;
+        this.animationType = animationType;
+        this.showPreviewBorders = showPreviewBorders;
+        this.statusCallback = statusCallback;
+        this.errorCallback = errorCallback;
+        this.errorContainer = errorContainer;
+    }
+    
+    /**
+     * Check if the animation type is long exposure
+     * @returns {boolean} True if animation type is long exposure
+     */
+    get isLongExposureMode() {
+        return this.animationType === 'longExposure';
+    }
+    
+    /**
+     * Update status message
+     * @param {string} message - Status message
+     * @param {string} type - Status type (info, error, success)
+     */
+    updateStatus(message, type = 'info') {
+        if (this.statusCallback) {
+            this.statusCallback(message, type);
+        }
+    }
+    
+    /**
+     * Handle error
+     * @param {string} message - Error message
+     */
+    handleError(message) {
+        if (this.errorCallback) {
+            this.errorCallback(message);
+        }
+    }
+}
 
 /**
  * Open the HTML Editor Modal for a specific mesh
@@ -158,9 +214,6 @@ function getSettingsFromForm() {
         active: false // Default to false, will be set to true when using Save and Apply
     };
 }
-
-
-
 
 /**
  * Initialize the HTML Editor Modal
@@ -391,25 +444,70 @@ export function initHtmlEditorModal() {
         }, 500); // Wait 500ms after typing stops
     });
     
-    // Preview button
-    previewBtn.addEventListener('click', () => {
+    // Handle the preview button click
+    function handlePreviewClick() {
+        const modal = document.getElementById('html-editor-modal');
+        const textarea = document.getElementById('html-editor-textarea');
+        const previewContent = document.getElementById('html-preview-content');
+        const errorContainer = document.getElementById('html-editor-errors');
+        
         try {
-            // Generate the preview
-            previewHtml(textarea.value);
+            // Collect all settings from the DOM
+            const html = textarea.value;
+            const meshId = parseInt(modal.dataset.meshId);
+            
+            // Get preview mode
+            const renderTypeSelect = document.getElementById('html-render-type');
+            const previewMode = renderTypeSelect ? renderTypeSelect.value : 'threejs';
+            
+            // Get playback speed
+            const playbackSpeedSelect = document.getElementById('html-playback-speed');
+            const playbackSpeed = playbackSpeedSelect ? parseFloat(playbackSpeedSelect.value) : 1.0;
+            
+            // Get animation type
+            const animationTypeSelect = document.getElementById('html-animation-type');
+            const animationType = animationTypeSelect ? animationTypeSelect.value : 'none';
+            
+            // Get border display setting
+            const showWireframeCheckbox = document.getElementById('show-wireframe');
+            const showPreviewBorders = showWireframeCheckbox ? showWireframeCheckbox.checked : true;
+            
+            // Create settings object with callbacks
+            const settings = new PreviewSettings(
+                html,
+                meshId,
+                previewMode,
+                playbackSpeed,
+                animationType,
+                showPreviewBorders,
+                showStatus,  // Pass the status callback
+                (error) => showStatus(error, 'error'),  // Pass the error callback
+                errorContainer  // Pass the error container
+            );
+            
+            // Function to set modal data attributes
+            const setModalData = (key, value) => {
+                modal.dataset[key] = value;
+            };
+            
+            // Generate the preview with the collected settings
+            previewHtml(settings, previewContent, setModalData);
             
             // Add preview mode class to modal for CSS control
             modal.classList.add('preview-mode');
             
             // Show a message about the current preview mode
-            const renderTypeSelect = document.getElementById('html-render-type');
             if (renderTypeSelect) {
-                const previewMode = renderTypeSelect.options[renderTypeSelect.selectedIndex].text;
-                showStatus(`Preview mode: ${previewMode}`, 'info');
+                const previewModeName = renderTypeSelect.options[renderTypeSelect.selectedIndex].text;
+                showStatus(`Preview mode: ${previewModeName}`, 'info');
             }
         } catch (error) {
             showStatus('Error generating preview: ' + error.message, 'error');
         }
-    });
+    }
+
+    // Preview button
+    previewBtn.addEventListener('click', handlePreviewClick);
     
     // Reset button
     resetBtn.addEventListener('click', () => {
