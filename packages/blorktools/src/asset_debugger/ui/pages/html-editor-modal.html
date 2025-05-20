@@ -55,10 +55,16 @@
         
         <div class="editor-container">
             <div class="format-btn-container">
-                <label class="checkbox-container">
-                    <input type="checkbox" id="show-wireframe" checked>
-                    <span class="checkbox-label">Show Borders</span>
-                </label>
+                <div class="checkbox-group">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="show-wireframe" checked>
+                        <span class="checkbox-label">Show Borders</span>
+                    </label>
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="display-on-mesh">
+                        <span class="checkbox-label">Display on Mesh</span>
+                    </label>
+                </div>
                 <button id="html-editor-format" class="format-btn" title="Format HTML">Format</button>
             </div>
             <textarea id="html-editor-textarea" class="code-editor html-editor-textarea" placeholder="Enter HTML code here..."></textarea>

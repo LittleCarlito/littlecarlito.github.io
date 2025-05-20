@@ -117,11 +117,17 @@
     z-index: 10;
 }
 
+/* Checkbox group styling */
+.checkbox-group {
+    display: flex;
+    align-items: center;
+}
+
 /* Checkbox styling in the format bar */
 .format-btn-container .checkbox-container {
     color: #ddd;
     font-size: 12px;
-    margin-right: auto;
+    margin-right: 8px;
 }
 
 .format-btn-container .checkbox-label {

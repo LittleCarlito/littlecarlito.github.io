@@ -941,4 +941,13 @@ export function isGlbStructure(buffer) {
     } catch (e) {
         return false;
     }
+}
+
+/**
+ * Display a custom texture on a mesh
+ * @param {boolean} display - Whether to display the custom texture
+ * @param {number} meshId - ID of the mesh to display the texture on
+ */
+export function displayCustomTexture(display, meshId) {
+    console.debug("BAZIGNA IT WORKED BITCHES", display, meshId);
 } 

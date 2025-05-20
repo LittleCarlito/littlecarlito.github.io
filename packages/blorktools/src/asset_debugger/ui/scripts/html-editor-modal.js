@@ -8,7 +8,8 @@
 import { getState, updateState } from '../../core/state.js';
 import { 
     getBinaryBufferForMesh, 
-    associateBinaryBufferWithMesh
+    associateBinaryBufferWithMesh,
+    displayCustomTexture
 } from '../../core/glb-utils.js';
 import { 
     deserializeStringFromBinary, 
@@ -182,6 +183,7 @@ export async function openEmbeddedHtmlEditor(meshName, meshId) {
             const playbackSpeedSelect = document.getElementById('html-playback-speed');
             const animationTypeSelect = document.getElementById('html-animation-type');
             const showWireframeCheckbox = document.getElementById('show-wireframe');
+            const displayOnMeshCheckbox = document.getElementById('display-on-mesh');
             const dropdownsContainer = document.getElementById('editor-dropdowns-container');
             
             // Update dropdowns with saved settings
@@ -221,6 +223,10 @@ export async function openEmbeddedHtmlEditor(meshName, meshId) {
             if (showWireframeCheckbox && settings.display) {
                 showWireframeCheckbox.checked = settings.display.showBorders !== undefined ? 
                     settings.display.showBorders : true;
+            }
+            
+            if (displayOnMeshCheckbox && settings.display) {
+                displayOnMeshCheckbox.checked = settings.display.displayOnMesh || false;
             }
             
             // Apply long-exposure-mode class if needed
@@ -270,6 +276,7 @@ export async function openEmbeddedHtmlEditor(meshName, meshId) {
 export function getSettingsFromForm() {
     const animationType = document.getElementById('html-animation-type').value;
     const showWireframeCheckbox = document.getElementById('show-wireframe');
+    const displayOnMeshCheckbox = document.getElementById('display-on-mesh');
     
     return {
         previewMode: document.getElementById('html-render-type').value || defaultSettings.previewMode,
@@ -279,7 +286,8 @@ export function getSettingsFromForm() {
             enabled: animationType !== 'none'
         },
         display: {
-            showBorders: showWireframeCheckbox ? showWireframeCheckbox.checked : true
+            showBorders: showWireframeCheckbox ? showWireframeCheckbox.checked : true,
+            displayOnMesh: displayOnMeshCheckbox ? displayOnMeshCheckbox.checked : false
         },
         active: false // Default to false, will be set to true when using Save and Apply
     };
@@ -475,6 +483,14 @@ export function initHtmlEditorModal() {
                 setLastTextureUpdateTime(0);
                 showStatus(`Borders ${showWireframeCheckbox.checked ? 'enabled' : 'disabled'}`, 'info');
             }
+        });
+    }
+    
+    // Display on Mesh checkbox
+    const displayOnMeshCheckbox = document.getElementById('display-on-mesh');
+    if (displayOnMeshCheckbox) {
+        displayOnMeshCheckbox.addEventListener('change', () => {
+            showStatus(`Display on mesh ${displayOnMeshCheckbox.checked ? 'enabled' : 'disabled'}`, 'info');
         });
     }
     
