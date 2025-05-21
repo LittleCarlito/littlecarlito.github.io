@@ -356,28 +356,20 @@ export async function createTextureFromIframe(iframe) {
                             z-index: -1;
                         }
                         
-                        /* Ensure all elements are visible with good contrast */
-                        * {
-                            color: #000 !important;
-                        }
-                        
-                        /* Increase font size of common elements */
+                        /* Increase font size of common elements for better readability */
                         h1, h2, h3, h4, h5, h6 {
                             font-size: 1.5em !important;
-                            color: #000 !important;
                         }
                         
                         p, div, span, a, li, td, th {
                             font-size: 1.2em !important;
-                            color: #000 !important;
                         }
                         
                         /* Make sure buttons and inputs are readable */
                         button, input, select, textarea {
                             font-size: 1.2em !important;
                             padding: 5px !important;
-                            color: #000 !important;
-                            background-color: #fff !important;
+                            background-color: #fff;
                         }
                     `;
                     
@@ -926,8 +918,7 @@ export function setCustomTexture(meshData, renderType, settings = {}) {
         }
         
         // Add animation if enabled
-        if (settings.animation && settings.animation.enabled && 
-            !isLongExposure) {
+        if (settings.animation && !isLongExposure) {
             
             // Add animation JavaScript to the iframe
             try {
@@ -1060,9 +1051,8 @@ export function setCustomTexture(meshData, renderType, settings = {}) {
                         activeTextureData.get(meshId).initialTexture = texture;
                     }
                     
-                    // Set up animation if enabled
-                    if (settings.animation && settings.animation.enabled &&
-                        !isLongExposure) {
+                    // Set up animation if needed
+                    if (settings.animation && !isLongExposure) {
                         // Set up texture animation for this mesh
                         console.log('[TEXTURE_SETUP] Setting up animation for mesh');
                         setupTextureAnimation(meshId, iframe, settings);
@@ -1725,12 +1715,6 @@ export function setupTextureAnimation(meshId, iframe, settings = {}) {
     const playbackSpeed = settings.playbackSpeed || 1.0;
     const animationType = settings.animation?.type || 'none';
     
-    // Skip if animation is not enabled
-    if (!settings.animation?.enabled) {
-        console.log(`Animation not enabled for mesh ${meshId}, skipping animation setup`);
-        return;
-    }
-    
     console.log(`Setting up texture animation for mesh ${meshId} with type: ${animationType}`);
     
     // Add to active texture data
@@ -1949,9 +1933,8 @@ function createAndSetupIframe(html) {
                     * {
                         box-sizing: border-box;
                     }
-                    /* Ensure text has good contrast */
+                    /* Basic layout styling */
                     p, h1, h2, h3, h4, h5, h6, div, span {
-                        color: black !important;
                         margin: 0 0 10px 0;
                     }
                     /* Ensure images don't overflow */

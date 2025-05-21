@@ -48,8 +48,7 @@ export const defaultSettings = {
     previewMode: 'threejs',
     playbackSpeed: 1.0,
     animation: {
-        type: 'none',
-        enabled: true  // Changed to true so 'none' type animations still play once
+        type: 'none'
     },
     display: {
         showBorders: true
@@ -284,8 +283,7 @@ export function getSettingsFromForm() {
         previewMode: document.getElementById('html-render-type').value || defaultSettings.previewMode,
         playbackSpeed: parseFloat(document.getElementById('html-playback-speed').value),
         animation: {
-            type: animationType,
-            enabled: true  // Always enabled, even for 'none' type
+            type: animationType
         },
         display: {
             showBorders: showWireframeCheckbox ? showWireframeCheckbox.checked : true,
