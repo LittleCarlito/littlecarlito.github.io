@@ -20,7 +20,7 @@ let lastTextureUpdateTime = 0;
 
 // Add variables for frame buffering at the top of the file with other variables
 export let maxCaptureRate = 0.5; // Reduce to 0.5ms between captures for more frames (was 1)
-export let isPreviewActive = false; // Track if preview is currently active
+export let isPreviewActive = true; // Changed from false to true to ensure it's active by default
 
 // Store current preview settings
 export let currentPreviewSettings = null;

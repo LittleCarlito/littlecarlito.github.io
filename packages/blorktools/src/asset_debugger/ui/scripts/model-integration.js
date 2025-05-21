@@ -131,6 +131,17 @@ export function getMeshByIndex(meshIndex) {
 }
 
 /**
+ * @deprecated Use getMeshByIndex instead
+ * Get mesh by ID (same as getMeshByIndex for backward compatibility)
+ * @param {number} meshId - ID of the mesh to retrieve (same as index)
+ * @returns {THREE.Mesh|null} The mesh object or null if not found
+ */
+export function getMeshById(meshId) {
+    console.warn(`DEPRECATED: getMeshById is deprecated, use getMeshByIndex instead. Called with ID: ${meshId}`);
+    return getMeshByIndex(meshId);
+}
+
+/**
  * Update the GLB file with modified data and save it
  * @param {ArrayBuffer} updatedGlb - The updated GLB file
  * @returns {Promise<boolean>} Promise that resolves to true if successful
@@ -162,5 +173,6 @@ export default {
     initModelIntegration,
     getCurrentGlbBuffer,
     getMeshByIndex,
+    getMeshById,
     updateGlbFile
 }; 
