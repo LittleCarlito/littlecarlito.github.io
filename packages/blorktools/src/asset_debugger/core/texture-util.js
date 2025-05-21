@@ -927,7 +927,7 @@ export function setCustomTexture(meshData, renderType, settings = {}) {
         
         // Add animation if enabled
         if (settings.animation && settings.animation.enabled && 
-            settings.animation.type !== 'none' && !isLongExposure) {
+            !isLongExposure) {
             
             // Add animation JavaScript to the iframe
             try {
@@ -1061,8 +1061,8 @@ export function setCustomTexture(meshData, renderType, settings = {}) {
                     }
                     
                     // Set up animation if enabled
-                    if (settings.animation && settings.animation.enabled && 
-                        settings.animation.type !== 'none') {
+                    if (settings.animation && settings.animation.enabled &&
+                        !isLongExposure) {
                         // Set up texture animation for this mesh
                         console.log('[TEXTURE_SETUP] Setting up animation for mesh');
                         setupTextureAnimation(meshId, iframe, settings);
@@ -1726,7 +1726,7 @@ export function setupTextureAnimation(meshId, iframe, settings = {}) {
     const animationType = settings.animation?.type || 'none';
     
     // Skip if animation is not enabled
-    if (animationType === 'none' || !settings.animation?.enabled) {
+    if (!settings.animation?.enabled) {
         console.log(`Animation not enabled for mesh ${meshId}, skipping animation setup`);
         return;
     }

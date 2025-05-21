@@ -49,7 +49,7 @@ export const defaultSettings = {
     playbackSpeed: 1.0,
     animation: {
         type: 'none',
-        enabled: false
+        enabled: true  // Changed to true so 'none' type animations still play once
     },
     display: {
         showBorders: true
@@ -285,7 +285,7 @@ export function getSettingsFromForm() {
         playbackSpeed: parseFloat(document.getElementById('html-playback-speed').value),
         animation: {
             type: animationType,
-            enabled: animationType !== 'none'
+            enabled: true  // Always enabled, even for 'none' type
         },
         display: {
             showBorders: showWireframeCheckbox ? showWireframeCheckbox.checked : true,
