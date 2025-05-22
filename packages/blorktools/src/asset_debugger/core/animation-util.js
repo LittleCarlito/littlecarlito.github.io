@@ -65,7 +65,7 @@ export let isAnimationFinite = false;
  * @param {HTMLIFrameElement} iframe - The iframe containing the HTML content
  * @param {Function} callback - Function to call when pre-rendering is complete
  * @param {HTMLElement} progressBar - Optional progress bar element to update
- * @param {Object} settings - Optional settings object
+ * @param {CustomTextureSettings} settings - Optional settings object for texture configuration
  */
 export function startImage2TexturePreRendering(iframe, callback, progressBar = null, settings = null) {
     if (!iframe) {

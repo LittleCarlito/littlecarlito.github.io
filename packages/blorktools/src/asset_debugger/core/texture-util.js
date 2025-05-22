@@ -793,289 +793,383 @@ export function calculateTextureHash(texture) {
  * @param {Object} meshData - Data about the mesh to display on
  * @param {string} renderType - The type of rendering (threejs, longExposure)
  * @param {Object} settings - Additional settings for rendering
+ * @returns {Promise<boolean>} Promise that resolves when the texture is applied
  */
 export function setCustomTexture(meshData, renderType, settings = {}) {
-    console.log('[TEXTURE_SETUP] Applying custom HTML texture to mesh:', { 
-        meshId: meshData.id, 
-        meshName: meshData.mesh?.name || 'unnamed',
-        renderType,
-        htmlLength: meshData.html ? meshData.html.length : 0
-    });
-    
-    if (!meshData || !meshData.id) {
-        console.error('[TEXTURE_SETUP] Invalid mesh data provided to setCustomTexture');
-        return;
-    }
-    
-    // Generate a unique ID for this mesh
-    const meshId = `mesh_${meshData.id}`;
-    
-    // Get the mesh directly from the meshData object
-    let targetMesh = meshData.mesh;
-    
-    // Clean up any existing texture data for this mesh
-    if (activeTextureData.has(meshId)) {
-        const oldData = activeTextureData.get(meshId);
-        if (oldData.iframe) {
-            try {
-                document.body.removeChild(oldData.iframe);
-            } catch (error) {
-                console.debug('[TEXTURE_SETUP] Error removing old iframe:', error);
-            }
-        }
-        activeTextureData.delete(meshId);
-    }
-    
-    // If mesh is not provided, try to find it using the state
-    if (!targetMesh) {
-        console.warn(`[TEXTURE_SETUP] No mesh object provided directly in meshData for ID ${meshData.id}, trying to find it in the state`);
-        
-        // Import state module to get current state
-        import('./state.js').then(stateModule => {
-            const state = stateModule.getState();
-            if (!state.meshes || state.meshes.length === 0) {
-                console.error('[TEXTURE_SETUP] No meshes available in state');
-                return;
-            }
-            
-            // Try to find mesh by index
-            if (state.meshes.length > meshData.id) {
-                targetMesh = state.meshes[meshData.id];
-                console.log(`[TEXTURE_SETUP] Found mesh by index: ${targetMesh.name || 'unnamed'}`);
-                
-                // Store mesh reference in activeTextureData
-                if (activeTextureData.has(meshId)) {
-                    activeTextureData.get(meshId).mesh = targetMesh;
-                }
-                
-                // Now continue with the found mesh
-                continueWithMesh(targetMesh);
-            } else {
-                console.error(`[TEXTURE_SETUP] Mesh index ${meshData.id} out of bounds (total meshes: ${state.meshes.length})`);
-            }
-        }).catch(error => {
-            console.error('[TEXTURE_SETUP] Error importing state module:', error);
-        });
-        
-        return;
-    }
-    
-    // Continue with the mesh we have
-    continueWithMesh(targetMesh);
-    
-    // Helper function to continue texture process with a valid mesh
-    function continueWithMesh(mesh) {
-        // Store the mesh in our data
-        if (activeTextureData.has(meshId)) {
-            activeTextureData.get(meshId).mesh = mesh;
-        } else {
-            activeTextureData.set(meshId, { mesh });
-        }
-        
-        // Check if mesh still exists in the scene
+    return new Promise(async (resolve, reject) => {
         try {
-            if (!mesh.isMesh) {
-                console.error(`[TEXTURE_SETUP] Target object is not a mesh for ID ${meshData.id}`);
+            console.log('[TEXTURE_SETUP] Applying custom HTML texture to mesh:', { 
+                meshId: meshData.id, 
+                meshName: meshData.mesh?.name || 'unnamed',
+                renderType,
+                htmlLength: meshData.html ? meshData.html.length : 0
+            });
+            
+            if (!meshData || !meshData.id) {
+                console.error('[TEXTURE_SETUP] Invalid mesh data provided to setCustomTexture');
+                reject(new Error('Invalid mesh data'));
                 return;
             }
-        } catch (error) {
-            console.error(`[TEXTURE_SETUP] Error checking mesh validity for ID ${meshData.id}:`, error);
-            return;
-        }
-        
-        console.log(`[TEXTURE_SETUP] Using mesh: ${mesh.name}, type: ${mesh.type}`);
-        
-        // Get the HTML content directly from meshData
-        const html = meshData.html;
-        
-        if (!html) {
-            console.warn(`[TEXTURE_SETUP] No HTML content found for mesh ID ${meshData.id}`);
-            return;
-        }
-        
-        console.log(`[TEXTURE_SETUP] HTML content length: ${html.length} characters`);
-        if (html.length > 100) {
-            console.log(`[TEXTURE_SETUP] First 100 chars: ${html.substring(0, 100)}...`);
-        } else {
-            console.log(`[TEXTURE_SETUP] HTML content: ${html}`);
-        }
-        
-        // Set up window global for preview borders settings
-        window.showPreviewBorders = settings.display && 
-            settings.display.showBorders !== undefined ? 
-            settings.display.showBorders : true;
-        
-        // Handle long exposure special case
-        const isLongExposure = renderType === 'longExposure' || 
-                              (settings.previewMode === 'longExposure');
-                              
-        // Create iframe and set up content
-        const iframe = createAndSetupIframe(html);
-        
-        // Update our data with the iframe
-        if (activeTextureData.has(meshId)) {
-            activeTextureData.get(meshId).iframe = iframe;
-        }
-        
-        // Add animation if enabled
-        if (settings.animation && !isLongExposure) {
             
-            // Add animation JavaScript to the iframe
-            try {
-                // Wait for iframe to fully load before adding animation
-                iframe.onload = function() {
-                    if (!iframe.contentDocument) return;
-                    
-                    const style = iframe.contentDocument.createElement('style');
-                    
-                    // Calculate animation duration based on playback speed
-                    const speed = settings.playbackSpeed || 1.0;
-                    const baseDuration = 2.0; // Base duration in seconds
-                    const duration = baseDuration / speed;
-                    
-                    // Add animation styles based on animation type
-                    if (settings.animation.type === 'loop') {
-                        style.textContent = `
-                            @keyframes slide {
-                                0% { transform: translateX(0); }
-                                50% { transform: translateX(20px); }
-                                100% { transform: translateX(0); }
-                            }
-                            
-                            body * {
-                                animation: slide ${duration}s infinite ease-in-out;
-                            }
-                        `;
-                    } else if (settings.animation.type === 'bounce') {
-                        style.textContent = `
-                            @keyframes bounce {
-                                0%, 100% { transform: translateY(0); }
-                                50% { transform: translateY(-20px); }
-                            }
-                            
-                            body * {
-                                animation: bounce ${duration}s infinite ease-in-out;
-                            }
-                        `;
+            // Generate a unique ID for this mesh
+            const meshId = `mesh_${meshData.id}`;
+            
+            // Get the mesh directly from the meshData object
+            let targetMesh = meshData.mesh;
+            
+            // Clean up any existing texture data for this mesh
+            if (activeTextureData.has(meshId)) {
+                const oldData = activeTextureData.get(meshId);
+                if (oldData.iframe) {
+                    try {
+                        document.body.removeChild(oldData.iframe);
+                    } catch (error) {
+                        console.debug('[TEXTURE_SETUP] Error removing old iframe:', error);
                     }
-                    
-                    // Add the style to the iframe document
-                    iframe.contentDocument.head.appendChild(style);
-                    console.log(`[TEXTURE_SETUP] Added ${settings.animation.type} animation to iframe content`);
-                };
-            } catch (error) {
-                console.error('[TEXTURE_SETUP] Error injecting animation:', error);
+                }
+                activeTextureData.delete(meshId);
             }
-        }
             
-        // Create a material for the mesh and set the iframe as texture
-        if (isLongExposure) {
-            // For long exposure mode, we need to capture multiple frames
-            // and blend them together
-            console.log('[TEXTURE_SETUP] Creating long exposure texture for mesh');
-            
-            // Set the capturing flag
-            setCapturingForLongExposure(true);
-            
-            // Store original border setting
-            window._originalBorderSetting = window.showPreviewBorders;
-            
-            // Disable borders during long exposure capture
-            window.showPreviewBorders = false;
-            
-            // Create an array to store frames
-            const frames = [];
-            const frameCount = 30; // Capture 30 frames for blending
-            const captureInterval = 50; // Time between frames in ms
-            
-            // Recursive function to capture frames
-            const captureFrame = async (index) => {
-                if (index >= frameCount) {
-                    // All frames captured, create long exposure texture
-                    const texture = createLongExposureTexture(
-                        frames, 
-                        settings.playbackSpeed || 1.0
-                    );
-                    
-                    // Apply texture to mesh
-                    applyTextureToMesh(mesh, texture);
-                    
-                    // Cleanup
-                    document.body.removeChild(iframe);
-                    setCapturingForLongExposure(false);
-                    return;
-                }
+            // If mesh is not provided, try to find it using the state
+            if (!targetMesh) {
+                console.warn(`[TEXTURE_SETUP] No mesh object provided directly in meshData for ID ${meshData.id}, trying to find it in the state`);
                 
-                // Capture current frame
                 try {
-                    const texture = await createTextureFromIframe(iframe);
-                    frames.push({ 
-                        texture, 
-                        timestamp: Date.now() 
-                    });
-                    
-                    // Capture next frame after interval
-                    setTimeout(() => captureFrame(index + 1), captureInterval);
-                } catch (error) {
-                    console.error('[TEXTURE_SETUP] Error capturing frame for long exposure:', error);
-                    // Continue with next frame even if there's an error
-                    setTimeout(() => captureFrame(index + 1), captureInterval);
-                }
-            };
-            
-            // Give time for iframe to fully load before starting capture
-            setTimeout(() => captureFrame(0), 800);
-        } else {
-            // For normal mode, set up texture animation system
-            setTimeout(async () => {
-                try {
-                    console.log('[TEXTURE_SETUP] Creating initial texture from iframe');
-                    
-                    // Make sure html2canvas is available before proceeding
-                    const html2canvasAvailable = await ensureHtml2Canvas();
-                    if (!html2canvasAvailable) {
-                        console.error('[TEXTURE_SETUP] html2canvas library could not be loaded, cannot create texture');
-                        document.body.removeChild(iframe);
+                    // Import state module to get current state
+                    const stateModule = await import('./state.js');
+                    const state = stateModule.getState();
+                    if (!state.meshes || state.meshes.length === 0) {
+                        console.error('[TEXTURE_SETUP] No meshes available in state');
+                        reject(new Error('No meshes available in state'));
                         return;
                     }
                     
-                    // Create an initial texture to apply immediately
-                    const texture = await createTextureFromIframe(iframe);
-                    
-                    // Apply the texture to the mesh
-                    console.log('[TEXTURE_SETUP] Applying initial texture to mesh');
-                    applyTextureToMesh(mesh, texture);
-                    
-                    // Store the texture in our data
-                    if (activeTextureData.has(meshId)) {
-                        activeTextureData.get(meshId).initialTexture = texture;
-                    }
-                    
-                    // Set up animation if needed
-                    if (settings.animation && !isLongExposure) {
-                        // Set up texture animation for this mesh
-                        console.log('[TEXTURE_SETUP] Setting up animation for mesh');
-                        setupTextureAnimation(meshId, iframe, settings);
-                    } else {
-                        // No animation, remove the iframe after initial capture
-                        console.log('[TEXTURE_SETUP] No animation needed, removing iframe after capture');
-                        document.body.removeChild(iframe);
+                    // Try to find mesh by index
+                    if (state.meshes.length > meshData.id) {
+                        targetMesh = state.meshes[meshData.id];
+                        console.log(`[TEXTURE_SETUP] Found mesh by index: ${targetMesh.name || 'unnamed'}`);
                         
-                        // Keep the mesh and texture data for later cleanup
+                        // Store mesh reference in activeTextureData
                         if (activeTextureData.has(meshId)) {
-                            const data = activeTextureData.get(meshId);
-                            data.iframe = null;
+                            activeTextureData.get(meshId).mesh = targetMesh;
                         }
+                        
+                        // Now continue with the found mesh
+                        await continueWithMesh(targetMesh, meshId, meshData, renderType, settings);
+                        resolve(true);
+                    } else {
+                        console.error(`[TEXTURE_SETUP] Mesh index ${meshData.id} out of bounds (total meshes: ${state.meshes.length})`);
+                        reject(new Error('Mesh index out of bounds'));
                     }
                 } catch (error) {
-                    console.error('[TEXTURE_SETUP] Error creating texture from iframe:', error);
-                    document.body.removeChild(iframe);
-                    
-                    // Remove from active textures
-                    activeTextureData.delete(meshId);
+                    console.error('[TEXTURE_SETUP] Error importing state module:', error);
+                    reject(error);
                 }
-            }, 800); // Increase the delay to give more time for the iframe content to load
+                
+                return;
+            }
+            
+            // Continue with the mesh we have
+            try {
+                await continueWithMesh(targetMesh, meshId, meshData, renderType, settings);
+                resolve(true);
+            } catch (error) {
+                console.error('[TEXTURE_SETUP] Error in continueWithMesh:', error);
+                reject(error);
+            }
+        } catch (error) {
+            console.error('[TEXTURE_SETUP] Error in setCustomTexture:', error);
+            reject(error);
         }
+    });
+    
+    // Helper function to continue texture process with a valid mesh
+    // Pass all required parameters explicitly to avoid closure scope issues
+    async function continueWithMesh(mesh, meshId, meshData, renderType, settings) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                // Store the mesh in our data
+                if (activeTextureData.has(meshId)) {
+                    activeTextureData.get(meshId).mesh = mesh;
+                } else {
+                    activeTextureData.set(meshId, { mesh });
+                }
+                
+                // Check if mesh still exists in the scene
+                try {
+                    if (!mesh.isMesh) {
+                        console.error(`[TEXTURE_SETUP] Target object is not a mesh for ID ${meshData.id}`);
+                        reject(new Error('Target object is not a mesh'));
+                        return;
+                    }
+                } catch (error) {
+                    console.error(`[TEXTURE_SETUP] Error checking mesh validity for ID ${meshData.id}:`, error);
+                    reject(error);
+                    return;
+                }
+                
+                console.log(`[TEXTURE_SETUP] Using mesh: ${mesh.name}, type: ${mesh.type}`);
+                
+                // Get the HTML content directly from meshData
+                const html = meshData.html;
+                
+                if (!html) {
+                    console.warn(`[TEXTURE_SETUP] No HTML content found for mesh ID ${meshData.id}`);
+                    reject(new Error('No HTML content found'));
+                    return;
+                }
+                
+                console.log(`[TEXTURE_SETUP] HTML content length: ${html.length} characters`);
+                if (html.length > 100) {
+                    console.log(`[TEXTURE_SETUP] First 100 chars: ${html.substring(0, 100)}...`);
+                } else {
+                    console.log(`[TEXTURE_SETUP] HTML content: ${html}`);
+                }
+                
+                // Set up window global for preview borders settings
+                window.showPreviewBorders = settings.display && 
+                    settings.display.showBorders !== undefined ? 
+                    settings.display.showBorders : true;
+                
+                // Handle long exposure special case
+                const isLongExposure = renderType === 'longExposure' || 
+                                    (settings.previewMode === 'longExposure');
+                                    
+                // Create iframe and set up content
+                const iframe = createAndSetupIframe(html);
+                
+                // Update our data with the iframe
+                if (activeTextureData.has(meshId)) {
+                    activeTextureData.get(meshId).iframe = iframe;
+                }
+                
+                // Add animation if enabled
+                if (settings.animation && !isLongExposure) {
+                    
+                    // Add animation JavaScript to the iframe
+                    try {
+                        // Wait for iframe to fully load before adding animation
+                        iframe.onload = function() {
+                            if (!iframe.contentDocument) return;
+                            
+                            const style = iframe.contentDocument.createElement('style');
+                            
+                            // Calculate animation duration based on playback speed
+                            const speed = settings.playbackSpeed || 1.0;
+                            const baseDuration = 2.0; // Base duration in seconds
+                            const duration = baseDuration / speed;
+                            
+                            // Add animation styles based on animation type
+                            if (settings.animation.type === 'loop') {
+                                style.textContent = `
+                                    @keyframes slide {
+                                        0% { transform: translateX(0); }
+                                        50% { transform: translateX(20px); }
+                                        100% { transform: translateX(0); }
+                                    }
+                                    
+                                    body * {
+                                        animation: slide ${duration}s infinite ease-in-out;
+                                    }
+                                `;
+                            } else if (settings.animation.type === 'bounce') {
+                                style.textContent = `
+                                    @keyframes bounce {
+                                        0%, 100% { transform: translateY(0); }
+                                        50% { transform: translateY(-20px); }
+                                    }
+                                    
+                                    body * {
+                                        animation: bounce ${duration}s infinite ease-in-out;
+                                    }
+                                `;
+                            }
+                            
+                            // Add the style to the iframe document
+                            iframe.contentDocument.head.appendChild(style);
+                            console.log(`[TEXTURE_SETUP] Added ${settings.animation.type} animation to iframe content`);
+                        };
+                    } catch (error) {
+                        console.error('[TEXTURE_SETUP] Error injecting animation:', error);
+                    }
+                }
+                    
+                // Create a material for the mesh and set the iframe as texture
+                if (isLongExposure) {
+                    // For long exposure mode, we need to capture multiple frames
+                    // and blend them together
+                    console.log('[TEXTURE_SETUP] Creating long exposure texture for mesh');
+                    
+                    // Set the capturing flag
+                    setCapturingForLongExposure(true);
+                    
+                    // Store original border setting
+                    window._originalBorderSetting = window.showPreviewBorders;
+                    
+                    // Disable borders during long exposure capture
+                    window.showPreviewBorders = false;
+                    
+                    // Create an array to store frames
+                    const frames = [];
+                    const frameCount = 30; // Capture 30 frames for blending
+                    const captureInterval = 50;
+                    
+                    let capturedFrames = 0;
+                    
+                    const captureFrame = async () => {
+                        try {
+                            // Make sure html2canvas is available
+                            const html2canvasAvailable = await ensureHtml2Canvas();
+                            if (!html2canvasAvailable) {
+                                console.error('[TEXTURE_SETUP] html2canvas library not available for long exposure');
+                                document.body.removeChild(iframe);
+                                setCapturingForLongExposure(false);
+                                reject(new Error('html2canvas not available'));
+                                return;
+                            }
+                            
+                            // Capture the current frame
+                            const texture = await createTextureFromIframe(iframe);
+                            frames.push({texture, timestamp: Date.now()});
+                            capturedFrames++;
+                            
+                            // Check if we have captured all frames
+                            if (capturedFrames >= frameCount) {
+                                // Create the long exposure texture
+                                console.log(`[TEXTURE_SETUP] Creating long exposure from ${frames.length} frames`);
+                                const longExposureTexture = createLongExposureTexture(frames, settings.playbackSpeed || 1.0);
+                                
+                                // Apply the texture to the mesh
+                                await applyTextureToMesh(mesh, longExposureTexture);
+                                
+                                // Clean up
+                                document.body.removeChild(iframe);
+                                setCapturingForLongExposure(false);
+                                
+                                // Restore border setting
+                                if (window._originalBorderSetting !== undefined) {
+                                    window.showPreviewBorders = window._originalBorderSetting;
+                                    delete window._originalBorderSetting;
+                                }
+                                
+                                resolve(true);
+                            } else {
+                                // Continue capturing frames
+                                setTimeout(captureFrame, captureInterval);
+                            }
+                        } catch (error) {
+                            console.error('[TEXTURE_SETUP] Error capturing frame for long exposure:', error);
+                            document.body.removeChild(iframe);
+                            setCapturingForLongExposure(false);
+                            reject(error);
+                        }
+                    };
+                    
+                    // Start capturing frames
+                    setTimeout(captureFrame, 500);
+                } 
+                else {
+                    // For normal mode, use pre-rendering approach similar to preview mode
+                    setTimeout(async () => {
+                        try {
+                            console.log('[TEXTURE_SETUP] Pre-rendering frames for animation');
+                            
+                            // Make sure html2canvas is available before proceeding
+                            const html2canvasAvailable = await ensureHtml2Canvas();
+                            if (!html2canvasAvailable) {
+                                console.error('[TEXTURE_SETUP] html2canvas library could not be loaded, cannot create texture');
+                                document.body.removeChild(iframe);
+                                reject(new Error('html2canvas not available'));
+                                return;
+                            }
+                            
+                            // Create an initial texture to apply immediately so there's visual feedback
+                            const initialTexture = await createTextureFromIframe(iframe);
+                            
+                            // Apply the initial texture to the mesh
+                            console.log('[TEXTURE_SETUP] Applying initial texture to mesh');
+                            await applyTextureToMesh(mesh, initialTexture);
+                            
+                            // Store the texture and mesh in our data
+                            if (activeTextureData.has(meshId)) {
+                                const data = activeTextureData.get(meshId);
+                                data.initialTexture = initialTexture;
+                                data.mesh = mesh; // Ensure mesh reference is maintained
+                            }
+                            
+                            // If animation is needed, use a pre-rendering approach
+                            if (settings.animation) {
+                                // Import animation utility to use pre-rendering
+                                const animationModule = await import('./animation-util.js');
+                                
+                                // Create CustomTextureSettings object with required properties
+                                const customTextureSettings = {
+                                    html: html,
+                                    meshId: meshData.id,
+                                    previewMode: renderType,
+                                    playbackSpeed: settings.playbackSpeed || 1.0,
+                                    animationType: settings.animation.type || 'play',
+                                    showPreviewBorders: window.showPreviewBorders,
+                                    updateStatus: (msg, type) => console.log(`[TEXTURE_STATUS] ${msg} (${type})`)
+                                };
+                                
+                                // Use the same pre-rendering as in preview mode
+                                if (typeof animationModule.startImage2TexturePreRendering === 'function') {
+                                    console.log('[TEXTURE_SETUP] Starting pre-rendering for animation');
+                                    
+                                    // Start pre-rendering with the mesh directly in the callback
+                                    await new Promise(preRenderResolve => {
+                                        animationModule.startImage2TexturePreRendering(iframe, () => {
+                                            console.log('[TEXTURE_SETUP] Pre-rendering complete, setting up animation loop');
+                                            
+                                            // Setup animation loop that properly maintains mesh reference
+                                            setupTextureAnimation(meshId, iframe, settings, mesh);
+                                            
+                                            // Reinforce the mesh connection
+                                            if (activeTextureData.has(meshId)) {
+                                                activeTextureData.get(meshId).mesh = mesh;
+                                            }
+                                            
+                                            preRenderResolve();
+                                        }, null, customTextureSettings);
+                                    });
+                                } else {
+                                    // Fallback to old animation method if pre-rendering isn't available
+                                    console.log('[TEXTURE_SETUP] Pre-rendering not available, using basic animation');
+                                    setupTextureAnimation(meshId, iframe, settings, mesh);
+                                }
+                            } else {
+                                // No animation, remove the iframe after initial capture
+                                console.log('[TEXTURE_SETUP] No animation needed, removing iframe after capture');
+                                document.body.removeChild(iframe);
+                                
+                                // Keep the mesh and texture data for later cleanup
+                                if (activeTextureData.has(meshId)) {
+                                    const data = activeTextureData.get(meshId);
+                                    data.iframe = null;
+                                }
+                            }
+                            
+                            resolve(true);
+                        } catch (error) {
+                            console.error('[TEXTURE_SETUP] Error creating texture from iframe:', error);
+                            try {
+                                document.body.removeChild(iframe);
+                            } catch (removeError) {
+                                console.debug('[TEXTURE_SETUP] Error removing iframe after error:', removeError);
+                            }
+                            
+                            // Remove from active textures
+                            activeTextureData.delete(meshId);
+                            reject(error);
+                        }
+                    }, 800); // Increase the delay to give more time for the iframe content to load
+                }
+            } catch (error) {
+                console.error('[TEXTURE_SETUP] Error in continueWithMesh:', error);
+                reject(error);
+            }
+        });
     }
 }
 
@@ -1083,215 +1177,251 @@ export function setCustomTexture(meshData, renderType, settings = {}) {
  * Apply a texture to a mesh
  * @param {THREE.Mesh} mesh - The mesh to update
  * @param {THREE.Texture} texture - The texture to apply
+ * @returns {Promise<boolean>} Promise that resolves when texture is applied and rendered
  */
 function applyTextureToMesh(mesh, texture) {
-    if (!mesh || !texture) {
-        console.error('[TEXTURE_DEBUG] Cannot apply texture: mesh or texture is missing', {
-            hasMesh: !!mesh,
-            hasTexture: !!texture
-        });
-        return;
-    }
-    
-    try {
-        console.log(`[TEXTURE_DEBUG] Applying texture to mesh:`, { 
-            meshName: mesh.name || 'unnamed',
-            meshType: mesh.type,
-            textureSize: texture.image ? `${texture.image.width}x${texture.image.height}` : 'unknown',
-            hasImageData: !!texture.image,
-            materialType: Array.isArray(mesh.material) ? 'array' : (mesh.material ? mesh.material.type : 'none')
-        });
-        
-        // Validate the texture
-        if (!texture.image) {
-            console.error('[TEXTURE_DEBUG] Texture has no image data!');
-            // Create a visible error texture
-            const errorTexture = createDebugTexture('Texture has no image data');
-            texture = errorTexture;
-        }
-        
-        // Check if image data is valid
-        if (texture.image && (texture.image.width === 0 || texture.image.height === 0)) {
-            console.error('[TEXTURE_DEBUG] Texture has invalid dimensions:', {
-                width: texture.image.width,
-                height: texture.image.height
+    return new Promise((resolve, reject) => {
+        if (!mesh || !texture) {
+            console.error('[TEXTURE_DEBUG] Cannot apply texture: mesh or texture is missing', {
+                hasMesh: !!mesh,
+                hasTexture: !!texture
             });
-            // Create a visible error texture
-            const errorTexture = createDebugTexture('Texture has invalid dimensions');
-            texture = errorTexture;
+            reject(new Error('Missing mesh or texture'));
+            return;
         }
         
-        // Set texture properties that help with display
-        texture.anisotropy = 16; // High quality filtering
-        texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        texture.generateMipmaps = false;
-        
-        // Ensure the texture is using the correct encoding
-        if (THREE.sRGBEncoding !== undefined) {
-            texture.encoding = THREE.sRGBEncoding;
-            console.log('[TEXTURE_DEBUG] Set texture encoding to sRGBEncoding');
-        } else if (THREE.LinearSRGBColorSpace !== undefined) {
-            texture.colorSpace = THREE.LinearSRGBColorSpace;
-            console.log('[TEXTURE_DEBUG] Set texture colorSpace to LinearSRGBColorSpace');
-        }
-        
-        texture.needsUpdate = true;
-        
-        // Handle different material types
-        if (mesh.material) {
-            if (Array.isArray(mesh.material)) {
-                console.log(`[TEXTURE_DEBUG] Mesh has ${mesh.material.length} materials, applying to all`);
-                // If the mesh has multiple materials, apply to all
-                mesh.material.forEach((material, index) => {
-                    // Log material state before update
-                    console.log(`[TEXTURE_DEBUG] Material ${index} before update:`, {
-                        type: material.type,
-                        hasMap: !!material.map,
-                        mapUuid: material.map ? material.map.uuid : 'none',
-                        transparent: material.transparent,
-                        opacity: material.opacity,
-                        color: material.color ? material.color.getHexString() : 'none'
-                    });
+        try {
+            console.log(`[TEXTURE_DEBUG] Applying texture to mesh:`, { 
+                meshName: mesh.name || 'unnamed',
+                meshType: mesh.type,
+                textureSize: texture.image ? `${texture.image.width}x${texture.image.height}` : 'unknown',
+                hasImageData: !!texture.image,
+                materialType: Array.isArray(mesh.material) ? 'array' : (mesh.material ? mesh.material.type : 'none')
+            });
+            
+            // Validate the texture
+            if (!texture.image) {
+                console.error('[TEXTURE_DEBUG] Texture has no image data!');
+                // Create a visible error texture
+                const errorTexture = createDebugTexture('Texture has no image data');
+                texture = errorTexture;
+            }
+            
+            // Check if image data is valid
+            if (texture.image && (texture.image.width === 0 || texture.image.height === 0)) {
+                console.error('[TEXTURE_DEBUG] Texture has invalid dimensions:', {
+                    width: texture.image.width,
+                    height: texture.image.height
+                });
+                // Create a visible error texture
+                const errorTexture = createDebugTexture('Texture has invalid dimensions');
+                texture = errorTexture;
+            }
+            
+            // Set texture properties that help with display
+            texture.anisotropy = 16; // High quality filtering
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            texture.generateMipmaps = false;
+            
+            // Ensure the texture is using the correct encoding
+            if (THREE.sRGBEncoding !== undefined) {
+                texture.encoding = THREE.sRGBEncoding;
+                console.log('[TEXTURE_DEBUG] Set texture encoding to sRGBEncoding');
+            } else if (THREE.LinearSRGBColorSpace !== undefined) {
+                texture.colorSpace = THREE.LinearSRGBColorSpace;
+                console.log('[TEXTURE_DEBUG] Set texture colorSpace to LinearSRGBColorSpace');
+            }
+            
+            // Add texture load handler to ensure rendering after texture is fully loaded
+            const checkTextureLoaded = () => {
+                if (texture.image && texture.image.complete) {
+                    texture.needsUpdate = true;
+                    applyTextureToMaterial();
+                } else if (texture.image) {
+                    // If image is still loading, wait for it
+                    texture.image.onload = () => {
+                        texture.needsUpdate = true;
+                        applyTextureToMaterial();
+                    };
                     
-                    // Backup original material properties
-                    if (material._originalMap === undefined) {
-                        material._originalMap = material.map;
-                        material._originalColor = material.color ? material.color.clone() : null;
-                        material._originalEmissive = material.emissive ? material.emissive.clone() : null;
-                        material._originalRoughness = material.roughness;
-                        material._originalMetalness = material.metalness;
-                        console.log(`[TEXTURE_DEBUG] Backed up original material properties for material ${index}`);
+                    // Handle image load errors
+                    texture.image.onerror = (err) => {
+                        console.error('[TEXTURE_DEBUG] Texture image failed to load', err);
+                        reject(new Error('Texture image failed to load'));
+                    };
+                } else {
+                    // If no image property, assume it's ready (like canvas textures)
+                    texture.needsUpdate = true;
+                    applyTextureToMaterial();
+                }
+            };
+            
+            // Function to apply the texture to the material
+            const applyTextureToMaterial = () => {
+                // Handle different material types
+                if (mesh.material) {
+                    if (Array.isArray(mesh.material)) {
+                        console.log(`[TEXTURE_DEBUG] Mesh has ${mesh.material.length} materials, applying to all`);
+                        // If the mesh has multiple materials, apply to all
+                        mesh.material.forEach((material, index) => {
+                            // Log material state before update
+                            console.log(`[TEXTURE_DEBUG] Material ${index} before update:`, {
+                                type: material.type,
+                                hasMap: !!material.map,
+                                mapUuid: material.map ? material.map.uuid : 'none',
+                                transparent: material.transparent,
+                                opacity: material.opacity,
+                                color: material.color ? material.color.getHexString() : 'none'
+                            });
+                            
+                            // Backup original material properties
+                            if (material._originalMap === undefined) {
+                                material._originalMap = material.map;
+                                material._originalColor = material.color ? material.color.clone() : null;
+                                material._originalEmissive = material.emissive ? material.emissive.clone() : null;
+                                material._originalRoughness = material.roughness;
+                                material._originalMetalness = material.metalness;
+                                console.log(`[TEXTURE_DEBUG] Backed up original material properties for material ${index}`);
+                            }
+                            
+                            // Set the texture properties
+                            material.map = texture;
+                            
+                            // Set material properties to ensure texture is displayed correctly
+                            setMaterialForTextureDisplay(material);
+                            
+                            // Log material state after update
+                            console.log(`[TEXTURE_DEBUG] Material ${index} after update:`, {
+                                type: material.type,
+                                hasMap: !!material.map,
+                                mapUuid: material.map ? material.map.uuid : 'none',
+                                transparent: material.transparent,
+                                opacity: material.opacity,
+                                color: material.color ? material.color.getHexString() : 'none'
+                            });
+                        });
+                    } else {
+                        // Single material
+                        console.log('[TEXTURE_DEBUG] Mesh has a single material, applying texture');
+                        
+                        // Log material state before update
+                        console.log('[TEXTURE_DEBUG] Material before update:', {
+                            type: mesh.material.type,
+                            hasMap: !!mesh.material.map,
+                            mapUuid: mesh.material.map ? mesh.material.map.uuid : 'none',
+                            transparent: mesh.material.transparent,
+                            opacity: mesh.material.opacity,
+                            color: mesh.material.color ? mesh.material.color.getHexString() : 'none',
+                            roughness: mesh.material.roughness,
+                            metalness: mesh.material.metalness
+                        });
+                        
+                        // Backup original material properties
+                        if (mesh.material._originalMap === undefined) {
+                            mesh.material._originalMap = mesh.material.map;
+                            mesh.material._originalColor = mesh.material.color ? mesh.material.color.clone() : null;
+                            mesh.material._originalEmissive = mesh.material.emissive ? mesh.material.emissive.clone() : null;
+                            mesh.material._originalRoughness = mesh.material.roughness;
+                            mesh.material._originalMetalness = mesh.material.metalness;
+                            console.log('[TEXTURE_DEBUG] Backed up original material properties');
+                        }
+                        
+                        // Set the texture properties
+                        mesh.material.map = texture;
+                        
+                        // Set material properties to ensure texture is displayed correctly
+                        setMaterialForTextureDisplay(mesh.material);
+                        
+                        // Log material state after update
+                        console.log('[TEXTURE_DEBUG] Material after update:', {
+                            type: mesh.material.type,
+                            hasMap: !!mesh.material.map,
+                            mapUuid: mesh.material.map ? mesh.material.map.uuid : 'none',
+                            textureUuid: texture.uuid,
+                            transparent: mesh.material.transparent,
+                            opacity: mesh.material.opacity,
+                            color: mesh.material.color ? mesh.material.color.getHexString() : 'none',
+                            roughness: mesh.material.roughness,
+                            metalness: mesh.material.metalness
+                        });
                     }
                     
-                    // Set the texture properties
-                    material.map = texture;
-                    
-                    // Set material properties to ensure texture is displayed correctly
-                    setMaterialForTextureDisplay(material);
-                    
-                    // Log material state after update
-                    console.log(`[TEXTURE_DEBUG] Material ${index} after update:`, {
-                        type: material.type,
-                        hasMap: !!material.map,
-                        mapUuid: material.map ? material.map.uuid : 'none',
-                        transparent: material.transparent,
-                        opacity: material.opacity,
-                        color: material.color ? material.color.getHexString() : 'none'
+                    // Trigger a single render using the most reliable renderer we can find
+                    triggerRender().then(() => {
+                        console.log('[TEXTURE_DEBUG] Texture successfully applied to mesh');
+                        resolve(true);
+                    }).catch(error => {
+                        console.error('[TEXTURE_DEBUG] Error in render after texture application:', error);
+                        // Even if rendering fails, resolve the promise since we did apply the texture
+                        resolve(true);
                     });
-                });
-            } else {
-                // Single material
-                console.log('[TEXTURE_DEBUG] Mesh has a single material, applying texture');
-                
-                // Log material state before update
-                console.log('[TEXTURE_DEBUG] Material before update:', {
-                    type: mesh.material.type,
-                    hasMap: !!mesh.material.map,
-                    mapUuid: mesh.material.map ? mesh.material.map.uuid : 'none',
-                    transparent: mesh.material.transparent,
-                    opacity: mesh.material.opacity,
-                    color: mesh.material.color ? mesh.material.color.getHexString() : 'none',
-                    roughness: mesh.material.roughness,
-                    metalness: mesh.material.metalness
-                });
-                
-                // Backup original material properties
-                if (mesh.material._originalMap === undefined) {
-                    mesh.material._originalMap = mesh.material.map;
-                    mesh.material._originalColor = mesh.material.color ? mesh.material.color.clone() : null;
-                    mesh.material._originalEmissive = mesh.material.emissive ? mesh.material.emissive.clone() : null;
-                    mesh.material._originalRoughness = mesh.material.roughness;
-                    mesh.material._originalMetalness = mesh.material.metalness;
-                    console.log('[TEXTURE_DEBUG] Backed up original material properties');
+                } else {
+                    console.error('[TEXTURE_DEBUG] Mesh has no material to apply texture to');
+                    reject(new Error('Mesh has no material'));
                 }
-                
-                // Set the texture properties
-                mesh.material.map = texture;
-                
-                // Set material properties to ensure texture is displayed correctly
-                setMaterialForTextureDisplay(mesh.material);
-                
-                // Log material state after update
-                console.log('[TEXTURE_DEBUG] Material after update:', {
-                    type: mesh.material.type,
-                    hasMap: !!mesh.material.map,
-                    mapUuid: mesh.material.map ? mesh.material.map.uuid : 'none',
-                    textureUuid: texture.uuid,
-                    transparent: mesh.material.transparent,
-                    opacity: mesh.material.opacity,
-                    color: mesh.material.color ? mesh.material.color.getHexString() : 'none',
-                    roughness: mesh.material.roughness,
-                    metalness: mesh.material.metalness
-                });
-            }
+            };
             
-            // Force a render update using multiple approaches to ensure rendering happens
-            let rendererFound = false;
+            // Start the texture loading process
+            checkTextureLoaded();
             
-            // Try to get renderer from global window
-            if (window.renderer) {
-                console.log('[TEXTURE_DEBUG] Triggering render using window.renderer');
-                window.renderer.render();
-                rendererFound = true;
-            }
-            
-            // Try to get renderer from state
+        } catch (error) {
+            console.error('[TEXTURE_DEBUG] Error applying texture to mesh:', error);
+            reject(error);
+        }
+    });
+}
+
+/**
+ * Trigger a render using the best available renderer
+ * @returns {Promise<boolean>} Promise that resolves when rendering is complete
+ */
+function triggerRender() {
+    return new Promise((resolve, reject) => {
+        try {
+            // Import state to get renderer
             import('./state.js').then(stateModule => {
                 const state = stateModule.getState();
-                if (state && state.renderer) {
+                
+                if (state && state.renderer && state.scene && state.camera) {
                     console.log('[TEXTURE_DEBUG] Triggering render using state.renderer');
-                    state.renderer.render(state.scene, state.camera);
-                    rendererFound = true;
-                } else if (!rendererFound) {
-                    console.warn('[TEXTURE_DEBUG] No renderer found in state, trying one last approach');
                     
-                    // Try one more approach - look for render function in window
-                    if (typeof window.render === 'function') {
-                        console.log('[TEXTURE_DEBUG] Triggering render using window.render()');
+                    // Use requestAnimationFrame to ensure we render in the next frame
+                    // This helps ensure textures have had time to load properly
+                    requestAnimationFrame(() => {
+                        state.renderer.render(state.scene, state.camera);
+                        console.log('[TEXTURE_DEBUG] Render complete');
+                        resolve(true);
+                    });
+                } else if (window.renderer) {
+                    console.log('[TEXTURE_DEBUG] Triggering render using window.renderer');
+                    
+                    requestAnimationFrame(() => {
+                        window.renderer.render();
+                        console.log('[TEXTURE_DEBUG] Render complete');
+                        resolve(true);
+                    });
+                } else if (typeof window.render === 'function') {
+                    console.log('[TEXTURE_DEBUG] Triggering render using window.render()');
+                    
+                    requestAnimationFrame(() => {
                         window.render();
-                        rendererFound = true;
-                    } else {
-                        console.error('[TEXTURE_DEBUG] Could not find any way to trigger a render!');
-                    }
+                        console.log('[TEXTURE_DEBUG] Render complete');
+                        resolve(true);
+                    });
+                } else {
+                    console.warn('[TEXTURE_DEBUG] No renderer found, cannot trigger render');
+                    resolve(false);
                 }
             }).catch(error => {
                 console.error('[TEXTURE_DEBUG] Error importing state module:', error);
+                reject(error);
             });
-            
-            // Schedule repeated renders to ensure the texture is fully loaded and displayed
-            const scheduleRenders = (count = 5, delay = 100) => {
-                if (count <= 0) return;
-                
-                setTimeout(() => {
-                    try {
-                        import('./state.js').then(stateModule => {
-                            const state = stateModule.getState();
-                            if (state && state.renderer && state.scene && state.camera) {
-                                console.log(`[TEXTURE_DEBUG] Triggering delayed render ${6-count}/5 to ensure texture appears`);
-                                state.renderer.render(state.scene, state.camera);
-                            }
-                            // Schedule next render
-                            scheduleRenders(count - 1, delay);
-                        }).catch(error => {
-                            console.error('[TEXTURE_DEBUG] Error in delayed render:', error);
-                        });
-                    } catch (error) {
-                        console.error('[TEXTURE_DEBUG] Error in delayed render:', error);
-                    }
-                }, delay);
-            };
-            
-            // Start scheduled renders
-            scheduleRenders();
-            
-            console.log('[TEXTURE_DEBUG] Texture successfully applied to mesh');
-        } else {
-            console.error('[TEXTURE_DEBUG] Mesh has no material to apply texture to');
+        } catch (error) {
+            console.error('[TEXTURE_DEBUG] Error in triggerRender:', error);
+            reject(error);
         }
-    } catch (error) {
-        console.error('[TEXTURE_DEBUG] Error applying texture to mesh:', error);
-    }
+    });
 }
 
 /**
@@ -1337,140 +1467,211 @@ function setMaterialForTextureDisplay(material) {
 /**
  * Disable custom texture display on a mesh
  * @param {Object} meshData - Data about the mesh to remove display from
+ * @returns {Promise<boolean>} Promise that resolves when texture is removed
  */
 export function disableCustomTexture(meshData) {
-    console.log('Disabling custom texture for mesh:', meshData?.id);
-    
-    if (!meshData || !meshData.id) {
-        console.error('Invalid mesh data provided to disableCustomTexture');
-        return;
-    }
-    
-    // Generate the unique ID for this mesh
-    const meshId = `mesh_${meshData.id}`;
-    
-    // Clean up animation resources for this mesh
-    if (activeTextureData.has(meshId)) {
-        const data = activeTextureData.get(meshId);
-        
-        // Remove iframe if it exists
-        if (data.iframe) {
-            try {
-                document.body.removeChild(data.iframe);
-            } catch (error) {
-                console.debug('Error removing iframe:', error);
-            }
-        }
-        
-        // Restore the original mesh material if we have the mesh
-        if (data.mesh) {
-            restoreMeshMaterial(data.mesh, meshData.id);
-        }
-        
-        // Remove from active textures
-        activeTextureData.delete(meshId);
-    } else {
-        // Fall back to old method if not in our tracking system
-        fallbackDisableTexture();
-    }
-    
-    // Fallback method to find and disable texture if not in our tracking system
-    function fallbackDisableTexture() {
-        // Try to get the mesh directly from meshData
-        let targetMesh = meshData.mesh;
-        
-        // If mesh is not provided in meshData, try to find it in the scene
-        if (!targetMesh) {
-            console.log(`No mesh provided in meshData for ID ${meshData.id}, trying to find in scene`);
+    return new Promise(async (resolve, reject) => {
+        try {
+            console.log('Disabling custom texture for mesh:', meshData?.id);
             
-            // Fall back to looking for the mesh in the scene
-            import('./state.js').then(stateModule => {
-                const state = stateModule.getState();
-                if (!state.scene) {
-                    console.error('Scene not available in state');
-                    return;
+            if (!meshData || !meshData.id) {
+                console.error('Invalid mesh data provided to disableCustomTexture');
+                reject(new Error('Invalid mesh data'));
+                return;
+            }
+            
+            // Generate the unique ID for this mesh
+            const meshId = `mesh_${meshData.id}`;
+            
+            // Clean up animation resources for this mesh
+            if (activeTextureData.has(meshId)) {
+                const data = activeTextureData.get(meshId);
+                
+                // Remove iframe if it exists
+                if (data.iframe) {
+                    try {
+                        document.body.removeChild(data.iframe);
+                    } catch (error) {
+                        console.debug('Error removing iframe:', error);
+                    }
                 }
                 
-                // Find all meshes in the scene
-                const meshes = [];
-                state.scene.traverse(object => {
-                    if (object.isMesh) {
-                        meshes.push(object);
-                    }
-                });
-                
-                // Try different methods to find the mesh
-                if (meshes.length > meshData.id) {
-                    targetMesh = meshes[meshData.id];
-                    console.log(`Found mesh by index ${meshData.id}: ${targetMesh.name}`);
+                // Restore the original mesh material if we have the mesh
+                if (data.mesh) {
+                    await restoreMeshMaterial(data.mesh, meshData.id);
                 } else {
-                    const targetMeshName = `display_monitor_screen`;
-                    targetMesh = meshes.find(mesh => mesh.name === targetMeshName);
-                    
-                    if (!targetMesh && meshes.length === 1) {
-                        targetMesh = meshes[0];
-                        console.log(`Using the only mesh in scene: ${targetMesh.name}`);
-                    }
+                    // If we don't have the mesh, try to find it
+                    await fallbackDisableTexture();
                 }
                 
-                if (!targetMesh) {
-                    console.error(`Could not find target mesh with ID ${meshData.id}`);
-                    return;
-                }
-                
-                // Call the actual restore function
-                restoreMeshMaterial(targetMesh, meshData.id);
-            });
-        } else {
-            // If we already have the mesh, just restore its material directly
-            console.log(`Using provided mesh for ID ${meshData.id}: ${targetMesh.name}`);
-            restoreMeshMaterial(targetMesh, meshData.id);
+                // Remove from active textures
+                activeTextureData.delete(meshId);
+                resolve(true);
+            } else {
+                // Fall back to old method if not in our tracking system
+                await fallbackDisableTexture();
+                resolve(true);
+            }
+        } catch (error) {
+            console.error('Error disabling custom texture:', error);
+            reject(error);
         }
-    }
+        
+        // Fallback method to find and disable texture if not in our tracking system
+        async function fallbackDisableTexture() {
+            return new Promise(async (resolve, reject) => {
+                try {
+                    // Try to get the mesh directly from meshData
+                    let targetMesh = meshData.mesh;
+                    
+                    // If mesh is not provided in meshData, try to find it in the scene
+                    if (!targetMesh) {
+                        console.log(`No mesh provided in meshData for ID ${meshData.id}, trying to find in scene`);
+                        
+                        // Fall back to looking for the mesh in the scene
+                        const stateModule = await import('./state.js');
+                        const state = stateModule.getState();
+                        if (!state.scene) {
+                            console.error('Scene not available in state');
+                            reject(new Error('Scene not available'));
+                            return;
+                        }
+                        
+                        // Find all meshes in the scene
+                        const meshes = [];
+                        state.scene.traverse(object => {
+                            if (object.isMesh) {
+                                meshes.push(object);
+                            }
+                        });
+                        
+                        // Try different methods to find the mesh
+                        if (meshes.length > meshData.id) {
+                            targetMesh = meshes[meshData.id];
+                            console.log(`Found mesh by index ${meshData.id}: ${targetMesh.name}`);
+                        } else {
+                            const targetMeshName = `display_monitor_screen`;
+                            targetMesh = meshes.find(mesh => mesh.name === targetMeshName);
+                            
+                            if (!targetMesh && meshes.length === 1) {
+                                targetMesh = meshes[0];
+                                console.log(`Using the only mesh in scene: ${targetMesh.name}`);
+                            }
+                        }
+                        
+                        if (!targetMesh) {
+                            console.error(`Could not find target mesh with ID ${meshData.id}`);
+                            reject(new Error('Target mesh not found'));
+                            return;
+                        }
+                    }
+                    
+                    // Call the actual restore function
+                    await restoreMeshMaterial(targetMesh, meshData.id);
+                    resolve(true);
+                } catch (error) {
+                    console.error('Error in fallbackDisableTexture:', error);
+                    reject(error);
+                }
+            });
+        }
+    });
 }
 
 /**
  * Restore the original material of a mesh
  * @param {THREE.Mesh} targetMesh - The mesh to restore
  * @param {number} meshId - The ID of the mesh for logging
+ * @returns {Promise<boolean>} Promise that resolves when restoration is complete
  */
 function restoreMeshMaterial(targetMesh, meshId) {
-    try {
-        if (targetMesh.material) {
-            if (Array.isArray(targetMesh.material)) {
-                // If the mesh has multiple materials, restore all
-                targetMesh.material.forEach(material => {
-                    // Check for original texture backup
-                    if (material._originalMap !== undefined) {
-                        material.map = material._originalMap;
-                        delete material._originalMap;
-                    } else {
-                        // If no backup, just remove the map
-                        material.map = null;
-                    }
-                    material.needsUpdate = true;
-                });
-            } else {
-                // Single material
-                if (targetMesh.material._originalMap !== undefined) {
-                    targetMesh.material.map = targetMesh.material._originalMap;
-                    delete targetMesh.material._originalMap;
+    return new Promise(async (resolve, reject) => {
+        try {
+            if (targetMesh.material) {
+                if (Array.isArray(targetMesh.material)) {
+                    // If the mesh has multiple materials, restore all
+                    targetMesh.material.forEach(material => {
+                        // Check for original texture backup
+                        if (material._originalMap !== undefined) {
+                            material.map = material._originalMap;
+                            delete material._originalMap;
+                        } else {
+                            // If no backup, just remove the map
+                            material.map = null;
+                        }
+                        
+                        // Restore original material properties if they exist
+                        if (material._originalColor) {
+                            material.color.copy(material._originalColor);
+                            delete material._originalColor;
+                        }
+                        
+                        if (material._originalEmissive) {
+                            material.emissive.copy(material._originalEmissive);
+                            delete material._originalEmissive;
+                        }
+                        
+                        if (material._originalRoughness !== undefined) {
+                            material.roughness = material._originalRoughness;
+                            delete material._originalRoughness;
+                        }
+                        
+                        if (material._originalMetalness !== undefined) {
+                            material.metalness = material._originalMetalness;
+                            delete material._originalMetalness;
+                        }
+                        
+                        material.needsUpdate = true;
+                    });
                 } else {
-                    targetMesh.material.map = null;
+                    // Single material
+                    if (targetMesh.material._originalMap !== undefined) {
+                        targetMesh.material.map = targetMesh.material._originalMap;
+                        delete targetMesh.material._originalMap;
+                    } else {
+                        targetMesh.material.map = null;
+                    }
+                    
+                    // Restore original material properties if they exist
+                    if (targetMesh.material._originalColor) {
+                        targetMesh.material.color.copy(targetMesh.material._originalColor);
+                        delete targetMesh.material._originalColor;
+                    }
+                    
+                    if (targetMesh.material._originalEmissive) {
+                        targetMesh.material.emissive.copy(targetMesh.material._originalEmissive);
+                        delete targetMesh.material._originalEmissive;
+                    }
+                    
+                    if (targetMesh.material._originalRoughness !== undefined) {
+                        targetMesh.material.roughness = targetMesh.material._originalRoughness;
+                        delete targetMesh.material._originalRoughness;
+                    }
+                    
+                    if (targetMesh.material._originalMetalness !== undefined) {
+                        targetMesh.material.metalness = targetMesh.material._originalMetalness;
+                        delete targetMesh.material._originalMetalness;
+                    }
+                    
+                    targetMesh.material.needsUpdate = true;
                 }
-                targetMesh.material.needsUpdate = true;
             }
+            
+            // Clear any iframe reference stored on the mesh
+            if (targetMesh._htmlIframe) {
+                delete targetMesh._htmlIframe;
+            }
+            
+            // Trigger a render to ensure changes are visible
+            await triggerRender();
+            
+            console.log(`Custom texture removed from mesh ID ${meshId}`);
+            resolve(true);
+        } catch (error) {
+            console.error('Error disabling custom texture:', error);
+            reject(error);
         }
-        
-        // Clear any iframe reference stored on the mesh
-        if (targetMesh._htmlIframe) {
-            delete targetMesh._htmlIframe;
-        }
-        
-        console.log(`Custom texture removed from mesh ID ${meshId}`);
-    } catch (error) {
-        console.error('Error disabling custom texture:', error);
-    }
+    });
 }
 
 /**
@@ -1487,7 +1688,7 @@ function setupHtmlTextureAnimationLoop() {
 /**
  * Update all HTML textures that have animation enabled
  */
-function updateHtmlTextures() {
+async function updateHtmlTextures() {
     // Check if we have any meshes to update
     if (!window._animatedHtmlMeshes || window._animatedHtmlMeshes.size === 0) {
         // No meshes to update, cancel the animation loop
@@ -1507,27 +1708,40 @@ function updateHtmlTextures() {
     if (elapsed >= 33) { // ~30 FPS
         window._lastHtmlTextureUpdateTime = now;
         
-        // Update each mesh with animated HTML content
-        window._animatedHtmlMeshes.forEach(async (data, id) => {
-            try {
-                // Check if it's time to update this mesh based on its playback speed
-                const timeSinceLastUpdate = now - data.lastUpdate;
-                const updateInterval = Math.max(33, 100 / (data.settings.playbackSpeed || 1.0));
+        // Update each mesh with animated HTML content - use Promise.all to handle concurrently
+        const updatePromises = [];
+        
+        window._animatedHtmlMeshes.forEach((data, id) => {
+            // Check if it's time to update this mesh based on its playback speed
+            const timeSinceLastUpdate = now - data.lastUpdate;
+            const updateInterval = Math.max(33, 100 / (data.settings.playbackSpeed || 1.0));
+            
+            if (timeSinceLastUpdate >= updateInterval) {
+                // Update the last update time
+                data.lastUpdate = now;
                 
-                if (timeSinceLastUpdate >= updateInterval) {
-                    // Update the last update time
-                    data.lastUpdate = now;
-                    
-                    // Create a new texture from the iframe
-                    if (data.iframe && data.iframe.contentDocument) {
-                        const texture = await createTextureFromIframe(data.iframe);
-                        applyTextureToMesh(data.mesh, texture);
-                    }
+                // Create a new texture from the iframe
+                if (data.iframe && data.iframe.contentDocument) {
+                    // Add to update promises
+                    updatePromises.push(
+                        createTextureFromIframe(data.iframe)
+                            .then(texture => updateMeshTextureById(id, texture))
+                            .catch(error => {
+                                console.error(`Error updating HTML texture for mesh ${id}:`, error);
+                            })
+                    );
                 }
-            } catch (error) {
-                console.error(`Error updating HTML texture for mesh ${id}:`, error);
             }
         });
+        
+        // Wait for all updates to complete
+        if (updatePromises.length > 0) {
+            try {
+                await Promise.all(updatePromises);
+            } catch (error) {
+                console.error('Error updating multiple textures:', error);
+            }
+        }
     }
     
     // Continue the animation loop
@@ -1705,34 +1919,80 @@ function cleanupAllTextureResources() {
  * @param {string} meshId - Unique identifier for the mesh
  * @param {HTMLIFrameElement} iframe - The iframe containing the HTML content
  * @param {Object} settings - Animation settings
+ * @param {THREE.Mesh} [meshReference] - Direct reference to the mesh (to prevent loss of reference)
  */
-export function setupTextureAnimation(meshId, iframe, settings = {}) {
-    if (!meshId || !iframe) {
-        console.error('Cannot set up texture animation: missing meshId or iframe');
-        return;
-    }
-    
-    const playbackSpeed = settings.playbackSpeed || 1.0;
-    const animationType = settings.animation?.type || 'play';
-    
-    console.log(`Setting up texture animation for mesh ${meshId} with type: ${animationType}`);
-    
-    // Add to active texture data
-    activeTextureData.set(meshId, {
-        iframe,
-        settings,
-        lastUpdate: Date.now(),
-        startTime: Date.now(),
-        frames: [],
-        animationType,
-        playbackSpeed
+export function setupTextureAnimation(meshId, iframe, settings = {}, meshReference = null) {
+    return new Promise((resolve, reject) => {
+        try {
+            if (!meshId || !iframe) {
+                console.error('Cannot set up texture animation: missing meshId or iframe');
+                reject(new Error('Missing meshId or iframe'));
+                return;
+            }
+            
+            const playbackSpeed = settings.playbackSpeed || 1.0;
+            const animationType = settings.animation?.type || 'play';
+            
+            console.log(`Setting up texture animation for mesh ${meshId} with type: ${animationType}`);
+            
+            // Check if we already have data for this mesh
+            let meshData = activeTextureData.get(meshId);
+            if (!meshData) {
+                meshData = {};
+                activeTextureData.set(meshId, meshData);
+            }
+            
+            // Update with animation data
+            Object.assign(meshData, {
+                iframe,
+                settings,
+                lastUpdate: Date.now(),
+                startTime: Date.now(),
+                frames: [],
+                animationType,
+                playbackSpeed
+            });
+            
+            // If direct mesh reference is provided, use it (helps prevent loss of reference)
+            if (meshReference) {
+                meshData.mesh = meshReference;
+                console.log(`[TEXTURE_SETUP] Using direct mesh reference for ${meshId}`);
+            }
+            
+            // Start the animation loop if not already running
+            if (!window._textureAnimationLoop) {
+                console.log('Starting texture animation loop');
+                startTextureAnimationLoop();
+            }
+            
+            // First frame can be captured immediately to kick-start the animation
+            createTextureFromIframe(iframe)
+                .then(texture => {
+                    if (!meshData.frames) meshData.frames = [];
+                    
+                    meshData.frames.push({
+                        texture,
+                        timestamp: Date.now()
+                    });
+                    
+                    // If we have the mesh reference, apply texture right away
+                    if (meshData.mesh) {
+                        return updateMeshTextureById(meshId, texture);
+                    }
+                })
+                .then(() => {
+                    resolve(true);
+                })
+                .catch(error => {
+                    console.error(`Error in initial texture capture for animation:`, error);
+                    // Resolve anyway since the animation can continue
+                    resolve(true);
+                });
+        } catch (error) {
+            console.error('Error setting up texture animation:', error);
+            reject(error);
+        }
     });
-    
-    // Start the animation loop if not already running
-    if (!window._textureAnimationLoop) {
-        console.log('Starting texture animation loop');
-        startTextureAnimationLoop();
-    }
 }
 
 /**
@@ -1749,7 +2009,7 @@ function startTextureAnimationLoop() {
 /**
  * Update all texture animations
  */
-function updateTextureAnimations() {
+async function updateTextureAnimations() {
     // Cancel loop if no textures to update
     if (activeTextureData.size === 0) {
         if (window._textureAnimationLoop) {
@@ -1772,106 +2032,135 @@ function updateTextureAnimations() {
     // Update timestamp
     window._lastTextureUpdateTime = now;
     
-    // Process each active texture
-    activeTextureData.forEach(async (data, meshId) => {
-        try {
-            // Calculate time based on playback speed
-            const playbackSpeed = data.playbackSpeed || 1.0;
-            const timeSinceLastUpdate = now - data.lastUpdate;
-            const updateInterval = Math.max(33, 100 / playbackSpeed);
+    // Process each active texture - gather all update promises
+    const updatePromises = [];
+    
+    activeTextureData.forEach((data, meshId) => {
+        // Calculate time based on playback speed
+        const playbackSpeed = data.playbackSpeed || 1.0;
+        const timeSinceLastUpdate = now - data.lastUpdate;
+        const updateInterval = Math.max(33, 100 / playbackSpeed);
+        
+        // Skip if not time to update yet
+        if (timeSinceLastUpdate < updateInterval) return;
+        
+        // Update timestamp
+        data.lastUpdate = now;
+        
+        // If we have captured frames, use them for animation
+        if (data.frames && data.frames.length > 0) {
+            const elapsedSinceStart = now - data.startTime;
+            const adjustedTime = elapsedSinceStart * playbackSpeed;
             
-            // Skip if not time to update yet
-            if (timeSinceLastUpdate < updateInterval) return;
+            // Calculate the frame index based on animation type
+            let frameIndex = 0;
             
-            // Update timestamp
-            data.lastUpdate = now;
-            
-            // If we have captured frames, use them for animation
-            if (data.frames.length > 0) {
-                const elapsedSinceStart = now - data.startTime;
-                const adjustedTime = elapsedSinceStart * playbackSpeed;
-                
-                // Calculate the frame index based on animation type
-                let frameIndex = 0;
-                
-                switch (data.animationType) {
-                    case 'loop':
-                        // Loop animation: cycle through frames
-                        frameIndex = Math.floor(adjustedTime / 100) % data.frames.length;
-                        break;
-                        
-                    case 'bounce':
-                        // Bounce animation: go back and forth through frames
-                        const cycle = Math.floor(adjustedTime / (100 * data.frames.length));
-                        const position = (adjustedTime / 100) % data.frames.length;
-                        frameIndex = cycle % 2 === 0 ? 
-                            Math.floor(position) : 
-                            Math.floor(data.frames.length - position - 1);
-                        break;
-                        
-                    default:
-                        // Default: use the most recent frame
-                        frameIndex = data.frames.length - 1;
-                        break;
-                }
-                
-                // Use the appropriate frame
-                frameIndex = Math.min(frameIndex, data.frames.length - 1);
-                const texture = data.frames[frameIndex].texture;
-                
-                // Update the mesh's texture
-                updateMeshTextureById(meshId, texture);
-            } 
-            // Otherwise capture a new frame
-            else if (data.iframe && document.body.contains(data.iframe)) {
-                try {
-                    // Capture a new frame
-                    const texture = await createTextureFromIframe(data.iframe);
+            switch (data.animationType) {
+                case 'loop':
+                    // Loop animation: cycle through frames
+                    frameIndex = Math.floor(adjustedTime / 100) % data.frames.length;
+                    break;
                     
-                    // Add to frames
-                    data.frames.push({
-                        texture,
-                        timestamp: now
-                    });
+                case 'bounce':
+                    // Bounce animation: go back and forth through frames
+                    const cycle = Math.floor(adjustedTime / (100 * data.frames.length));
+                    const position = (adjustedTime / 100) % data.frames.length;
+                    frameIndex = cycle % 2 === 0 ? 
+                        Math.floor(position) : 
+                        Math.floor(data.frames.length - position - 1);
+                    break;
                     
-                    // Limit the number of stored frames (for memory)
-                    if (data.frames.length > 30) {
-                        // Remove oldest frame (and dispose its texture)
-                        const oldestFrame = data.frames.shift();
-                        if (oldestFrame.texture) {
-                            oldestFrame.texture.dispose();
-                        }
-                    }
-                    
-                    // Update the mesh's texture
-                    updateMeshTextureById(meshId, texture);
-                } catch (error) {
-                    console.error(`Error capturing frame for mesh ${meshId}:`, error);
-                }
+                default:
+                    // Default: use the most recent frame
+                    frameIndex = data.frames.length - 1;
+                    break;
             }
-        } catch (error) {
-            console.error(`Error updating texture animation for mesh ${meshId}:`, error);
+            
+            // Use the appropriate frame
+            frameIndex = Math.min(frameIndex, data.frames.length - 1);
+            const texture = data.frames[frameIndex].texture;
+            
+            // Add to update promises
+            updatePromises.push(
+                updateMeshTextureById(meshId, texture)
+                    .catch(error => {
+                        console.error(`Error updating texture animation for mesh ${meshId}:`, error);
+                    })
+            );
+        } 
+        // Otherwise capture a new frame
+        else if (data.iframe && document.body.contains(data.iframe)) {
+            // Add to update promises
+            updatePromises.push(
+                createTextureFromIframe(data.iframe)
+                    .then(texture => {
+                        // Add to frames
+                        if (!data.frames) data.frames = [];
+                        
+                        data.frames.push({
+                            texture,
+                            timestamp: now
+                        });
+                        
+                        // Limit the number of stored frames (for memory)
+                        if (data.frames.length > 30) {
+                            // Remove oldest frame (and dispose its texture)
+                            const oldestFrame = data.frames.shift();
+                            if (oldestFrame.texture) {
+                                oldestFrame.texture.dispose();
+                            }
+                        }
+                        
+                        // Update the mesh's texture
+                        return updateMeshTextureById(meshId, texture);
+                    })
+                    .catch(error => {
+                        console.error(`Error capturing frame for mesh ${meshId}:`, error);
+                    })
+            );
         }
     });
+    
+    // Wait for all updates to complete
+    if (updatePromises.length > 0) {
+        try {
+            await Promise.all(updatePromises);
+        } catch (error) {
+            console.error('Error updating multiple texture animations:', error);
+        }
+    }
 }
 
 /**
  * Update a mesh's texture by ID
  * @param {string} meshId - ID of the mesh to update
  * @param {THREE.Texture} texture - Texture to apply
+ * @returns {Promise<boolean>} Promise that resolves when the texture is applied
  */
 function updateMeshTextureById(meshId, texture) {
-    if (!texture) return;
-    
-    // Get data about this mesh
-    const data = activeTextureData.get(meshId);
-    if (!data || !data.mesh) {
-        console.warn(`Cannot update texture for mesh ${meshId}: mesh not found`);
-        return;
-    }
-    
-    // Apply the texture to the mesh
-    applyTextureToMesh(data.mesh, texture);
+    return new Promise(async (resolve, reject) => {
+        if (!texture) {
+            reject(new Error('No texture provided'));
+            return;
+        }
+        
+        // Get data about this mesh
+        const data = activeTextureData.get(meshId);
+        if (!data || !data.mesh) {
+            console.warn(`Cannot update texture for mesh ${meshId}: mesh not found`);
+            reject(new Error('Mesh not found'));
+            return;
+        }
+        
+        try {
+            // Apply the texture to the mesh
+            await applyTextureToMesh(data.mesh, texture);
+            resolve(true);
+        } catch (error) {
+            console.error(`Error updating texture for mesh ${meshId}:`, error);
+            reject(error);
+        }
+    });
 }
 
 /**

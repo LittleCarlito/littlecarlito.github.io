@@ -68,17 +68,18 @@ let lintDebounceTimer = null;
 
 // Add this class before the previewBtn event listener
 /**
- * Class to encapsulate all settings needed for HTML preview
+ * Class to encapsulate all settings needed for HTML content rendering
+ * Used for both preview and actual mesh texture application
  */
-export class PreviewSettings {
+export class CustomTextureSettings {
     /**
-     * Create a new PreviewSettings object
-     * @param {string} html - HTML content to preview
+     * Create a new CustomTextureSettings object
+     * @param {string} html - HTML content to render
      * @param {number} meshId - ID of the mesh
-     * @param {string} previewMode - Type of preview (threejs or css3d)
+     * @param {string} previewMode - Type of rendering (threejs, css3d, or longExposure)
      * @param {number} playbackSpeed - Animation playback speed
      * @param {string} animationType - Type of animation (play, loop, bounce, longExposure)
-     * @param {boolean} showPreviewBorders - Whether to show borders in the preview
+     * @param {boolean} showPreviewBorders - Whether to show borders in the rendering
      * @param {Function} statusCallback - Function to update status messages
      * @param {Function} errorCallback - Function to handle errors
      * @param {HTMLElement} errorContainer - Container for error messages
@@ -584,7 +585,7 @@ export function initHtmlEditorModal() {
             const showPreviewBorders = showWireframeCheckbox ? showWireframeCheckbox.checked : true;
             
             // Create settings object with callbacks
-            const settings = new PreviewSettings(
+            const settings = new CustomTextureSettings(
                 html,
                 meshId,
                 previewMode,
@@ -671,6 +672,9 @@ export function initHtmlEditorModal() {
                 // Check if Display on Mesh is checked
                 const displayOnMeshCheckbox = document.getElementById('display-on-mesh');
                 if (displayOnMeshCheckbox && displayOnMeshCheckbox.checked) {
+                    // Show a status message to indicate processing
+                    showStatus('Applying HTML to mesh...', 'info');
+                    
                     // Get rendering settings
                     const renderTypeSelect = document.getElementById('html-render-type');
                     const renderType = renderTypeSelect ? renderTypeSelect.value : 'threejs';
@@ -684,31 +688,42 @@ export function initHtmlEditorModal() {
                     // Get additional settings
                     const settings = getSettingsFromForm();
                     
-                    // Call appropriate function based on render type
-                    if (renderType === 'css3d') {
-                        // Use CSS3D rendering
-                        setCustomDisplay(meshData, settings);
-                    } else {
-                        // Use texture-based rendering (either threejs or longExposure)
-                        setCustomTexture(meshData, renderType, settings);
+                    try {
+                        // Call appropriate function based on render type
+                        if (renderType === 'css3d') {
+                            // Use CSS3D rendering
+                            await setCustomDisplay(meshData, settings);
+                        } else {
+                            // Use texture-based rendering (either threejs or longExposure)
+                            await setCustomTexture(meshData, renderType, settings);
+                        }
+                        
+                        console.debug(`Displaying HTML on mesh ${currentMeshId} using ${renderType} renderer`);
+                        showStatus('HTML applied to mesh successfully', 'success');
+                    } catch (error) {
+                        console.error('Error applying HTML to mesh:', error);
+                        showStatus(`Error applying HTML to mesh: ${error.message}`, 'error');
                     }
-                    
-                    console.debug(`Displaying HTML on mesh ${currentMeshId} using ${renderType} renderer`);
                 } else {
                     // Display on Mesh is not checked, disable any existing custom display
                     const meshData = {
                         id: parseInt(currentMeshId)
                     };
                     
-                    // Disable both types to ensure cleanup
-                    disableCustomTexture(meshData);
-                    disableCustomDisplay(meshData);
-                    
-                    console.debug(`Removing custom display from mesh ${currentMeshId}`);
+                    try {
+                        // Disable both types to ensure cleanup
+                        await Promise.all([
+                            disableCustomTexture(meshData),
+                            disableCustomDisplay(meshData)
+                        ]);
+                        
+                        console.debug(`Removing custom display from mesh ${currentMeshId}`);
+                        showStatus('HTML saved and custom display removed', 'success');
+                    } catch (error) {
+                        console.error('Error removing custom display:', error);
+                        showStatus(`Error removing custom display: ${error.message}`, 'error');
+                    }
                 }
-                
-                // Don't close the modal, just show success message
-                showStatus('HTML saved successfully', 'success');
             }
         } catch (error) {
             showStatus('Error saving HTML: ' + error.message, 'error');

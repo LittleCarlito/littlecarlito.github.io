@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createTextureFromIframe } from '../texture-util';
-import { originalAnimationStartTime, showStatus, PreviewSettings } from '../../ui/scripts/html-editor-modal';
+import { originalAnimationStartTime, showStatus, CustomTextureSettings } from '../../ui/scripts/html-editor-modal';
 import { animationDuration, isAnimationFinite, preRenderedFrames, preRenderingInProgress, resetPreRender, startImage2TexturePreRendering, startCss3dPreRendering } from '../animation-util';
 import { sanitizeHtml } from '../string-serder';
 import { getState } from '../state';
@@ -64,7 +64,7 @@ function initializePreview(previewMode, canvasContainer, renderIframe, currentMe
 
 /**
  * Preview HTML code using Three.js
- * @param {PreviewSettings} settings - Object containing all settings for the preview
+ * @param {CustomTextureSettings} settings - Object containing all settings for the preview
  * @param {HTMLElement} previewContent - Container element for the preview
  * @param {Function} setModalData - Function to set modal data attributes
  */
