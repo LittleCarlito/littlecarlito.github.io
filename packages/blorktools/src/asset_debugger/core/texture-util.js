@@ -1713,7 +1713,7 @@ export function setupTextureAnimation(meshId, iframe, settings = {}) {
     }
     
     const playbackSpeed = settings.playbackSpeed || 1.0;
-    const animationType = settings.animation?.type || 'none';
+    const animationType = settings.animation?.type || 'play';
     
     console.log(`Setting up texture animation for mesh ${meshId} with type: ${animationType}`);
     

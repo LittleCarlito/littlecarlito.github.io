@@ -36,13 +36,10 @@ export let currentPreviewSettings = null;
  * @param {string} animationType - The type of animation
  * @param {PreviewSettings} settings - Complete settings object
  */
-function initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId, startAnimation = true, createInfoPanel = true, animationType = 'none', settings = null) {
+function initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId, startAnimation = true, createInfoPanel = true, animationType = 'play', settings = null) {
     // Remove DOM access for animation type
     // const animationTypeSelect = document.getElementById('html-animation-type');
-    // const animationType = animationTypeSelect ? animationTypeSelect.value : 'none';
-
-    // Remove the special case for long exposure that immediately pauses animation
-    // For long exposure, we want to see the actual animation
+    // const animationType = animationTypeSelect ? animationTypeSelect.value : 'play';
 
     // If not starting animation immediately, pause it
     if (!startAnimation) {
@@ -422,80 +419,79 @@ export function animatePreview() {
         // Remember last frame time for throttling
         lastAnimationFrameTime = now - (elapsed % frameInterval);
         
-        // Apply any animation effects to the mesh based on settings
-        if (previewPlane) {
+        // Get current preview settings
+        const animationType = currentPreviewSettings?.animationType || 'play';
+        
+        // Apply animation if the animation type isn't "play" (value: 'play') and preview is not paused
+        if (animationType !== 'play' && !isPreviewAnimationPaused) {
             // Use currentPreviewSettings instead of accessing DOM
             const currentMeshId = currentPreviewSettings?.meshId;
             
             // Get animation settings from currentPreviewSettings
-            const animationType = currentPreviewSettings?.animationType || 'none';
             const playbackSpeed = currentPreviewSettings?.playbackSpeed || 1.0;
             
             // Apply animation based on type
-            if (animationType !== 'none' && !isPreviewAnimationPaused) {
-                const rotationSpeed = 0.005 * playbackSpeed;
-                const time = performance.now() * 0.001;
-                
-                // Get the geometry's orientation data
-                const geometry = previewPlane.geometry;
-                const hasOrientationData = geometry && geometry.userData && geometry.userData.normalVector;
-                
-                switch (animationType) {
-                    case 'loop':
-                        if (hasOrientationData) {
-                            // For oriented meshes, animate in a way that respects the face orientation
-                            const normalVector = geometry.userData.normalVector;
-                            const upVector = geometry.userData.upVector;
-                            
-                            // Create a rotation axis perpendicular to the normal
-                            const rightVector = new THREE.Vector3().crossVectors(normalVector, upVector).normalize();
-                            
-                            // Create a quaternion for small rotations
-                            const wobbleAmount = 0.05; // Smaller angle for subtle effect
-                            const wobbleQuaternion = new THREE.Quaternion().setFromAxisAngle(
-                                rightVector,
-                                Math.sin(time * rotationSpeed * 5) * wobbleAmount
-                            );
-                            
-                            // Apply this rotation relative to the mesh's base orientation
-                            const baseQuaternion = previewPlane._baseQuaternion || previewPlane.quaternion.clone();
-                            previewPlane._baseQuaternion = baseQuaternion;
-                            
-                            // Combine the base orientation with the animation
-                            previewPlane.quaternion.copy(baseQuaternion).multiply(wobbleQuaternion);
-                        } else {
-                            // Fallback for meshes without orientation data
-                            previewPlane.rotation.y = Math.PI / 6 + Math.sin(time * rotationSpeed * 5) * 0.2;
-                        }
-                        break;
-                    case 'bounce':
-                        if (hasOrientationData) {
-                            // For oriented meshes, bounce along the normal vector
-                            const normalVector = geometry.userData.normalVector;
-                            const bounceOffset = Math.sin(time * rotationSpeed * 3) * 0.1;
-                            const bounceVector = normalVector.clone().multiplyScalar(bounceOffset);
-                            
-                            // Apply bounce to position
-                            previewPlane.position.copy(bounceVector);
-                        } else {
-                            // Fallback bounce for non-oriented meshes
-                            previewPlane.position.y = Math.sin(time * rotationSpeed * 3) * 0.1;
-                        }
-                        break;
-                    case 'longExposure':
-                        // For long exposure, we don't need to do anything here
-                        // The static image is created once after pre-rendering
-                        break;
-                    default:
-                        break;
-                }
+            const rotationSpeed = 0.005 * playbackSpeed;
+            const time = performance.now() * 0.001;
+            
+            // Get the geometry's orientation data
+            const geometry = previewPlane.geometry;
+            const hasOrientationData = geometry && geometry.userData && geometry.userData.normalVector;
+            
+            switch (animationType) {
+                case 'loop':
+                    if (hasOrientationData) {
+                        // For oriented meshes, animate in a way that respects the face orientation
+                        const normalVector = geometry.userData.normalVector;
+                        const upVector = geometry.userData.upVector;
+                        
+                        // Create a rotation axis perpendicular to the normal
+                        const rightVector = new THREE.Vector3().crossVectors(normalVector, upVector).normalize();
+                        
+                        // Create a quaternion for small rotations
+                        const wobbleAmount = 0.05; // Smaller angle for subtle effect
+                        const wobbleQuaternion = new THREE.Quaternion().setFromAxisAngle(
+                            rightVector,
+                            Math.sin(time * rotationSpeed * 5) * wobbleAmount
+                        );
+                        
+                        // Apply this rotation relative to the mesh's base orientation
+                        const baseQuaternion = previewPlane._baseQuaternion || previewPlane.quaternion.clone();
+                        previewPlane._baseQuaternion = baseQuaternion;
+                        
+                        // Combine the base orientation with the animation
+                        previewPlane.quaternion.copy(baseQuaternion).multiply(wobbleQuaternion);
+                    } else {
+                        // Fallback for meshes without orientation data
+                        previewPlane.rotation.y = Math.PI / 6 + Math.sin(time * rotationSpeed * 5) * 0.2;
+                    }
+                    break;
+                case 'bounce':
+                    if (hasOrientationData) {
+                        // For oriented meshes, bounce along the normal vector
+                        const normalVector = geometry.userData.normalVector;
+                        const bounceOffset = Math.sin(time * rotationSpeed * 3) * 0.1;
+                        const bounceVector = normalVector.clone().multiplyScalar(bounceOffset);
+                        
+                        // Apply bounce to position
+                        previewPlane.position.copy(bounceVector);
+                    } else {
+                        // Fallback bounce for non-oriented meshes
+                        previewPlane.position.y = Math.sin(time * rotationSpeed * 3) * 0.1;
+                    }
+                    break;
+                case 'longExposure':
+                    // For long exposure, we don't need to do anything here
+                    // The static image is created once after pre-rendering
+                    break;
+                default:
+                    break;
             }
         }
         
         // Use currentPreviewSettings instead of accessing DOM
         const currentMeshId = currentPreviewSettings?.meshId;
         const playbackSpeed = currentPreviewSettings?.playbackSpeed || 1.0;
-        const animationType = currentPreviewSettings?.animationType || 'none';
         
         // Skip frame updates if animation is paused or we're in long exposure mode
         if (isPreviewAnimationPaused || animationType === 'longExposure') {
@@ -551,7 +547,7 @@ export function animatePreview() {
                         }
                         break;
                         
-                    default: // 'none' or any other type
+                    default: // 'play' or any other type
                         // Check if we've reached the end of the animation
                         if (adjustedTime >= animationDuration) {
                             // If not looping or bouncing, stay on the last frame

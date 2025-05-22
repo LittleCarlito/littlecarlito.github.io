@@ -166,7 +166,7 @@ export function createMeshInfoPanel(container, meshId) {
         info.push('<strong>HTML Settings:</strong>');
         info.push(`• Render Mode: ${htmlSettings.previewMode || 'threejs'}`);
         info.push(`• Playback Speed: ${htmlSettings.playbackSpeed || '1.0'}`);
-        info.push(`• Animation: ${htmlSettings.animation?.type || 'none'}`);
+        info.push(`• Animation: ${htmlSettings.animation?.type || 'play'}`);
     }
     
     // Add any custom user data

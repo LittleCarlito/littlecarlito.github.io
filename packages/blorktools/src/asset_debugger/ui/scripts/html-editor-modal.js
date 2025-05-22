@@ -48,7 +48,7 @@ export const defaultSettings = {
     previewMode: 'threejs',
     playbackSpeed: 1.0,
     animation: {
-        type: 'none'
+        type: 'play'
     },
     display: {
         showBorders: true
@@ -77,7 +77,7 @@ export class PreviewSettings {
      * @param {number} meshId - ID of the mesh
      * @param {string} previewMode - Type of preview (threejs or css3d)
      * @param {number} playbackSpeed - Animation playback speed
-     * @param {string} animationType - Type of animation (none, loop, bounce, longExposure)
+     * @param {string} animationType - Type of animation (play, loop, bounce, longExposure)
      * @param {boolean} showPreviewBorders - Whether to show borders in the preview
      * @param {Function} statusCallback - Function to update status messages
      * @param {Function} errorCallback - Function to handle errors
@@ -214,10 +214,10 @@ export async function openEmbeddedHtmlEditor(meshName, meshId) {
             
             if (animationTypeSelect && settings.animation && settings.animation.type) {
                 // Make sure we have a valid value
-                if (['none', 'loop', 'bounce'].includes(settings.animation.type)) {
+                if (['play', 'loop', 'bounce'].includes(settings.animation.type)) {
                     animationTypeSelect.value = settings.animation.type;
                 } else {
-                    animationTypeSelect.value = 'none'; // Default
+                    animationTypeSelect.value = 'play'; // Default
                 }
             }
             
@@ -570,7 +570,7 @@ export function initHtmlEditorModal() {
             
             // Get animation type
             const animationTypeSelect = document.getElementById('html-animation-type');
-            let animationType = animationTypeSelect ? animationTypeSelect.value : 'none';
+            let animationType = animationTypeSelect ? animationTypeSelect.value : 'play';
             
             // Special handling for Long Exposure rendering
             if (previewMode === 'longExposure') {

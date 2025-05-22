@@ -244,7 +244,7 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, currentM
                         
                         // Get animation type from dropdown
                         const animationTypeSelect = document.getElementById('html-animation-type');
-                        const animationType = animationTypeSelect ? animationTypeSelect.value : 'none';
+                        const animationType = animationTypeSelect ? animationTypeSelect.value : 'play';
                         
                         // Only set up restart timer if:
                         // 1. Animation is finite and has a duration
@@ -356,7 +356,7 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, currentM
                                 }, 50);
                             }
                         } else {
-                            console.log('No finite animation duration detected, not setting up restart timer');
+                            console.log('No finite animation duration detected or using Play animation mode, not setting up restart timer');
                         }
                     });
                 }
