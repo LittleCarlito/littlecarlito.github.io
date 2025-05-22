@@ -266,10 +266,8 @@ export async function createTextureFromIframe(iframe) {
             console.log('[IFRAME_DEBUG] Ensuring html2canvas is loaded');
             const html2canvasAvailable = await ensureHtml2Canvas();
             if (!html2canvasAvailable) {
-                console.warn('[IFRAME_DEBUG] html2canvas not available, using fallback texture creation');
-                // Use our fallback method instead of empty texture
-                const fallbackTexture = createFallbackTexture(iframe);
-                resolve(fallbackTexture);
+                console.error('[IFRAME_DEBUG] html2canvas not available - cannot create texture');
+                reject(new Error('html2canvas library not available - cannot render HTML to texture'));
                 return;
             }
             
@@ -282,10 +280,8 @@ export async function createTextureFromIframe(iframe) {
                 try {
                     // Check if we can access the iframe content safely
                     if (!iframe.contentDocument || !iframe.contentWindow) {
-                        console.warn('[IFRAME_DEBUG] Cannot access iframe content, using fallback texture');
-                        // Use fallback instead of empty texture
-                        const fallbackTexture = createFallbackTexture(iframe);
-                        resolve(fallbackTexture);
+                        console.error('[IFRAME_DEBUG] Cannot access iframe content - security restriction or iframe removed');
+                        reject(new Error('Cannot access iframe content - security restriction or iframe removed'));
                         return;
                     }
                     
@@ -299,10 +295,8 @@ export async function createTextureFromIframe(iframe) {
                     
                     // Make sure the body is fully loaded
                     if (!iframe.contentDocument.body) {
-                        console.warn('[IFRAME_DEBUG] Iframe body not available, using fallback texture');
-                        // Use fallback instead of empty texture
-                        const fallbackTexture = createFallbackTexture(iframe);
-                        resolve(fallbackTexture);
+                        console.error('[IFRAME_DEBUG] Iframe body not available - iframe content failed to load');
+                        reject(new Error('Iframe body not available - iframe content failed to load'));
                         return;
                     }
                     
@@ -441,10 +435,8 @@ export async function createTextureFromIframe(iframe) {
                             });
                             
                             if (!hasContent) {
-                                console.warn('[IFRAME_DEBUG] Canvas capture appears to be blank, using fallback texture');
-                                // Use fallback texture instead of a blank one
-                                const fallbackTexture = createFallbackTexture(iframe);
-                                resolve(fallbackTexture);
+                                console.error('[IFRAME_DEBUG] Canvas capture appears to be blank - no content rendered');
+                                reject(new Error('Canvas capture appears to be blank - no content was rendered'));
                                 return;
                             }
                             
@@ -472,29 +464,21 @@ export async function createTextureFromIframe(iframe) {
                             // Restore original iframe style
                             iframe.style.cssText = originalStyle;
                             
-                            // On error, use fallback texture instead of debug texture
-                            console.log('[IFRAME_DEBUG] Creating fallback texture due to html2canvas error');
-                            const fallbackTexture = createFallbackTexture(iframe);
-                            resolve(fallbackTexture);
+                            // Properly reject with error
+                            reject(new Error(`Failed to capture HTML content with html2canvas: ${error.message}`));
                         }
                     } catch (error) {
                         console.error('[IFRAME_DEBUG] Error in texture creation:', error);
-                        // Return fallback texture on error
-                        const fallbackTexture = createFallbackTexture(iframe);
-                        resolve(fallbackTexture);
+                        reject(new Error(`Error creating texture from iframe: ${error.message}`));
                     }
                 } catch (error) {
                     console.error('[IFRAME_DEBUG] Error in texture creation:', error);
-                    // Return fallback texture on error
-                    const fallbackTexture = createFallbackTexture(iframe);
-                    resolve(fallbackTexture);
+                    reject(new Error(`Error in iframe content processing: ${error.message}`));
                 }
             });
         } catch (error) {
             console.error('[IFRAME_DEBUG] Error in createTextureFromIframe:', error);
-            // Use fallback texture with error info
-            const fallbackTexture = createFallbackTexture(iframe);
-            resolve(fallbackTexture);
+            reject(new Error(`Failed to create texture from iframe: ${error.message}`));
         }
     });
 }
@@ -889,11 +873,8 @@ export function setCustomTexture(meshData, renderType, settings = {}) {
         return new Promise(async (resolve, reject) => {
             try {
                 // Store the mesh in our data
-                if (activeTextureData.has(meshId)) {
-                    activeTextureData.get(meshId).mesh = mesh;
-                } else {
-                    activeTextureData.set(meshId, { mesh });
-                }
+                const meshDataObj = { mesh };
+                activeTextureData.set(meshId, meshDataObj);
                 
                 // Check if mesh still exists in the scene
                 try {
@@ -910,12 +891,36 @@ export function setCustomTexture(meshData, renderType, settings = {}) {
                 
                 console.log(`[TEXTURE_SETUP] Using mesh: ${mesh.name}, type: ${mesh.type}`);
                 
-                // Get the HTML content directly from meshData
-                const html = meshData.html;
+                // Get HTML content from binary data, not directly from meshData
+                let html;
+                
+                if (meshData.binaryData) {
+                    // Use binary data (preferred approach)
+                    try {
+                        // Import string deserialization function
+                        const { deserializeStringFromBinary } = await import('./string-serder.js');
+                        const result = deserializeStringFromBinary(meshData.binaryData);
+                        html = result.content;
+                        
+                        // If settings were serialized with the HTML, merge them with provided settings
+                        if (result.settings) {
+                            settings = { ...settings, ...result.settings };
+                        }
+                    } catch (error) {
+                        console.error('[TEXTURE_SETUP] Failed to deserialize HTML from binary data:', error);
+                        reject(new Error('Failed to read HTML content from binary data'));
+                        return;
+                    }
+                } else {
+                    // No binary data provided
+                    console.error(`[TEXTURE_SETUP] No binary data provided for mesh ID ${meshData.id}`);
+                    reject(new Error('No binary data provided'));
+                    return;
+                }
                 
                 if (!html) {
-                    console.warn(`[TEXTURE_SETUP] No HTML content found for mesh ID ${meshData.id}`);
-                    reject(new Error('No HTML content found'));
+                    console.error(`[TEXTURE_SETUP] No HTML content found for mesh ID ${meshData.id}`);
+                    reject(new Error('No HTML content found in binary data'));
                     return;
                 }
                 
@@ -1069,101 +1074,270 @@ export function setCustomTexture(meshData, renderType, settings = {}) {
                     setTimeout(captureFrame, 500);
                 } 
                 else {
-                    // For normal mode, use pre-rendering approach similar to preview mode
-                    setTimeout(async () => {
+                                        // For normal mode, use the same pre-rendering approach as in preview mode
+                    console.log('[TEXTURE_SETUP] Setting up pre-rendering for animated texture');
+                    
+                    // Create a loading overlay using loading-splash.css styles
+                    const loadingOverlay = document.createElement('div');
+                    loadingOverlay.id = 'apply-texture-overlay';
+                    loadingOverlay.className = 'loading-splash';
+                    
+                    // Create content container using loading-splash.css styles
+                    const loadingContent = document.createElement('div');
+                    loadingContent.className = 'loading-content';
+                    
+                    // Create title
+                    const loadingTitle = document.createElement('h1');
+                    loadingTitle.className = 'loading-title';
+                    loadingTitle.textContent = 'APPLYING TEXTURE';
+                    
+                    // Create spinner container
+                    const spinnerContainer = document.createElement('div');
+                    spinnerContainer.className = 'loading-spinner-container';
+                    
+                    // Create atomic spinner
+                    const atomicSpinner = document.createElement('div');
+                    atomicSpinner.className = 'atomic-spinner';
+                    
+                    // Create nucleus
+                    const nucleus = document.createElement('div');
+                    nucleus.className = 'nucleus';
+                    atomicSpinner.appendChild(nucleus);
+                    
+                    // Create electron orbits (3)
+                    for (let i = 0; i < 3; i++) {
+                        const orbit = document.createElement('div');
+                        orbit.className = 'electron-orbit';
+                        
+                        const electron = document.createElement('div');
+                        electron.className = 'electron';
+                        
+                        orbit.appendChild(electron);
+                        atomicSpinner.appendChild(orbit);
+                    }
+                    
+                    spinnerContainer.appendChild(atomicSpinner);
+                    
+                    // Create progress text
+                    const progressText = document.createElement('div');
+                    progressText.id = 'apply-texture-progress-text';
+                    progressText.className = 'loading-progress-text';
+                    progressText.textContent = 'Pre-rendering animation frames...';
+                    
+                    // Add elements to loading content
+                    loadingContent.appendChild(loadingTitle);
+                    loadingContent.appendChild(spinnerContainer);
+                    loadingContent.appendChild(progressText);
+                    
+                    // Create progress container
+                    const progressContainer = document.createElement('div');
+                    progressContainer.style.width = '80%';
+                    progressContainer.style.maxWidth = '300px';
+                    progressContainer.style.height = '4px';
+                    progressContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+                    progressContainer.style.borderRadius = '2px';
+                    progressContainer.style.overflow = 'hidden';
+                    progressContainer.style.margin = '10px auto 0';
+                    progressContainer.style.display = 'block';
+                    
+                    // Create progress bar
+                    const progressBar = document.createElement('div');
+                    progressBar.id = 'apply-texture-progress';
+                    progressBar.style.width = '0%';
+                    progressBar.style.height = '100%';
+                    progressBar.style.backgroundColor = '#2ecc71';
+                    progressBar.style.transition = 'width 0.3s ease-out';
+                    
+                    // Add progress bar to container
+                    progressContainer.appendChild(progressBar);
+                    loadingContent.appendChild(progressContainer);
+                    
+                    // Add loading content to overlay
+                    loadingOverlay.appendChild(loadingContent);
+                    
+                    // Add overlay to the document
+                    document.body.appendChild(loadingOverlay);
+                    
+                    // Add CSS link for loading-splash styles if not already present
+                    if (!document.getElementById('loading-splash-css')) {
+                        const cssLink = document.createElement('link');
+                        cssLink.id = 'loading-splash-css';
+                        cssLink.rel = 'stylesheet';
+                        cssLink.href = '../../css/loading-splash.css';
+                        document.head.appendChild(cssLink);
+                    }
+                    
+                    // Create a status callback for updating the loading overlay
+                    const statusCallback = (message, type) => {
+                        console.log(`[TEXTURE_STATUS] ${message} (${type})`);
+                        // Update the progress text
+                        const progressTextEl = document.getElementById('apply-texture-progress-text');
+                        if (progressTextEl) {
+                            progressTextEl.textContent = message;
+                        }
+                    };
+                    
+                    // Create CustomTextureSettings object with all needed properties
+                    const customTextureSettings = {
+                        html: html,
+                        meshId: meshData.id, // This is from the outer meshData parameter
+                        previewMode: renderType,
+                        playbackSpeed: settings.playbackSpeed || 1.0,
+                        animationType: settings.animation ? settings.animation.type : 'play',
+                        showPreviewBorders: window.showPreviewBorders,
+                        updateStatus: statusCallback,
+                        isLongExposureMode: false
+                    };
+                    
+                    try {
+                        // Create an initial texture to apply immediately so there's visual feedback
+                        const initialTexture = await createTextureFromIframe(iframe);
+                        
+                        // Apply the initial texture to the mesh
+                        console.log('[TEXTURE_SETUP] Applying initial texture to mesh');
+                        await applyTextureToMesh(mesh, initialTexture);
+                        
+                        // Import animation utility to use pre-rendering
+                        console.log('[TEXTURE_SETUP] Importing animation-util.js module');
                         try {
-                            console.log('[TEXTURE_SETUP] Pre-rendering frames for animation');
+                            const animationModule = await import('./animation-util.js');
                             
-                            // Make sure html2canvas is available before proceeding
-                            const html2canvasAvailable = await ensureHtml2Canvas();
-                            if (!html2canvasAvailable) {
-                                console.error('[TEXTURE_SETUP] html2canvas library could not be loaded, cannot create texture');
-                                document.body.removeChild(iframe);
-                                reject(new Error('html2canvas not available'));
-                                return;
+                            if (typeof animationModule.startImage2TexturePreRendering !== 'function') {
+                                throw new Error('Missing required function: startImage2TexturePreRendering');
                             }
                             
-                            // Create an initial texture to apply immediately so there's visual feedback
-                            const initialTexture = await createTextureFromIframe(iframe);
+                            console.log('[TEXTURE_SETUP] Starting pre-rendering for animation');
                             
-                            // Apply the initial texture to the mesh
-                            console.log('[TEXTURE_SETUP] Applying initial texture to mesh');
-                            await applyTextureToMesh(mesh, initialTexture);
-                            
-                            // Store the texture and mesh in our data
-                            if (activeTextureData.has(meshId)) {
-                                const data = activeTextureData.get(meshId);
-                                data.initialTexture = initialTexture;
-                                data.mesh = mesh; // Ensure mesh reference is maintained
-                            }
-                            
-                            // If animation is needed, use a pre-rendering approach
-                            if (settings.animation) {
-                                // Import animation utility to use pre-rendering
-                                const animationModule = await import('./animation-util.js');
-                                
-                                // Create CustomTextureSettings object with required properties
-                                const customTextureSettings = {
-                                    html: html,
-                                    meshId: meshData.id,
-                                    previewMode: renderType,
-                                    playbackSpeed: settings.playbackSpeed || 1.0,
-                                    animationType: settings.animation.type || 'play',
-                                    showPreviewBorders: window.showPreviewBorders,
-                                    updateStatus: (msg, type) => console.log(`[TEXTURE_STATUS] ${msg} (${type})`)
+                            // Start pre-rendering with the mesh directly in the callback
+                            await new Promise(preRenderResolve => {
+                                // Update progress bar as frames are captured
+                                const updateProgress = (percent) => {
+                                    console.log(`[TEXTURE_PROGRESS] Updating progress to ${percent}%`);
+                                    const progressBar = document.getElementById('apply-texture-progress');
+                                    if (progressBar) {
+                                        progressBar.style.width = `${percent}%`;
+                                    }
+                                    
+                                    // Update text as well
+                                    const progressTextEl = document.getElementById('apply-texture-progress-text');
+                                    
+                                    // Request animation frame for smoother UI updates
+                                    requestAnimationFrame(() => {
+                                        const progressBarEl = document.getElementById('apply-texture-progress');
+                                        if (progressBarEl) {
+                                            progressBarEl.style.width = `${percent}%`;
+                                        }
+                                        
+                                        // Update progress text based on completion level
+                                        const progressTextEl = document.getElementById('apply-texture-progress-text');
+                                        if (progressTextEl) {
+                                            if (percent < 30) {
+                                                progressTextEl.textContent = 'Analyzing animation frames...';
+                                            } else if (percent < 60) {
+                                                progressTextEl.textContent = 'Processing texture data...';
+                                            } else if (percent < 90) {
+                                                progressTextEl.textContent = 'Finalizing animation...';
+                                            } else {
+                                                progressTextEl.textContent = 'Applying texture to mesh...';
+                                            }
+                                        }
+                                    });
                                 };
                                 
-                                // Use the same pre-rendering as in preview mode
-                                if (typeof animationModule.startImage2TexturePreRendering === 'function') {
-                                    console.log('[TEXTURE_SETUP] Starting pre-rendering for animation');
+                                try {
+                                    // Log details about the settings being passed
+                                    console.log('[TEXTURE_SETUP] Starting pre-rendering with settings:', 
+                                        JSON.stringify({
+                                            meshId: customTextureSettings.meshId,
+                                            previewMode: customTextureSettings.previewMode,
+                                            playbackSpeed: customTextureSettings.playbackSpeed,
+                                            animationType: customTextureSettings.animationType,
+                                        }));
                                     
-                                    // Start pre-rendering with the mesh directly in the callback
-                                    await new Promise(preRenderResolve => {
-                                        animationModule.startImage2TexturePreRendering(iframe, () => {
-                                            console.log('[TEXTURE_SETUP] Pre-rendering complete, setting up animation loop');
-                                            
-                                            // Setup animation loop that properly maintains mesh reference
-                                            setupTextureAnimation(meshId, iframe, settings, mesh);
-                                            
-                                            // Reinforce the mesh connection
-                                            if (activeTextureData.has(meshId)) {
-                                                activeTextureData.get(meshId).mesh = mesh;
-                                            }
-                                            
-                                            preRenderResolve();
-                                        }, null, customTextureSettings);
-                                    });
-                                } else {
-                                    // Fallback to old animation method if pre-rendering isn't available
-                                    console.log('[TEXTURE_SETUP] Pre-rendering not available, using basic animation');
-                                    setupTextureAnimation(meshId, iframe, settings, mesh);
-                                }
-                            } else {
-                                // No animation, remove the iframe after initial capture
-                                console.log('[TEXTURE_SETUP] No animation needed, removing iframe after capture');
-                                document.body.removeChild(iframe);
+                                    // Force an initial progress update to show activity
+                                    updateProgress(1);
                                 
-                                // Keep the mesh and texture data for later cleanup
-                                if (activeTextureData.has(meshId)) {
-                                    const data = activeTextureData.get(meshId);
-                                    data.iframe = null;
+                                    animationModule.startImage2TexturePreRendering(iframe, () => {
+                                        console.log('[TEXTURE_SETUP] Pre-rendering complete, setting up animation loop');
+                                        
+                                        // Make sure we show completion
+                                        updateProgress(100);
+                                        
+                                        // Set original animation start time to now for proper playback timing
+                                        if (typeof animationModule.setOriginalAnimationStartTime === 'function') {
+                                            animationModule.setOriginalAnimationStartTime(Date.now());
+                                        }
+                                        
+                                        // Setup animation loop that properly maintains mesh reference
+                                        setupTextureAnimation(meshId, iframe, settings, mesh);
+                                        
+                                        // Reinforce the mesh connection
+                                        if (activeTextureData.has(meshId)) {
+                                            activeTextureData.get(meshId).mesh = mesh;
+                                        }
+                                        
+                                        // Remove loading overlay with fade out
+                                        loadingOverlay.classList.add('fade-out');
+                                        
+                                        // Remove after fade out
+                                        setTimeout(() => {
+                                            if (loadingOverlay.parentNode) {
+                                                loadingOverlay.parentNode.removeChild(loadingOverlay);
+                                            }
+                                        }, 500);
+                                        
+                                        preRenderResolve();
+                                    }, updateProgress, customTextureSettings);
+                                } catch (error) {
+                                    console.error('[TEXTURE_SETUP] Error in animation pre-rendering:', error);
+                                    
+                                    // Update progress text to show error
+                                    const progressTextEl = document.getElementById('apply-texture-progress-text');
+                                    if (progressTextEl) {
+                                        progressTextEl.textContent = 'Error in pre-rendering';
+                                        progressTextEl.style.color = '#ff6b6b';
+                                    }
+                                    
+                                    // Remove loading overlay after displaying error
+                                    setTimeout(() => {
+                                        if (loadingOverlay.parentNode) {
+                                            loadingOverlay.parentNode.removeChild(loadingOverlay);
+                                        }
+                                        
+                                        // Reject with the error to stop the process
+                                        preRenderResolve(false);
+                                    }, 2000);
                                 }
+                            });
+                        } catch (importError) {
+                            console.error('[TEXTURE_SETUP] Failed to import animation-util.js:', importError);
+                            
+                            // Clean up any loading overlay
+                            if (document.body.contains(loadingOverlay)) {
+                                document.body.removeChild(loadingOverlay);
                             }
                             
-                            resolve(true);
-                        } catch (error) {
-                            console.error('[TEXTURE_SETUP] Error creating texture from iframe:', error);
-                            try {
-                                document.body.removeChild(iframe);
-                            } catch (removeError) {
-                                console.debug('[TEXTURE_SETUP] Error removing iframe after error:', removeError);
-                            }
-                            
-                            // Remove from active textures
-                            activeTextureData.delete(meshId);
-                            reject(error);
+                            // Reject with proper error
+                            reject(new Error(`Animation module failed to load: ${importError.message}`));
+                            return;
                         }
-                    }, 800); // Increase the delay to give more time for the iframe content to load
+                        
+                        resolve(true);
+                    } catch (error) {
+                        console.error('[TEXTURE_SETUP] Error in pre-rendering setup:', error);
+                        
+                        // Remove loading overlay in case of error
+                        loadingOverlay.style.transition = 'opacity 0.5s ease';
+                        loadingOverlay.style.opacity = '0';
+                        setTimeout(() => {
+                            if (loadingOverlay.parentNode) {
+                                loadingOverlay.parentNode.removeChild(loadingOverlay);
+                            }
+                        }, 500);
+                        
+                        // Reject with the error instead of using fallback
+                        reject(error);
+                    }
                 }
             } catch (error) {
                 console.error('[TEXTURE_SETUP] Error in continueWithMesh:', error);

@@ -10,6 +10,7 @@ import { processGLBModel } from '../../core/glb-utils.js';
 
 // Current GLB buffer storage
 let currentGlbBuffer = null;
+let bufferUpdateListeners = [];
 
 /**
  * Initialize the model-HTML integration
@@ -60,27 +61,59 @@ function setupModelObserver() {
 /**
  * Process a model file and set it up for HTML editor integration
  * @param {File} file - The GLB file to process
+ * @returns {Promise<ArrayBuffer>} - Promise that resolves to the processed GLB buffer
  */
-async function processModelFileForHtmlEditor(file) {
+export async function processModelFileForHtmlEditor(file) {
     try {
         // Process the model file using our GLB utility
         const result = await processGLBModel(file);
         
+        if (!result || !result.arrayBuffer) {
+            console.error('[DEBUG] processGLBModel failed to return a valid buffer');
+            return null;
+        }
+        
+        console.log(`[DEBUG] processModelFileForHtmlEditor: processed buffer size ${result.arrayBuffer.byteLength} bytes`);
+        
+        // Clone the buffer to ensure we don't have reference issues
+        const clonedBuffer = result.arrayBuffer.slice(0);
+        
         // Update the state with the GLB buffer
         const state = getState();
         updateState('currentGlb', {
-            arrayBuffer: result.arrayBuffer,
+            arrayBuffer: clonedBuffer,
             fileName: result.fileName,
             fileSize: result.fileSize
         });
         
         // Set the current GLB buffer for the HTML editor
-        setCurrentGlbBuffer(result.arrayBuffer);
+        setCurrentGlbBuffer(clonedBuffer);
         
         console.log('Model processed for HTML editor integration:', result.fileName);
+        return clonedBuffer;
     } catch (error) {
         console.error('Error processing model file for HTML editor:', error);
+        return null;
     }
+}
+
+/**
+ * Register a listener for GLB buffer updates
+ * @param {Function} callback - Function to call when buffer is updated
+ * @returns {Function} Unregister function
+ */
+export function onGlbBufferUpdate(callback) {
+    if (typeof callback !== 'function') return () => {};
+    
+    bufferUpdateListeners.push(callback);
+    
+    // Return unregister function
+    return () => {
+        const index = bufferUpdateListeners.indexOf(callback);
+        if (index >= 0) {
+            bufferUpdateListeners.splice(index, 1);
+        }
+    };
 }
 
 /**
@@ -89,6 +122,15 @@ async function processModelFileForHtmlEditor(file) {
  */
 export function setCurrentGlbBuffer(glbBuffer) {
     currentGlbBuffer = glbBuffer;
+    
+    // Notify all listeners
+    for (const listener of bufferUpdateListeners) {
+        try {
+            listener(glbBuffer);
+        } catch (error) {
+            console.error('Error in buffer update listener:', error);
+        }
+    }
     
     // Optionally notify other components that the buffer has changed
     const event = new CustomEvent('glb-buffer-changed', { detail: { buffer: glbBuffer } });
@@ -144,25 +186,53 @@ export function getMeshById(meshId) {
 /**
  * Update the GLB file with modified data and save it
  * @param {ArrayBuffer} updatedGlb - The updated GLB file
- * @returns {Promise<boolean>} Promise that resolves to true if successful
+ * @param {boolean} [returnBuffer=false] - Whether to return the updated buffer
+ * @returns {Promise<ArrayBuffer|boolean>} Promise that resolves to the updated buffer if returnBuffer is true, otherwise true if successful
  */
-export async function updateGlbFile(updatedGlb) {
+export async function updateGlbFile(updatedGlb, returnBuffer = false) {
     try {
-        // Update our local reference
-        setCurrentGlbBuffer(updatedGlb);
+        console.log(`Updating GLB file with buffer size: ${updatedGlb ? updatedGlb.byteLength : 0} bytes`);
         
-        // Update state
+        // Verify that we have a valid buffer before updating
+        if (!updatedGlb || updatedGlb.byteLength === 0) {
+            console.error('Cannot update GLB: Invalid buffer provided');
+            return false;
+        }
+        
+        // Verify this is a valid GLB file by checking the magic bytes
+        const dataView = new DataView(updatedGlb);
+        const magic = dataView.getUint32(0, true);
+        const expectedMagic = 0x46546C67; // 'glTF' in ASCII
+        
+        if (magic !== expectedMagic) {
+            console.error(`Invalid GLB file: Incorrect magic bytes`);
+            return false;
+        }
+        
+        // Clone the buffer to ensure we don't have reference issues
+        const clonedBuffer = updatedGlb.slice(0);
+        
+        // Update our local reference using the setter function to trigger notifications
+        setCurrentGlbBuffer(clonedBuffer);
+        
+        // Update state with cloned buffer
         const state = getState();
         if (state && state.currentGlb) {
-            state.currentGlb.arrayBuffer = updatedGlb;
+            // Explicitly update state to ensure any listeners get notified
+            updateState('currentGlb', { 
+                ...state.currentGlb,
+                arrayBuffer: clonedBuffer
+            });
             
             // If there's a download function available, call it
             if (typeof window.updateDownloadLink === 'function') {
-                window.updateDownloadLink(updatedGlb);
+                window.updateDownloadLink(clonedBuffer);
             }
+        } else {
+            console.warn('No currentGlb in state to update');
         }
         
-        return true;
+        return returnBuffer ? clonedBuffer : true;
     } catch (error) {
         console.error('Error updating GLB file:', error);
         return false;
@@ -174,5 +244,6 @@ export default {
     getCurrentGlbBuffer,
     getMeshByIndex,
     getMeshById,
-    updateGlbFile
+    updateGlbFile,
+    processModelFileForHtmlEditor
 }; 

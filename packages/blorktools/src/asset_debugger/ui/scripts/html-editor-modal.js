@@ -7,11 +7,6 @@
 
 import { getState, updateState } from '../../core/state.js';
 import { 
-    getBinaryBufferForMesh, 
-    associateBinaryBufferWithMesh,
-    displayCustomTexture
-} from '../../core/glb-utils.js';
-import { 
     deserializeStringFromBinary, 
     serializeStringToBinary,
     serializeStringWithSettingsToBinary,
@@ -27,7 +22,18 @@ import {
     initHtmlLinter,
     lintHtmlContent
 } from '../../core/html-linter.js';
-import { updateGlbFile } from './model-integration.js';
+import { 
+    getCurrentGlbBuffer, 
+    updateGlbFile,
+    onGlbBufferUpdate
+} from './model-integration.js';
+import { 
+    getBinaryBufferForMesh,
+    associateBinaryBufferWithMesh,
+    MESH_BINARY_EXTENSION, 
+    MESH_INDEX_PROPERTY, 
+    BINARY_DATA_PROPERTY 
+} from '../../core/glb-utils.js';
 import { updateHtmlIcons } from './mesh-panel.js';
 import { setCustomTexture, disableCustomTexture } from '../../core/texture-util.js';
 import { setCustomDisplay, disableCustomDisplay } from '../../core/css3d-util.js';
@@ -316,7 +322,7 @@ export function initHtmlEditorModal() {
     const modal = document.getElementById('html-editor-modal');
     const closeBtn = document.getElementById('html-editor-close');
     const cancelBtn = document.getElementById('html-editor-cancel');
-    const saveBtn = document.getElementById('html-editor-save');
+    const applyBtn = document.getElementById('html-editor-apply');
     const formatBtn = document.getElementById('html-editor-format');
     const previewBtn = document.getElementById('html-editor-preview');
     const resetBtn = document.getElementById('html-editor-reset');
@@ -653,80 +659,175 @@ export function initHtmlEditorModal() {
         showStatus('Editor view restored', 'info');
     });
     
-    // Save button
-    saveBtn.addEventListener('click', async () => {
+    // Apply button
+    applyBtn.addEventListener('click', async () => {
         try {
             const currentMeshId = modal.dataset.meshId;
             if (currentMeshId) {
                 const html = textarea.value;
+                const meshIdInt = parseInt(currentMeshId);
                 
-                // Save HTML content
-                await saveHtmlForMesh(parseInt(currentMeshId), html, false); // Pass false for isActive
+                // Show status message to indicate processing
+                showStatus('Saving HTML to binary buffer...', 'info');
                 
-                // Update HTML icons to reflect the new state
-                updateHtmlIcons();
+                // Get all settings to save with HTML
+                const settings = getSettingsFromForm();
                 
-                // Reset the needs reload flag since we've just saved
-                htmlEditorState.needsReload = false;
-                
-                // Check if Display on Mesh is checked
-                const displayOnMeshCheckbox = document.getElementById('display-on-mesh');
-                if (displayOnMeshCheckbox && displayOnMeshCheckbox.checked) {
-                    // Show a status message to indicate processing
-                    showStatus('Applying HTML to mesh...', 'info');
+                try {
+                    // Get the current GLB buffer first
+                    const glbArrayBuffer = getCurrentGlbBuffer();
                     
-                    // Get rendering settings
-                    const renderTypeSelect = document.getElementById('html-render-type');
-                    const renderType = renderTypeSelect ? renderTypeSelect.value : 'threejs';
+                    console.log(`[DEBUG] Initial GLB buffer reference: ${glbArrayBuffer ? 'valid' : 'null'}, size: ${glbArrayBuffer ? glbArrayBuffer.byteLength : 0} bytes, id: ${glbArrayBuffer ? glbArrayBuffer.toString().substring(0, 20) : 'none'}`);
                     
-                    // Create mesh data object
-                    const meshData = {
-                        id: parseInt(currentMeshId),
-                        html: html
-                    };
+                    if (!glbArrayBuffer) {
+                        throw new Error('GLB buffer not found. Make sure the model is loaded properly.');
+                    }
                     
-                    // Get additional settings
-                    const settings = getSettingsFromForm();
+                    // Create a promise that will resolve when the buffer is successfully updated
+                    const bufferUpdatePromise = new Promise((resolve, reject) => {
+                        // Register a one-time listener for buffer updates
+                        const unregister = onGlbBufferUpdate((updatedBuffer) => {
+                            if (!updatedBuffer) {
+                                unregister();
+                                reject(new Error('Received null buffer in update notification'));
+                                return;
+                            }
+                            
+                            console.log(`Buffer update notification received, buffer size: ${updatedBuffer.byteLength} bytes`);
+                            unregister(); // Remove listener after one call
+                            resolve(updatedBuffer);
+                        });
+                        
+                        // If no update comes within a reasonable timeout, fail
+                        setTimeout(() => {
+                            unregister();
+                            reject(new Error('Timed out waiting for buffer update notification'));
+                        }, 2000);
+                    });
                     
-                    try {
+                    // 1. First, serialize HTML with settings to binary
+                    const binaryBuffer = serializeStringWithSettingsToBinary(html, settings);
+                    console.log(`Serialized HTML to binary buffer, size: ${binaryBuffer.byteLength} bytes`);
+                    
+                    // 2. Associate binary buffer with mesh
+                    console.log(`Before associating binary data with mesh ${meshIdInt}, GLB buffer size: ${glbArrayBuffer.byteLength} bytes`);
+                    
+                    // IMPORTANT: associateBinaryBufferWithMesh returns a NEW buffer, not modifying the original
+                    const updatedGlbBuffer = await associateBinaryBufferWithMesh(glbArrayBuffer, meshIdInt, binaryBuffer);
+                    
+                    if (!updatedGlbBuffer) {
+                        throw new Error('Failed to associate binary data with mesh - no buffer returned');
+                    }
+                    
+                    console.log(`After associating binary data, new buffer size: ${updatedGlbBuffer.byteLength} bytes`);
+                    
+                    // 3. Update GLB file with the NEW buffer from the association function
+                    console.log(`Updating GLB file with the new buffer...`);
+                    await updateGlbFile(updatedGlbBuffer, true);
+                    
+                    // 4. Wait for buffer update to complete and get the latest buffer reference
+                    console.log(`Waiting for GLB buffer update notification...`);
+                    const currentBuffer = await bufferUpdatePromise;
+                    console.log(`GLB buffer update received, buffer size: ${currentBuffer.byteLength} bytes`);
+                    
+                    // Update HTML icons to reflect the new state
+                    updateHtmlIcons();
+                    
+                    // Reset the needs reload flag since we've just saved
+                    htmlEditorState.needsReload = false;
+                    
+                    showStatus('HTML saved to model buffer successfully', 'success');
+                    
+                    // Check if Display on Mesh is checked
+                    const displayOnMeshCheckbox = document.getElementById('display-on-mesh');
+                    if (displayOnMeshCheckbox && displayOnMeshCheckbox.checked) {
+                        // Show a status message to indicate processing
+                        showStatus('Applying HTML from binary buffer to mesh...', 'info');
+                        
+                        // Get rendering settings
+                        const renderTypeSelect = document.getElementById('html-render-type');
+                        const renderType = renderTypeSelect ? renderTypeSelect.value : 'threejs';
+                        
+                        // Create mesh data object, using the binary buffer we just saved
+                        console.log(`Attempting to retrieve binary data from buffer reference (size: ${currentBuffer.byteLength} bytes)`);
+                        
+                        // Check if extension exists to validate our binary data was saved
+                        const extensionExists = await verifyExtensionExists(currentBuffer, meshIdInt);
+                        
+                        if (!extensionExists) {
+                            throw new Error('Binary extension not found in GLB after saving. Save operation failed.');
+                        }
+                        
+                        const binaryData = await getBinaryBufferForMesh(currentBuffer, meshIdInt);
+                        
+                        if (!binaryData) {
+                            console.error(`Failed to retrieve binary data for mesh ${meshIdInt} after saving.`);
+                            throw new Error('Binary data not found for mesh after saving. Save operation failed.');
+                        }
+                        
+                        console.log(`Successfully retrieved binary data for mesh ${meshIdInt} (${binaryData.byteLength} bytes)`);
+                        
+                        const meshData = {
+                            id: meshIdInt,
+                            binaryData: binaryData
+                            // No HTML fallback - we want to fail if binary approach doesn't work
+                        };
+                        
                         // Call appropriate function based on render type
                         if (renderType === 'css3d') {
                             // Use CSS3D rendering
                             await setCustomDisplay(meshData, settings);
                         } else {
                             // Use texture-based rendering (either threejs or longExposure)
-                            await setCustomTexture(meshData, renderType, settings);
+                            // Ensure custom settings are passed through properly
+                            const textureSettings = {
+                                ...settings,
+                                // Make sure these properties are explicitly set for the texture renderer
+                                playbackSpeed: parseFloat(settings.playbackSpeed) || 1.0,
+                                animation: {
+                                    type: settings.animation?.type || 'play'
+                                },
+                                display: {
+                                    showBorders: settings.display?.showBorders === undefined ? true : settings.display.showBorders,
+                                    displayOnMesh: true
+                                },
+                                // Set active flag to true to ensure texture is applied
+                                active: true
+                            };
+                            
+                            await setCustomTexture(meshData, renderType, textureSettings);
                         }
                         
                         console.debug(`Displaying HTML on mesh ${currentMeshId} using ${renderType} renderer`);
-                        showStatus('HTML applied to mesh successfully', 'success');
-                    } catch (error) {
-                        console.error('Error applying HTML to mesh:', error);
-                        showStatus(`Error applying HTML to mesh: ${error.message}`, 'error');
-                    }
-                } else {
-                    // Display on Mesh is not checked, disable any existing custom display
-                    const meshData = {
-                        id: parseInt(currentMeshId)
-                    };
-                    
-                    try {
-                        // Disable both types to ensure cleanup
-                        await Promise.all([
-                            disableCustomTexture(meshData),
-                            disableCustomDisplay(meshData)
-                        ]);
+                        showStatus('HTML saved and applied to mesh successfully', 'success');
+                    } else {
+                        // Display on Mesh is not checked, disable any existing custom display
+                        const meshData = {
+                            id: meshIdInt
+                        };
                         
-                        console.debug(`Removing custom display from mesh ${currentMeshId}`);
-                        showStatus('HTML saved and custom display removed', 'success');
-                    } catch (error) {
-                        console.error('Error removing custom display:', error);
-                        showStatus(`Error removing custom display: ${error.message}`, 'error');
+                        try {
+                            // Disable both types to ensure cleanup
+                            await Promise.all([
+                                disableCustomTexture(meshData),
+                                disableCustomDisplay(meshData)
+                            ]);
+                            
+                            console.debug(`Removing custom display from mesh ${currentMeshId}`);
+                            showStatus('HTML saved to model but display is disabled', 'info');
+                        } catch (error) {
+                            console.error('Error removing custom display:', error);
+                            showStatus(`Error removing custom display: ${error.message}`, 'error');
+                        }
                     }
+                } catch (error) {
+                    console.error('Error saving HTML to binary buffer:', error);
+                    showStatus(`Error saving HTML to binary buffer: ${error.message}`, 'error');
                 }
             }
         } catch (error) {
-            showStatus('Error saving HTML: ' + error.message, 'error');
+            console.error('Error saving and applying HTML to mesh:', error);
+            showStatus(`Error saving and applying HTML to mesh: ${error.message}`, 'error');
         }
     });
     
@@ -839,4 +940,84 @@ function createErrorContainer() {
  */
 export function setOriginalAnimationStartTime(incomingValue) {
     originalAnimationStartTime = incomingValue;
+}
+
+/**
+ * Verify that the binary extension exists for a mesh in a GLB buffer
+ * @param {ArrayBuffer} glbBuffer - The GLB buffer to check
+ * @param {number} meshId - The mesh ID to verify
+ * @returns {Promise<boolean>} True if the extension exists
+ */
+async function verifyExtensionExists(glbBuffer, meshId) {
+    if (!glbBuffer) {
+        console.error('verifyExtensionExists: No GLB buffer provided');
+        return false;
+    }
+    
+    try {
+        console.log(`Verifying binary extension for mesh ${meshId} in buffer size: ${glbBuffer.byteLength} bytes`);
+        
+        // Parse the GLB to access the JSON content
+        const dataView = new DataView(glbBuffer);
+        
+        // Basic GLB header checks
+        if (dataView.byteLength < 12) {
+            console.error('Buffer too small for valid GLB');
+            return false;
+        }
+        
+        // Check magic number
+        const magic = dataView.getUint32(0, true);
+        if (magic !== 0x46546C67) { // 'glTF' in ASCII
+            console.error(`Invalid GLB magic number: ${magic.toString(16)}`);
+            return false;
+        }
+        
+        // Get chunk 0 (JSON) length
+        const jsonChunkLength = dataView.getUint32(12, true);
+        
+        // Extract the JSON chunk
+        const jsonStart = 20;
+        const jsonEnd = jsonStart + jsonChunkLength;
+        const jsonData = glbBuffer.slice(jsonStart, jsonEnd);
+        const jsonString = new TextDecoder('utf-8').decode(jsonData);
+        const gltf = JSON.parse(jsonString);
+        
+        // Check if our extension exists
+        if (!gltf.extensions || !gltf.extensions[MESH_BINARY_EXTENSION]) {
+            console.log(`No binary extension found in GLB for mesh ${meshId}`);
+            return false;
+        }
+        
+        // Find the association for this mesh index
+        const associations = gltf.extensions[MESH_BINARY_EXTENSION].meshBinaryAssociations;
+        if (!associations || !Array.isArray(associations)) {
+            console.log('No binary associations found');
+            return false;
+        }
+        
+        // Check for this specific mesh ID
+        const association = associations.find(assoc => assoc[MESH_INDEX_PROPERTY] === meshId);
+        const found = !!association;
+        
+        if (found) {
+            // Get the buffer index
+            const bufferIndex = association[BINARY_DATA_PROPERTY];
+            
+            // Check if the buffer exists
+            if (!gltf.buffers || !gltf.buffers[bufferIndex]) {
+                console.log(`Buffer ${bufferIndex} referenced but not found for mesh ${meshId}`);
+                return false;
+            }
+            
+            console.log(`Found binary extension for mesh ${meshId} -> buffer ${bufferIndex}`);
+        } else {
+            console.log(`No binary association found for mesh ${meshId}`);
+        }
+        
+        return found;
+    } catch (error) {
+        console.error('Error verifying extension:', error);
+        return false;
+    }
 }

@@ -11,9 +11,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { processModelFile } from './worker-manager.js';
 
 // Constants for extension identification
-const MESH_BINARY_EXTENSION = 'BLORK_mesh_binary_data';
-const MESH_INDEX_PROPERTY = 'meshIndex';
-const BINARY_DATA_PROPERTY = 'binaryData';
+export const MESH_BINARY_EXTENSION = 'BLORK_mesh_binary_data';
+export const MESH_INDEX_PROPERTY = 'meshIndex';
+export const BINARY_DATA_PROPERTY = 'binaryData';
 
 // Keep track of preview resources for cleanup
 let previewRenderer = null;
@@ -601,7 +601,7 @@ export function associateBinaryBufferWithMesh(glbArrayBuffer, meshIndex, binaryD
             const newUint8Array = new Uint8Array(newGlb);
             
             // Write GLB header
-            newDataView.setUint32(0, expectedMagic, true); // GLB magic
+            newDataView.setUint32(0, 0x46546C67, true); // 'glTF' magic
             newDataView.setUint32(4, 2, true); // Version
             newDataView.setUint32(8, newTotalSize, true); // Total length
             
