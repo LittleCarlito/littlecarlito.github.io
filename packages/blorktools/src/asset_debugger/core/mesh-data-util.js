@@ -225,10 +225,9 @@ export async function loadHtmlForMesh(meshId, forceReload = false) {
  * Save content for a specific mesh
  * @param {number} meshId - The ID/index of the mesh
  * @param {string} content - The content to save
- * @param {boolean} isActive - Whether the HTML content should be active (animated) in the main scene
  * @returns {Promise<boolean>} A promise that resolves when saving is complete
  */
-export async function saveHtmlForMesh(meshId, content, isActive = false) {
+export async function saveHtmlForMesh(meshId, content) {
     // Check if content is empty or just whitespace
     const isEmpty = !content || content.trim() === '';
     
@@ -280,9 +279,6 @@ export async function saveHtmlForMesh(meshId, content, isActive = false) {
         
         // Get current settings from the form
         const settings = getSettingsFromForm();
-        
-        // Set the active flag based on the isActive parameter
-        settings.active = !!isActive;
         
         // Save settings to our in-memory map
         saveSettingsForMesh(meshId, settings);

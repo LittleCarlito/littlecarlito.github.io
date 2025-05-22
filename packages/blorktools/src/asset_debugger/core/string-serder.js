@@ -101,11 +101,6 @@ export function deserializeStringFromBinary(binaryData) {
                 
                 try {
                     settings = JSON.parse(settingsJson);
-                    
-                    // Ensure active flag exists (default to false if not present)
-                    if (settings.active === undefined) {
-                        settings.active = false;
-                    }
                 } catch (e) {
                     console.warn("Error parsing settings JSON:", e);
                 }

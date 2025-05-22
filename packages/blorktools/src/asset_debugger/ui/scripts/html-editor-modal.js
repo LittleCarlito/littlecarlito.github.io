@@ -295,8 +295,7 @@ export function getSettingsFromForm() {
         display: {
             showBorders: showWireframeCheckbox ? showWireframeCheckbox.checked : true,
             displayOnMesh: displayOnMeshCheckbox ? displayOnMeshCheckbox.checked : false
-        },
-        active: false // Default to false, will be set to true when using Save and Apply
+        }
     };
 }
 
@@ -790,9 +789,7 @@ export function initHtmlEditorModal() {
                                 display: {
                                     showBorders: settings.display?.showBorders === undefined ? true : settings.display.showBorders,
                                     displayOnMesh: true
-                                },
-                                // Set active flag to true to ensure texture is applied
-                                active: true
+                                }
                             };
                             
                             await setCustomTexture(meshData, renderType, textureSettings);
