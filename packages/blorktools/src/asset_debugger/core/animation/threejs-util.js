@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { animatePreview, previewAnimationId, resetLastAnimationFrameTime, resetPreviewAnimationId } from './preview-util';
+import { animatePreview, previewAnimationId, resetLastAnimationFrameTime, resetPreviewAnimationId } from '../preview-util';
 import { 
     getIsPreviewActive, 
     setIsPreviewActive, 
     setIsPreviewAnimationPaused, 
     setLastTextureUpdateTime,
     getIsPreviewAnimationPaused
-} from '../animation-util';
+} from './animation-util';
 import { createTextureFromIframe } from '../texture-util';
 import { getState } from '../state';
 import { showStatus } from '../../ui/scripts/html-editor-modal';
@@ -411,7 +411,7 @@ export function cleanupThreeJsPreview() {
     
     // Clean up CSS3D preview timers
     // Import and call cleanupCSS3DPreview to stop any animation restart timers
-    import('../../core/css3d-util.js').then(module => {
+    import('./css3d-util.js').then(module => {
         if (typeof module.cleanupCSS3DPreview === 'function') {
             module.cleanupCSS3DPreview();
         }

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { createTextureFromIframe } from '../texture-util';
-import { originalAnimationStartTime, showStatus, CustomTextureSettings } from '../../ui/scripts/html-editor-modal';
+import { createTextureFromIframe } from './texture-util';
+import { originalAnimationStartTime, showStatus, CustomTextureSettings } from '../ui/scripts/html-editor-modal';
 import { 
     getAnimationDuration, 
     getIsAnimationFinite, 
@@ -16,12 +16,12 @@ import {
     setIsPreviewAnimationPaused,
     getLastTextureUpdateTime,
     setLastTextureUpdateTime
-} from '../animation-util';
-import { sanitizeHtml } from '../string-serder';
-import { getState } from '../state';
-import { initCSS3DPreview } from '../css3d-util';
-import { animationPreviewCamera, animationPreviewRenderer, animationPreviewScene, cleanupThreeJsPreview, initThreeJsPreview, previewPlane, setPreviewRenderTarget } from './threejs-util';
-import { getHtmlSettingsForMesh } from '../mesh-data-util';
+} from './animation/animation-util';
+import { sanitizeHtml } from './string-serder';
+import { getState } from './state';
+import { initCSS3DPreview } from './animation/css3d-util';
+import { animationPreviewCamera, animationPreviewRenderer, animationPreviewScene, cleanupThreeJsPreview, initThreeJsPreview, previewPlane, setPreviewRenderTarget } from './animation/threejs-util';
+import { getHtmlSettingsForMesh } from './mesh-data-util';
 
 export let lastAnimationFrameTime = 0;
 export let previewAnimationId = null;

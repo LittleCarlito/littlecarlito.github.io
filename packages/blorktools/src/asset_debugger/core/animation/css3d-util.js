@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { animationCss3dObject, animationCss3dRenderer, animationCss3dScene, animationPreviewCamera, initThreeJsPreview, setAnimationCss3dObject, setAnimationCss3dRenderer, setAnimationCss3dScene, setAnimationPreviewCamera, setPreviewRenderTarget } from './preview/threejs-util';
-import { createMeshInfoPanel } from './mesh-info-panel-util';
-import { getHtmlSettingsForMesh } from './mesh-data-util';
+import { animationCss3dObject, animationCss3dRenderer, animationCss3dScene, animationPreviewCamera, initThreeJsPreview, setAnimationCss3dObject, setAnimationCss3dRenderer, setAnimationCss3dScene, setAnimationPreviewCamera, setPreviewRenderTarget } from './threejs-util';
+import { createMeshInfoPanel } from '../mesh-info-panel-util';
+import { getHtmlSettingsForMesh } from '../mesh-data-util';
 import { getIsPreviewActive } from './animation-util';
-import { showStatus } from '../ui/scripts/html-editor-modal';
+import { showStatus } from '../../ui/scripts/html-editor-modal';
 
 // Add animation stack tracking variables at the top of the file
 let animationStack = [];
@@ -239,7 +239,7 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, currentM
                     element.contentDocument.close();
                     
                     // Get detected animation duration from pre-render (animationDuration is in milliseconds)
-                    import('../core/animation-util').then(module => {
+                    import('./animation-util').then(module => {
                         const { animationDuration, isAnimationFinite } = module;
                         
                         // Get animation type from dropdown

@@ -36,14 +36,14 @@ import {
 } from '../../core/glb-utils.js';
 import { updateHtmlIcons } from './mesh-panel.js';
 import { setCustomTexture, disableCustomTexture } from '../../core/texture-util.js';
-import { setCustomDisplay, disableCustomDisplay } from '../../core/css3d-util.js';
+import { setCustomDisplay, disableCustomDisplay } from '../../core/animation/css3d-util.js';
 
 // Import Three.js the same way as other files in the codebase
 import * as THREE from 'three';
 import { createLongExposureTexture, createTextureFromIframe } from '../../core/texture-util.js';
-import { getIsPreviewActive, setLastTextureUpdateTime } from '../../core/animation-util.js';
-import { maxCaptureRate, previewHtml } from '../../core/preview/preview-util.js';
-import { cleanupThreeJsPreview, frameBuffer, previewRenderTarget } from '../../core/preview/threejs-util.js';
+import { getIsPreviewActive, setLastTextureUpdateTime } from '../../core/animation/animation-util.js';
+import { maxCaptureRate, previewHtml } from '../../core/preview-util.js';
+import { cleanupThreeJsPreview, frameBuffer, previewRenderTarget } from '../../core/animation/threejs-util.js';
 import { getHtmlSettingsForMesh, loadHtmlForMesh, loadSettingsForMesh, saveHtmlForMesh, saveSettingsForMesh } from '../../core/mesh-data-util.js';
 
 export let originalAnimationStartTime = 0;

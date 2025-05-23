@@ -11,7 +11,6 @@ import { deserializeStringFromBinary, sanitizeHtml } from './string-serder.js';
 
 // Track loaded dependencies
 let css3DRendererLoaded = false;
-let orbitControlsLoaded = false;
 
 // Store renderers and scenes
 const renderers = new Map();
@@ -26,7 +25,10 @@ const htmlElements = new Map();
  * @returns {Promise<boolean>} A promise that resolves to true if initialization was successful
  */
 export async function initHtmlRenderer(mesh, htmlContent, settings = {}) {
-    if (!mesh || !htmlContent) return false;
+    if (!mesh || !htmlContent) {
+        console.error('Invalid mesh or HTML content');
+        return false;
+    }
     
     // Get mesh ID or generate one
     const meshId = mesh.userData?.meshId || mesh.id || Math.floor(Math.random() * 100000);
@@ -69,8 +71,7 @@ async function initCSS3DRenderer(mesh, htmlContent, settings, meshId) {
             css3DRendererLoaded = true;
         } catch (error) {
             console.error('Failed to load CSS3DRenderer:', error);
-            // Fall back to texture-based rendering
-            return initTextureRenderer(mesh, htmlContent, settings, meshId);
+            return false;
         }
     }
     
@@ -183,6 +184,10 @@ async function initTextureRenderer(mesh, htmlContent, settings, meshId) {
         
         // Create a texture from the iframe
         const texture = await createTextureFromIframe(iframe);
+        if (!texture) {
+            console.error('Failed to create texture from iframe');
+            return false;
+        }
         
         // Create a material with the texture
         const material = new THREE.MeshBasicMaterial({
@@ -326,11 +331,6 @@ function updateDirectOverlayPosition(meshId) {
     // Show the container
     container.style.display = 'block';
     
-    // Check if the mesh is facing the camera (billboard mode)
-    if (settings.billboard) {
-        // No need to do anything for direct overlay
-    }
-    
     // Check if the mesh is within the distance threshold
     if (settings.autoShow) {
         const distanceToCamera = camera.position.distanceTo(mesh.position);
@@ -357,6 +357,10 @@ function startTextureUpdateLoop(meshId) {
             
             // Update the texture from the iframe
             const newTexture = await createTextureFromIframe(iframe);
+            if (!newTexture) {
+                console.error('Failed to update texture from iframe');
+                return;
+            }
             
             // Update the material's texture
             const material = rendererData.material;
@@ -380,80 +384,40 @@ function startTextureUpdateLoop(meshId) {
 /**
  * Create a texture from an iframe
  * @param {HTMLIFrameElement} iframe - The iframe to create a texture from
- * @returns {Promise<THREE.Texture>} A promise that resolves to a Three.js texture
+ * @returns {Promise<THREE.Texture|null>} A promise that resolves to a Three.js texture or null if failed
  */
 async function createTextureFromIframe(iframe) {
-    return new Promise(async (resolve, reject) => {
-        try {
-            // Check if html2canvas is available
-            if (typeof html2canvas === 'undefined') {
-                // Load html2canvas
-                await loadHtml2Canvas();
-            }
-            
-            // Get iframe dimensions
-            const width = parseInt(iframe.style.width) || 960;
-            const height = parseInt(iframe.style.height) || 540;
-            
-            // Use html2canvas to capture the iframe content
-            const canvas = await html2canvas(iframe.contentDocument.body, {
-                backgroundColor: null, // Transparent background
-                scale: 1,
-                width: width,
-                height: height,
-                logging: false,
-                allowTaint: true,
-                useCORS: true
-            });
-            
-            // Create a texture from the canvas
-            const texture = new THREE.CanvasTexture(canvas);
-            texture.needsUpdate = true;
-            
-            resolve(texture);
-        } catch (error) {
-            console.error('Error creating texture from iframe:', error);
-            
-            // Create a fallback texture
-            const texture = createFallbackTexture();
-            resolve(texture);
+    try {
+        // Check if html2canvas is available
+        if (typeof html2canvas === 'undefined') {
+            // Load html2canvas
+            await loadHtml2Canvas();
         }
-    });
-}
-
-/**
- * Create a fallback texture
- * @returns {THREE.Texture} A fallback texture
- */
-function createFallbackTexture() {
-    // Create a canvas
-    const canvas = document.createElement('canvas');
-    canvas.width = 960;
-    canvas.height = 540;
-    const ctx = canvas.getContext('2d');
-    
-    // Clear canvas with transparent background
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw a semi-transparent background
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.fillRect(10, 10, 400, 150);
-    
-    // Draw text
-    ctx.fillStyle = '#333';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillText('HTML Content', 20, 40);
-    
-    ctx.font = '16px sans-serif';
-    ctx.fillText('Content could not be rendered.', 20, 80);
-    ctx.fillText('This may be due to security restrictions', 20, 110);
-    ctx.fillText('or content that requires special rendering.', 20, 140);
-    
-    // Create texture from canvas
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
-    
-    return texture;
+        
+        // Get iframe dimensions
+        const width = parseInt(iframe.style.width) || 960;
+        const height = parseInt(iframe.style.height) || 540;
+        
+        // Use html2canvas to capture the iframe content
+        const canvas = await html2canvas(iframe.contentDocument.body, {
+            backgroundColor: null, // Transparent background
+            scale: 1,
+            width: width,
+            height: height,
+            logging: false,
+            allowTaint: true,
+            useCORS: true
+        });
+        
+        // Create a texture from the canvas
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        
+        return texture;
+    } catch (error) {
+        console.error('Error creating texture from iframe:', error);
+        return null;
+    }
 }
 
 /**
@@ -472,7 +436,10 @@ async function loadHtml2Canvas() {
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
         script.onload = () => resolve();
-        script.onerror = (error) => reject(error);
+        script.onerror = (error) => {
+            console.error('Failed to load html2canvas library:', error);
+            reject(error);
+        };
         document.head.appendChild(script);
     });
 }
@@ -485,75 +452,34 @@ async function loadCSS3DRenderer() {
     return new Promise((resolve, reject) => {
         // Check if CSS3DRenderer is already loaded
         if (THREE.CSS3DRenderer) {
-            console.log('CSS3DRenderer already available');
             resolve();
             return;
         }
         
-        // Try multiple CDN sources in case one fails
-        const cdnUrls = [
-            // Unpkg is generally more reliable for Three.js examples
-            'https://unpkg.com/three@0.149.0/examples/js/renderers/CSS3DRenderer.js',
-            // Fallback to jsDelivr with explicit content type
-            'https://cdn.jsdelivr.net/npm/three@0.149.0/examples/js/renderers/CSS3DRenderer.js',
-            // Another fallback to older version
-            'https://unpkg.com/three@0.147.0/examples/js/renderers/CSS3DRenderer.js'
-        ];
+        // Primary CDN source
+        const cdnUrl = 'https://unpkg.com/three@0.149.0/examples/js/renderers/CSS3DRenderer.js';
         
-        // Try to load from the first URL
-        loadFromUrl(cdnUrls, 0);
+        const script = document.createElement('script');
+        script.src = cdnUrl;
+        script.type = 'text/javascript';
         
-        function loadFromUrl(urls, index) {
-            if (index >= urls.length) {
-                console.warn('All CDN attempts failed, trying local fallback');
-                
-                // Try local fallback
-                import('./css3d-renderer.js')
-                    .then(() => {
-                        if (typeof THREE.CSS3DRenderer === 'function') {
-                            console.log('Successfully loaded CSS3DRenderer from local fallback');
-                            resolve();
-                        } else {
-                            const error = new Error('Local fallback loaded but CSS3DRenderer not found');
-                            console.error(error);
-                            reject(error);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Failed to load local CSS3DRenderer fallback:', error);
-                        reject(new Error('Failed to load CSS3DRenderer from any source'));
-                    });
-                return;
+        script.onload = () => {
+            // Verify that it actually loaded the correct object
+            if (typeof THREE.CSS3DRenderer === 'function') {
+                resolve();
+            } else {
+                const error = new Error('CSS3DRenderer loaded but object not found');
+                console.error(error);
+                reject(error);
             }
-            
-            const url = urls[index];
-            console.log(`Attempting to load CSS3DRenderer from: ${url}`);
-            
-            const script = document.createElement('script');
-            script.src = url;
-            
-            // Set explicit content type to help with MIME type issues
-            script.type = 'text/javascript';
-            
-            script.onload = () => {
-                console.log(`CSS3DRenderer loaded successfully from ${url}`);
-                
-                // Verify that it actually loaded the correct object
-                if (typeof THREE.CSS3DRenderer === 'function') {
-                    resolve();
-                } else {
-                    console.warn('CSS3DRenderer loaded but object not found, trying next source');
-                    loadFromUrl(urls, index + 1);
-                }
-            };
-            
-            script.onerror = () => {
-                console.warn(`Failed to load CSS3DRenderer from ${url}, trying next source`);
-                loadFromUrl(urls, index + 1);
-            };
-            
-            document.head.appendChild(script);
-        }
+        };
+        
+        script.onerror = (error) => {
+            console.error(`Failed to load CSS3DRenderer from ${cdnUrl}:`, error);
+            reject(error);
+        };
+        
+        document.head.appendChild(script);
     });
 }
 
@@ -639,7 +565,10 @@ export function cleanupHtmlRenderer(meshId) {
  * @returns {Promise<boolean>} A promise that resolves to true if loading was successful
  */
 export async function loadHtmlForMeshFromGlb(mesh, glbBuffer, settings = {}) {
-    if (!mesh || !glbBuffer) return false;
+    if (!mesh || !glbBuffer) {
+        console.error('Invalid mesh or GLB buffer');
+        return false;
+    }
     
     try {
         // Get mesh ID
@@ -650,6 +579,7 @@ export async function loadHtmlForMeshFromGlb(mesh, glbBuffer, settings = {}) {
         
         // If no buffer found, return false
         if (!binaryBuffer || binaryBuffer.byteLength === 0) {
+            console.error('No binary buffer found for mesh in GLB');
             return false;
         }
         
