@@ -1,7 +1,22 @@
 import * as THREE from 'three';
 import { createTextureFromIframe } from '../texture-util';
 import { originalAnimationStartTime, showStatus, CustomTextureSettings } from '../../ui/scripts/html-editor-modal';
-import { animationDuration, isAnimationFinite, preRenderedFrames, preRenderingInProgress, resetPreRender, startImage2TexturePreRendering, startCss3dPreRendering } from '../animation-util';
+import { 
+    getAnimationDuration, 
+    getIsAnimationFinite, 
+    getPreRenderedFrames, 
+    getPreRenderingInProgress, 
+    resetPreRender, 
+    startImage2TexturePreRendering, 
+    startCss3dPreRendering,
+    updateMeshTexture,
+    getIsPreviewActive,
+    getIsPreviewAnimationPaused,
+    setIsPreviewActive,
+    setIsPreviewAnimationPaused,
+    getLastTextureUpdateTime,
+    setLastTextureUpdateTime
+} from '../animation-util';
 import { sanitizeHtml } from '../string-serder';
 import { getState } from '../state';
 import { initCSS3DPreview } from '../css3d-util';
@@ -15,12 +30,12 @@ const frameInterval = 1000 / targetFrameRate;
 // Add variables for CSS3D rendering
 let webglRenderer;
 // Three.js variables for preview
-export let isPreviewAnimationPaused = false;
-let lastTextureUpdateTime = 0;
+// No longer declare isPreviewAnimationPaused here, it's imported from animation-util.js
+// No longer declare lastTextureUpdateTime here, it's imported from animation-util.js
 
 // Add variables for frame buffering at the top of the file with other variables
 export let maxCaptureRate = 0.5; // Reduce to 0.5ms between captures for more frames (was 1)
-export let isPreviewActive = true; // Changed from false to true to ensure it's active by default
+// No longer declare isPreviewActive here, it's imported from animation-util.js
 
 // Store current preview settings
 export let currentPreviewSettings = null;
@@ -43,7 +58,7 @@ function initializePreview(previewMode, canvasContainer, renderIframe, currentMe
 
     // If not starting animation immediately, pause it
     if (!startAnimation) {
-        isPreviewAnimationPaused = true;
+        setIsPreviewAnimationPaused(true);
     }
 
     // Initialize preview based on mode
@@ -103,7 +118,7 @@ export function previewHtml(settings, previewContent, setModalData) {
         previewContent.innerHTML = '';
 
         // Set preview as active
-        isPreviewActive = true;
+        setIsPreviewActive(true);
 
         // The sanitizeHtml function handles wrapping fragments if needed
         const sanitizedHtml = sanitizeHtml(html);
@@ -141,7 +156,7 @@ export function previewHtml(settings, previewContent, setModalData) {
         // Wait for iframe to be ready
         renderIframe.onload = () => {
             // Only proceed if preview is still active
-            if (!isPreviewActive) return;
+            if (!getIsPreviewActive()) return;
 
             // Create container for Three.js canvas
             const canvasContainer = document.createElement('div');
@@ -281,7 +296,7 @@ export function previewHtml(settings, previewContent, setModalData) {
                         
                         // Pass true for createInfoPanel to ensure the info panel is created
                         initCSS3DPreview(canvasContainer, renderIframe, currentMeshId, true);
-                    }, progressBar, settings);
+                    }, progressBar, settings, previewPlane);
                     break;
                     
                 case 'threejs':
@@ -292,7 +307,7 @@ export function previewHtml(settings, previewContent, setModalData) {
                     startImage2TexturePreRendering(renderIframe, () => {
                         // The callback is now called from the final animation completion
                         console.log('Pre-rendering complete callback executed');
-                    }, progressBar, settings);
+                    }, progressBar, settings, previewPlane);
                     break;
             }
         };
@@ -366,35 +381,11 @@ function logPreviewError(message, previewContent, existingErrorLog, statusCallba
 }
 
 /**
- * Set the isPreviewAnimationPaused flag
- * @param {boolean} incomingValue - The new value to set
- */
-export function setIsPreviewAnimationPaused(incomingValue) {
-    isPreviewAnimationPaused = incomingValue;
-}
-
-/**
- * Set the lastTextureUpdateTime
- * @param {number} incomingValue - The new value to set
- */
-export function setLastTextureUpdateTime(incomingValue) {
-    lastTextureUpdateTime = incomingValue;
-}
-
-/**
- * Set the isPreviewActive flag
- * @param {boolean} incomingValue - The new value to set
- */
-export function setIsPreviewActive(incomingValue) {
-    isPreviewActive = incomingValue;
-}
-
-/**
  * Animation loop for the Three.js preview
  */
 export function animatePreview() {
     // If preview is no longer active, don't continue the animation loop
-    if (!isPreviewActive) {
+    if (!getIsPreviewActive()) {
         console.log('Preview no longer active, stopping animation loop');
         return;
     }
@@ -423,7 +414,7 @@ export function animatePreview() {
         const animationType = currentPreviewSettings?.animationType || 'play';
         
         // Apply animation if the animation type isn't "play" (value: 'play') and preview is not paused
-        if (animationType !== 'play' && !isPreviewAnimationPaused) {
+        if (animationType !== 'play' && !getIsPreviewAnimationPaused()) {
             // Use currentPreviewSettings instead of accessing DOM
             const currentMeshId = currentPreviewSettings?.meshId;
             
@@ -494,7 +485,7 @@ export function animatePreview() {
         const playbackSpeed = currentPreviewSettings?.playbackSpeed || 1.0;
         
         // Skip frame updates if animation is paused or we're in long exposure mode
-        if (isPreviewAnimationPaused || animationType === 'longExposure') {
+        if (getIsPreviewAnimationPaused() || animationType === 'longExposure') {
             // Still render the scene with the current frame
             if (animationPreviewRenderer && animationPreviewScene && animationPreviewCamera) {
                 animationPreviewRenderer.render(animationPreviewScene, animationPreviewCamera);
@@ -507,21 +498,21 @@ export function animatePreview() {
         const elapsedSinceStart = currentTime - originalAnimationStartTime;
         
         // If we're pre-rendering or have pre-rendered frames - now for ALL speeds
-        if (preRenderingInProgress || preRenderedFrames.length > 0) {
+        if (getPreRenderingInProgress() || getPreRenderedFrames().length > 0) {
             // Calculate adjusted time based on playback speed
             const adjustedTime = elapsedSinceStart * playbackSpeed;
             
             // For finite animations, we need to handle looping
-            if (isAnimationFinite && animationDuration > 0 && preRenderedFrames.length > 0) {
+            if (getIsAnimationFinite() && getAnimationDuration() > 0 && getPreRenderedFrames().length > 0) {
                 // Calculate the position within the animation based on animation type
                 let loopPosition;
                 
                 // First, calculate the normalized time position (shared between loop and bounce)
                 // This is how the loop animation has been calculating it
-                const normalizedTime = (adjustedTime % animationDuration) / animationDuration;
+                const normalizedTime = (adjustedTime % getAnimationDuration()) / getAnimationDuration();
                 
                 // Log cycle completion (shared between loop and bounce)
-                const cycleCount = Math.floor(adjustedTime / animationDuration);
+                const cycleCount = Math.floor(adjustedTime / getAnimationDuration());
                 if (cycleCount > 0 && normalizedTime < 0.05) {
                     console.log(`Cycle ${cycleCount} complete`);
                 }
@@ -549,14 +540,14 @@ export function animatePreview() {
                         
                     default: // 'play' or any other type
                         // Check if we've reached the end of the animation
-                        if (adjustedTime >= animationDuration) {
+                        if (adjustedTime >= getAnimationDuration()) {
                             // If not looping or bouncing, stay on the last frame
-                            if (!isPreviewAnimationPaused) {
+                            if (!getIsPreviewAnimationPaused()) {
                                 console.log('Animation complete, pausing at last frame');
                                 setIsPreviewAnimationPaused(true);
                                 
                                 // Show the last frame
-                                updateMeshTexture(preRenderedFrames[preRenderedFrames.length - 1].texture);
+                                updateMeshTexture(getPreRenderedFrames()[getPreRenderedFrames().length - 1].texture, previewPlane);
                                 
                                 // Show a message that playback has ended
                                 if (currentPreviewSettings && typeof currentPreviewSettings.updateStatus === 'function') {
@@ -568,20 +559,20 @@ export function animatePreview() {
                             return; // Exit early to avoid further processing
                         } else {
                             // If not at the end yet, clamp to the current position
-                            loopPosition = adjustedTime / animationDuration;
+                            loopPosition = adjustedTime / getAnimationDuration();
                         }
                         break;
                 }
                 
                 // Calculate frame index based on loop position
                 const frameIndex = Math.min(
-                    Math.floor(loopPosition * preRenderedFrames.length),
-                    preRenderedFrames.length - 1
+                    Math.floor(loopPosition * getPreRenderedFrames().length),
+                    getPreRenderedFrames().length - 1
                 );
                 
                 // Use the pre-rendered frame at this position
-                if (frameIndex >= 0 && frameIndex < preRenderedFrames.length) {
-                    updateMeshTexture(preRenderedFrames[frameIndex].texture);
+                if (frameIndex >= 0 && frameIndex < getPreRenderedFrames().length) {
+                    updateMeshTexture(getPreRenderedFrames()[frameIndex].texture, previewPlane);
                 }
             }
             // For non-finite animations or while still pre-rendering
@@ -594,7 +585,7 @@ export function animatePreview() {
                 let smallestDifference = Infinity;
                 
                 // Use pre-rendered frames first
-                const framesArray = preRenderedFrames.length > 0 ? preRenderedFrames : frameBuffer;
+                const framesArray = getPreRenderedFrames().length > 0 ? getPreRenderedFrames() : frameBuffer;
                 
                 for (let i = 0; i < framesArray.length; i++) {
                     const difference = Math.abs(framesArray[i].timestamp - targetTime);
@@ -606,8 +597,7 @@ export function animatePreview() {
                 
                 // If we have a valid frame, use it
                 if (closestFrameIndex >= 0 && closestFrameIndex < framesArray.length) {
-                    // Update texture with the appropriate frame
-                    updateMeshTexture(framesArray[closestFrameIndex].texture);
+                    updateMeshTexture(framesArray[closestFrameIndex].texture, previewPlane);
                 }
             }
         }
@@ -638,34 +628,4 @@ export function resetPreviewAnimationId() {
  */
 export function resetLastAnimationFrameTime() {
     lastAnimationFrameTime = 0;
-}
-
-/**
- * Update the mesh texture with the given texture
- * @param {THREE.Texture} texture - The texture to apply to the mesh
- */
-export function updateMeshTexture(texture) {
-    if (!texture || !previewPlane || !previewPlane.material) return;
-    
-    let needsUpdate = false;
-    
-    if (Array.isArray(previewPlane.material)) {
-        previewPlane.material.forEach(material => {
-            if (material.map !== texture) {
-                material.map = texture;
-                needsUpdate = true;
-            }
-        });
-        
-        if (needsUpdate) {
-            previewPlane.material.forEach(material => {
-                material.needsUpdate = true;
-            });
-        }
-    } else {
-        if (previewPlane.material.map !== texture) {
-            previewPlane.material.map = texture;
-            previewPlane.material.needsUpdate = true;
-        }
-    }
 }

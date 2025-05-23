@@ -41,7 +41,8 @@ import { setCustomDisplay, disableCustomDisplay } from '../../core/css3d-util.js
 // Import Three.js the same way as other files in the codebase
 import * as THREE from 'three';
 import { createLongExposureTexture, createTextureFromIframe } from '../../core/texture-util.js';
-import { isPreviewActive, maxCaptureRate, previewHtml, setLastTextureUpdateTime  } from '../../core/preview/preview-util.js';
+import { getIsPreviewActive, setLastTextureUpdateTime } from '../../core/animation-util.js';
+import { maxCaptureRate, previewHtml } from '../../core/preview/preview-util.js';
 import { cleanupThreeJsPreview, frameBuffer, previewRenderTarget } from '../../core/preview/threejs-util.js';
 import { getHtmlSettingsForMesh, loadHtmlForMesh, loadSettingsForMesh, saveHtmlForMesh, saveSettingsForMesh } from '../../core/mesh-data-util.js';
 
@@ -416,7 +417,7 @@ export function initHtmlEditorModal() {
                 saveSettingsForMesh(meshId, settings);
                 
                 // Update CSS3D preview if active
-                if (isPreviewActive) {
+                if (getIsPreviewActive()) {
                     try {
                         // For CSS3D preview - update animation speed via CSS
                         const css3dIframe = document.getElementById('css3d-panel-iframe');
@@ -484,7 +485,7 @@ export function initHtmlEditorModal() {
             window.showPreviewBorders = showWireframeCheckbox.checked;
             
             // If preview is active, update it immediately
-            if (isPreviewActive && previewRenderTarget) {
+            if (getIsPreviewActive() && previewRenderTarget) {
                 // Force a texture update
                 setLastTextureUpdateTime(0);
                 showStatus(`Borders ${showWireframeCheckbox.checked ? 'enabled' : 'disabled'}`, 'info');

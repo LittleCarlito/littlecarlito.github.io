@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { animationCss3dObject, animationCss3dRenderer, animationCss3dScene, animationPreviewCamera, initThreeJsPreview, setAnimationCss3dObject, setAnimationCss3dRenderer, setAnimationCss3dScene, setAnimationPreviewCamera, setPreviewRenderTarget } from './preview/threejs-util';
 import { createMeshInfoPanel } from './mesh-info-panel-util';
 import { getHtmlSettingsForMesh } from './mesh-data-util';
-import { isPreviewActive } from './preview/preview-util';
+import { getIsPreviewActive } from './animation-util';
 import { showStatus } from '../ui/scripts/html-editor-modal';
 
 // Add animation stack tracking variables at the top of the file
@@ -260,7 +260,7 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, currentM
                             
                             // Create repeating timer to reload the iframe content
                             const restartTimer = setInterval(() => {
-                                if (!isPreviewActive) {
+                                if (!getIsPreviewActive()) {
                                     // Clean up timer if preview is no longer active
                                     clearInterval(restartTimer);
                                     return;
@@ -383,7 +383,7 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, currentM
 
             // Animation loop
             function animate() {
-                if (!isPreviewActive) {
+                if (!getIsPreviewActive()) {
                     return;
                 }
 
@@ -404,7 +404,7 @@ function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, currentM
 
             // Add keyboard shortcuts for zooming
             const handleKeydown = (event) => {
-                if (!isPreviewActive) return;
+                if (!getIsPreviewActive()) return;
 
                 // Get current controls - they should be attached to the camera by this point
                 const controls = animationPreviewCamera.userData.controls;

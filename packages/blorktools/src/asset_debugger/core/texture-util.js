@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { isPreviewActive } from './preview/preview-util';
+import { getIsPreviewActive, setLastTextureUpdateTime, getLastTextureUpdateTime } from './animation-util';
 import * as modelIntegration from '../ui/scripts/model-integration.js';
+import { updateMeshTexture } from './animation-util';
 
 // Track active textures and animations
 const activeTextureData = new Map();
@@ -241,7 +242,7 @@ export async function createTextureFromIframe(iframe) {
             console.log('[IFRAME_DEBUG] Starting texture creation from iframe');
             
             // Check if preview is still active, but don't reject - just log a warning and continue
-            if (!isPreviewActive) {
+            if (!getIsPreviewActive()) {
                 console.warn('[IFRAME_DEBUG] Preview is no longer active, but proceeding with texture creation anyway');
                 // Instead of rejecting, we'll continue and try to create a texture
             }
@@ -2177,7 +2178,7 @@ function startTextureAnimationLoop() {
     window._textureAnimationLoop = requestAnimationFrame(updateTextureAnimations);
     
     // Initial timestamp
-    window._lastTextureUpdateTime = Date.now();
+    setLastTextureUpdateTime(Date.now());
 }
 
 /**
@@ -2198,13 +2199,13 @@ async function updateTextureAnimations() {
     
     // Calculate delta time
     const now = Date.now();
-    const elapsed = now - window._lastTextureUpdateTime;
+    const elapsed = now - getLastTextureUpdateTime();
     
     // Only update at a reasonable rate (30 FPS)
     if (elapsed < 33) return;
     
     // Update timestamp
-    window._lastTextureUpdateTime = now;
+    setLastTextureUpdateTime(now);
     
     // Process each active texture - gather all update promises
     const updatePromises = [];

@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { setOriginalAnimationStartTime, showStatus } from "../ui/scripts/html-editor-modal";
 import { calculateTextureHash, createLongExposureTexture, createTextureFromIframe, setCapturingForLongExposure } from "./texture-util";
-import { setIsPreviewAnimationPaused, isPreviewActive, updateMeshTexture } from './preview/preview-util';
 import { createMeshInfoPanel } from './mesh-info-panel-util';
 
 // Debug reporting function for animation analysis
@@ -60,14 +59,21 @@ export let animationDuration = 0; // Store detected animation duration
 export let preRenderingInProgress = false;
 export let isAnimationFinite = false;
 
+// Update references to use internal functions instead of imports
+// These variables will be exported and should be used by preview-util.js
+export let isPreviewActive = true; // Exported for use in preview-util.js
+export let isPreviewAnimationPaused = false; // Exported for use in preview-util.js
+export let lastTextureUpdateTime = 0; // Exported for use in preview-util.js and threejs-util.js
+
 /**
  * Start pre-rendering animation frames
  * @param {HTMLIFrameElement} iframe - The iframe containing the HTML content
  * @param {Function} callback - Function to call when pre-rendering is complete
  * @param {HTMLElement} progressBar - Optional progress bar element to update
  * @param {CustomTextureSettings} settings - Optional settings object for texture configuration
+ * @param {THREE.Mesh} previewPlane - The mesh to apply textures to
  */
-export function startImage2TexturePreRendering(iframe, callback, progressBar = null, settings = null) {
+export function startImage2TexturePreRendering(iframe, callback, progressBar = null, settings = null, previewPlane = null) {
     if (!iframe) {
         console.error('No iframe provided for pre-rendering');
         if (callback) callback();
@@ -139,7 +145,9 @@ export function startImage2TexturePreRendering(iframe, callback, progressBar = n
             const longExposureTexture = createLongExposureTexture(preRenderedFrames, playbackSpeed);
             
             // Update the mesh with the long exposure texture
-            updateMeshTexture(longExposureTexture);
+            if (previewPlane) {
+                updateMeshTexture(longExposureTexture, previewPlane);
+            }
             
             // Show a message about the long exposure
             showStatus(`Long exposure created from ${preRenderedFrames.length} frames`, 'success');
@@ -206,7 +214,9 @@ export function startImage2TexturePreRendering(iframe, callback, progressBar = n
                         const longExposureTexture = createLongExposureTexture(preRenderedFrames, playbackSpeed);
                         
                         // Update the mesh with the long exposure texture
-                        updateMeshTexture(longExposureTexture);
+                        if (previewPlane) {
+                            updateMeshTexture(longExposureTexture, previewPlane);
+                        }
                         
                         // Show a message about the long exposure
                         showStatus(`Long exposure created from ${preRenderedFrames.length} frames`, 'success');
@@ -457,8 +467,9 @@ export function startImage2TexturePreRendering(iframe, callback, progressBar = n
  * @param {Function} callback - Function to call when pre-rendering is complete
  * @param {HTMLElement} progressBar - Optional progress bar element to update
  * @param {Object} settings - Optional settings object
+ * @param {THREE.Mesh} previewPlane - The mesh to apply textures to
  */
-export function startCss3dPreRendering(iframe, callback, progressBar = null, settings = null) {
+export function startCss3dPreRendering(iframe, callback, progressBar = null, settings = null, previewPlane = null) {
     if (!iframe) {
         console.error('No iframe provided for CSS3D pre-rendering');
         if (callback) callback();
@@ -540,7 +551,9 @@ export function startCss3dPreRendering(iframe, callback, progressBar = null, set
             const longExposureTexture = createLongExposureTexture(domSnapshotFrames, playbackSpeed);
             
             // Update the iframe with the long exposure texture
-            updateMeshTexture(longExposureTexture);
+            if (previewPlane) {
+                updateMeshTexture(longExposureTexture, previewPlane);
+            }
             
             // Show a message about the long exposure
             showStatus(`CSS3D Long exposure created from ${domSnapshotFrames.length} frames`, 'success');
@@ -1381,4 +1394,139 @@ function calculateHashDifference(hash1, hash2) {
  */
 export function setPreRenderingInProgress(incomingValue) {
     preRenderingInProgress = incomingValue;
+}
+
+/**
+ * Update the mesh texture with the given texture
+ * @param {THREE.Texture} texture - The texture to apply to the mesh
+ * @param {THREE.Mesh} previewPlane - The mesh to update with the texture
+ */
+export function updateMeshTexture(texture, previewPlane) {
+    if (!texture || !previewPlane || !previewPlane.material) return;
+    
+    let needsUpdate = false;
+    
+    if (Array.isArray(previewPlane.material)) {
+        previewPlane.material.forEach(material => {
+            if (material.map !== texture) {
+                material.map = texture;
+                needsUpdate = true;
+            }
+        });
+        
+        if (needsUpdate) {
+            previewPlane.material.forEach(material => {
+                material.needsUpdate = true;
+            });
+        }
+    } else {
+        if (previewPlane.material.map !== texture) {
+            previewPlane.material.map = texture;
+            previewPlane.material.needsUpdate = true;
+        }
+    }
+}
+
+/**
+ * Set the isPreviewAnimationPaused flag
+ * @param {boolean} incomingValue - The new value to set
+ */
+export function setIsPreviewAnimationPaused(incomingValue) {
+    isPreviewAnimationPaused = incomingValue;
+}
+
+/**
+ * Set the isPreviewActive flag
+ * @param {boolean} incomingValue - The new value to set
+ */
+export function setIsPreviewActive(incomingValue) {
+    isPreviewActive = incomingValue;
+}
+
+/**
+ * Set the lastTextureUpdateTime
+ * @param {number} incomingValue - The new value to set
+ */
+export function setLastTextureUpdateTime(incomingValue) {
+    lastTextureUpdateTime = incomingValue;
+}
+
+/**
+ * Get isPreviewActive state
+ * @returns {boolean} Current isPreviewActive value
+ */
+export function getIsPreviewActive() {
+    return isPreviewActive;
+}
+
+/**
+ * Get isPreviewAnimationPaused state
+ * @returns {boolean} Current isPreviewAnimationPaused value
+ */
+export function getIsPreviewAnimationPaused() {
+    return isPreviewAnimationPaused;
+}
+
+/**
+ * Get lastTextureUpdateTime value
+ * @returns {number} Current lastTextureUpdateTime value
+ */
+export function getLastTextureUpdateTime() {
+    return lastTextureUpdateTime;
+}
+
+/**
+ * Get preRenderedFrames array
+ * @returns {Array} Current preRenderedFrames array
+ */
+export function getPreRenderedFrames() {
+    return preRenderedFrames;
+}
+
+/**
+ * Set preRenderedFrames array
+ * @param {Array} incomingValue - The new value to set
+ */
+export function setPreRenderedFrames(incomingValue) {
+    preRenderedFrames = incomingValue;
+}
+
+/**
+ * Get preRenderingInProgress state
+ * @returns {boolean} Current preRenderingInProgress value
+ */
+export function getPreRenderingInProgress() {
+    return preRenderingInProgress;
+}
+
+/**
+ * Get animationDuration value
+ * @returns {number} Current animationDuration value
+ */
+export function getAnimationDuration() {
+    return animationDuration;
+}
+
+/**
+ * Set animationDuration value
+ * @param {number} incomingValue - The new value to set
+ */
+export function setAnimationDuration(incomingValue) {
+    animationDuration = incomingValue;
+}
+
+/**
+ * Get isAnimationFinite state
+ * @returns {boolean} Current isAnimationFinite value
+ */
+export function getIsAnimationFinite() {
+    return isAnimationFinite;
+}
+
+/**
+ * Set isAnimationFinite state
+ * @param {boolean} incomingValue - The new value to set
+ */
+export function setIsAnimationFinite(incomingValue) {
+    isAnimationFinite = incomingValue;
 }
