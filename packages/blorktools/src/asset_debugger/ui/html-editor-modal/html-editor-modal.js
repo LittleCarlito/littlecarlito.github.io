@@ -34,7 +34,7 @@ import {
     MESH_INDEX_PROPERTY, 
     BINARY_DATA_PROPERTY 
 } from '../../core/glb-utils.js';
-import { updateHtmlIcons } from './mesh-panel.js';
+import { updateHtmlIcons } from '../scripts/mesh-panel.js';
 import { setCustomTexture, disableCustomTexture } from '../../core/texture-util.js';
 import { setCustomDisplay, disableCustomDisplay } from '../../core/animation/css3d-util.js';
 

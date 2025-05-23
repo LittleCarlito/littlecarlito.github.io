@@ -191,7 +191,7 @@ export function loadAndSetupModel(loadingIndicator) {
                 // First, set the GLB buffer for HTML editor integration
                 Promise.all([
                     import('../core/mesh-data-util.js'),
-                    import('../ui/scripts/model-integration.js')
+                    import('../ui/html-editor-modal/model-integration.js')
                 ]).then(([meshDataUtil, modelIntegration]) => {
                     let bufferPromises = [];
                     
@@ -505,7 +505,7 @@ function prepareGlbBuffer() {
     if (state.useCustomModel && state.modelFile) {
         return Promise.all([
             import('../core/mesh-data-util.js'),
-            import('../ui/scripts/model-integration.js')
+            import('../ui/html-editor-modal/model-integration.js')
         ]).then(([meshDataUtil, modelIntegration]) => {
             // Process the model file to set up the GLB buffer
             if (modelIntegration.processModelFileForHtmlEditor) {
@@ -631,7 +631,7 @@ function checkAndApplyCustomDisplaySettings() {
             import('../core/string-serder.js'),
             import('../core/texture-util.js'),
             import('./animation/css3d-util.js'),
-            import('../ui/scripts/model-integration.js') // Add model integration import
+            import('../ui/html-editor-modal/model-integration.js') // Add model integration import
         ]).then(([glbUtils, stringSerder, textureUtil, css3dUtil, modelIntegration]) => {
             // If no meshes, resolve immediately
             if (meshes.length === 0) {

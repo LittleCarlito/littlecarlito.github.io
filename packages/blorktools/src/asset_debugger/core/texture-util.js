@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { getIsPreviewActive, setLastTextureUpdateTime, getLastTextureUpdateTime } from './animation/animation-util';
-import * as modelIntegration from '../ui/scripts/model-integration.js';
+import * as modelIntegration from '../ui/html-editor-modal/model-integration.js';
 import { updateMeshTexture } from './animation/animation-util';
 
 // Track active textures and animations

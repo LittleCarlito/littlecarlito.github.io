@@ -16,10 +16,8 @@ import { ExamplesModal } from './examples-modal.js';
 import { initWorldPanel } from './world-panel.js';
 // Import Asset Panel
 import { initAssetPanel } from './asset-panel.js';
-// Import HTML Editor Modal
-import { initHtmlEditorModal } from './html-editor-modal.js';
 // Import Model Integration for HTML Editor
-import { initModelIntegration } from './model-integration.js';
+import { initModelIntegration } from '../html-editor-modal/model-integration.js';
 // Import ZIP utilities
 import { 
     processZipContents, 
@@ -30,6 +28,7 @@ import {
     loadBackgroundIntoDropzone,
     updateStateWithOtherAssets
 } from '../../core/zip-util.js';
+import { initHtmlEditorModal } from '../html-editor-modal/html-editor-modal.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
@@ -170,7 +169,7 @@ function loadComponentHtml() {
         });
         
     // Load the HTML editor modal component
-    fetch('../pages/html-editor-modal.html')
+    fetch('../html-editor-modal/html-editor-modal.html')
         .then(response => response.text())
         .then(html => {
             // Insert the entire HTML into the container, which includes the CSS link
@@ -193,7 +192,7 @@ function loadComponentHtml() {
                         console.log('Global function not registered properly, manually registering now');
                         
                         // Import the module and manually register the function
-                        import('./html-editor-modal.js').then(module => {
+                        import('../html-editor-modal/html-editor-modal.js').then(module => {
                             // Create a wrapper function that calls openEmbeddedHtmlEditor from the module
                             window.openEmbeddedHtmlEditor = function(meshName, meshId) {
                                 console.log(`Global wrapper: Opening HTML editor for ${meshName} (ID: ${meshId})`);

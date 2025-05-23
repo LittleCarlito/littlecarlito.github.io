@@ -3,7 +3,7 @@ import { animationCss3dObject, animationCss3dRenderer, animationCss3dScene, anim
 import { createMeshInfoPanel } from '../mesh-info-panel-util';
 import { getHtmlSettingsForMesh } from '../mesh-data-util';
 import { getIsPreviewActive } from './animation-util';
-import { showStatus } from '../../ui/scripts/html-editor-modal';
+import { showStatus } from '../../ui/html-editor-modal/html-editor-modal';
 
 // Add animation stack tracking variables at the top of the file
 let animationStack = [];

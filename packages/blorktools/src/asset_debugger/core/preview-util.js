@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createTextureFromIframe } from './texture-util';
-import { originalAnimationStartTime, showStatus, CustomTextureSettings } from '../ui/scripts/html-editor-modal';
+import { originalAnimationStartTime, showStatus, CustomTextureSettings } from '../ui/html-editor-modal/html-editor-modal';
 import { 
     getAnimationDuration, 
     getIsAnimationFinite, 

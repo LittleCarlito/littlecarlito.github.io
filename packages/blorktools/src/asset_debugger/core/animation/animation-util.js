@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { setOriginalAnimationStartTime, showStatus } from "../../ui/scripts/html-editor-modal";
+import { setOriginalAnimationStartTime, showStatus } from "../../ui/html-editor-modal/html-editor-modal";
 import { calculateTextureHash, createLongExposureTexture, createTextureFromIframe, setCapturingForLongExposure } from "../texture-util";
 import { createMeshInfoPanel } from '../mesh-info-panel-util';
 
