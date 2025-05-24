@@ -8,14 +8,14 @@
 // Import the initialization functions
 import { init } from '../../main.js';
 // Import loadSettings and saveSettings from localstorage-util.js
-import { loadSettings, saveSettings } from '../../data/localstorage-util.js';
+import { loadSettings, saveSettings } from '../../util/localstorage-util.js';
 // Import SettingsModal 
 import { SettingsModal } from './settings-modal.js';
 import { ExamplesModal } from './examples-modal.js';
 // Import World Panel
 import { initWorldPanel } from './world-panel.js';
 // Import Asset Panel
-import { initAssetPanel } from './asset-panel.js';
+import { initAssetPanel } from '../../asset-panel/asset-panel.js';
 // Import Model Integration for HTML Editor
 import { initModelIntegration } from '../../html-editor-modal/model-integration.js';
 // Import ZIP utilities
@@ -100,7 +100,7 @@ function loadComponentHtml() {
         });
     
     // Load Asset Panel (second in the tab order)
-    fetch('../pages/asset-panel.html')
+    fetch('../../asset-panel/asset-panel.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('asset-tab-container').innerHTML = html;
@@ -1371,7 +1371,7 @@ function setupTogglePanelButton() {
     }
     
     // Load the panel state from localStorage
-    import('../../data/localstorage-util.js').then(({ loadSettings, saveSettings }) => {
+    import('../../util/localstorage-util.js').then(({ loadSettings, saveSettings }) => {
         const settings = loadSettings() || {};
         
         // Initialize panel hidden state from settings (default to false if not set)

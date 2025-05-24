@@ -3,11 +3,11 @@
  * 
  * This module handles sample sections and their collapsible functionality.
  */
-import { getState } from '../../core/state.js';
-import { createMeshVisibilityPanel } from './mesh-panel.js';
-import { initAtlasPanel, updateAtlasVisualization } from './atlas-panel.js';
-import { initUvPanel, updateUvPanel } from './uv-panel.js';
-import { updateRigPanel } from '../../rig/rig-panel.js';
+import { getState } from '../core/state';
+import { createMeshVisibilityPanel } from '../ui/scripts/mesh-panel';
+import { initAtlasPanel, updateAtlasVisualization } from '../ui/scripts/atlas-panel';
+import { initUvPanel, updateUvPanel } from '../ui/scripts/uv-panel.js';
+import { updateRigPanel } from '../rig/rig-panel';
 
 // Track initialization state
 let controlsInitialized = false;

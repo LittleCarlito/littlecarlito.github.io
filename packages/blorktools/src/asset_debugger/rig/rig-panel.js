@@ -37,7 +37,7 @@ import {
     toggleBoneLock,
     updateAllBoneMatrices
  } from '../core/bone-util.js';
- import { saveSettings, loadSettings } from '../data/localstorage-util.js';
+ import { saveSettings, loadSettings } from '../util/localstorage-util.js';
 
 // Tooltip related variables
 let tooltipElement = null;
