@@ -3,8 +3,8 @@
  * 
  * This module handles world properties, environment, and lighting visualization and controls.
  */
-import { getState } from '../../core/state.js';
-import { updateLighting, resetLighting, updateExposure } from '../../core/lighting-util.js';
+import { getState } from '../core/state';
+import { updateLighting, resetLighting, updateExposure } from '../core/lighting-util.js';
 import * as THREE from 'three';
 
 // Track initialization state
@@ -1526,7 +1526,7 @@ export function generatePreviewOnly(file, previewElement) {
                     backgroundTextureCache.set(file.name, texture);
                     
                     // Also store in state for use with debugging
-                    import('../../core/state.js').then(stateModule => {
+                    import('../core/state.js').then(stateModule => {
                         stateModule.updateState({
                             backgroundTexture: texture
                         });

@@ -12,8 +12,6 @@ import { loadSettings, saveSettings } from '../../util/localstorage-util.js';
 // Import SettingsModal 
 import { SettingsModal } from './settings-modal.js';
 import { ExamplesModal } from './examples-modal.js';
-// Import World Panel
-import { initWorldPanel } from './world-panel.js';
 // Import Asset Panel
 import { initAssetPanel } from '../../asset-panel/asset-panel.js';
 // Import Model Integration for HTML Editor
@@ -29,6 +27,7 @@ import {
     updateStateWithOtherAssets
 } from '../../core/zip-util.js';
 import { initHtmlEditorModal } from '../../html-editor-modal/html-editor-modal.js';
+import { initWorldPanel } from '../../world-panel/world-panel.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
@@ -80,7 +79,7 @@ function loadComponentHtml() {
     };
 
     // Load World Panel (first in the tab order)
-    fetch('../pages/world-panel.html')
+    fetch('../../world-panel/world-panel.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('world-tab-container').innerHTML = html;
@@ -126,7 +125,7 @@ function loadComponentHtml() {
             document.getElementById('settings-modal-container').innerHTML = html;
             
             // Now that settings modal is loaded, load the axis indicator settings
-            fetch('../pages/axis-indicator.html')
+            fetch('../../axis-indicator/axis-indicator.html')
                 .then(response => response.text())
                 .then(html => {
                     const axisSettingsContainer = document.getElementById('axis-settings-container');
@@ -855,7 +854,7 @@ function startDebugging() {
                                         }
                                         
                                         // Update the World Panel with this metadata
-                                        return import('./world-panel.js')
+                                        return import('../../world-panel/world-panel.js')
                                             .then(worldPanelModule => {
                                                 if (worldPanelModule.updateLightingInfo) {
                                                     worldPanelModule.updateLightingInfo(metadata);
@@ -917,7 +916,7 @@ function startDebugging() {
                             // When the background texture is ready, inform the world panel
                             // so it can update the UI to show the Background Image radio option
                             // but NOT automatically select it
-                            import('./world-panel.js').then(worldPanelModule => {
+                            import('../../world-panel/world-panel.js').then(worldPanelModule => {
                                 if (worldPanelModule.updateBackgroundInfo && backgroundFile) {
                                     // Get metadata to display in the UI
                                     const metadata = {

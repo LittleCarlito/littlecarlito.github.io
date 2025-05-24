@@ -194,7 +194,7 @@ function applyBackgroundTexture(texture, file) {
     document.dispatchEvent(event);
     
     // Call into world panel to update metadata, but don't change the radio selection
-    import('../ui/scripts/world-panel.js').then(worldPanelModule => {
+    import('../world-panel/world-panel.js').then(worldPanelModule => {
         if (worldPanelModule.updateBackgroundInfo) {
             // Get metadata to display in the UI
             const metadata = {

@@ -6,7 +6,6 @@
  */
 import * as THREE from 'three';
 import { getState } from '../core/state';
-import { createAxisIndicator } from '../ui/scripts/axis-indicator';
 import { getIsDragging, setupMouseListeners } from '../core/drag-util';
 import { 
     clearRigVisualization,
@@ -38,6 +37,7 @@ import {
     resetBoneVisualGroup,
     resetBones
   } from '../core/bone-util.js';
+import { createAxisIndicator } from '../axis-indicator/axis-indicator';
 
 /**
  * Create joint labels for all joints in the scene

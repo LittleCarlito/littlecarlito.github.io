@@ -7,7 +7,7 @@ import { getState, updateState } from '../core/state.js';
 import { loadTextureFromFile, formatFileSize } from '../core/materials.js';
 import { updateAtlasVisualization } from './scripts/atlas-panel.js';
 // Import for HDR/EXR preview rendering
-import * as worldPanelModule from './scripts/world-panel.js';
+import * as worldPanelModule from '../world-panel/world-panel.js';
 // Import for GLB model preview from the new GLB utility
 import { processGLBModel, createGLBPreview } from '../core/glb-utils.js';
 // Import the worker manager
@@ -736,7 +736,7 @@ function handleLightingUpload(file, infoElement, previewElement, dropzone) {
                     const currentState = getState();
                     if (!currentState.backgroundFile) {
                         // Make sure world panel shows "No Background Image" message
-                        import('./scripts/world-panel.js').then(worldPanel => {
+                        import('../world-panel/world-panel.js').then(worldPanel => {
                             if (worldPanel.updateBackgroundInfo) {
                                 // Pass empty metadata to show no background available
                                 worldPanel.updateBackgroundInfo({
@@ -995,7 +995,7 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                         updateState('environmentTexture', texture);
                         
                         // Trigger an update in world panel to show the environment preview
-                        import('../ui/scripts/world-panel.js').then(worldPanel => {
+                        import('../world-panel/world-panel.js').then(worldPanel => {
                             if (worldPanel.updateWorldPanel) {
                                 worldPanel.updateWorldPanel();
                             }
@@ -1071,7 +1071,7 @@ function handleBackgroundUpload(file, infoElement, previewElement, dropzone) {
                     });
                     
                     // Trigger an update in world panel to show the environment preview
-                    import('../ui/scripts/world-panel.js').then(worldPanel => {
+                    import('../world-panel/world-panel.js').then(worldPanel => {
                         if (worldPanel.updateWorldPanel) {
                             worldPanel.updateWorldPanel();
                         }
