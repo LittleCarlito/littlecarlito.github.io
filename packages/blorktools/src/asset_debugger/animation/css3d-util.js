@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { animationCss3dObject, animationCss3dRenderer, animationCss3dScene, animationPreviewCamera, initThreeJsPreview, setAnimationCss3dObject, setAnimationCss3dRenderer, setAnimationCss3dScene, setAnimationPreviewCamera, setPreviewRenderTarget } from './threejs-util';
-import { createMeshInfoPanel } from '../mesh-info-panel-util';
-import { getHtmlSettingsForMesh } from '../mesh-data-util';
+import { createMeshInfoPanel } from '../core/mesh-info-panel-util';
+import { getHtmlSettingsForMesh } from '../core/mesh-data-util';
 import { getIsPreviewActive } from './animation-util';
-import { showStatus } from '../../ui/html-editor-modal/html-editor-modal';
+import { showStatus } from '../html-editor-modal/html-editor-modal';
 
 // Add animation stack tracking variables at the top of the file
 let animationStack = [];

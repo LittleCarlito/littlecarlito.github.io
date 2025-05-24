@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { rigOptions, getJointLabelGroup, getBoneLabelGroup } from './rig/rig-manager';
+import { rigOptions, getJointLabelGroup, getBoneLabelGroup } from '../rig/rig-manager';
 import { furthestBoneHandle, restoreLockedBoneRotations, updateBoneVisuals, moveBonesForTarget } from './bone-util';
 import { getState } from "./state";
 

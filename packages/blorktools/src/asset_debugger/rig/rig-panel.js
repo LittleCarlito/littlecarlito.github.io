@@ -5,7 +5,7 @@
  * It implements the same bone/rig/control parsing as the Rig Debugger.
  */
 import * as THREE from 'three';
-import { getState } from '../../core/state.js';
+import { getState } from '../core/state.js';
 import { 
     analyzeGltfModel, 
     deduplicateItems, 
@@ -15,15 +15,15 @@ import {
     addControlHandleToFurthestBone,
     parseJointConstraints,
     applyJointConstraints
-} from '../../core/rig/rig-factory.js';
-import { setIsDragging, getIsDragging, checkHandleHover } from '../../core/drag-util.js';
+} from './rig-factory.js';
+import { setIsDragging, getIsDragging, checkHandleHover } from '../core/drag-util.js';
 import { 
     rigDetails,
     updateRigDetails,
     rigOptions,
     updateRigVisualization,
     resetRig
- } from '../../core/rig/rig-manager.js';
+ } from './rig-manager.js';
  import {
     bones,
     lockedBones,
@@ -36,8 +36,8 @@ import {
     boneMaterial,
     toggleBoneLock,
     updateAllBoneMatrices
- } from '../../core/bone-util.js';
- import { saveSettings, loadSettings } from '../../data/localstorage-util.js';
+ } from '../core/bone-util.js';
+ import { saveSettings, loadSettings } from '../data/localstorage-util.js';
 
 // Tooltip related variables
 let tooltipElement = null;

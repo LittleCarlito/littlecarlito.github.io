@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { getIsPreviewActive, setLastTextureUpdateTime, getLastTextureUpdateTime } from './animation/animation-util';
-import * as modelIntegration from '../ui/html-editor-modal/model-integration.js';
-import { updateMeshTexture } from './animation/animation-util';
+import { getIsPreviewActive, setLastTextureUpdateTime, getLastTextureUpdateTime } from '../animation/animation-util';
+import * as modelIntegration from '../html-editor-modal/model-integration.js';
+import { updateMeshTexture } from '../animation/animation-util';
 
 // Track active textures and animations
 const activeTextureData = new Map();
@@ -1201,7 +1201,7 @@ export function setCustomTexture(meshData, renderType, settings = {}) {
                         // Import animation utility to use pre-rendering
                         console.log('[TEXTURE_SETUP] Importing animation-util.js module');
                         try {
-                            const animationModule = await import('./animation/animation-util.js');
+                            const animationModule = await import('../animation/animation-util.js');
                             
                             if (typeof animationModule.startImage2TexturePreRendering !== 'function') {
                                 throw new Error('Missing required function: startImage2TexturePreRendering');

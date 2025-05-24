@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { setOriginalAnimationStartTime, showStatus } from "../../ui/html-editor-modal/html-editor-modal";
-import { calculateTextureHash, createLongExposureTexture, createTextureFromIframe, setCapturingForLongExposure } from "../texture-util";
-import { createMeshInfoPanel } from '../mesh-info-panel-util';
+import { setOriginalAnimationStartTime, showStatus } from "../html-editor-modal/html-editor-modal";
+import { calculateTextureHash, createLongExposureTexture, createTextureFromIframe, setCapturingForLongExposure } from "../core/texture-util";
+import { createMeshInfoPanel } from '../core/mesh-info-panel-util';
 
 // Debug reporting function for animation analysis
 function logAnimationAnalysisReport(renderType, data) {

@@ -5,9 +5,9 @@
  * Code moved from rig-panel.js to create a separate factory module.
  */
 import * as THREE from 'three';
-import { getState } from '../state.js';
-import { createAxisIndicator } from '../../ui/scripts/axis-indicator.js';
-import { getIsDragging, setupMouseListeners } from '../drag-util.js';
+import { getState } from '../core/state';
+import { createAxisIndicator } from '../ui/scripts/axis-indicator';
+import { getIsDragging, setupMouseListeners } from '../core/drag-util';
 import { 
     clearRigVisualization,
     rigDetails, 
@@ -37,7 +37,7 @@ import {
     setBoneJointMaterial,
     resetBoneVisualGroup,
     resetBones
-  } from '../bone-util.js';
+  } from '../core/bone-util.js';
 
 /**
  * Create joint labels for all joints in the scene

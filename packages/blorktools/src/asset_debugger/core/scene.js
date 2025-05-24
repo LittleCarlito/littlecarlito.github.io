@@ -5,7 +5,7 @@
  */
 import * as THREE from 'three';
 import { getState, updateState } from './state.js';
-import { updateRigAnimation } from './rig/rig-manager.js';
+import { updateRigAnimation } from '../rig/rig-manager.js';
 import { addLighting, setupEnvironmentLighting } from './lighting-util.js';
 import { createControls, updateControls, setControlsTarget } from './controls.js';
 

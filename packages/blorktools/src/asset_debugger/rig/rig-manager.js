@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { checkHandleHover, getIsDragging } from '../drag-util';
-import { getState } from '../state';
+import { checkHandleHover, getIsDragging } from '../core/drag-util';
+import { getState } from '../core/state';
 import {
     bones,
     boneMaterial,
@@ -12,9 +12,9 @@ import {
     restoreLockedBoneRotations,
     clearBoneVisualsGroup,
     clearFurthestBoneHandle
-} from '../bone-util';
+} from '../core/bone-util';
 import { createJointLabels, createBoneLabels } from './rig-factory';
-import { refreshJointsData } from '../../ui/scripts/rig-panel';
+import { refreshJointsData } from './rig-panel';
 
 export let rigDetails = null;
 export const labelGroups = new Map(); // Map to store different types of label groups (joint, bone)

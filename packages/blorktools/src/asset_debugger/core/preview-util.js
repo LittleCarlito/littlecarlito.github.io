@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createTextureFromIframe } from './texture-util';
-import { originalAnimationStartTime, showStatus, CustomTextureSettings } from '../ui/html-editor-modal/html-editor-modal';
+import { originalAnimationStartTime, showStatus, CustomTextureSettings } from '../html-editor-modal/html-editor-modal';
 import { 
     getAnimationDuration, 
     getIsAnimationFinite, 
@@ -16,11 +16,11 @@ import {
     setIsPreviewAnimationPaused,
     getLastTextureUpdateTime,
     setLastTextureUpdateTime
-} from './animation/animation-util';
+} from '../animation/animation-util';
 import { sanitizeHtml } from './string-serder';
 import { getState } from './state';
-import { initCSS3DPreview } from './animation/css3d-util';
-import { animationPreviewCamera, animationPreviewRenderer, animationPreviewScene, cleanupThreeJsPreview, initThreeJsPreview, previewPlane, setPreviewRenderTarget } from './animation/threejs-util';
+import { initCSS3DPreview } from '../animation/css3d-util';
+import { animationPreviewCamera, animationPreviewRenderer, animationPreviewScene, cleanupThreeJsPreview, initThreeJsPreview, previewPlane, setPreviewRenderTarget } from '../animation/threejs-util';
 import { getHtmlSettingsForMesh } from './mesh-data-util';
 
 export let lastAnimationFrameTime = 0;

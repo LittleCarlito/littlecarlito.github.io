@@ -7,7 +7,7 @@ import { getState } from '../../core/state.js';
 import { createMeshVisibilityPanel } from './mesh-panel.js';
 import { initAtlasPanel, updateAtlasVisualization } from './atlas-panel.js';
 import { initUvPanel, updateUvPanel } from './uv-panel.js';
-import { updateRigPanel } from './rig-panel.js';
+import { updateRigPanel } from '../../rig/rig-panel.js';
 
 // Track initialization state
 let controlsInitialized = false;

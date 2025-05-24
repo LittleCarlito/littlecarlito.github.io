@@ -1,3 +1,4 @@
+/* HTML Editor Modal Styles */
 #html-editor-reset {
     display: none;
 }
@@ -443,3 +444,9 @@
 .preview-mode .format-btn-container .checkbox-container {
     display: none;
 }
+
+/* Hide animation dropdown when long-exposure-mode class is present */
+#editor-dropdowns-container.long-exposure-mode .dropdown-hint:nth-child(5),
+#editor-dropdowns-container.long-exposure-mode #html-animation-type {
+    display: none;
+} 

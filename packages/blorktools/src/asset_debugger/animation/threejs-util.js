@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { animatePreview, previewAnimationId, resetLastAnimationFrameTime, resetPreviewAnimationId } from '../preview-util';
+import { animatePreview, previewAnimationId, resetLastAnimationFrameTime, resetPreviewAnimationId } from '../core/preview-util';
 import { 
     getIsPreviewActive, 
     setIsPreviewActive, 
@@ -7,10 +7,10 @@ import {
     setLastTextureUpdateTime,
     getIsPreviewAnimationPaused
 } from './animation-util';
-import { createTextureFromIframe } from '../texture-util';
-import { getState } from '../state';
-import { showStatus } from '../../ui/html-editor-modal/html-editor-modal';
-import { createMeshInfoPanel, infoPanel, resetInfoPanel } from '../mesh-info-panel-util';
+import { createTextureFromIframe } from '../core/texture-util';
+import { getState } from '../core/state';
+import { showStatus } from '../html-editor-modal/html-editor-modal';
+import { createMeshInfoPanel, infoPanel, resetInfoPanel } from '../core/mesh-info-panel-util';
 
 let pendingTextureUpdate = false;
 export let previewPlane;

@@ -5,46 +5,46 @@
  * It allows users to add custom HTML code to a mesh.
  */
 
-import { getState, updateState } from '../../core/state.js';
+import { getState, updateState } from '../core/state';
 import { 
     deserializeStringFromBinary, 
     serializeStringToBinary,
     serializeStringWithSettingsToBinary,
     isValidHtml,
     sanitizeHtml
-} from '../../core/string-serder.js';
+} from '../core/string-serder.js';
 import { 
     formatHtml as externalFormatHtml, 
     initHtmlFormatter,
     hasExternalFormatter 
-} from '../../core/html-formatter.js';
+} from './html-formatter.js';
 import {
     initHtmlLinter,
     lintHtmlContent
-} from '../../core/html-linter.js';
+} from './html-linter.js';
 import { 
     getCurrentGlbBuffer, 
     updateGlbFile,
     onGlbBufferUpdate
-} from './model-integration.js';
+} from './model-integration';
 import { 
     getBinaryBufferForMesh,
     associateBinaryBufferWithMesh,
     MESH_BINARY_EXTENSION, 
     MESH_INDEX_PROPERTY, 
     BINARY_DATA_PROPERTY 
-} from '../../core/glb-utils.js';
-import { updateHtmlIcons } from '../scripts/mesh-panel.js';
-import { setCustomTexture, disableCustomTexture } from '../../core/texture-util.js';
-import { setCustomDisplay, disableCustomDisplay } from '../../core/animation/css3d-util.js';
+} from '../core/glb-utils.js';
+import { updateHtmlIcons } from '../ui/scripts/mesh-panel';
+import { setCustomTexture, disableCustomTexture } from '../core/texture-util.js';
+import { setCustomDisplay, disableCustomDisplay } from '../animation/css3d-util.js';
 
 // Import Three.js the same way as other files in the codebase
 import * as THREE from 'three';
-import { createLongExposureTexture, createTextureFromIframe } from '../../core/texture-util.js';
-import { getIsPreviewActive, setLastTextureUpdateTime } from '../../core/animation/animation-util.js';
-import { maxCaptureRate, previewHtml } from '../../core/preview-util.js';
-import { cleanupThreeJsPreview, frameBuffer, previewRenderTarget } from '../../core/animation/threejs-util.js';
-import { getHtmlSettingsForMesh, loadHtmlForMesh, loadSettingsForMesh, saveHtmlForMesh, saveSettingsForMesh } from '../../core/mesh-data-util.js';
+import { createLongExposureTexture, createTextureFromIframe } from '../core/texture-util.js';
+import { getIsPreviewActive, setLastTextureUpdateTime } from '../animation/animation-util.js';
+import { maxCaptureRate, previewHtml } from '../core/preview-util.js';
+import { cleanupThreeJsPreview, frameBuffer, previewRenderTarget } from '../animation/threejs-util.js';
+import { getHtmlSettingsForMesh, loadHtmlForMesh, loadSettingsForMesh, saveHtmlForMesh, saveSettingsForMesh } from '../core/mesh-data-util.js';
 
 export let originalAnimationStartTime = 0;
 
@@ -178,7 +178,7 @@ export async function openEmbeddedHtmlEditor(meshName, meshId) {
         // Clear in-memory settings cache if needed to ensure we get the actual saved settings
         if (forceReload) {
             // Import here to avoid circular dependency
-            const meshDataUtil = await import('../../core/mesh-data-util');
+            const meshDataUtil = await import('../core/mesh-data-util');
             // Clear the settings from memory cache so we reload from binary
             meshDataUtil.clearMeshHtmlSettings(meshId);
         }

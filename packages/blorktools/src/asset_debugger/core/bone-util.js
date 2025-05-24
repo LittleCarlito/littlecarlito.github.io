@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { rigOptions } from './rig/rig-manager';
+import { rigOptions } from '../rig/rig-manager';
 import { getIsDragging } from './drag-util';
 import { getState } from './state';
 // These variables need to be exported so they're available to both modules

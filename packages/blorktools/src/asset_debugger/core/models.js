@@ -191,7 +191,7 @@ export function loadAndSetupModel(loadingIndicator) {
                 // First, set the GLB buffer for HTML editor integration
                 Promise.all([
                     import('../core/mesh-data-util.js'),
-                    import('../ui/html-editor-modal/model-integration.js')
+                    import('../html-editor-modal/model-integration.js')
                 ]).then(([meshDataUtil, modelIntegration]) => {
                     let bufferPromises = [];
                     
@@ -387,7 +387,7 @@ function processLoadedModel(gltf) {
         
         // Always update rig panel when a model is loaded, regardless of active tab
         // This ensures the rig data is parsed immediately
-        import('../ui/scripts/rig-panel.js').then(module => {
+        import('../rig/rig-panel.js').then(module => {
             if (module.updateRigPanel) {
                 console.log('Updating rig panel after model load');
                 module.updateRigPanel();
@@ -505,7 +505,7 @@ function prepareGlbBuffer() {
     if (state.useCustomModel && state.modelFile) {
         return Promise.all([
             import('../core/mesh-data-util.js'),
-            import('../ui/html-editor-modal/model-integration.js')
+            import('../html-editor-modal/model-integration.js')
         ]).then(([meshDataUtil, modelIntegration]) => {
             // Process the model file to set up the GLB buffer
             if (modelIntegration.processModelFileForHtmlEditor) {
@@ -630,8 +630,8 @@ function checkAndApplyCustomDisplaySettings() {
             import('../core/glb-utils.js'),
             import('../core/string-serder.js'),
             import('../core/texture-util.js'),
-            import('./animation/css3d-util.js'),
-            import('../ui/html-editor-modal/model-integration.js') // Add model integration import
+            import('../animation/css3d-util.js'),
+            import('../html-editor-modal/model-integration.js') // Add model integration import
         ]).then(([glbUtils, stringSerder, textureUtil, css3dUtil, modelIntegration]) => {
             // If no meshes, resolve immediately
             if (meshes.length === 0) {

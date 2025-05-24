@@ -17,7 +17,7 @@ import { initWorldPanel } from './world-panel.js';
 // Import Asset Panel
 import { initAssetPanel } from './asset-panel.js';
 // Import Model Integration for HTML Editor
-import { initModelIntegration } from '../html-editor-modal/model-integration.js';
+import { initModelIntegration } from '../../html-editor-modal/model-integration.js';
 // Import ZIP utilities
 import { 
     processZipContents, 
@@ -28,7 +28,7 @@ import {
     loadBackgroundIntoDropzone,
     updateStateWithOtherAssets
 } from '../../core/zip-util.js';
-import { initHtmlEditorModal } from '../html-editor-modal/html-editor-modal.js';
+import { initHtmlEditorModal } from '../../html-editor-modal/html-editor-modal.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
@@ -169,7 +169,7 @@ function loadComponentHtml() {
         });
         
     // Load the HTML editor modal component
-    fetch('../html-editor-modal/html-editor-modal.html')
+    fetch('../../html-editor-modal/html-editor-modal.html')
         .then(response => response.text())
         .then(html => {
             // Insert the entire HTML into the container, which includes the CSS link
@@ -192,7 +192,7 @@ function loadComponentHtml() {
                         console.log('Global function not registered properly, manually registering now');
                         
                         // Import the module and manually register the function
-                        import('../html-editor-modal/html-editor-modal.js').then(module => {
+                        import('../../html-editor-modal/html-editor-modal.js').then(module => {
                             // Create a wrapper function that calls openEmbeddedHtmlEditor from the module
                             window.openEmbeddedHtmlEditor = function(meshName, meshId) {
                                 console.log(`Global wrapper: Opening HTML editor for ${meshName} (ID: ${meshId})`);
@@ -785,7 +785,7 @@ function startDebugging() {
     
     // Apply rig options from saved settings if available
     if (savedSettings && savedSettings.rigOptions) {
-        import('../../core/rig/rig-manager.js').then(rigManagerModule => {
+        import('../../rig/rig-manager.js').then(rigManagerModule => {
             console.log('Applying saved rig options:', savedSettings.rigOptions);
             rigManagerModule.updateRigOptions(savedSettings.rigOptions);
         });
