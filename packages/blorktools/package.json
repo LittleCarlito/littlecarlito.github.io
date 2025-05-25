@@ -16,7 +16,7 @@
     "test": "cd ../.. && jest packages/blorktools/src/test tests/packages/blorktools --config=tests/config/jest/jest.config.cjs --passWithNoTests",
     "clean": "rimraf dist",
     "tools": "node tools.js",
-    "tools:modular": "vite serve src/ --open /asset_debugger/ui/pages/asset_debugger.html"
+    "tools:modular": "vite serve src/ --open /asset_debugger/asset_debugger.html"
   },
   "dependencies": {
     "express": "^4.18.3",

@@ -18,4 +18,4 @@ export const tools = {
 	}
 };
 // Export utility functions that might be useful for consumers
-export { formatFileSize } from './asset_debugger/core/materials.js'; 
+export { formatFileSize } from './asset_debugger/util/materials-util.js'; 

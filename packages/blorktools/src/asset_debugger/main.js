@@ -10,12 +10,12 @@
  * 
  * The tool allows viewing these textures on a 3D cube with proper PBR rendering.
  */
-import { initState } from './core/state.js';
-import { initUiManager } from './ui/ui-manager.js';
-import { setupDropzones } from './ui/file-handler.js';
+import { initState } from './state.js';
+import { initUiManager } from './util/ui-manager.js';
+import { setupDropzones } from './landing-screen/file-handler.js';
 // Import panel initialization functions but don't call them here
-import { initAtlasPanel } from './ui/scripts/atlas-panel.js';
-import { initUvPanel } from './ui/scripts/uv-panel.js';
+import { initAtlasPanel } from './panels/atlas-panel/atlas-panel.js';
+import { initUvPanel } from './panels/uv-panel/uv-panel.js';
 
 /**
  * Initialize the asset debugger application
