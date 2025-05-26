@@ -1,5 +1,5 @@
 import { getBinaryBufferForMesh, associateBinaryBufferWithMesh } from "./glb-utils";
-import { getState } from "../state";
+import { getState } from "../scene/state";
 import { deserializeStringFromBinary, serializeStringWithSettingsToBinary } from "./string-serder";
 import { getCurrentGlbBuffer, updateGlbFile } from "../modals/html-editor-modal/model-integration";
 import { defaultSettings, getSettingsFromForm } from "../modals/html-editor-modal/html-editor-modal";

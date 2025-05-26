@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getState, updateState } from '../state';
+import { getState, updateState } from './state';
 
 // Store a reference to the controls instance
 let controlsInstance = null;

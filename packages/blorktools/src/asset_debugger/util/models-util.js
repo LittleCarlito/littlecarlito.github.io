@@ -6,7 +6,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { getState, updateState } from '../state.js';
+import { getState, updateState } from '../scene/state.js';
 import { createMaterial, applyTransparencySettings, hasTransparentPixels } from './materials-util.js';
 import { fitCameraToObject } from '../scene/scene.js';
 import { createMeshVisibilityPanel } from '../panels/mesh-panel/mesh-panel.js';

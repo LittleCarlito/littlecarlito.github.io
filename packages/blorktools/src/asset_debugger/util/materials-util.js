@@ -4,7 +4,7 @@
  * This module handles texture loading, material creation, and related utilities.
  */
 import * as THREE from 'three';
-import { getState, updateState } from '../state.js';
+import { getState, updateState } from '../scene/state.js';
 
 /**
  * Create a PBR material with the loaded textures

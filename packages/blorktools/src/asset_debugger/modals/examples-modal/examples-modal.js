@@ -70,7 +70,7 @@ export class ExamplesModal {
                 // Import necessary modules with correct paths
                 Promise.all([
                     import('./examples.js'),
-                    import('../../state.js'),
+                    import('../../scene/state.js'),
                     import('../../scene/scene.js')
                 ]).then(([examplesModule, stateModule, sceneModule]) => {
                     // Log all state modules we're using

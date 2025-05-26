@@ -8,7 +8,7 @@ import {
     getIsPreviewAnimationPaused
 } from './animation-util';
 import { createTextureFromIframe } from './texture-util';
-import { getState } from '../../state';
+import { getState } from '../../scene/state';
 import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
 import { createMeshInfoPanel, infoPanel, resetInfoPanel } from '../../modals/html-editor-modal/mesh-info-panel-util';
 

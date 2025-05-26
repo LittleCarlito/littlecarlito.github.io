@@ -821,7 +821,7 @@ export function setCustomTexture(meshData, renderType, settings = {}) {
                 
                 try {
                     // Import state module to get current state
-                    const stateModule = await import('../../state.js');
+                    const stateModule = await import('../../scene/state.js');
                     const state = stateModule.getState();
                     if (!state.meshes || state.meshes.length === 0) {
                         console.error('[TEXTURE_SETUP] No meshes available in state');
@@ -1555,7 +1555,7 @@ function triggerRender() {
     return new Promise((resolve, reject) => {
         try {
             // Import state to get renderer
-            import('../../state.js').then(stateModule => {
+            import('../../scene/state.js').then(stateModule => {
                 const state = stateModule.getState();
                 
                 if (state && state.renderer && state.scene && state.camera) {
@@ -1704,7 +1704,7 @@ export function disableCustomTexture(meshData) {
                         console.log(`No mesh provided in meshData for ID ${meshData.id}, trying to find in scene`);
                         
                         // Fall back to looking for the mesh in the scene
-                        const stateModule = await import('../../state.js');
+                        const stateModule = await import('../../scene/state.js');
                         const state = stateModule.getState();
                         if (!state.scene) {
                             console.error('Scene not available in state');

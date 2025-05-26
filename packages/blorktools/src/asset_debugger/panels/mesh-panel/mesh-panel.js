@@ -3,7 +3,7 @@
  * 
  * This module handles mesh visibility panel UI and interaction.
  */
-import { getState, updateState } from '../../state.js';
+import { getState, updateState } from '../../scene/state.js';
 import { getCurrentGlbBuffer, setCurrentGlbBuffer } from '../../modals/html-editor-modal/model-integration.js';
 import { getBinaryBufferForMesh } from '../../util/glb-utils.js';
 import { deserializeStringFromBinary, isValidHtml } from '../../util/string-serder.js';

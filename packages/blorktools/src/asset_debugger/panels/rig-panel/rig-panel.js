@@ -5,7 +5,7 @@
  * It implements the same bone/rig/control parsing as the Rig Debugger.
  */
 import * as THREE from 'three';
-import { getState } from '../../state.js';
+import { getState } from '../../scene/state.js';
 import { 
     analyzeGltfModel, 
     deduplicateItems, 

@@ -18,7 +18,7 @@ import {
     setLastTextureUpdateTime
 } from '../../util/custom-animation/animation-util';
 import { sanitizeHtml } from '../../util/string-serder';
-import { getState } from '../../state';
+import { getState } from '../../scene/state';
 import { initCSS3DPreview } from '../../util/custom-animation/css3d-util';
 import { 
     animationPreviewCamera, 

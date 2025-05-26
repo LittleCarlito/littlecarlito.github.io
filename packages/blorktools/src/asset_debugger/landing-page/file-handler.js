@@ -3,7 +3,7 @@
  * 
  * This module manages file uploads and drag & drop operations.
  */
-import { getState, updateState } from '../state';
+import { getState, updateState } from '../scene/state';
 import { loadTextureFromFile, formatFileSize } from '../util/materials-util';
 import { updateAtlasVisualization } from '../panels/atlas-panel/atlas-panel.js';
 // Import for HDR/EXR preview rendering

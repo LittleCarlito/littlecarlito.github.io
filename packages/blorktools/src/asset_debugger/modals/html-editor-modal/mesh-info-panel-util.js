@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getState } from "../../state";
+import { getState } from "../../scene/state";
 import { getHtmlSettingsForMesh } from '../../util/mesh-data-util';
 
 // Info panel state variables

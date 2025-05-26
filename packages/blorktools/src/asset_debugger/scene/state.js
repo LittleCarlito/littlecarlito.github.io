@@ -260,7 +260,7 @@ export function setupBackgroundDropzone() {
             preview.style.justifyContent = 'center';
             
             // Import the world-panel to generate the proper preview once
-            import('./panels/world-panel/world-panel').then(module => {
+            import('../panels/world-panel/world-panel').then(module => {
                 if (module.generatePreviewOnly) {
                     // Call the dedicated preview function that doesn't update the world panel
                     module.generatePreviewOnly(file, preview);

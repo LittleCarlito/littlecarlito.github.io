@@ -3,7 +3,7 @@
  * 
  * This module handles world properties, environment, and lighting visualization and controls.
  */
-import { getState } from '../../state';
+import { getState } from '../../scene/state';
 import { updateLighting, resetLighting, updateExposure } from '../../scene/lighting-util';
 import * as THREE from 'three';
 
@@ -1526,7 +1526,7 @@ export function generatePreviewOnly(file, previewElement) {
                     backgroundTextureCache.set(file.name, texture);
                     
                     // Also store in state for use with debugging
-                    import('../../state.js').then(stateModule => {
+                    import('../../scene/state.js').then(stateModule => {
                         stateModule.updateState({
                             backgroundTexture: texture
                         });

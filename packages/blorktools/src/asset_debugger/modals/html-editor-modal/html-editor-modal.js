@@ -5,7 +5,7 @@
  * It allows users to add custom HTML code to a mesh.
  */
 
-import { getState, updateState } from '../../state';
+import { getState, updateState } from '../../scene/state';
 import { 
     deserializeStringFromBinary, 
     serializeStringToBinary,

@@ -26,7 +26,7 @@ import {
 } from '../landing-page/zip-util.js';
 import { initHtmlEditorModal } from '../modals/html-editor-modal/html-editor-modal.js';
 import { initWorldPanel } from '../panels/world-panel/world-panel.js';
-import { initState } from '../state.js';
+import { initState } from './state.js';
 import { initUiManager } from '../util/ui-manager.js';
 import { setupDropzones } from '../landing-page/file-handler.js';
 
@@ -643,7 +643,7 @@ function uploadToDropzone(file, dropzoneId) {
     // If it's a model, trigger loading into the viewer
     if (dropzoneId === 'model-dropzone') {
         // Update model in state
-        import('../state.js').then(stateModule => {
+        import('./state.js').then(stateModule => {
             stateModule.setState({
                 modelFile: file,
                 useCustomModel: true
@@ -699,7 +699,7 @@ async function processZipFile(file) {
  */
 function verifyFileDrop() {
     // First check if any files were dropped
-    import('../state.js').then(stateModule => {
+    import('./state.js').then(stateModule => {
         const currentState = stateModule.getState();
         const hasTextures = currentState.textureObjects.baseColor || 
                           currentState.textureObjects.orm || 
@@ -771,7 +771,7 @@ function startDebugging() {
     const savedSettings = loadSettings();
     
     // Import state to check current values
-    import('../state.js').then(stateModule => {
+    import('./state.js').then(stateModule => {
         const initialState = stateModule.getState();
         console.log('[DEBUG] Initial state before debugging:', {
             backgroundFile: initialState.backgroundFile ? 
@@ -819,7 +819,7 @@ function startDebugging() {
             
             updateLoadingProgress('Setting up scene and lighting...');
             // Check for HDR or EXR lighting files
-            return import('../state.js')
+            return import('./state.js')
                 .then(stateModule => {
                     const currentState = stateModule.getState();
                     console.log('[DEBUG] State after scene init:', {
@@ -956,7 +956,7 @@ function startDebugging() {
                                                     texture.isTexture ? 'valid texture' : 'invalid texture');
                                                 
                                                 // Check state after background texture is loaded
-                                                import('../state.js').then(stateModule => {
+                                                import('./state.js').then(stateModule => {
                                                     const updatedState = stateModule.getState();
                                                     console.log('[DEBUG] State after background texture loaded:', {
                                                         backgroundFile: updatedState.backgroundFile ? 
@@ -997,7 +997,7 @@ function startDebugging() {
                 })
                 .then(() => {
                     // Double check state after all resources are loaded
-                    import('../state.js').then(stateModule => {
+                    import('./state.js').then(stateModule => {
                         const finalState = stateModule.getState();
                         console.log('[DEBUG] Final state after all resources loaded:', {
                             backgroundFile: finalState.backgroundFile ? 
@@ -1013,7 +1013,7 @@ function startDebugging() {
             return import('../util/models-util.js')
                 .then(modelsModule => {
                     // Ensure state.scene is available before calling loadDebugModel
-                    return import('../state.js')
+                    return import('./state.js')
                         .then(stateModule => {
                             const currentState = stateModule.getState();
                             if (!currentState.scene) {

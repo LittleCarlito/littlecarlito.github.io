@@ -5,7 +5,7 @@
  * when no files are uploaded by the user.
  */
 import * as THREE from 'three';
-import { getState, updateState } from '../../state.js';
+import { getState, updateState } from '../../scene/state.js';
 import { createMeshVisibilityPanel } from '../../panels/mesh-panel/mesh-panel.js';
 
 /**

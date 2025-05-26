@@ -7,7 +7,7 @@
 // Import JSZip from CDN instead of npm package
 // We'll dynamically import it when needed
 import { TextureClassifier, ConfidenceLevel } from '../landing-page/texture-classifier';
-import { updateState } from '../state';
+import { updateState } from '../scene/state';
 
 // Supported image formats for atlas textures
 const SUPPORTED_IMAGE_FORMATS = ['.png', '.jpg', '.jpeg', '.webp', '.tiff', '.tif'];

@@ -4,7 +4,7 @@
  * This module handles Three.js scene setup, rendering, and animation.
  */
 import * as THREE from 'three';
-import { getState, updateState } from '../state.js';
+import { getState, updateState } from './state.js';
 import { updateRigAnimation } from '../util/rig/rig-manager.js';
 import { addLighting, setupEnvironmentLighting } from '../scene/lighting-util.js';
 import { createControls, updateControls, setControlsTarget } from '../scene/controls.js';
