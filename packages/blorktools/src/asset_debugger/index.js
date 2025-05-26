@@ -5,8 +5,7 @@
  * for use in other parts of the application or external imports.
  */
 
-// Import and re-export the init function from the main module
-import { init } from './main.js';
+import { init } from "./asset_debugger";
 
 // Prevent default drag-and-drop behavior for the entire document
 function preventDefaultDragBehavior() {
@@ -39,6 +38,3 @@ function initializeDebugger() {
 
 // Initialize on script load
 initializeDebugger();
-
-// Export the init function for external use
-export { init };

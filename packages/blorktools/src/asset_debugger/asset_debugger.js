@@ -5,8 +5,6 @@
  * It initializes the application and sets up all necessary components.
  */
 
-// Import the initialization functions
-import { init } from './main.js';
 // Import loadSettings and saveSettings from localstorage-util.js
 import { loadSettings, saveSettings } from './util/localstorage-util.js';
 // Import SettingsModal 
@@ -28,6 +26,9 @@ import {
 } from './landing-screen/zip-util.js';
 import { initHtmlEditorModal } from './modals/html-editor-modal/html-editor-modal.js';
 import { initWorldPanel } from './panels/world-panel/world-panel.js';
+import { initState } from './state.js';
+import { initUiManager } from './util/ui-manager.js';
+import { setupDropzones } from './landing-screen/file-handler.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
@@ -58,6 +59,73 @@ let resourcesLoaded = {
 };
 
 // ASSET DEBUGGER CODE
+
+/**
+ * Initialize the asset debugger application
+ */
+export function init() {
+    // Initialize state
+    initState();
+    
+    // Add global event listeners to prevent default browser behavior for drag and drop
+    preventDefaultDragEvents();
+    
+    // Initialize UI components
+    initUiManager();
+    setupDropzones();
+    
+    // Handle theme switching if needed
+    setupThemeSwitching();
+}
+
+/**
+ * Set up global event listeners to prevent default drag and drop behavior
+ */
+function preventDefaultDragEvents() {
+    const preventDefaults = function(e) {
+        // Skip if the target is one of our dropzones or the main container dropzone
+        const dropzoneIds = [
+            'basecolor-dropzone', 
+            'orm-dropzone', 
+            'normal-dropzone',
+            'model-dropzone',
+            'lighting-dropzone',
+            'background-dropzone',
+            'upload-section' // Add the main container
+        ];
+        
+        if (dropzoneIds.some(id => e.target.id === id || e.target.closest(`#${id}`))) {
+            return; // Don't prevent default for dropzones
+        }
+        
+        e.preventDefault();
+        e.stopPropagation();
+    };
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        document.addEventListener(eventName, preventDefaults, false);
+    });
+}
+
+/**
+ * Set up theme switching
+ */
+function setupThemeSwitching() {
+    const themeToggle = document.querySelector('.theme-toggle');
+    
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            const html = document.documentElement;
+            if (html.classList.contains('dark-mode')) {
+                html.classList.remove('dark-mode');
+                html.classList.add('light-mode');
+            } else {
+                html.classList.remove('light-mode');
+                html.classList.add('dark-mode');
+            }
+        });
+    }
+}
 
 /**
  * Load all component HTML files dynamically
