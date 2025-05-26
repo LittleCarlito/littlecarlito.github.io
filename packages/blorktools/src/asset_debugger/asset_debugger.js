@@ -23,12 +23,12 @@ import {
     loadLightingIntoDropzone,
     loadBackgroundIntoDropzone,
     updateStateWithOtherAssets
-} from './landing-screen/zip-util.js';
+} from './landing-page/zip-util.js';
 import { initHtmlEditorModal } from './modals/html-editor-modal/html-editor-modal.js';
 import { initWorldPanel } from './panels/world-panel/world-panel.js';
 import { initState } from './state.js';
 import { initUiManager } from './util/ui-manager.js';
-import { setupDropzones } from './landing-screen/file-handler.js';
+import { setupDropzones } from './landing-page/file-handler.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
