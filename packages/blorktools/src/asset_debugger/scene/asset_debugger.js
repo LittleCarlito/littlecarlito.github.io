@@ -6,14 +6,14 @@
  */
 
 // Import loadSettings and saveSettings from localstorage-util.js
-import { loadSettings, saveSettings } from './util/localstorage-util.js';
+import { loadSettings, saveSettings } from '../util/localstorage-util.js';
 // Import SettingsModal 
-import { SettingsModal } from './modals/settings-modal/settings-modal.js';
-import { ExamplesModal } from './modals/examples-modal/examples-modal.js';
+import { SettingsModal } from '../modals/settings-modal/settings-modal.js';
+import { ExamplesModal } from '../modals/examples-modal/examples-modal.js';
 // Import Asset Panel
-import { initAssetPanel } from './panels/asset-panel/asset-panel.js';
+import { initAssetPanel } from '../panels/asset-panel/asset-panel.js';
 // Import Model Integration for HTML Editor
-import { initModelIntegration } from './modals/html-editor-modal/model-integration.js';
+import { initModelIntegration } from '../modals/html-editor-modal/model-integration.js';
 // Import ZIP utilities
 import { 
     processZipContents, 
@@ -23,12 +23,12 @@ import {
     loadLightingIntoDropzone,
     loadBackgroundIntoDropzone,
     updateStateWithOtherAssets
-} from './landing-page/zip-util.js';
-import { initHtmlEditorModal } from './modals/html-editor-modal/html-editor-modal.js';
-import { initWorldPanel } from './panels/world-panel/world-panel.js';
-import { initState } from './state.js';
-import { initUiManager } from './util/ui-manager.js';
-import { setupDropzones } from './landing-page/file-handler.js';
+} from '../landing-page/zip-util.js';
+import { initHtmlEditorModal } from '../modals/html-editor-modal/html-editor-modal.js';
+import { initWorldPanel } from '../panels/world-panel/world-panel.js';
+import { initState } from '../state.js';
+import { initUiManager } from '../util/ui-manager.js';
+import { setupDropzones } from '../landing-page/file-handler.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
@@ -147,7 +147,7 @@ function loadComponentHtml() {
     };
 
     // Load World Panel (first in the tab order)
-    fetch('./panels/world-panel/world-panel.html')
+    fetch('../panels/world-panel/world-panel.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('world-tab-container').innerHTML = html;
@@ -167,7 +167,7 @@ function loadComponentHtml() {
         });
     
     // Load Asset Panel (second in the tab order)
-    fetch('./panels/asset-panel/asset-panel.html')
+    fetch('../panels/asset-panel/asset-panel.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('asset-tab-container').innerHTML = html;
@@ -187,13 +187,13 @@ function loadComponentHtml() {
         });
     
     // Load the settings modal component FIRST
-    fetch('./modals/settings-modal/settings-modal.html')
+    fetch('../modals/settings-modal/settings-modal.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('settings-modal-container').innerHTML = html;
             
             // Now that settings modal is loaded, load the axis indicator settings
-            fetch('./scene/axis-indicator/axis-indicator.html')
+            fetch('./axis-indicator/axis-indicator.html')
                 .then(response => response.text())
                 .then(html => {
                     const axisSettingsContainer = document.getElementById('axis-settings-container');
@@ -224,7 +224,7 @@ function loadComponentHtml() {
         });
         
     // Load the examples modal component
-    fetch('./modals/examples-modal/examples-modal.html')
+    fetch('../modals/examples-modal/examples-modal.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('examples-modal-container').innerHTML = html;
@@ -236,7 +236,7 @@ function loadComponentHtml() {
         });
         
     // Load the HTML editor modal component
-    fetch('./modals/html-editor-modal/html-editor-modal.html')
+    fetch('../modals/html-editor-modal/html-editor-modal.html')
         .then(response => response.text())
         .then(html => {
             // Insert the entire HTML into the container, which includes the CSS link
@@ -259,7 +259,7 @@ function loadComponentHtml() {
                         console.log('Global function not registered properly, manually registering now');
                         
                         // Import the module and manually register the function
-                        import('./modals/html-editor-modal/html-editor-modal.js').then(module => {
+                        import('../modals/html-editor-modal/html-editor-modal.js').then(module => {
                             // Create a wrapper function that calls openEmbeddedHtmlEditor from the module
                             window.openEmbeddedHtmlEditor = function(meshName, meshId) {
                                 console.log(`Global wrapper: Opening HTML editor for ${meshName} (ID: ${meshId})`);
@@ -370,7 +370,7 @@ function setupThemeAndUI() {
     const returnToToolboxBtn = document.getElementById('return-to-toolbox');
     if (returnToToolboxBtn) {
         returnToToolboxBtn.addEventListener('click', function() {
-            window.location.href = '../../';
+            window.location.href = '../../../';
         });
     }
     
@@ -579,16 +579,6 @@ function determineTargetDropzone(file) {
     if (mimeType.startsWith('image/')) {
         // Background images - any image type
         return 'background-dropzone';
-        
-        // Note: We're defaulting to background dropzone for all images
-        // Alternatively, we could use filename heuristics to detect textures:
-        // if (file.name.toLowerCase().includes('basecolor') || file.name.toLowerCase().includes('albedo')) {
-        //    return 'basecolor-dropzone';
-        // } else if (file.name.toLowerCase().includes('normal')) {
-        //    return 'normal-dropzone';
-        // } else if (file.name.toLowerCase().includes('orm') || file.name.toLowerCase().includes('roughness')) {
-        //    return 'orm-dropzone';
-        // }
     }
     
     // Not a supported file type
@@ -653,7 +643,7 @@ function uploadToDropzone(file, dropzoneId) {
     // If it's a model, trigger loading into the viewer
     if (dropzoneId === 'model-dropzone') {
         // Update model in state
-        import('./state.js').then(stateModule => {
+        import('../state.js').then(stateModule => {
             stateModule.setState({
                 modelFile: file,
                 useCustomModel: true
@@ -709,7 +699,7 @@ async function processZipFile(file) {
  */
 function verifyFileDrop() {
     // First check if any files were dropped
-    import('./state.js').then(stateModule => {
+    import('../state.js').then(stateModule => {
         const currentState = stateModule.getState();
         const hasTextures = currentState.textureObjects.baseColor || 
                           currentState.textureObjects.orm || 
@@ -781,7 +771,7 @@ function startDebugging() {
     const savedSettings = loadSettings();
     
     // Import state to check current values
-    import('./state.js').then(stateModule => {
+    import('../state.js').then(stateModule => {
         const initialState = stateModule.getState();
         console.log('[DEBUG] Initial state before debugging:', {
             backgroundFile: initialState.backgroundFile ? 
@@ -792,7 +782,7 @@ function startDebugging() {
     
     // Apply rig options from saved settings if available
     if (savedSettings && savedSettings.rigOptions) {
-        import('./util/rig/rig-manager.js').then(rigManagerModule => {
+        import('../util/rig/rig-manager.js').then(rigManagerModule => {
             console.log('Applying saved rig options:', savedSettings.rigOptions);
             rigManagerModule.updateRigOptions(savedSettings.rigOptions);
         });
@@ -814,7 +804,7 @@ function startDebugging() {
     // 3. Load model
     
     // Create a promise chain to ensure proper sequencing
-    import('./scene/scene.js')
+    import('./scene.js')
         .then(module => {
             sceneModule = module;
             console.log('Scene module loaded, initializing scene');
@@ -829,7 +819,7 @@ function startDebugging() {
             
             updateLoadingProgress('Setting up scene and lighting...');
             // Check for HDR or EXR lighting files
-            return import('./state.js')
+            return import('../state.js')
                 .then(stateModule => {
                     const currentState = stateModule.getState();
                     console.log('[DEBUG] State after scene init:', {
@@ -851,7 +841,7 @@ function startDebugging() {
                     if (lightingFile) {
                         console.log('Setting up environment lighting from:', lightingFile.name);
                         // Import lighting utilities
-                        setupPromise = import('./scene/lighting-util.js')
+                        setupPromise = import('./lighting-util.js')
                             .then(lightingModule => {
                                 // First parse the metadata (for info display)
                                 return lightingModule.parseLightingData(lightingFile)
@@ -862,7 +852,7 @@ function startDebugging() {
                                         }
                                         
                                         // Update the World Panel with this metadata
-                                        return import('./panels/world-panel/world-panel.js')
+                                        return import('../panels/world-panel/world-panel.js')
                                             .then(worldPanelModule => {
                                                 if (worldPanelModule.updateLightingInfo) {
                                                     worldPanelModule.updateLightingInfo(metadata);
@@ -924,7 +914,7 @@ function startDebugging() {
                             // When the background texture is ready, inform the world panel
                             // so it can update the UI to show the Background Image radio option
                             // but NOT automatically select it
-                            import('./panels/world-panel/world-panel.js').then(worldPanelModule => {
+                            import('../panels/world-panel/world-panel.js').then(worldPanelModule => {
                                 if (worldPanelModule.updateBackgroundInfo && backgroundFile) {
                                     // Get metadata to display in the UI
                                     const metadata = {
@@ -955,7 +945,7 @@ function startDebugging() {
                             console.log('[DEBUG] Setting up background image from:', backgroundFile.name, 'type:', backgroundFile.type);
                             
                             // Import background image utilities
-                            return import('./util/background-util.js')
+                            return import('../util/background-util.js')
                                 .then(backgroundModule => {
                                     return backgroundModule.setupBackgroundImage(backgroundFile)
                                         .then(texture => {
@@ -966,7 +956,7 @@ function startDebugging() {
                                                     texture.isTexture ? 'valid texture' : 'invalid texture');
                                                 
                                                 // Check state after background texture is loaded
-                                                import('./state.js').then(stateModule => {
+                                                import('../state.js').then(stateModule => {
                                                     const updatedState = stateModule.getState();
                                                     console.log('[DEBUG] State after background texture loaded:', {
                                                         backgroundFile: updatedState.backgroundFile ? 
@@ -1007,7 +997,7 @@ function startDebugging() {
                 })
                 .then(() => {
                     // Double check state after all resources are loaded
-                    import('./state.js').then(stateModule => {
+                    import('../state.js').then(stateModule => {
                         const finalState = stateModule.getState();
                         console.log('[DEBUG] Final state after all resources loaded:', {
                             backgroundFile: finalState.backgroundFile ? 
@@ -1020,10 +1010,10 @@ function startDebugging() {
         .then(() => {
             // Now that scene and lighting are set up, load the model
             updateLoadingProgress('Loading 3D model...');
-            return import('./util/models-util.js')
+            return import('../util/models-util.js')
                 .then(modelsModule => {
                     // Ensure state.scene is available before calling loadDebugModel
-                    return import('./state.js')
+                    return import('../state.js')
                         .then(stateModule => {
                             const currentState = stateModule.getState();
                             if (!currentState.scene) {
@@ -1055,7 +1045,7 @@ function startDebugging() {
         updateLoadingProgress('Finalizing camera controls...');
         
         // Import and ensure camera controls are fully initialized
-        import('./scene/controls.js').then(controlsModule => {
+        import('./controls.js').then(controlsModule => {
             // If there's a method to check if controls are ready, use it
             // Otherwise, use a reasonable timeout to ensure everything is ready
             setTimeout(() => {
@@ -1118,7 +1108,7 @@ function showLoadingSplash() {
     
     if (!loadingSplash) {
         // Create and add the loading splash screen from our HTML template
-        fetch('./loading-splash/loading-splash.html')
+        fetch('../loading-splash/loading-splash.html')
             .then(response => response.text())
             .then(html => {
                 document.body.insertAdjacentHTML('beforeend', html);
@@ -1378,7 +1368,7 @@ function setupTogglePanelButton() {
     }
     
     // Load the panel state from localStorage
-    import('./util/localstorage-util.js').then(({ loadSettings, saveSettings }) => {
+    import('../util/localstorage-util.js').then(({ loadSettings, saveSettings }) => {
         const settings = loadSettings() || {};
         
         // Initialize panel hidden state from settings (default to false if not set)
