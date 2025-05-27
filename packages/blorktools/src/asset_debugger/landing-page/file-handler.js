@@ -95,6 +95,53 @@ function hidePreviewLoading(previewElement) {
 }
 
 /**
+ * Clears all relevant state for a given asset type
+ * @param {string} type - The type of asset ('basecolor', 'normal', 'orm', 'model', 'lighting', 'background')
+ */
+function clearStateForType(type) {
+    const state = getState();
+    
+    switch (type) {
+        case 'basecolor':
+        case 'normal':
+        case 'orm':
+            // Clear texture object and file
+            if (state.textureObjects && state.textureObjects[type]) {
+                const texture = state.textureObjects[type];
+                if (texture && typeof texture.dispose === 'function') {
+                    texture.dispose();
+                }
+            }
+            updateState('textureFiles', { ...state.textureFiles, [type]: null });
+            break;
+            
+        case 'model':
+            updateState({
+                modelFile: null,
+                useCustomModel: false
+            });
+            break;
+            
+        case 'lighting':
+            updateState({
+                lightingFile: null,
+                environmentTexture: null
+            });
+            break;
+            
+        case 'background':
+            updateState({
+                backgroundFile: null,
+                backgroundTexture: null
+            });
+            break;
+    }
+    
+    // Log the state after clearing
+    console.debug(`State after clearing ${type}:`, getState());
+}
+
+/**
  * Creates a clear button for a dropzone
  * @param {HTMLElement} dropzone - The dropzone element
  * @param {string} type - The type of asset ('basecolor', 'normal', 'orm', 'model', 'lighting', 'background')
@@ -110,27 +157,14 @@ function createClearButton(dropzone, type, originalTitle) {
     clearButton.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent dropzone click event
         
-        // Handle texture disposal if needed
-        if (['basecolor', 'normal', 'orm'].includes(type)) {
-            const state = getState();
-            if (state.textureObjects && state.textureObjects[type]) {
-                const texture = state.textureObjects[type];
-                if (texture && typeof texture.dispose === 'function') {
-                    texture.dispose();
-                }
-            }
-        }
+        // Clear all relevant state for this type
+        clearStateForType(type);
         
         // Clear the dropzone
         clearDropzone(dropzone, type, originalTitle);
         
         // Reattach the dropzone event handlers
         setupDropzone(dropzone, type, document.getElementById(`${type}-info`));
-        
-        // Handle special cases
-        if (type === 'background') {
-            updateState({ backgroundFile: null, backgroundTexture: null });
-        }
     });
     
     return clearButton;

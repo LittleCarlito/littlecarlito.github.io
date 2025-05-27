@@ -11,29 +11,25 @@ const initialState = {
     camera: null,
     renderer: null,
     controls: null,
-    cube: null,
-    model: null,
     
-    // Texture files (File objects)
     textureFiles: {
-        baseColor: null,
-        orm: null,
-        normal: null
+        baseColor: null, // File object
+        orm: null, // File object
+        normal: null // File object
     },
-    
     // Texture objects (THREE.Texture objects)
     textureObjects: {
         baseColor: null,
         orm: null,
         normal: null
     },
-    
-    // Model file (File object)
-    modelFile: null,
-    
-    // Lighting file (File object for HDR/EXR environment map)
-    lightingFile: null,
-    
+    modelFile: null, // File object
+    model: null,
+    cube: null,
+    lightingFile: null, // File object
+    backgroundFile: null, // File object
+    backgroundTexture: null,
+
     // Animation ID for cancelAnimationFrame
     animationId: null,
     
@@ -89,11 +85,7 @@ const initialState = {
         currentAnimation: null,
         playAnimation: false,
         animationSpeed: 1.0
-    },
-    
-    // Background file
-    backgroundFile: null,
-    backgroundTexture: null,
+    }
 };
 
 // The actual state object
@@ -112,17 +104,6 @@ export function initState() {
         state = { ...initialState };
         // Store in window for persistence
         window.assetDebuggerState = state;
-    }
-    return state;
-}
-
-/**
- * Get the current application state
- * @returns {Object} The current state object
- */
-export function getState() {
-    if (!state) {
-        return initState();
     }
     return state;
 }
@@ -152,6 +133,27 @@ export function updateState(key, value) {
 }
 
 /**
+ * Reset the state to initial values
+ * @returns {Object} The reset state
+ */
+export function resetState() {
+    state = { ...initialState };
+    window.assetDebuggerState = state;
+    return state;
+}
+
+/**
+ * Get the current application state
+ * @returns {Object} The current state object
+ */
+export function getState() {
+    if (!state) {
+        return initState();
+    }
+    return state;
+}
+
+/**
  * Update multiple parts of the state at once
  * @param {Object} updates - An object with keys and values to update
  * @returns {Object} The updated state
@@ -168,134 +170,3 @@ export function setState(updates) {
     
     return state;
 }
-
-/**
- * Reset the state to initial values
- * @returns {Object} The reset state
- */
-export function resetState() {
-    state = { ...initialState };
-    window.assetDebuggerState = state;
-    return state;
-}
-
-/**
- * Setup a file drop handler for the background image dropzone
- */
-export function setupBackgroundDropzone() {
-    const dropzone = document.getElementById('background-dropzone');
-    const info = document.getElementById('background-info');
-    const preview = document.getElementById('background-preview');
-    
-    if (!dropzone) return;
-    
-    // Prevent default drag behaviors
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropzone.addEventListener(eventName, preventDefaults, false);
-    });
-    
-    // Highlight drop area when item is dragged over it
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropzone.addEventListener(eventName, highlight, false);
-    });
-    
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropzone.addEventListener(eventName, unhighlight, false);
-    });
-    
-    // Handle dropped files
-    dropzone.addEventListener('drop', handleBackgroundDrop, false);
-    
-    // Handle file input changes (if there's a file input)
-    const fileInput = dropzone.querySelector('input[type="file"]');
-    if (fileInput) {
-        fileInput.addEventListener('change', (e) => {
-            handleBackgroundFiles(e.target.files);
-        });
-    }
-    
-    function handleBackgroundDrop(e) {
-        const dt = e.dataTransfer;
-        const files = dt.files;
-        handleBackgroundFiles(files);
-    }
-    
-    function handleBackgroundFiles(files) {
-        if (files.length === 0) return;
-        
-        const file = files[0]; // Use only the first file
-        const validExtensions = ['hdr', 'exr', 'jpg', 'jpeg', 'png', 'webp', 'tiff'];
-        const extension = file.name.split('.').pop().toLowerCase();
-        
-        console.log('[DEBUG] Background file processing:', file.name, 'type:', file.type, 'size:', file.size);
-        
-        if (!validExtensions.includes(extension)) {
-            alert(`Unsupported file format. Please upload an HDR, EXR, JPEG, PNG, WebP, or TIFF file.`);
-            return;
-        }
-        
-        // Update the information display
-        info.textContent = `${file.name} (${formatFileSize(file.size)})`;
-        
-        // Store the file in state without triggering a scene update
-        updateState({
-            backgroundFile: file
-        });
-        
-        // Generate preview for standard image formats
-        if (['jpg', 'jpeg', 'png', 'webp'].includes(extension)) {
-            // For standard images, create a simple preview in the dropzone
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                preview.style.backgroundImage = `url(${e.target.result})`;
-                preview.style.display = 'block';
-            };
-            reader.readAsDataURL(file);
-        } else if (['hdr', 'exr'].includes(extension)) {
-            // For HDR/EXR, show a loading indicator first
-            preview.style.backgroundImage = '';
-            preview.textContent = 'Loading HDR/EXR preview...';
-            preview.style.display = 'flex';
-            preview.style.alignItems = 'center';
-            preview.style.justifyContent = 'center';
-            
-            // Import the world-panel to generate the proper preview once
-            import('../panels/world-panel/world-panel').then(module => {
-                if (module.generatePreviewOnly) {
-                    // Call the dedicated preview function that doesn't update the world panel
-                    module.generatePreviewOnly(file, preview);
-                } else {
-                    // Fallback message if function not available
-                    preview.textContent = 'HDR/EXR Preview';
-                }
-            });
-        }
-        
-        console.log('[DEBUG] Updated state with background file:', file.name);
-        
-        // Verify the state was actually updated
-        const currentState = getState();
-        console.log('[DEBUG] State after background update:', {
-            hasBackgroundFile: currentState.backgroundFile ? true : false,
-            backgroundFileName: currentState.backgroundFile ? currentState.backgroundFile.name : 'none'
-        });
-    }
-}
-
-// Make sure to call setupBackgroundDropzone in the initDropzones function or wherever appropriate
-export function initDropzones() {
-    // ... existing dropzone setup code ...
-    
-    // Set up the background dropzone
-    setupBackgroundDropzone();
-    
-    // ... more existing code ...
-}
-
-export default {
-    initState,
-    getState,
-    updateState,
-    setState,
-    resetState
-}; 
