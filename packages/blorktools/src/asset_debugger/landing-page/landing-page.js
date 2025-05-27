@@ -1,4 +1,5 @@
-import { initState } from "../scene/state";
+import ExamplesModal from "../modals/examples-modal/examples-modal";
+import { hasFiles, initState } from "../scene/state";
 import { setupDropzones } from "./dropzone-util";
 import { handleAutoLoad, loadLightingIntoDropzone, loadModelIntoDropzone, processZipContents } from "./zip-util";
 
@@ -7,6 +8,24 @@ export function initalizeLandingPage() {
     initState();
     setupDropzones();
     setupMainContainerDropzone();
+    // Setup listeners
+    const startDebugBtn = document.getElementById('start-debug');
+    if (startDebugBtn) {
+        startDebugBtn.addEventListener('click', verifyFileDrop);
+    }
+}
+
+function verifyFileDrop() {
+    // Verify if any files were dropped
+    if (hasFiles()) {
+        // Start debugging
+        // startDebugging();
+        console.info("BAZINGA");
+    } else {
+        // Show examples modal
+        // showExamplesModal();
+        console.error("BAZLORPA");
+    }
 }
 
 // Prevent default drag-and-drop behavior for the entire document
@@ -302,4 +321,6 @@ async function processZipFile(file) {
     }
 }
 
-initalizeLandingPage();
+document.addEventListener('DOMContentLoaded', () => {
+    initalizeLandingPage();
+});

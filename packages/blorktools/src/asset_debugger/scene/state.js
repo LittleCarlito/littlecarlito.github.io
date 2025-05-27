@@ -170,3 +170,32 @@ export function setState(updates) {
     
     return state;
 }
+
+export function hasFiles() {
+    return hasModelFile() || hasLightingFile() || hasBackgroundFile() 
+    || hasBaseColorFile() || hasOrmFile() || hasNormalFile();
+}
+
+export function hasModelFile() {
+    return state.modelFile !== null;
+}
+
+export function hasLightingFile() {
+    return state.lightingFile !== null;
+}
+
+export function hasBackgroundFile() {
+    return state.backgroundFile !== null;
+}
+
+export function hasBaseColorFile() {
+    return state.textureFiles.baseColor !== null;
+}
+
+export function hasOrmFile() {
+    return state.textureFiles.orm !== null;
+}
+
+export function hasNormalFile() {
+    return state.textureFiles.normal !== null;
+}

@@ -1014,10 +1014,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set up the event listeners for debugging
     // Initialize 3D scene when Start Debugging is clicked
     const startDebugBtn = document.getElementById('start-debug');
-    const restartDebugBtn = document.getElementById('restart-debug');
     if (startDebugBtn) {
         startDebugBtn.addEventListener('click', verifyFileDrop);
     }
+    const restartDebugBtn = document.getElementById('restart-debug');
     if (restartDebugBtn) {
         restartDebugBtn.addEventListener('click', restartDebugging);
     }
