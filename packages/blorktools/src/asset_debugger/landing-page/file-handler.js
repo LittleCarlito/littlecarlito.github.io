@@ -95,6 +95,48 @@ function hidePreviewLoading(previewElement) {
 }
 
 /**
+ * Creates a clear button for a dropzone
+ * @param {HTMLElement} dropzone - The dropzone element
+ * @param {string} type - The type of asset ('basecolor', 'normal', 'orm', 'model', 'lighting', 'background')
+ * @param {string} originalTitle - The original title of the dropzone
+ * @returns {HTMLElement} The created clear button
+ */
+function createClearButton(dropzone, type, originalTitle) {
+    const clearButton = document.createElement('button');
+    clearButton.className = 'clear-preview-button';
+    clearButton.innerHTML = '&times;';
+    clearButton.title = 'Clear file';
+    
+    clearButton.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent dropzone click event
+        
+        // Handle texture disposal if needed
+        if (['basecolor', 'normal', 'orm'].includes(type)) {
+            const state = getState();
+            if (state.textureObjects && state.textureObjects[type]) {
+                const texture = state.textureObjects[type];
+                if (texture && typeof texture.dispose === 'function') {
+                    texture.dispose();
+                }
+            }
+        }
+        
+        // Clear the dropzone
+        clearDropzone(dropzone, type, originalTitle);
+        
+        // Reattach the dropzone event handlers
+        setupDropzone(dropzone, type, document.getElementById(`${type}-info`));
+        
+        // Handle special cases
+        if (type === 'background') {
+            updateState({ backgroundFile: null, backgroundTexture: null });
+        }
+    });
+    
+    return clearButton;
+}
+
+/**
  * Handle texture file upload
  * @param {File} file - The uploaded file
  * @param {string} textureType - The type of texture ('baseColor', 'orm', 'normal')
@@ -128,29 +170,8 @@ export function handleTextureUpload(file, textureType, infoElement, previewEleme
     titleElement.textContent = originalTitle;
     dropzone.appendChild(titleElement);
     
-    // Add a clear button
-    const clearButton = document.createElement('button');
-    clearButton.className = 'clear-preview-button';
-    clearButton.innerHTML = '&times;';
-    clearButton.title = 'Clear file';
-    clearButton.addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent dropzone click event
-        
-        // Dispose of texture if it exists
-        if (state.textureObjects && state.textureObjects[textureType]) {
-            const texture = state.textureObjects[textureType];
-            if (texture && typeof texture.dispose === 'function') {
-                texture.dispose();
-            }
-        }
-        
-        // Clear the dropzone
-        clearDropzone(dropzone, textureType, originalTitle);
-        
-        // Reattach the dropzone event handlers
-        setupDropzone(dropzone, textureType, document.getElementById(textureType.toLowerCase() + '-info'));
-    });
-    dropzone.appendChild(clearButton);
+    // Add the clear button using the shared function with the specific texture type
+    dropzone.appendChild(createClearButton(dropzone, textureType, originalTitle));
     
     // Add file info
     infoElement = document.createElement('p');
@@ -267,16 +288,8 @@ export function handleModelUpload(file, infoElement, dropzone) {
     titleElement.textContent = originalTitle;
     dropzone.appendChild(titleElement);
     
-    // Add a clear button for the model dropzone
-    const clearButton = document.createElement('button');
-    clearButton.className = 'clear-preview-button';
-    clearButton.innerHTML = '&times;';
-    clearButton.title = 'Clear file';
-    clearButton.addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent dropzone click event
-        clearDropzone(dropzone, 'model', originalTitle);
-    });
-    dropzone.appendChild(clearButton);
+    // Add the clear button using the shared function
+    dropzone.appendChild(createClearButton(dropzone, 'model', originalTitle));
     
     // Add file info
     infoElement = document.createElement('p');
@@ -359,19 +372,8 @@ export function handleLightingUpload(file, infoElement, previewElement, dropzone
     titleElement.textContent = originalTitle;
     dropzone.appendChild(titleElement);
     
-    // Add a clear button
-    const clearButton = document.createElement('button');
-    clearButton.className = 'clear-preview-button';
-    clearButton.innerHTML = '&times;';
-    clearButton.title = 'Clear file';
-    clearButton.addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent dropzone click event
-        clearDropzone(dropzone, 'lighting', originalTitle);
-        
-        // Reattach the dropzone event handlers
-        setupDropzone(dropzone, 'lighting', document.getElementById('lighting-info'));
-    });
-    dropzone.appendChild(clearButton);
+    // Add the clear button using the shared function
+    dropzone.appendChild(createClearButton(dropzone, 'lighting', originalTitle));
     
     // Add file info
     infoElement = document.createElement('p');
@@ -557,22 +559,8 @@ export function handleBackgroundUpload(file, infoElement, previewElement, dropzo
     titleElement.textContent = originalTitle;
     dropzone.appendChild(titleElement);
     
-    // Add a clear button
-    const clearButton = document.createElement('button');
-    clearButton.className = 'clear-preview-button';
-    clearButton.innerHTML = '&times;';
-    clearButton.title = 'Clear background image';
-    clearButton.addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent dropzone click event
-        clearDropzone(dropzone, 'background', originalTitle);
-        
-        // Reattach the dropzone event handlers
-        setupDropzone(dropzone, 'background', document.getElementById('background-info'));
-        
-        // Update state to remove the background image
-        updateState({ backgroundFile: null, backgroundTexture: null });
-    });
-    dropzone.appendChild(clearButton);
+    // Add the clear button using the shared function
+    dropzone.appendChild(createClearButton(dropzone, 'background', originalTitle));
     
     // Add file info
     infoElement = document.createElement('p');

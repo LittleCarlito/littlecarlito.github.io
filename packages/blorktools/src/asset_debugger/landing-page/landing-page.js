@@ -127,7 +127,12 @@ function processMainDroppedFiles(files, infoElement) {
     
     // ZIP file handling
     if (file.type === 'application/zip' || extension === 'zip') {
-        processZipFile(file);
+        processZipFile(file).finally(() => {
+            // Clear the message after ZIP processing is complete
+            if (infoElement) {
+                infoElement.style.display = 'none';
+            }
+        });
         return;
     }
     
@@ -229,19 +234,16 @@ function uploadToDropzone(file, dropzoneId) {
         }
     });
     
+    // dataTransfer info report log
+    console.info('dataTransfer info report:');
+    console.info(dropEvent.dataTransfer);
+
     // Dispatch the drop event on the dropzone
     dropzone.dispatchEvent(dropEvent);
     
+    // TODO Convert this to a switch based off enum or something other than string
     // If it's a model, trigger loading into the viewer
-    if (dropzoneId === 'model-dropzone') {
-        // Update model in state
-        import('../scene/state.js').then(stateModule => {
-            stateModule.setState({
-                modelFile: file,
-                useCustomModel: true
-            });
-        });
-        
+    if (dropzoneId === 'model-dropzone') {       
         // Load the model
         loadModelIntoDropzone(file);
     }
