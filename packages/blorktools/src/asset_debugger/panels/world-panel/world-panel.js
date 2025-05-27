@@ -1593,7 +1593,7 @@ function displayCachedPreview(texture, previewElement) {
  * @param {THREE.Texture} texture - The texture to display
  * @param {HTMLCanvasElement} canvas - The canvas to render on
  */
-function createSimplePreview(THREE, texture, canvas) {
+export function createSimplePreview(THREE, texture, canvas) {
     // Create renderer
     const renderer = new THREE.WebGLRenderer({
         canvas: canvas,

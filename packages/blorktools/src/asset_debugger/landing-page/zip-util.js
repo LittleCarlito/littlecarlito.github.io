@@ -371,7 +371,7 @@ export async function processZipContents(zipFile) {
  * Automatically load the detected files into their respective dropzones
  * @param {Object} results - The ZIP processing results
  */
-function handleAutoLoad(results) {
+export function handleAutoLoad(results) {
     if (!results.success) return;
     
     // Load textures
@@ -943,5 +943,28 @@ export function updateStateWithOtherAssets(results) {
     if (Object.keys(updates).length > 0) {
         console.log('[ZIP Util] Updating state with additional assets:', updates);
         updateState(updates);
+    }
+}
+
+/**
+ * Process a ZIP file
+ * @param {File} file - The ZIP file to process
+ */
+async function processZipFile(file) {
+    console.log(`ZIP file received: ${file.name} size: ${file.size}`);
+    
+    try {
+        // Process the ZIP file contents using the zip-util module
+        const results = await processZipContents(file);
+        
+        // Log the results
+        console.log('ZIP processing successful:', results);
+        
+        // If successful, load files into dropzones
+        if (results.success) {
+            handleAutoLoad(results);
+        }
+    } catch (error) {
+        console.error('Error processing ZIP file:', error);
     }
 } 

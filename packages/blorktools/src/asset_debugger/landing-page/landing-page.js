@@ -1,6 +1,6 @@
 import { initState } from "../scene/state";
 import { setupDropzones } from "./dropzone-util";
-import { loadModelIntoDropzone, processZipContents, updateStateWithBestTextures, updateStateWithOtherAssets } from "./zip-util";
+import { handleAutoLoad, loadLightingIntoDropzone, loadModelIntoDropzone, processZipContents } from "./zip-util";
 
 export function initalizeLandingPage() {
     preventDefaultDragBehavior();
@@ -291,13 +291,9 @@ async function processZipFile(file) {
         // Log the results
         console.log('ZIP processing successful:', results);
         
-        // If successful, update state with all detected assets
+        // If successful, load files into dropzones
         if (results.success) {
-            // Update state with texture assets
-            updateStateWithBestTextures(results.atlasResults);
-            
-            // Update state with model, lighting, and background files
-            updateStateWithOtherAssets(results);
+            handleAutoLoad(results);
         }
     } catch (error) {
         console.error('Error processing ZIP file:', error);

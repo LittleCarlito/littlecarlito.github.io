@@ -18,7 +18,7 @@ import {
   terminateAllWorkers 
 } from '../util/workers/worker-manager.js';
 import { parseLightingData } from '../scene/lighting-util';
-import { setupDropzone } from './dropzone-util';
+import { clearDropzone, setupDropzone } from './dropzone-util';
 
 // Add event listener to terminate all workers when the page is unloaded
 window.addEventListener('beforeunload', () => {
@@ -342,11 +342,8 @@ export function handleModelUpload(file, infoElement, dropzone) {
  * @param {HTMLElement} dropzone - The dropzone element
  */
 export function handleLightingUpload(file, infoElement, previewElement, dropzone) {
-    // Validate file type (already done in caller) and store in state
+    // Store the file in the state
     updateState('lightingFile', file);
-    
-    // Set the environment lighting enabled flag
-    updateState('environmentLightingEnabled', true);
     
     // Store original h3 title
     const originalTitle = dropzone.querySelector('h3').textContent;
@@ -447,10 +444,8 @@ export function handleLightingUpload(file, infoElement, previewElement, dropzone
                             canvas.classList.add('visible');
                             canvas.classList.remove('hidden');
                             
-                            // Use the world panel's createSpherePreview function
-                            if (worldPanelModule.createSpherePreview) {
-                                worldPanelModule.createSpherePreview(THREE, texture, canvas, messageDiv);
-                            }
+                            // Create a sphere preview with proper controls
+                            worldPanelModule.createSpherePreview(THREE, texture, canvas, messageDiv);
                             
                             // Clean up URL after loading
                             URL.revokeObjectURL(url);
@@ -458,7 +453,7 @@ export function handleLightingUpload(file, infoElement, previewElement, dropzone
                             // Hide loading indicator
                             hidePreviewLoading(containerDiv);
                             
-                            // Always store the lighting texture for use in previews
+                            // Store the lighting texture for use in previews
                             updateState('environmentTexture', texture);
                         }, undefined, error => {
                             console.error('Error loading EXR texture:', error);
@@ -489,10 +484,8 @@ export function handleLightingUpload(file, infoElement, previewElement, dropzone
                             canvas.classList.add('visible');
                             canvas.classList.remove('hidden');
                             
-                            // Use the world panel's createSpherePreview function
-                            if (worldPanelModule.createSpherePreview) {
-                                worldPanelModule.createSpherePreview(THREE, texture, canvas, messageDiv);
-                            }
+                            // Create a sphere preview with proper controls
+                            worldPanelModule.createSpherePreview(THREE, texture, canvas, messageDiv);
                             
                             // Clean up URL after loading
                             URL.revokeObjectURL(url);
@@ -500,7 +493,7 @@ export function handleLightingUpload(file, infoElement, previewElement, dropzone
                             // Hide loading indicator
                             hidePreviewLoading(containerDiv);
                             
-                            // Always store the lighting texture for use in previews
+                            // Store the lighting texture for use in previews
                             updateState('environmentTexture', texture);
                         }, undefined, error => {
                             console.error('Error loading HDR texture:', error);
@@ -520,35 +513,6 @@ export function handleLightingUpload(file, infoElement, previewElement, dropzone
                 handleLightingError(new Error('Unsupported file type: ' + fileType));
                 return -1;
             }
-
-            // Handle lighting metadata for world panel
-            import('../scene/lighting-util').then(lightingUtil => {
-                lightingUtil.parseLightingData(file).then(metadata => {
-                    worldPanelModule.updateLightingInfo(metadata);
-                    
-                    // Explicitly mark that there's no background image but lighting is available
-                    const currentState = getState();
-                    if (!currentState.backgroundFile) {
-                        // Make sure world panel shows "No Background Image" message
-                        import('../panels/world-panel/world-panel.js').then(worldPanel => {
-                            if (worldPanel.updateBackgroundInfo) {
-                                // Pass empty metadata to show no background available
-                                worldPanel.updateBackgroundInfo({
-                                    fileName: null,
-                                    type: null,
-                                    dimensions: { width: 0, height: 0 },
-                                    fileSizeBytes: 0
-                                }, true); // skipRendering=true to prevent trying to render a non-existent background
-                                
-                                // Make sure UI shows no background but lighting available
-                                if (worldPanel.toggleBackgroundMessages) {
-                                    worldPanel.toggleBackgroundMessages(false, true);
-                                }
-                            }
-                        });
-                    }
-                });
-            });
         })
         .catch(error => {
             console.error('Error processing lighting file:', error);
@@ -567,8 +531,6 @@ export function handleLightingUpload(file, infoElement, previewElement, dropzone
             messageDiv.textContent = 'Error loading lighting file';
         }
     }
-    // Enable visibility of the HDR option - this is the ONLY place where the HDR option visibility should be toggled
-    worldPanelModule.toggleOptionVisibility('hdr-option', true);
 }
 
 /**
@@ -625,7 +587,6 @@ export function handleBackgroundUpload(file, infoElement, previewElement, dropzo
     dropzone.appendChild(previewDiv);
     
     const containerDiv = document.createElement('div');
-    // TODO rename as HDR is filetype and not always type used
     containerDiv.className = 'hdr-preview-container';
     
     // Add event listener to prevent click events from reaching the dropzone
@@ -645,7 +606,6 @@ export function handleBackgroundUpload(file, infoElement, previewElement, dropzo
     
     // Create canvas for the preview with appropriate size
     const canvas = document.createElement('canvas');
-    // TODO Rename ref
     canvas.className = 'hdr-preview-canvas';
     
     // Make canvas dimensions equal for a square aspect ratio
@@ -668,7 +628,6 @@ export function handleBackgroundUpload(file, infoElement, previewElement, dropzo
     // Process the file based on its type
     if (['exr'].includes(fileExtension)) {
         // EXR needs special loader
-        // TODO Change these to static imports
         import('three').then(THREE => {
             import('three/addons/loaders/EXRLoader.js').then(({ EXRLoader }) => {
                 const loader = new EXRLoader();
@@ -688,10 +647,8 @@ export function handleBackgroundUpload(file, infoElement, previewElement, dropzo
                         canvas.classList.add('visible');
                         canvas.classList.remove('hidden');
                         
-                        // Use the world panel's createSpherePreview function
-                        if (worldPanelModule.createSpherePreview) {
-                            worldPanelModule.createSpherePreview(THREE, texture, canvas, messageDiv);
-                        }
+                        // Create a sphere preview with proper controls
+                        worldPanelModule.createSpherePreview(THREE, texture, canvas, messageDiv);
                         
                         // Clean up URL after loading
                         URL.revokeObjectURL(url);
@@ -699,11 +656,8 @@ export function handleBackgroundUpload(file, infoElement, previewElement, dropzo
                         // Hide loading indicator
                         hidePreviewLoading(containerDiv);
                         
-                        // Update state with the background texture
-                        updateState({ 
-                            backgroundTexture: texture,
-                            backgroundFile: file  // Preserve the file reference
-                        });
+                        // Store the background texture for use in previews
+                        updateState('backgroundTexture', texture);
                     }, undefined, error => {
                         console.error('Error loading EXR background texture:', error);
                         canvas.classList.add('visible');
@@ -764,10 +718,8 @@ export function handleBackgroundUpload(file, infoElement, previewElement, dropzo
                         canvas.classList.add('visible');
                         canvas.classList.remove('hidden');
                         
-                        // Use the world panel's createSpherePreview function
-                        if (worldPanelModule.createSpherePreview) {
-                            worldPanelModule.createSpherePreview(THREE, texture, canvas, messageDiv);
-                        }
+                        // Create a sphere preview with proper controls
+                        worldPanelModule.createSpherePreview(THREE, texture, canvas, messageDiv);
                         
                         // Clean up URL after loading
                         URL.revokeObjectURL(url);
@@ -775,25 +727,8 @@ export function handleBackgroundUpload(file, infoElement, previewElement, dropzo
                         // Hide loading indicator
                         hidePreviewLoading(containerDiv);
                         
-                        // Only update background state if no background file exists already
-                        const currentState = getState();
-                        if (!currentState.backgroundFile) {
-                            // Update state with the background texture only if no background exists
-                            updateState({ 
-                                backgroundTexture: texture,
-                                backgroundFile: file  // Preserve the file reference
-                            });
-                        }
-                        
-                        // Always store the lighting texture for use in previews
-                        updateState('environmentTexture', texture);
-                        
-                        // Trigger an update in world panel to show the environment preview
-                        import('../panels/world-panel/world-panel.js').then(worldPanel => {
-                            if (worldPanel.updateWorldPanel) {
-                                worldPanel.updateWorldPanel();
-                            }
-                        });
+                        // Store the background texture for use in previews
+                        updateState('backgroundTexture', texture);
                     }, undefined, error => {
                         console.error('Error loading HDR background texture:', error);
                         canvas.classList.add('visible');
@@ -850,26 +785,14 @@ export function handleBackgroundUpload(file, infoElement, previewElement, dropzo
                     // Make sure to set proper texture parameters
                     texture.mapping = THREE.EquirectangularReflectionMapping;
                     
-                    // Use the world panel's createSpherePreview function
-                    if (worldPanelModule.createSpherePreview) {
-                        worldPanelModule.createSpherePreview(THREE, texture, canvas, messageDiv);
-                    }
+                    // Create a sphere preview with proper controls
+                    worldPanelModule.createSpherePreview(THREE, texture, canvas, messageDiv);
                     
                     // Hide loading indicator
                     hidePreviewLoading(containerDiv);
                     
-                    // Update state with the background texture
-                    updateState({ 
-                        backgroundTexture: texture,
-                        backgroundFile: file  // Preserve the file reference
-                    });
-                    
-                    // Trigger an update in world panel to show the environment preview
-                    import('../panels/world-panel/world-panel.js').then(worldPanel => {
-                        if (worldPanel.updateWorldPanel) {
-                            worldPanel.updateWorldPanel();
-                        }
-                    });
+                    // Store the background texture for use in previews
+                    updateState('backgroundTexture', texture);
                 }, undefined, error => {
                     console.error('Error loading image texture:', error);
                     canvas.classList.add('visible');
@@ -910,8 +833,6 @@ export function handleBackgroundUpload(file, infoElement, previewElement, dropzo
     updateState({
         backgroundFile: file
     });
-    // Enable visibility of the background option - this is the ONLY place where the background option visibility should be toggled
-    worldPanelModule.toggleOptionVisibility('background-option', true);
 }
 
 /**

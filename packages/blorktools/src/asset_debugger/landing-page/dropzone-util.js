@@ -1,3 +1,4 @@
+import { getState, updateState } from "../scene/state";
 import { handleBackgroundUpload, handleLightingUpload, handleModelUpload, handleTextureUpload, handleZipUpload } from "./file-handler";
 
 // File type configuration object - a centralized definition of properties for each file type
@@ -206,7 +207,9 @@ export function setupDropzone(dropzone, fileType, infoElement) {
     
     // First remove any existing event listeners to prevent duplicates
     const clone = dropzone.cloneNode(true);
-    dropzone.parentNode.replaceChild(clone, dropzone);
+    if(dropzone.parentNode != null) {
+        dropzone.parentNode.replaceChild(clone, dropzone);
+    }
     dropzone = clone;
 
     const config = FILE_TYPE_CONFIG[fileType];
