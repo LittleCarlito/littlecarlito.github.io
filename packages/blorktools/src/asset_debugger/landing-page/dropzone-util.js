@@ -1,3 +1,143 @@
+import { handleBackgroundUpload, handleLightingUpload, handleModelUpload, handleTextureUpload, handleZipUpload } from "./file-handler";
+
+// File type configuration object - a centralized definition of properties for each file type
+const FILE_TYPE_CONFIG = {
+    baseColor: {
+        title: 'Base Color Atlas',
+        instruction: 'Drag & drop your base color texture atlas here',
+        acceptedFileTypes: ['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'],
+        stateKey: 'textureFiles',
+        handler: handleTextureUpload
+    },
+    orm: {
+        title: 'ORM Atlas',
+        instruction: 'Drag & drop your ORM (Occlusion, Roughness, Metalness) texture atlas here',
+        acceptedFileTypes: ['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'],
+        stateKey: 'textureFiles',
+        handler: handleTextureUpload
+    },
+    normal: {
+        title: 'Normal Atlas',
+        instruction: 'Drag & drop your normal map texture atlas here',
+        acceptedFileTypes: ['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'], 
+        stateKey: 'textureFiles',
+        handler: handleTextureUpload
+    },
+    model: {
+        title: '3D Model',
+        instruction: 'Drag & drop a GLB model file here',
+        optionalText: 'If not provided, a cube will be used',
+        acceptedFileTypes: ['.glb'],
+        stateKey: 'modelFile',
+        resetState: () => {
+            // Get current model and clear it from the scene if needed
+            const state = getState();
+            if (state.model && state.scene) {
+                // Remove model from scene
+                state.scene.remove(state.model);
+                // Dispose of any textures or geometries within the model
+                if (state.model.traverse) {
+                    state.model.traverse((node) => {
+                        if (node.geometry) node.geometry.dispose();
+                        if (node.material) {
+                            if (Array.isArray(node.material)) {
+                                node.material.forEach(mat => {
+                                    Object.values(mat).forEach(value => {
+                                        if (value && typeof value.dispose === 'function') value.dispose();
+                                    });
+                                    mat.dispose();
+                                });
+                            } else {
+                                Object.values(node.material).forEach(value => {
+                                    if (value && typeof value.dispose === 'function') value.dispose();
+                                });
+                                node.material.dispose();
+                            }
+                        }
+                    });
+                }
+            }
+            
+            // Clear model-related state
+            updateState('modelFile', null);
+            updateState('useCustomModel', false);
+            updateState('model', null);
+        },
+        handler: handleModelUpload
+    },
+    lighting: {
+        title: 'Lighting File',
+        instruction: 'Drag & drop your HDR or EXR lighting file here',
+        acceptedFileTypes: ['.hdr', '.exr'],
+        stateKey: 'lightingFile',
+        resetState: () => {
+            // Get current state
+            const state = getState();
+            
+            // Remove environment map from scene if it exists
+            if (state.scene && state.scene.environment) {
+                // Dispose of the environment texture
+                if (state.scene.environment.dispose) {
+                    state.scene.environment.dispose();
+                }
+                state.scene.environment = null;
+                
+                // Also reset the background if it was using the same environment map
+                if (state.scene.background === state.scene.environment) {
+                    state.scene.background = null;
+                }
+            }
+            
+            // Clear lighting-related state
+            updateState('lightingFile', null);
+            updateState('environmentLightingEnabled', false);
+            updateState('environmentTexture', null);
+        },
+        handler: handleLightingUpload
+    },
+    background: {
+        title: 'Background Image',
+        instruction: 'Drag & drop your HDR, EXR, JPEG, PNG, WebP, or TIFF background image here',
+        acceptedFileTypes: ['.hdr', '.exr', '.jpg', '.jpeg', '.png', '.webp', '.tiff', '.tif'],
+        stateKey: 'backgroundFile',
+        resetState: () => {
+            // Get current state
+            const state = getState();
+            
+            // Dispose of background texture if it exists
+            if (state.backgroundTexture && state.backgroundTexture.dispose) {
+                state.backgroundTexture.dispose();
+            }
+            
+            // Remove background from scene if it exists and is different from environment
+            if (state.scene && state.scene.background && state.scene.background !== state.scene.environment) {
+                if (state.scene.background.dispose) {
+                    state.scene.background.dispose();
+                }
+                state.scene.background = null;
+            }
+            
+            // Clear background-related state
+            updateState({ 
+                backgroundFile: null, 
+                backgroundTexture: null,
+                backgroundEnabled: false
+            });
+        },
+        handler: handleBackgroundUpload
+    },
+    zip: {
+        title: 'ZIP Archive',
+        instruction: 'Drag & drop a ZIP file containing asset files here',
+        acceptedFileTypes: ['.zip'],
+        stateKey: 'zipFile',
+        resetState: () => {
+            updateState('zipFile', null);
+        },
+        handler: handleZipUpload
+    }
+};
+
 /**
  * Setup dropzones for file input
  */
@@ -194,4 +334,84 @@ export function setupDropzone(dropzone, fileType, infoElement) {
         
         input.click();
     });
+}
+
+/**
+ * Clear a dropzone and reset it to its original state
+ * @param {HTMLElement} dropzone - The dropzone element to clear
+ * @param {string} fileType - The type of file ('baseColor', 'orm', 'normal', 'model', 'lighting', 'background')
+ * @param {string} title - The original title of the dropzone
+ */
+export function clearDropzone(dropzone, fileType, title) {
+    const config = FILE_TYPE_CONFIG[fileType];
+    
+    if (!config) {
+        console.error(`No configuration found for file type: ${fileType}`);
+        return;
+    }
+    
+    // Reset state based on file type configuration
+    if (config.resetState) {
+        // Use custom reset function if defined
+        config.resetState();
+    } else if (config.stateKey === 'textureFiles') {
+        // Handle texture file state
+        const state = getState();
+        state.textureFiles[fileType] = null;
+        updateState('textureFiles', state.textureFiles);
+        
+        // BUGFIX: Also clear the corresponding texture object
+        // This ensures the texture doesn't continue to be used after clearing
+        if (state.textureObjects && state.textureObjects[fileType]) {
+            state.textureObjects[fileType] = null;
+            updateState('textureObjects', state.textureObjects);
+        }
+    } else if (config.stateKey) {
+        // Handle other state keys
+        updateState(config.stateKey, null);
+    }
+    
+    // Clear the dropzone classes and content
+    dropzone.classList.remove('has-file');
+    dropzone.innerHTML = '';
+    
+    // Recreate the original dropzone content
+    const titleElement = document.createElement('h3');
+    titleElement.textContent = config.title || title;
+    dropzone.appendChild(titleElement);
+    
+    // Add instruction text
+    if (config.instruction) {
+        const instructionText = document.createElement('p');
+        instructionText.textContent = config.instruction;
+        dropzone.appendChild(instructionText);
+    }
+    
+    // Add optional text if present
+    if (config.optionalText) {
+        const optionalText = document.createElement('p');
+        optionalText.textContent = config.optionalText;
+        dropzone.appendChild(optionalText);
+    }
+    
+    // Add an empty file info element
+    const infoElement = document.createElement('p');
+    infoElement.className = 'file-info';
+    infoElement.id = fileType.toLowerCase() + '-info';
+    dropzone.appendChild(infoElement);
+    
+    // Get the newly created info element to pass to setupDropzone
+    const newInfoElement = document.getElementById(fileType.toLowerCase() + '-info');
+    
+    // Reattach the dropzone event handlers
+    setupDropzone(dropzone, fileType, newInfoElement || infoElement);
+}
+
+/**
+ * Prevent default drag behaviors
+ * @param {Event} e - The event object
+ */
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
 }

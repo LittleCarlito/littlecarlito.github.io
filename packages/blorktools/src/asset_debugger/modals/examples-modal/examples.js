@@ -53,7 +53,7 @@ export function createWireframeCubeExample() {
             console.log('[EXAMPLE] Background color set to #222222');
             
             // Import lighting utilities to use their default lighting
-            import('./lighting-util.js').then(lightingUtil => {
+            import('../../scene/lighting-util.js').then(lightingUtil => {
                 // Add standard lighting from lighting-util.js
                 lightingUtil.addLighting(state.scene);
                 console.log('[EXAMPLE] Added standard lighting using lighting-util.js');
