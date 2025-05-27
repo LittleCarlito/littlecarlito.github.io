@@ -265,16 +265,6 @@ export function startDebugging() {
     // Load settings from localStorage at the start
     const savedSettings = loadSettings();
     
-    // Import state to check current values
-    import('./state.js').then(stateModule => {
-        const initialState = stateModule.getState();
-        console.log('[DEBUG] Initial state before debugging:', {
-            backgroundFile: initialState.backgroundFile ? 
-                `${initialState.backgroundFile.name} (${initialState.backgroundFile.type})` : 'null',
-            backgroundTexture: initialState.backgroundTexture ? 'Texture present' : 'null'
-        });
-    });
-    
     // Apply rig options from saved settings if available
     if (savedSettings && savedSettings.rigOptions) {
         import('../util/rig/rig-manager.js').then(rigManagerModule => {
@@ -290,19 +280,140 @@ export function startDebugging() {
     import('./state.js')
         .then(stateModule => {
             const currentState = stateModule.getState();
-            return loadEnvironmentResources(currentState);
-        })
-        .then(() => {
-            // Now that scene and lighting are set up, load the model
-            updateLoadingProgress('Loading 3D model...');
-            return import('../util/models-util.js')
-                .then(modelsModule => {
-                    return modelsModule.loadDebugModel();
-                })
-                .then(() => {
-                    resourcesLoaded.modelLoaded = true;
-                    checkAllResourcesLoaded();
+            console.log('[DEBUG] Initial state before debugging:', {
+                backgroundFile: currentState.backgroundFile ? 
+                    `${currentState.backgroundFile.name} (${currentState.backgroundFile.type})` : 'null',
+                backgroundTexture: currentState.backgroundTexture ? 'Texture present' : 'null'
+            });
+
+            // Initialize all resource flags to false
+            resourcesLoaded.lightingLoaded = false;
+            resourcesLoaded.backgroundLoaded = false;
+            resourcesLoaded.modelLoaded = false;
+            resourcesLoaded.controlsReady = false;
+
+            // Process all files from state in sequence
+            let promiseChain = Promise.resolve();
+
+            // Handle lighting file if it exists
+            if (stateModule.hasLightingFile()) {
+                const lightingFile = stateModule.getLightingFile();
+                promiseChain = promiseChain.then(() => {
+                    console.log('Setting up environment lighting from:', lightingFile.name);
+                    return import('./lighting-util.js')
+                        .then(lightingModule => {
+                            return lightingModule.setupEnvironmentLighting(lightingFile)
+                                .then(texture => {
+                                    // Update world panel with lighting info
+                                    return import('../panels/world-panel/world-panel.js')
+                                        .then(worldPanelModule => {
+                                            if (worldPanelModule.updateLightingInfo) {
+                                                worldPanelModule.updateLightingInfo({
+                                                    fileName: lightingFile.name,
+                                                    type: lightingFile.name.split('.').pop().toUpperCase(),
+                                                    fileSizeBytes: lightingFile.size
+                                                });
+                                            }
+                                            return texture;
+                                        });
+                                });
+                        })
+                        .then(() => {
+                            console.log('Lighting loaded successfully');
+                            resourcesLoaded.lightingLoaded = true;
+                            checkAllResourcesLoaded();
+                        });
                 });
+            } else {
+                console.log('No lighting file to load');
+                resourcesLoaded.lightingLoaded = true;
+                checkAllResourcesLoaded();
+            }
+
+            // Handle background file if it exists
+            if (stateModule.hasBackgroundFile()) {
+                const backgroundFile = stateModule.getBackgroundFile();
+                promiseChain = promiseChain.then(() => {
+                    console.log('Setting up background from:', backgroundFile.name);
+                    return import('../util/background-util.js')
+                        .then(backgroundModule => {
+                            return backgroundModule.setupBackgroundImage(backgroundFile)
+                                .then(texture => {
+                                    if (texture) {
+                                        const event = new CustomEvent('background-updated', { 
+                                            detail: { texture, file: backgroundFile }
+                                        });
+                                        document.dispatchEvent(event);
+                                    }
+                                    return texture;
+                                });
+                        })
+                        .then(() => {
+                            console.log('Background loaded successfully');
+                            resourcesLoaded.backgroundLoaded = true;
+                            checkAllResourcesLoaded();
+                        });
+                });
+            } else {
+                console.log('No background file to load');
+                resourcesLoaded.backgroundLoaded = true;
+                checkAllResourcesLoaded();
+            }
+
+            // Handle model file if it exists
+            if (stateModule.hasModelFile()) {
+                const modelFile = stateModule.getModelFile();
+                promiseChain = promiseChain.then(() => {
+                    console.log('Loading model from:', modelFile.name);
+                    return import('../util/models-util.js')
+                        .then(modelsModule => {
+                            return modelsModule.loadDebugModel();
+                        })
+                        .then(() => {
+                            console.log('Model loaded successfully');
+                            resourcesLoaded.modelLoaded = true;
+                            checkAllResourcesLoaded();
+                        });
+                });
+            } else {
+                console.log('No model file to load');
+                resourcesLoaded.modelLoaded = true;
+                checkAllResourcesLoaded();
+            }
+
+            // Handle texture files if they exist
+            if (stateModule.hasBaseColorFile() || stateModule.hasOrmFile() || stateModule.hasNormalFile()) {
+                promiseChain = promiseChain.then(() => {
+                    return import('../util/custom-animation/texture-util.js')
+                        .then(textureModule => {
+                            const promises = [];
+                            
+                            if (stateModule.hasBaseColorFile()) {
+                                promises.push(textureModule.loadTexture(stateModule.getBaseColorFile(), 'baseColor'));
+                            }
+                            if (stateModule.hasOrmFile()) {
+                                promises.push(textureModule.loadTexture(stateModule.getOrmFile(), 'orm'));
+                            }
+                            if (stateModule.hasNormalFile()) {
+                                promises.push(textureModule.loadTexture(stateModule.getNormalFile(), 'normal'));
+                            }
+                            
+                            return Promise.all(promises);
+                        });
+                });
+            }
+
+            // Ensure camera controls are ready after all other resources
+            return promiseChain.then(() => {
+                console.log('Finalizing camera controls...');
+                updateLoadingProgress('Finalizing camera controls...');
+                return import('./controls.js')
+                    .then(() => {
+                        console.log('Camera controls initialized');
+                        resourcesLoaded.controlsReady = true;
+                        checkAllResourcesLoaded();
+                    });
+            });
         })
         .catch(error => {
             console.error('Error in debugging sequence:', error);
@@ -310,164 +421,8 @@ export function startDebugging() {
             resourcesLoaded.lightingLoaded = true;
             resourcesLoaded.backgroundLoaded = true;
             resourcesLoaded.modelLoaded = true;
+            resourcesLoaded.controlsReady = true;
             checkAllResourcesLoaded();
-        });
-}
-
-/**
- * Load environment resources (lighting and background)
- * @param {Object} currentState - Current application state
- * @returns {Promise} - Promise that resolves when loading is complete
- */
-function loadEnvironmentResources(currentState) {
-    updateLoadingProgress('Setting up scene and lighting...');
-    
-    console.log('[DEBUG] State after scene init:', {
-        backgroundFile: currentState.backgroundFile ? 
-            `${currentState.backgroundFile.name} (${currentState.backgroundFile.type})` : 'null',
-        backgroundTexture: currentState.backgroundTexture ? 'Texture present' : 'null'
-    });
-    
-    const lightingFile = currentState.lightingFile;
-    const backgroundFile = currentState.backgroundFile;
-    const backgroundTexture = currentState.backgroundTexture;
-    
-    // Process lighting and background as separate, sequential operations
-    // First, handle lighting if available
-    let lightingPromise = Promise.resolve();
-    
-    if (lightingFile) {
-        console.log('Setting up environment lighting from:', lightingFile.name);
-        lightingPromise = import('./lighting-util.js')
-            .then(lightingModule => {
-                // First parse the metadata (for info display)
-                return lightingModule.parseLightingData(lightingFile)
-                    .then(metadata => {
-                        // Only log if debugging is enabled
-                        if (DEBUG_LIGHTING) {
-                            console.log('Environment Map Full Analysis:', metadata);
-                        }
-                        
-                        // Update the World Panel with this metadata
-                        return import('../panels/world-panel/world-panel.js')
-                            .then(worldPanelModule => {
-                                if (worldPanelModule.updateLightingInfo) {
-                                    worldPanelModule.updateLightingInfo(metadata);
-                                }
-
-                                // Apply the lighting to the scene
-                                return lightingModule.setupEnvironmentLighting(lightingFile)
-                                    .then(texture => {
-                                        // Ensure the lighting preview is rendered in world panel
-                                        if (texture && worldPanelModule.renderEnvironmentPreview) {
-                                            console.log('Rendering environment preview in world panel');
-                                            // Find the canvas in the world panel
-                                            const hdrCanvas = document.getElementById('hdr-preview-canvas');
-                                            const noImageMessage = document.getElementById('no-image-message');
-                                            
-                                            // Render the preview if canvas exists
-                                            if (hdrCanvas) {
-                                                worldPanelModule.renderEnvironmentPreview(texture, hdrCanvas, noImageMessage);
-                                            } else {
-                                                console.warn('HDR preview canvas not found, will be rendered when panel is ready');
-                                                // Store the texture in state for later use
-                                                updateState('environmentTexture', texture);
-                                            }
-                                        }
-                                        return texture;
-                                    });
-                            });
-                    });
-            })
-            .then(() => {
-                resourcesLoaded.lightingLoaded = true;
-                checkAllResourcesLoaded();
-            })
-            .catch(error => {
-                console.error('Error setting up lighting:', error);
-                resourcesLoaded.lightingLoaded = true;
-                checkAllResourcesLoaded();
-            });
-    } else {
-        resourcesLoaded.lightingLoaded = true;
-    }
-    
-    // Then, handle background (after lighting is complete)
-    return lightingPromise
-        .then(() => {
-            // If we have a texture already loaded from the dropzone preview,
-            // use that directly instead of reloading the file
-            if (backgroundTexture) {
-                console.log('[DEBUG] Using already loaded background texture');
-                
-                // Dispatch an event to notify UI components
-                const event = new CustomEvent('background-updated', { 
-                    detail: { texture: backgroundTexture, file: backgroundFile }
-                });
-                document.dispatchEvent(event);
-                
-                // When the background texture is ready, inform the world panel
-                return import('../panels/world-panel/world-panel.js')
-                    .then(worldPanelModule => {
-                        if (worldPanelModule.updateBackgroundInfo && backgroundFile) {
-                            // Get metadata to display in the UI
-                            const metadata = {
-                                fileName: backgroundFile.name,
-                                type: backgroundFile.type || backgroundFile.name.split('.').pop().toUpperCase(),
-                                dimensions: { 
-                                    width: backgroundTexture.image?.width || 0, 
-                                    height: backgroundTexture.image?.height || 0 
-                                },
-                                fileSizeBytes: backgroundFile.size
-                            };
-                            
-                            // Update the background info panel with this data
-                            worldPanelModule.updateBackgroundInfo(metadata, false);
-                            
-                            // Make sure the "None" radio is still selected
-                            const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
-                            if (noneRadio) {
-                                noneRadio.checked = true;
-                            }
-                        }
-                    })
-                    .finally(() => {
-                        resourcesLoaded.backgroundLoaded = true;
-                        checkAllResourcesLoaded();
-                    });
-            }
-            else if (backgroundFile) {
-                console.log('[DEBUG] Setting up background image from:', backgroundFile.name, 'type:', backgroundFile.type);
-                
-                // Import background image utilities
-                return import('../util/background-util.js')
-                    .then(backgroundModule => {
-                        return backgroundModule.setupBackgroundImage(backgroundFile)
-                            .then(texture => {
-                                // After background is set up, explicitly trigger a UI update event
-                                if (texture) {
-                                    console.log('[DEBUG] Background image loaded successfully');
-                                    
-                                    // Manually dispatch the background-updated event
-                                    const event = new CustomEvent('background-updated', { 
-                                        detail: { texture }
-                                    });
-                                    document.dispatchEvent(event);
-                                } else {
-                                    console.log('[DEBUG] Background image loading failed - no texture returned');
-                                }
-                                return texture;
-                            });
-                    })
-                    .finally(() => {
-                        resourcesLoaded.backgroundLoaded = true;
-                        checkAllResourcesLoaded();
-                    });
-            } else {
-                console.log('[DEBUG] No background file found in state');
-                resourcesLoaded.backgroundLoaded = true;
-                checkAllResourcesLoaded();
-            }
         });
 }
 

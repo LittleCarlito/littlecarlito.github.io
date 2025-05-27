@@ -1,6 +1,6 @@
 import ExamplesModal from "../modals/examples-modal/examples-modal";
 import { startDebugging } from "../scene/asset_debugger";
-import { hasFiles, initState, setState } from "../scene/state";
+import { getBackgroundFile, getBaseColorFile, getLightingFile, getModelFile, getNormalFile, getOrmFile, hasFiles, initState, setState } from "../scene/state";
 import { loadSettings } from "../util/localstorage-util";
 import { setupDropzones } from "./dropzone-util";
 import { handleAutoLoad, loadLightingIntoDropzone, loadModelIntoDropzone, processZipContents } from "./zip-util";
@@ -30,12 +30,19 @@ export function initalizeLandingPage() {
 }
 
 function verifyFileDrop() {
-    // Verify if any files were dropped
+    console.debug('Verifying file drop, checking state:', {
+        hasModelFile: hasFiles(),
+        modelFile: getModelFile()?.name,
+        lightingFile: getLightingFile()?.name,
+        backgroundFile: getBackgroundFile()?.name,
+        baseColorFile: getBaseColorFile()?.name,
+        ormFile: getOrmFile()?.name,
+        normalFile: getNormalFile()?.name
+    });
+
     if (hasFiles()) {
-        // Transition to the asset debugger page
         window.location.href = '../scene/asset_debugger.html';
     } else {
-        // Show examples modal if not files were given
         showExamplesModal();
     }
 }
@@ -163,57 +170,45 @@ function processMainDroppedFiles(files, infoElement) {
     const file = files[0]; // Process only the first file for simplicity
     
     // Show starting message
-    if (infoElement) {
-        infoElement.textContent = `Processing ${file.name}...`;
-        infoElement.style.display = 'block';
-        infoElement.style.color = '#007bff';
-    }
+    infoElement.textContent = `Processing ${file.name}...`;
+    infoElement.style.display = 'block';
+    infoElement.style.color = '#007bff';
     
     // Check file type and extension
     const extension = file.name.split('.').pop().toLowerCase();
+    console.debug('Processing dropped file:', {
+        name: file.name,
+        type: file.type,
+        extension: extension,
+        size: file.size
+    });
     
     // ZIP file handling
     if (file.type === 'application/zip' || extension === 'zip') {
-        processZipFile(file).finally(() => {
-            // Clear the message after ZIP processing is complete
-            if (infoElement) {
-                infoElement.style.display = 'none';
-            }
-        });
+        console.debug('Processing ZIP file:', file.name);
+        processZipFile(file);
         return;
     }
     
     // Determine which dropzone to use based on file type/extension
     let targetDropzone = determineTargetDropzone(file);
+    console.debug('Determined target dropzone:', targetDropzone, 'for file:', file.name);
     
     if (targetDropzone) {
         // Upload to the appropriate dropzone
         uploadToDropzone(file, targetDropzone);
         
         // Show success message
-        if (infoElement) {
-            infoElement.textContent = `File "${file.name}" loaded into ${getDropzoneName(targetDropzone)}`;
-            infoElement.style.display = 'block';
-            infoElement.style.color = 'green';
-            
-            // Hide after 3 seconds
-            setTimeout(() => {
-                infoElement.style.display = 'none';
-            }, 3000);
-        }
+        infoElement.textContent = `File "${file.name}" loaded into ${getDropzoneName(targetDropzone)}`;
+        infoElement.style.display = 'block';
+        infoElement.style.color = 'green';
     } else {
         // No appropriate dropzone found
-        if (infoElement) {
-            infoElement.textContent = `Error: Could not determine target for "${file.name}". 
-                Supported types: ZIP, GLB, GLTF, HDR, EXR, JPG, PNG, WebP, TIFF`;
-            infoElement.style.display = 'block';
-            infoElement.style.color = 'red';
-            
-            // Hide after 5 seconds
-            setTimeout(() => {
-                infoElement.style.display = 'none';
-            }, 5000);
-        }
+        console.error('No appropriate dropzone found for file:', file.name);
+        infoElement.textContent = `Error: Could not determine target for "${file.name}". 
+            Supported types: ZIP, GLB, GLTF, HDR, EXR, JPG, PNG, WebP, TIFF`;
+        infoElement.style.display = 'block';
+        infoElement.style.color = 'red';
     }
 }
 
@@ -255,11 +250,10 @@ function determineTargetDropzone(file) {
 function uploadToDropzone(file, dropzoneId) {
     const dropzone = document.getElementById(dropzoneId);
     if (!dropzone) {
-        console.error(`Dropzone "${dropzoneId}" not found`);
-        return;
+        throw new Error(`Dropzone "${dropzoneId}" not found`);
     }
     
-    console.log(`Uploading ${file.name} to ${dropzoneId}`);
+    console.debug(`Uploading ${file.name} to ${dropzoneId}`);
     
     // Create a FileList-like object
     const fileList = {
@@ -281,30 +275,35 @@ function uploadToDropzone(file, dropzoneId) {
         }
     });
     
-    // dataTransfer info report log
-    console.info('dataTransfer info report:');
-    console.info(dropEvent.dataTransfer);
+    console.debug('Dispatching drop event with file:', {
+        name: file.name,
+        type: file.type,
+        size: file.size
+    });
 
     // Dispatch the drop event on the dropzone
     dropzone.dispatchEvent(dropEvent);
     
-    // TODO Convert this to a switch based off enum or something other than string
-    // If it's a model, trigger loading into the viewer
-    if (dropzoneId === 'model-dropzone') {       
-        // Load the model
-        loadModelIntoDropzone(file);
-    }
-    // If it's a background, load it properly
-    else if (dropzoneId === 'background-dropzone') {
-        loadBackgroundIntoDropzone(file);
-    }
-    // If it's a lighting file, load it properly
-    else if (dropzoneId === 'lighting-dropzone') {
-        loadLightingIntoDropzone(file);
-    }
-    // If it's a texture atlas file, handle it appropriately
-    else if (['basecolor-dropzone', 'orm-dropzone', 'normal-dropzone'].includes(dropzoneId)) {
-        loadTextureIntoDropzone(file, dropzoneId);
+    // Handle file based on dropzone type
+    switch(dropzoneId) {
+        case 'model-dropzone':
+            console.debug('Loading model into dropzone:', file.name);
+            loadModelIntoDropzone(file);
+            break;
+        case 'background-dropzone':
+            console.debug('Loading background into dropzone:', file.name);
+            loadBackgroundIntoDropzone(file);
+            break;
+        case 'lighting-dropzone':
+            console.debug('Loading lighting into dropzone:', file.name);
+            loadLightingIntoDropzone(file);
+            break;
+        case 'basecolor-dropzone':
+        case 'orm-dropzone':
+        case 'normal-dropzone':
+            console.debug('Loading texture into dropzone:', file.name, 'type:', dropzoneId);
+            loadTextureIntoDropzone(file, dropzoneId);
+            break;
     }
 }
 

@@ -180,22 +180,46 @@ export function hasModelFile() {
     return state.modelFile !== null;
 }
 
+export function getModelFile() {
+    return state.modelFile;
+}
+
 export function hasLightingFile() {
     return state.lightingFile !== null;
+}
+
+export function getLightingFile() {
+    return state.lightingFile;
 }
 
 export function hasBackgroundFile() {
     return state.backgroundFile !== null;
 }
 
+export function getBackgroundFile() {
+    return state.backgroundFile;
+}
+
 export function hasBaseColorFile() {
     return state.textureFiles.baseColor !== null;
+}
+
+export function getBaseColorFile() {
+    return state.textureFiles.baseColor;
 }
 
 export function hasOrmFile() {
     return state.textureFiles.orm !== null;
 }
 
+export function getOrmFile() {
+    return state.textureFiles.orm;
+}
+
 export function hasNormalFile() {
     return state.textureFiles.normal !== null;
+}
+
+export function getNormalFile() {
+    return state.textureFiles.normal;
 }
