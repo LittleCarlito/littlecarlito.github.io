@@ -1,6 +1,6 @@
 import ExamplesModal from "../modals/examples-modal/examples-modal";
 import { startDebugging } from "../scene/asset_debugger";
-import { hasFiles, initState } from "../scene/state";
+import { hasFiles, initState, setState } from "../scene/state";
 import { loadSettings } from "../util/localstorage-util";
 import { setupDropzones } from "./dropzone-util";
 import { handleAutoLoad, loadLightingIntoDropzone, loadModelIntoDropzone, processZipContents } from "./zip-util";
@@ -47,9 +47,9 @@ function showExamplesModal() {
     // Create and show the modal
     const examplesModal = new ExamplesModal((exampleType) => {
         // Set flag in state to track which example was selected
-        stateModule.setState({ selectedExample: exampleType });
-        // Initialize the debugger with the loaded settings
-        initializeDebugger(savedSettings);
+        setState({ selectedExample: exampleType });
+        // Navigate to the asset debugger page
+        window.location.href = '../scene/asset_debugger.html';
     });
     
     // Show the examples modal
