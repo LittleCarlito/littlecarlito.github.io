@@ -25,7 +25,7 @@ import {
 } from '../landing-page/zip-util.js';
 import { initHtmlEditorModal } from '../modals/html-editor-modal/html-editor-modal.js';
 import { initWorldPanel } from '../panels/world-panel/world-panel.js';
-import { initState } from './state.js';
+import { initState, updateState } from './state.js';
 import { initUiManager } from '../util/ui-manager.js';
 import { hideLoadingSplash, showLoadingSplash, updateLoadingProgress } from '../loading-splash/loading-splash.js';
 import { setupDropzones } from '../landing-page/dropzone-util.js';
@@ -33,17 +33,17 @@ import { setupDropzones } from '../landing-page/dropzone-util.js';
 // Debug flags
 const DEBUG_LIGHTING = false;
 
-// Track if World Panel has been initialized
-let worldPanelInitialized = false;
+// Component loading state tracker
+const componentsLoaded = {
+    worldPanel: false,
+    assetPanel: false,
+    settingsModal: false,
+    htmlEditor: false,
+    scene: false
+};
 
-// Track if Asset Panel has been initialized
-let assetPanelInitialized = false;
-
-// Track loading completion state
-let loadingComplete = false;
-
-// Track loading state
-let resourcesLoaded = {
+// Resource loading state tracker
+const resourcesLoaded = {
     componentsLoaded: false,
     sceneInitialized: false,
     lightingLoaded: false,
@@ -52,110 +52,83 @@ let resourcesLoaded = {
     controlsReady: false
 };
 
-// ASSET DEBUGGER CODE
+// Track if loading is complete
+let loadingComplete = false;
 
 /**
- * Initialize the asset debugger application
+ * Main entry point for the Asset Debugger.
+ * Sets up the UI, loads components, and initializes the 3D scene.
  */
-export function init() {
+export function setupAssetDebugger() {
+    // Show loading splash screen
+    showLoadingSplash();
+    updateLoadingProgress('Initializing asset debugger...');
+    
+    console.log('Asset Debugger UI: Initializing...');
+    
+    // Set up theme and UI elements
+    setupThemeAndUI();
+    
     // Initialize state
     initState();
     
     // Initialize UI components
     initUiManager();
-    setupDropzones();
     
-    // Handle theme switching if needed
-    setupThemeSwitching();
-}
-
-/**
- * Set up theme switching
- */
-function setupThemeSwitching() {
-    const themeToggle = document.querySelector('.theme-toggle');
+    // Load all component HTML files
+    loadComponentHtml();
     
-    if (themeToggle) {
-        themeToggle.addEventListener('click', () => {
-            const html = document.documentElement;
-            if (html.classList.contains('dark-mode')) {
-                html.classList.remove('dark-mode');
-                html.classList.add('light-mode');
-            } else {
-                html.classList.remove('light-mode');
-                html.classList.add('dark-mode');
-            }
-        });
+    // Initialize the 3D environment
+    initializeScene();
+    
+    // Set up the event listeners for debugging
+    const restartDebugBtn = document.getElementById('restart-debug');
+    if (restartDebugBtn) {
+        restartDebugBtn.addEventListener('click', restartDebugging);
     }
+    
+    // Update loading text to show we're done with initialization
+    updateLoadingProgress('Asset debugger initialized - waiting for all components to load...');
 }
 
 /**
- * Load all component HTML files dynamically
+ * Load all component HTML files dynamically and initialize components
  */
 function loadComponentHtml() {
-    // Track loading of components
-    let componentsToLoad = 5; // Total components to load (reduced by 1 since we removed mesh settings modal)
-    let componentsLoaded = 0;
-
-    // Function to update progress when a component loads
-    const componentLoaded = () => {
-        componentsLoaded++;
-        updateLoadingProgress(`Loading components (${componentsLoaded}/${componentsToLoad})...`);
-        
-        if (componentsLoaded === componentsToLoad) {
-            resourcesLoaded.componentsLoaded = true;
-            checkAllResourcesLoaded();
-        }
-    };
-
-    // Load World Panel (first in the tab order)
-    fetch('../panels/world-panel/world-panel.html')
+    // Create promises for each component load
+    const worldPanelPromise = fetch('../panels/world-panel/world-panel.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('world-tab-container').innerHTML = html;
-            
-            // Initialize World Panel once its HTML is loaded
             console.log('World Panel HTML loaded, initializing panel...');
-            if (!worldPanelInitialized) {
-                initWorldPanel();
-                worldPanelInitialized = true;
-            }
-            
-            componentLoaded();
+            initWorldPanel();
+            componentsLoaded.worldPanel = true;
         })
         .catch(error => {
             console.error('Error loading world panel:', error);
-            componentLoaded();
+            throw error;
         });
-    
-    // Load Asset Panel (second in the tab order)
-    fetch('../panels/asset-panel/asset-panel.html')
+
+    const assetPanelPromise = fetch('../panels/asset-panel/asset-panel.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('asset-tab-container').innerHTML = html;
-            
-            // Initialize Asset Panel once its HTML is loaded
             console.log('Asset Panel HTML loaded, initializing panel...');
-            if (!assetPanelInitialized) {
-                initAssetPanel();
-                assetPanelInitialized = true;
-            }
-            
-            componentLoaded();
+            initAssetPanel();
+            componentsLoaded.assetPanel = true;
         })
         .catch(error => {
             console.error('Error loading asset panel:', error);
-            componentLoaded();
+            throw error;
         });
-    
-    // Load the settings modal component FIRST
-    fetch('../modals/settings-modal/settings-modal.html')
+
+    const settingsModalPromise = fetch('../modals/settings-modal/settings-modal.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('settings-modal-container').innerHTML = html;
             
             // Now that settings modal is loaded, load the axis indicator settings
-            fetch('./axis-indicator/axis-indicator.html')
+            return fetch('./axis-indicator/axis-indicator.html')
                 .then(response => response.text())
                 .then(html => {
                     const axisSettingsContainer = document.getElementById('axis-settings-container');
@@ -173,72 +146,358 @@ function loadComponentHtml() {
                     } else {
                         console.warn('Element with ID "axis-settings-container" not found in the DOM after loading settings modal');
                     }
-                    componentLoaded();
-                })
-                .catch(error => {
-                    console.error('Error loading axis indicator settings:', error);
-                    componentLoaded();
+                    
+                    // Initialize settings modal with loaded settings
+                    new SettingsModal();
+                    componentsLoaded.settingsModal = true;
                 });
         })
         .catch(error => {
             console.error('Error loading settings modal:', error);
-            componentLoaded();
+            throw error;
         });
-        
-    // Load the HTML editor modal component
-    fetch('../modals/html-editor-modal/html-editor-modal.html')
+
+    const htmlEditorPromise = fetch('../modals/html-editor-modal/html-editor-modal.html')
         .then(response => response.text())
         .then(html => {
-            // Insert the entire HTML into the container, which includes the CSS link
             document.getElementById('html-editor-modal-container').innerHTML = html;
             
-            // Get a reference to the modal element
             const modalElement = document.getElementById('html-editor-modal');
-            
-            // Ensure the modal is hidden
             if (modalElement) {
                 modalElement.style.display = 'none';
-                
-                // Initialize the modal now that it's in the DOM and hidden
-                setTimeout(() => {
-                    // Call initHtmlEditorModal and ensure it registers the global function
-                    initHtmlEditorModal();
-                    
-                    // Double-check that the function is registered globally
-                    if (typeof window.openEmbeddedHtmlEditor !== 'function') {
-                        console.log('Global function not registered properly, manually registering now');
-                        
-                        // Import the module and manually register the function
-                        import('../modals/html-editor-modal/html-editor-modal.js').then(module => {
-                            // Create a wrapper function that calls openEmbeddedHtmlEditor from the module
-                            window.openEmbeddedHtmlEditor = function(meshName, meshId) {
-                                console.log(`Global wrapper: Opening HTML editor for ${meshName} (ID: ${meshId})`);
-                                // Call the module's openEmbeddedHtmlEditor function or its default export's function
-                                if (module.openEmbeddedHtmlEditor) {
-                                    module.openEmbeddedHtmlEditor(meshName, meshId);
-                                } else if (module.default && module.default.openEmbeddedHtmlEditor) {
-                                    module.default.openEmbeddedHtmlEditor(meshName, meshId);
-                                } else {
-                                    console.error('Could not find openEmbeddedHtmlEditor in module');
-                                }
-                            };
-                            
-                            console.log('Global function registered:', typeof window.openEmbeddedHtmlEditor === 'function');
-                        });
-                    } else {
-                        console.log('HTML Editor Modal initialized successfully, global function available');
-                    }
-                }, 100);
+                initHtmlEditorModal();
+                initModelIntegration();
+                componentsLoaded.htmlEditor = true;
             } else {
-                console.error('Could not extract HTML editor modal element from HTML: modal element not found');
+                throw new Error('Could not extract HTML editor modal element from HTML: modal element not found');
             }
-            
-            componentLoaded();
         })
         .catch(error => {
             console.error('Error loading HTML editor modal:', error);
-            componentLoaded();
+            throw error;
         });
+
+    // Wait for all components to load
+    Promise.all([
+        worldPanelPromise,
+        assetPanelPromise,
+        settingsModalPromise,
+        htmlEditorPromise
+    ])
+    .then(() => {
+        console.log('All components loaded successfully');
+        resourcesLoaded.componentsLoaded = true;
+        // Start the debugging process after components are loaded
+        startDebugging();
+    })
+    .catch(errors => {
+        // Log any errors that occurred during loading
+        console.error('Some components failed to load with errors:', errors);
+        // Still mark components as loaded to prevent hanging
+        resourcesLoaded.componentsLoaded = true;
+        // Start debugging even if some components failed
+        startDebugging();
+    });
+}
+
+/**
+ * Initialize the 3D scene
+ */
+function initializeScene() {
+    // Get viewport element for scene initialization
+    const viewport = document.getElementById('viewport');
+    
+    // Import and initialize scene
+    import('./scene.js')
+        .then(sceneModule => {
+            console.log('Scene module loaded, initializing scene');
+            try {
+                // Initialize scene - handle case where it doesn't return a Promise
+                const result = sceneModule.initScene(viewport);
+                
+                // Start animation loop
+                sceneModule.startAnimation();
+                componentsLoaded.scene = true;
+                resourcesLoaded.sceneInitialized = true;
+                checkAllResourcesLoaded();
+                
+                // Ensure camera controls are ready after a short delay
+                setTimeout(() => {
+                    updateLoadingProgress('Finalizing camera controls...');
+                    
+                    // Import and ensure camera controls are fully initialized
+                    import('./controls.js')
+                        .then(() => {
+                            resourcesLoaded.controlsReady = true;
+                            checkAllResourcesLoaded();
+                        })
+                        .catch(error => {
+                            console.error('Error ensuring controls are ready:', error);
+                            resourcesLoaded.controlsReady = true;
+                            checkAllResourcesLoaded();
+                        });
+                }, 500);
+            } catch (error) {
+                console.error('Error initializing scene:', error);
+                componentsLoaded.scene = true; // Mark as loaded to prevent hanging
+                resourcesLoaded.sceneInitialized = true;
+                checkAllResourcesLoaded();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading scene module:', error);
+            componentsLoaded.scene = true; // Mark as loaded to prevent hanging
+            resourcesLoaded.sceneInitialized = true;
+            checkAllResourcesLoaded();
+        });
+}
+
+/**
+ * Main function that handles the debugging process
+ */
+export function startDebugging() {
+    console.log('Starting debugging...');
+    
+    // Show the loading splash screen first
+    showLoadingSplash();
+    updateLoadingProgress('Initializing asset debugger...');
+    
+    // Load settings from localStorage at the start
+    const savedSettings = loadSettings();
+    
+    // Import state to check current values
+    import('./state.js').then(stateModule => {
+        const initialState = stateModule.getState();
+        console.log('[DEBUG] Initial state before debugging:', {
+            backgroundFile: initialState.backgroundFile ? 
+                `${initialState.backgroundFile.name} (${initialState.backgroundFile.type})` : 'null',
+            backgroundTexture: initialState.backgroundTexture ? 'Texture present' : 'null'
+        });
+    });
+    
+    // Apply rig options from saved settings if available
+    if (savedSettings && savedSettings.rigOptions) {
+        import('../util/rig/rig-manager.js').then(rigManagerModule => {
+            console.log('Applying saved rig options:', savedSettings.rigOptions);
+            rigManagerModule.updateRigOptions(savedSettings.rigOptions);
+        });
+    }
+    
+    // Initialize the debugger with the loaded settings
+    initializeDebugger(savedSettings);
+
+    // Get current state for loading lighting and background
+    import('./state.js')
+        .then(stateModule => {
+            const currentState = stateModule.getState();
+            return loadEnvironmentResources(currentState);
+        })
+        .then(() => {
+            // Now that scene and lighting are set up, load the model
+            updateLoadingProgress('Loading 3D model...');
+            return import('../util/models-util.js')
+                .then(modelsModule => {
+                    return modelsModule.loadDebugModel();
+                })
+                .then(() => {
+                    resourcesLoaded.modelLoaded = true;
+                    checkAllResourcesLoaded();
+                });
+        })
+        .catch(error => {
+            console.error('Error in debugging sequence:', error);
+            // Even on error, mark as complete to hide splash screen
+            resourcesLoaded.lightingLoaded = true;
+            resourcesLoaded.backgroundLoaded = true;
+            resourcesLoaded.modelLoaded = true;
+            checkAllResourcesLoaded();
+        });
+}
+
+/**
+ * Load environment resources (lighting and background)
+ * @param {Object} currentState - Current application state
+ * @returns {Promise} - Promise that resolves when loading is complete
+ */
+function loadEnvironmentResources(currentState) {
+    updateLoadingProgress('Setting up scene and lighting...');
+    
+    console.log('[DEBUG] State after scene init:', {
+        backgroundFile: currentState.backgroundFile ? 
+            `${currentState.backgroundFile.name} (${currentState.backgroundFile.type})` : 'null',
+        backgroundTexture: currentState.backgroundTexture ? 'Texture present' : 'null'
+    });
+    
+    const lightingFile = currentState.lightingFile;
+    const backgroundFile = currentState.backgroundFile;
+    const backgroundTexture = currentState.backgroundTexture;
+    
+    // Process lighting and background as separate, sequential operations
+    // First, handle lighting if available
+    let lightingPromise = Promise.resolve();
+    
+    if (lightingFile) {
+        console.log('Setting up environment lighting from:', lightingFile.name);
+        lightingPromise = import('./lighting-util.js')
+            .then(lightingModule => {
+                // First parse the metadata (for info display)
+                return lightingModule.parseLightingData(lightingFile)
+                    .then(metadata => {
+                        // Only log if debugging is enabled
+                        if (DEBUG_LIGHTING) {
+                            console.log('Environment Map Full Analysis:', metadata);
+                        }
+                        
+                        // Update the World Panel with this metadata
+                        return import('../panels/world-panel/world-panel.js')
+                            .then(worldPanelModule => {
+                                if (worldPanelModule.updateLightingInfo) {
+                                    worldPanelModule.updateLightingInfo(metadata);
+                                }
+
+                                // Apply the lighting to the scene
+                                return lightingModule.setupEnvironmentLighting(lightingFile)
+                                    .then(texture => {
+                                        // Ensure the lighting preview is rendered in world panel
+                                        if (texture && worldPanelModule.renderEnvironmentPreview) {
+                                            console.log('Rendering environment preview in world panel');
+                                            // Find the canvas in the world panel
+                                            const hdrCanvas = document.getElementById('hdr-preview-canvas');
+                                            const noImageMessage = document.getElementById('no-image-message');
+                                            
+                                            // Render the preview if canvas exists
+                                            if (hdrCanvas) {
+                                                worldPanelModule.renderEnvironmentPreview(texture, hdrCanvas, noImageMessage);
+                                            } else {
+                                                console.warn('HDR preview canvas not found, will be rendered when panel is ready');
+                                                // Store the texture in state for later use
+                                                updateState('environmentTexture', texture);
+                                            }
+                                        }
+                                        return texture;
+                                    });
+                            });
+                    });
+            })
+            .then(() => {
+                resourcesLoaded.lightingLoaded = true;
+                checkAllResourcesLoaded();
+            })
+            .catch(error => {
+                console.error('Error setting up lighting:', error);
+                resourcesLoaded.lightingLoaded = true;
+                checkAllResourcesLoaded();
+            });
+    } else {
+        resourcesLoaded.lightingLoaded = true;
+    }
+    
+    // Then, handle background (after lighting is complete)
+    return lightingPromise
+        .then(() => {
+            // If we have a texture already loaded from the dropzone preview,
+            // use that directly instead of reloading the file
+            if (backgroundTexture) {
+                console.log('[DEBUG] Using already loaded background texture');
+                
+                // Dispatch an event to notify UI components
+                const event = new CustomEvent('background-updated', { 
+                    detail: { texture: backgroundTexture, file: backgroundFile }
+                });
+                document.dispatchEvent(event);
+                
+                // When the background texture is ready, inform the world panel
+                return import('../panels/world-panel/world-panel.js')
+                    .then(worldPanelModule => {
+                        if (worldPanelModule.updateBackgroundInfo && backgroundFile) {
+                            // Get metadata to display in the UI
+                            const metadata = {
+                                fileName: backgroundFile.name,
+                                type: backgroundFile.type || backgroundFile.name.split('.').pop().toUpperCase(),
+                                dimensions: { 
+                                    width: backgroundTexture.image?.width || 0, 
+                                    height: backgroundTexture.image?.height || 0 
+                                },
+                                fileSizeBytes: backgroundFile.size
+                            };
+                            
+                            // Update the background info panel with this data
+                            worldPanelModule.updateBackgroundInfo(metadata, false);
+                            
+                            // Make sure the "None" radio is still selected
+                            const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
+                            if (noneRadio) {
+                                noneRadio.checked = true;
+                            }
+                        }
+                    })
+                    .finally(() => {
+                        resourcesLoaded.backgroundLoaded = true;
+                        checkAllResourcesLoaded();
+                    });
+            }
+            else if (backgroundFile) {
+                console.log('[DEBUG] Setting up background image from:', backgroundFile.name, 'type:', backgroundFile.type);
+                
+                // Import background image utilities
+                return import('../util/background-util.js')
+                    .then(backgroundModule => {
+                        return backgroundModule.setupBackgroundImage(backgroundFile)
+                            .then(texture => {
+                                // After background is set up, explicitly trigger a UI update event
+                                if (texture) {
+                                    console.log('[DEBUG] Background image loaded successfully');
+                                    
+                                    // Manually dispatch the background-updated event
+                                    const event = new CustomEvent('background-updated', { 
+                                        detail: { texture }
+                                    });
+                                    document.dispatchEvent(event);
+                                } else {
+                                    console.log('[DEBUG] Background image loading failed - no texture returned');
+                                }
+                                return texture;
+                            });
+                    })
+                    .finally(() => {
+                        resourcesLoaded.backgroundLoaded = true;
+                        checkAllResourcesLoaded();
+                    });
+            } else {
+                console.log('[DEBUG] No background file found in state');
+                resourcesLoaded.backgroundLoaded = true;
+                checkAllResourcesLoaded();
+            }
+        });
+}
+
+/**
+ * Checks if all resources have loaded and hides the splash screen when done
+ */
+function checkAllResourcesLoaded() {
+    if (resourcesLoaded.componentsLoaded && 
+        resourcesLoaded.sceneInitialized && 
+        resourcesLoaded.lightingLoaded && 
+        resourcesLoaded.backgroundLoaded && 
+        resourcesLoaded.modelLoaded &&
+        resourcesLoaded.controlsReady) {
+        
+        if (!loadingComplete) {
+            loadingComplete = true;
+            console.log('All resources loaded, hiding splash screen');
+            
+            // Give a small delay to ensure everything is rendered properly
+            setTimeout(() => {
+                hideLoadingSplash();
+            }, 500);
+        }
+    } else {
+        // Log which resources are still not loaded
+        const notLoaded = Object.entries(resourcesLoaded)
+            .filter(([_, loaded]) => !loaded)
+            .map(([name]) => name);
+        console.log('Waiting for resources to load:', notLoaded);
+    }
 }
 
 /**
@@ -292,15 +551,6 @@ function initializeDebugger(settings) {
         
         // Set up toggle panel button
         setupTogglePanelButton();
-        
-        // Now that the user has clicked "Start Debugging", we can initialize all the panels
-        console.log('Start debugging clicked - initializing panels...');
-        
-        // Initialize settings modal with loaded settings
-        new SettingsModal(settings);
-        
-        // Initialize Model Integration for HTML Editor
-        initModelIntegration();
     };
     
     // Start checking for the header
@@ -317,314 +567,6 @@ function setupThemeAndUI() {
 }
 
 /**
- * Main function that handles the debugging process
- * Only called when we want to proceed with debugging
- */
-export function startDebugging() {
-    console.log('Starting debugging...');
-    
-    // Show the loading splash screen first
-    showLoadingSplash();
-    updateLoadingProgress('Initializing asset debugger...');
-    
-    // Load settings from localStorage at the start
-    const savedSettings = loadSettings();
-    
-    // Import state to check current values
-    import('./state.js').then(stateModule => {
-        const initialState = stateModule.getState();
-        console.log('[DEBUG] Initial state before debugging:', {
-            backgroundFile: initialState.backgroundFile ? 
-                `${initialState.backgroundFile.name} (${initialState.backgroundFile.type})` : 'null',
-            backgroundTexture: initialState.backgroundTexture ? 'Texture present' : 'null'
-        });
-    });
-    
-    // Apply rig options from saved settings if available
-    if (savedSettings && savedSettings.rigOptions) {
-        import('../util/rig/rig-manager.js').then(rigManagerModule => {
-            console.log('Applying saved rig options:', savedSettings.rigOptions);
-            rigManagerModule.updateRigOptions(savedSettings.rigOptions);
-        });
-    }
-    
-    // Initialize the debugger with the loaded settings
-    // This ensures scene and renderer are created
-    initializeDebugger(savedSettings);
-
-    // Get viewport element for scene initialization
-    const viewport = document.getElementById('viewport');
-    
-    // Create a variable to store the scene module for later use
-    let sceneModule;
-    
-    // Sequence the operations properly with better scene initialization handling:
-    // 1. Import and initialize scene
-    // 2. Apply lighting
-    // 3. Load model
-    
-    // Create a promise chain to ensure proper sequencing
-    import('./scene.js')
-        .then(module => {
-            sceneModule = module;
-            console.log('Scene module loaded, initializing scene');
-            // Initialize scene and store the result to ensure it's ready
-            return sceneModule.initScene(viewport);
-        })
-        .then(() => {
-            // Start animation loop
-            sceneModule.startAnimation();
-            resourcesLoaded.sceneInitialized = true;
-            checkAllResourcesLoaded();
-            
-            updateLoadingProgress('Setting up scene and lighting...');
-            // Check for HDR or EXR lighting files
-            return import('./state.js')
-                .then(stateModule => {
-                    const currentState = stateModule.getState();
-                    console.log('[DEBUG] State after scene init:', {
-                        backgroundFile: currentState.backgroundFile ? 
-                            `${currentState.backgroundFile.name} (${currentState.backgroundFile.type})` : 'null',
-                        backgroundTexture: currentState.backgroundTexture ? 'Texture present' : 'null'
-                    });
-                    
-                    const lightingFile = currentState.lightingFile;
-                    const backgroundFile = currentState.backgroundFile;
-                    const backgroundTexture = currentState.backgroundTexture;
-                    
-                    // Process lighting and background as separate, sequential operations
-                    // This ensures they don't interfere with each other
-                    
-                    // First, handle lighting if available
-                    let setupPromise = Promise.resolve();
-                    
-                    if (lightingFile) {
-                        console.log('Setting up environment lighting from:', lightingFile.name);
-                        // Import lighting utilities
-                        setupPromise = import('./lighting-util.js')
-                            .then(lightingModule => {
-                                // First parse the metadata (for info display)
-                                return lightingModule.parseLightingData(lightingFile)
-                                    .then(metadata => {
-                                        // Only log if debugging is enabled
-                                        if (DEBUG_LIGHTING) {
-                                            console.log('Environment Map Full Analysis:', metadata);
-                                        }
-                                        
-                                        // Update the World Panel with this metadata
-                                        return import('../panels/world-panel/world-panel.js')
-                                            .then(worldPanelModule => {
-                                                if (worldPanelModule.updateLightingInfo) {
-                                                    worldPanelModule.updateLightingInfo(metadata);
-                                                }
-
-                                                // Apply the lighting to the scene
-                                                return lightingModule.setupEnvironmentLighting(lightingFile)
-                                                    .then(texture => {
-                                                        // Ensure the lighting preview is rendered in world panel
-                                                        if (texture && worldPanelModule.renderEnvironmentPreview) {
-                                                            console.log('Rendering environment preview in world panel');
-                                                            // Find the canvas in the world panel
-                                                            const hdrCanvas = document.getElementById('hdr-preview-canvas');
-                                                            const noImageMessage = document.getElementById('no-image-message');
-                                                            
-                                                            // Render the preview if canvas exists
-                                                            if (hdrCanvas) {
-                                                                worldPanelModule.renderEnvironmentPreview(texture, hdrCanvas, noImageMessage);
-                                                            } else {
-                                                                console.warn('HDR preview canvas not found, will be rendered when panel is ready');
-                                                                // Store the texture in state for later use
-                                                                updateState('environmentTexture', texture);
-                                                            }
-                                                        }
-                                                        return texture;
-                                                    });
-                                            });
-                                    })
-                                    .catch(error => {
-                                        console.error('Error analyzing environment map:', error);
-                                        return Promise.resolve(); // Continue chain
-                                    });
-                            })
-                            .then(() => {
-                                resourcesLoaded.lightingLoaded = true;
-                                checkAllResourcesLoaded();
-                            });
-                    } else {
-                        resourcesLoaded.lightingLoaded = true;
-                        checkAllResourcesLoaded();
-                    }
-                    
-                    // Then, handle background (after lighting is complete)
-                    return setupPromise.then(() => {
-                        // If we have a texture already loaded from the dropzone preview,
-                        // use that directly instead of reloading the file
-                        if (backgroundTexture) {
-                            console.log('[DEBUG] Using already loaded background texture');
-                            
-                            // Don't automatically apply the texture to the scene background
-                            // Instead, just update the state and dispatch the event
-                            
-                            // Dispatch an event to notify UI components
-                            const event = new CustomEvent('background-updated', { 
-                                detail: { texture: backgroundTexture, file: backgroundFile }
-                            });
-                            document.dispatchEvent(event);
-                            
-                            // When the background texture is ready, inform the world panel
-                            // so it can update the UI to show the Background Image radio option
-                            // but NOT automatically select it
-                            import('../panels/world-panel/world-panel.js').then(worldPanelModule => {
-                                if (worldPanelModule.updateBackgroundInfo && backgroundFile) {
-                                    // Get metadata to display in the UI
-                                    const metadata = {
-                                        fileName: backgroundFile.name,
-                                        type: backgroundFile.type || backgroundFile.name.split('.').pop().toUpperCase(),
-                                        dimensions: { 
-                                            width: backgroundTexture.image?.width || 0, 
-                                            height: backgroundTexture.image?.height || 0 
-                                        },
-                                        fileSizeBytes: backgroundFile.size
-                                    };
-                                    
-                                    // Update the background info panel with this data
-                                    worldPanelModule.updateBackgroundInfo(metadata, false);
-                                    
-                                    // Make sure the "None" radio is still selected
-                                    const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
-                                    if (noneRadio) {
-                                        noneRadio.checked = true;
-                                    }
-                                }
-                            });
-                            
-                            resourcesLoaded.backgroundLoaded = true;
-                            checkAllResourcesLoaded();
-                        }
-                        else if (backgroundFile) {
-                            console.log('[DEBUG] Setting up background image from:', backgroundFile.name, 'type:', backgroundFile.type);
-                            
-                            // Import background image utilities
-                            return import('../util/background-util.js')
-                                .then(backgroundModule => {
-                                    return backgroundModule.setupBackgroundImage(backgroundFile)
-                                        .then(texture => {
-                                            // After background is set up, explicitly trigger a UI update event
-                                            // using the background texture
-                                            if (texture) {
-                                                console.log('[DEBUG] Background image loaded successfully, texture:', 
-                                                    texture.isTexture ? 'valid texture' : 'invalid texture');
-                                                
-                                                // Check state after background texture is loaded
-                                                import('./state.js').then(stateModule => {
-                                                    const updatedState = stateModule.getState();
-                                                    console.log('[DEBUG] State after background texture loaded:', {
-                                                        backgroundFile: updatedState.backgroundFile ? 
-                                                            `${updatedState.backgroundFile.name} (${updatedState.backgroundFile.type})` : 'null',
-                                                        backgroundTexture: updatedState.backgroundTexture ? 'Texture present' : 'null'
-                                                    });
-                                                });
-                                                
-                                                // Manually dispatch the background-updated event
-                                                const event = new CustomEvent('background-updated', { 
-                                                    detail: { texture }
-                                                });
-                                                document.dispatchEvent(event);
-                                            } else {
-                                                console.log('[DEBUG] Background image loading failed - no texture returned');
-                                            }
-                                            return texture;
-                                        })
-                                        .catch(error => {
-                                            console.error('[DEBUG] Error setting up background image:', error);
-                                            return Promise.resolve(); // Continue chain
-                                        });
-                                })
-                                .catch(error => {
-                                    console.error('[DEBUG] Error importing background utilities:', error);
-                                    return Promise.resolve(); // Continue chain
-                                })
-                                .then(() => {
-                                    resourcesLoaded.backgroundLoaded = true;
-                                    checkAllResourcesLoaded();
-                                });
-                        } else {
-                            console.log('[DEBUG] No background file found in state');
-                            resourcesLoaded.backgroundLoaded = true;
-                            checkAllResourcesLoaded();
-                        }
-                    });
-                })
-                .then(() => {
-                    // Double check state after all resources are loaded
-                    import('./state.js').then(stateModule => {
-                        const finalState = stateModule.getState();
-                        console.log('[DEBUG] Final state after all resources loaded:', {
-                            backgroundFile: finalState.backgroundFile ? 
-                                `${finalState.backgroundFile.name} (${finalState.backgroundFile.type})` : 'null',
-                            backgroundTexture: finalState.backgroundTexture ? 'Texture present' : 'null'
-                        });
-                    });
-                });
-        })
-        .then(() => {
-            // Now that scene and lighting are set up, load the model
-            updateLoadingProgress('Loading 3D model...');
-            return import('../util/models-util.js')
-                .then(modelsModule => {
-                    // Ensure state.scene is available before calling loadDebugModel
-                    return import('./state.js')
-                        .then(stateModule => {
-                            const currentState = stateModule.getState();
-                            if (!currentState.scene) {
-                                console.warn('Scene still not available in state, waiting...');
-                                // Wait a moment for scene to be fully registered in state
-                                return new Promise(resolve => setTimeout(resolve, 500))
-                                    .then(() => modelsModule.loadDebugModel());
-                            } else {
-                                return modelsModule.loadDebugModel();
-                            }
-                        });
-                })
-                .then(() => {
-                    resourcesLoaded.modelLoaded = true;
-                    checkAllResourcesLoaded();
-                });
-        })
-        .catch(error => {
-            console.error('Error in debugging sequence:', error);
-            // Even on error, mark as complete to hide splash screen
-            resourcesLoaded.lightingLoaded = true;
-            resourcesLoaded.modelLoaded = true;
-            checkAllResourcesLoaded();
-        });
-        
-    // Add a final check that ensures camera controls are ready
-    // This addresses the brief hiccup where the scene is visible but not controllable
-    setTimeout(() => {
-        updateLoadingProgress('Finalizing camera controls...');
-        
-        // Import and ensure camera controls are fully initialized
-        import('./controls.js').then(controlsModule => {
-            // If there's a method to check if controls are ready, use it
-            // Otherwise, use a reasonable timeout to ensure everything is ready
-            setTimeout(() => {
-                updateLoadingProgress('Ready!');
-                resourcesLoaded.controlsReady = true;
-                checkAllResourcesLoaded();
-            }, 300);
-        }).catch(error => {
-            console.error('Error ensuring controls are ready:', error);
-            // Even on error, mark as complete to hide splash screen after a longer timeout
-            setTimeout(() => {
-                resourcesLoaded.controlsReady = true;
-                checkAllResourcesLoaded();
-            }, 1000);
-        });
-    }, 500);
-}
-
-/**
  * Restart the debugging process
  */
 function restartDebugging() {
@@ -632,45 +574,6 @@ function restartDebugging() {
     
     // Reload the page to start over
     window.location.reload();
-}
-
-// LISTNER SETUP CODE
-
-// Instead, export a function to initialize the debugger
-export function setupAssetDebugger() {
-    console.log('Asset Debugger UI: Initializing...');
-    // Set up theme and UI elements
-    setupThemeAndUI();
-    // Load all component HTML files
-    loadComponentHtml();
-    // Initialize the 3D environment
-    init();
-    // Set up the event listeners for debugging
-    const restartDebugBtn = document.getElementById('restart-debug');
-    if (restartDebugBtn) {
-        restartDebugBtn.addEventListener('click', restartDebugging);
-    }
-}
-
-/**
- * Checks if all resources have loaded and hides the splash screen when done
- */
-function checkAllResourcesLoaded() {
-    if (resourcesLoaded.componentsLoaded && 
-        resourcesLoaded.sceneInitialized && 
-        resourcesLoaded.lightingLoaded && 
-        resourcesLoaded.backgroundLoaded && 
-        resourcesLoaded.modelLoaded &&
-        resourcesLoaded.controlsReady) {
-        
-        loadingComplete = true;
-        console.log('All resources loaded, hiding splash screen');
-        
-        // Give a small delay to ensure everything is rendered properly
-        setTimeout(() => {
-            hideLoadingSplash();
-        }, 500);
-    }
 }
 
 /**
@@ -733,6 +636,9 @@ function setupTabNavigation() {
             if (tabs.assetContent) tabs.assetContent.classList.add('active');
         });
     }
+    
+    // Make sure only the World tab is active initially
+    activateWorldTab();
 }
 
 /**
@@ -877,7 +783,5 @@ function setupTogglePanelButton() {
             settings.tabPanelHidden = isPanelHidden;
             saveSettings(settings);
         });
-        // Make sure only the World tab is active initially
-        activateWorldTab();
     });
 }

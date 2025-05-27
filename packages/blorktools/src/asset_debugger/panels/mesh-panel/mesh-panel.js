@@ -146,6 +146,23 @@ export function createMeshVisibilityPanel() {
     window.removeMeshHtmlFlag = removeMeshHtmlFlag;
     window.updateHtmlIcons = updateHtmlIcons;
     
+    // Get the state to check for mesh data
+    const state = getState();
+    const hasMeshes = state.meshes && state.meshes.length > 0;
+    
+    // Update button container visibility
+    const buttonContainer = document.querySelector('.button-container');
+    const downloadBtn = document.getElementById('download-asset-btn');
+    if (buttonContainer && downloadBtn) {
+        buttonContainer.dataset.hasMeshes = hasMeshes.toString();
+        downloadBtn.style.display = hasMeshes ? 'inline-block' : 'none';
+    }
+    
+    // If no meshes, return early
+    if (!hasMeshes) {
+        return;
+    }
+    
     // Organize meshes into groups based on name prefixes
     groupMeshesByName();
     
@@ -155,8 +172,6 @@ export function createMeshVisibilityPanel() {
     
     // Clear previous content
     meshGroupsContainer.innerHTML = '';
-    
-    const state = getState();
     
     // Create elements for each mesh group
     for (const groupName in state.meshGroups) {
