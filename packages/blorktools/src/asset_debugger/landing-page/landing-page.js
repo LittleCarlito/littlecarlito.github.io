@@ -1,5 +1,6 @@
 import ExamplesModal from "../modals/examples-modal/examples-modal";
 import { hasFiles, initState } from "../scene/state";
+import { loadSettings } from "../util/localstorage-util";
 import { setupDropzones } from "./dropzone-util";
 import { handleAutoLoad, loadLightingIntoDropzone, loadModelIntoDropzone, processZipContents } from "./zip-util";
 
@@ -8,6 +9,18 @@ export function initalizeLandingPage() {
     initState();
     setupDropzones();
     setupMainContainerDropzone();
+    
+    // Load the examples modal HTML content
+    fetch('../modals/examples-modal/examples-modal.html')
+        .then(response => response.text())
+        .then(html => {
+            // Insert the HTML into the container
+            document.getElementById('examples-modal-container').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading examples modal:', error);
+        });
+    
     // Setup listeners
     const startDebugBtn = document.getElementById('start-debug');
     if (startDebugBtn) {
@@ -23,9 +36,25 @@ function verifyFileDrop() {
         console.info("BAZINGA");
     } else {
         // Show examples modal
-        // showExamplesModal();
+        showExamplesModal();
         console.error("BAZLORPA");
     }
+}
+
+function showExamplesModal() {
+    // Load settings for use with examples
+    const savedSettings = loadSettings();
+    
+    // Create and show the modal
+    const examplesModal = new ExamplesModal((exampleType) => {
+        // Set flag in state to track which example was selected
+        stateModule.setState({ selectedExample: exampleType });
+        // Initialize the debugger with the loaded settings
+        initializeDebugger(savedSettings);
+    });
+    
+    // Show the examples modal
+    examplesModal.openModal();
 }
 
 // Prevent default drag-and-drop behavior for the entire document
