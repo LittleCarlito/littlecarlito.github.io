@@ -28,8 +28,8 @@ import { initHtmlEditorModal } from '../modals/html-editor-modal/html-editor-mod
 import { initWorldPanel } from '../panels/world-panel/world-panel.js';
 import { initState } from './state.js';
 import { initUiManager } from '../util/ui-manager.js';
-import { setupDropzones } from '../landing-page/file-handler.js';
 import { hideLoadingSplash, showLoadingSplash, updateLoadingProgress } from '../loading-splash/loading-splash.js';
+import { setupDropzones } from '../landing-page/dropzone-util.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
@@ -42,12 +42,6 @@ let assetPanelInitialized = false;
 
 // Track loading completion state
 let loadingComplete = false;
-
-// Mac dock behavior settings
-const HEADER_SHOW_DISTANCE = 20; // px from top to show header
-const HEADER_HIDE_DISTANCE = 60; // px from top to hide header
-const HEADER_HIDE_DELAY = 1000; // ms to wait before hiding header
-let headerHideTimer = null;
 
 // Track loading state
 let resourcesLoaded = {
@@ -68,44 +62,12 @@ export function init() {
     // Initialize state
     initState();
     
-    // Add global event listeners to prevent default browser behavior for drag and drop
-    preventDefaultDragEvents();
-    
     // Initialize UI components
     initUiManager();
     setupDropzones();
     
     // Handle theme switching if needed
     setupThemeSwitching();
-}
-
-/**
- * Set up global event listeners to prevent default drag and drop behavior
- */
-function preventDefaultDragEvents() {
-    const preventDefaults = function(e) {
-        // Skip if the target is one of our dropzones or the main container dropzone
-        const dropzoneIds = [
-            'basecolor-dropzone', 
-            'orm-dropzone', 
-            'normal-dropzone',
-            'model-dropzone',
-            'lighting-dropzone',
-            'background-dropzone',
-            'upload-section' // Add the main container
-        ];
-        
-        if (dropzoneIds.some(id => e.target.id === id || e.target.closest(`#${id}`))) {
-            return; // Don't prevent default for dropzones
-        }
-        
-        e.preventDefault();
-        e.stopPropagation();
-    };
-    
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        document.addEventListener(eventName, preventDefaults, false);
-    });
 }
 
 /**
@@ -299,54 +261,63 @@ function loadComponentHtml() {
 function initializeDebugger(settings) {
     // HTML UI handling code - hide upload section, show debug controls in header
     const uploadSection = document.getElementById('upload-section');
-    const debugControls = document.querySelector('.debug-controls');
-    const viewport = document.getElementById('viewport');
-    const tabContainer = document.getElementById('tab-container');
     
-    if (uploadSection) {
-        uploadSection.style.display = 'none';
-    }
-    
-    if (debugControls) {
-        debugControls.style.display = 'flex';
-    }
-    
-    // Show viewport
-    if (viewport) {
-        viewport.style.display = 'block';
-    }
-    
-    // Make the tab container visible once debugging starts, respecting saved hidden state
-    if (tabContainer) {
-        const isPanelHidden = settings && settings.tabPanelHidden;
+    // Make sure the header is loaded before trying to access its elements
+    const checkHeaderAndInit = () => {
+        const debugControls = document.querySelector('.debug-controls');
+        const viewport = document.getElementById('viewport');
+        const tabContainer = document.getElementById('tab-container');
         
-        if (isPanelHidden) {
-            // Keep panel hidden if that was the saved state
-            tabContainer.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
-        } else {
-            // Otherwise make it visible
-            tabContainer.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important;';
+        if (!debugControls) {
+            // Header might not be fully loaded yet, retry after a short delay
+            setTimeout(checkHeaderAndInit, 50);
+            return;
         }
-    }
+        
+        if (uploadSection) {
+            uploadSection.style.display = 'none';
+        }
+        
+        if (debugControls) {
+            debugControls.style.display = 'flex';
+        }
+        
+        // Show viewport
+        if (viewport) {
+            viewport.style.display = 'block';
+        }
+        
+        // Make the tab container visible once debugging starts, respecting saved hidden state
+        if (tabContainer) {
+            const isPanelHidden = settings && settings.tabPanelHidden;
+            
+            if (isPanelHidden) {
+                // Keep panel hidden if that was the saved state
+                tabContainer.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+            } else {
+                // Otherwise make it visible
+                tabContainer.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important;';
+            }
+        }
+        
+        // Set up tab navigation
+        setupTabNavigation();
+        
+        // Set up toggle panel button
+        setupTogglePanelButton();
+        
+        // Now that the user has clicked "Start Debugging", we can initialize all the panels
+        console.log('Start debugging clicked - initializing panels...');
+        
+        // Initialize settings modal with loaded settings
+        new SettingsModal(settings);
+        
+        // Initialize Model Integration for HTML Editor
+        initModelIntegration();
+    };
     
-    // Set up tab navigation
-    setupTabNavigation();
-    
-    // Set up toggle panel button
-    setupTogglePanelButton();
-    
-    // Now that the user has clicked "Start Debugging", we can initialize all the panels
-    console.log('Start debugging clicked - initializing panels...');
-    
-    // Initialize settings modal with loaded settings
-    new SettingsModal(settings);
-
-    
-    // Initialize Model Integration for HTML Editor
-    initModelIntegration();
-    
-    // Scene initialization is now handled in startDebugging function
-    // to ensure proper sequencing of operations
+    // Start checking for the header
+    checkHeaderAndInit();
 }
 
 /**
@@ -357,54 +328,8 @@ function setupThemeAndUI() {
     document.documentElement.classList.add('dark-mode');
     document.documentElement.classList.remove('light-mode');
     
-    // System status button
-    const themeToggle = document.getElementById('theme-toggle');
-    if (themeToggle) {
-        themeToggle.textContent = 'System Status';
-        
-        themeToggle.addEventListener('click', function() {
-            alert('System Status: Online\nAsset Debugger: Ready\nRig Visualizer: Ready');
-        });
-    }
-    
-    // Return to Toolbox functionality
-    const returnToToolboxBtn = document.getElementById('return-to-toolbox');
-    if (returnToToolboxBtn) {
-        returnToToolboxBtn.addEventListener('click', function() {
-            window.location.href = '../../../';
-        });
-    }
-    
-    // Pin button functionality with localStorage persistence
-    const pinButton = document.getElementById('pin-button');
-    if (pinButton) {
-        // No need to initialize state here as it's now done in the HTML
-        // Just set up event listener to toggle and save pin state
-        pinButton.addEventListener('click', function() {
-            this.classList.toggle('pinned');
-            
-            // Save the new state to settings
-            const isPinned = this.classList.contains('pinned');
-            const currentSettings = loadSettings() || {};
-            currentSettings.pinned = isPinned;
-            saveSettings(currentSettings);
-            
-            // If pinned, ensure header is visible
-            const header = document.querySelector('header');
-            if (isPinned) {
-                header.style.transform = 'translateY(0)';
-                header.style.opacity = '1';
-            } else {
-                // If not pinned, just register the dock behavior
-                // but don't hide the header immediately - keep it visible
-                // and let the mouse movement behavior handle when to hide it
-                setupHeaderDockBehavior(false);
-            }
-        });
-    }
-    
-    // Set up Mac-like dock behavior for header
-    setupHeaderDockBehavior(true);
+    // All header button logic is now handled in header-loader.js
+    // No need to set up those event listeners here
     
     // Set up the main container as a dropzone for zip files
     setupMainContainerDropzone();
@@ -1119,67 +1044,6 @@ function checkAllResourcesLoaded() {
             hideLoadingSplash();
         }, 500);
     }
-}
-
-/**
- * Sets up the Mac-like dock behavior for the header
- * @param {boolean} hideInitially - Whether to hide the header initially if unpinned
- */
-function setupHeaderDockBehavior(hideInitially = true) {
-    const header = document.querySelector('header');
-    const pinButton = document.getElementById('pin-button');
-    
-    if (!header || !pinButton) return;
-    
-    // Add CSS transitions for smooth show/hide
-    header.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
-    
-    // Initial state
-    const isPinned = pinButton.classList.contains('pinned');
-    if (!isPinned && hideInitially) {
-        // Start with header hidden if not pinned and hideInitially is true
-        header.style.transform = 'translateY(-100%)';
-        header.style.opacity = '0';
-    }
-    
-    // Add mouse movement listener to show/hide header
-    document.addEventListener('mousemove', (e) => {
-        // Get latest pin state
-        const isPinned = pinButton.classList.contains('pinned');
-        
-        // If pinned, keep header visible at all times
-        if (isPinned) {
-            header.style.transform = 'translateY(0)';
-            header.style.opacity = '1';
-            
-            // Clear any pending hide timer
-            if (headerHideTimer) {
-                clearTimeout(headerHideTimer);
-                headerHideTimer = null;
-            }
-            return;
-        }
-        
-        // When mouse is near the top, show the header
-        if (e.clientY <= HEADER_SHOW_DISTANCE) {
-            header.style.transform = 'translateY(0)';
-            header.style.opacity = '1';
-            
-            // Clear any pending hide timer
-            if (headerHideTimer) {
-                clearTimeout(headerHideTimer);
-                headerHideTimer = null;
-            }
-        } 
-        // When mouse moves away, start timer to hide header
-        else if (e.clientY > HEADER_HIDE_DISTANCE && !headerHideTimer) {
-            headerHideTimer = setTimeout(() => {
-                header.style.transform = 'translateY(-100%)';
-                header.style.opacity = '0';
-                headerHideTimer = null;
-            }, HEADER_HIDE_DELAY);
-        }
-    });
 }
 
 /**

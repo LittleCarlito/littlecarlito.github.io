@@ -37,14 +37,6 @@ const targetFrameRate = 60; // Target 60 FPS for better performance/animation ba
 const frameInterval = 1000 / targetFrameRate;
 // Add variables for CSS3D rendering
 let webglRenderer;
-// Three.js variables for preview
-// No longer declare isPreviewAnimationPaused here, it's imported from animation-util.js
-// No longer declare lastTextureUpdateTime here, it's imported from animation-util.js
-
-// Add variables for frame buffering at the top of the file with other variables
-export let maxCaptureRate = 0.5; // Reduce to 0.5ms between captures for more frames (was 1)
-// No longer declare isPreviewActive here, it's imported from animation-util.js
-
 // Store current preview settings
 export let currentPreviewSettings = null;
 

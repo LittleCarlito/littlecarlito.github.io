@@ -5,7 +5,7 @@
  * for use in other parts of the application or external imports.
  */
 
-import { init } from "./scene/asset_debugger";
+import { initalizeLandingPage } from "./landing-page/landing-page";
 
 // Prevent default drag-and-drop behavior for the entire document
 function preventDefaultDragBehavior() {
@@ -26,18 +26,15 @@ function initializeDebugger() {
         document.addEventListener('DOMContentLoaded', () => {
             console.log('Asset Debugger: DOM now loaded, initializing...');
             preventDefaultDragBehavior();
-            init();
+            initalizeLandingPage();
         });
     } else {
         // Document already loaded, call directly
         console.log('Asset Debugger: DOM already loaded, initializing immediately...');
         preventDefaultDragBehavior();
-        init();
+        initalizeLandingPage();
     }
 }
 
 // Initialize on script load
 initializeDebugger();
-
-// Export the init function
-export { init };

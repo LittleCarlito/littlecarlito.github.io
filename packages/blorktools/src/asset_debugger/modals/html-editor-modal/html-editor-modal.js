@@ -41,13 +41,14 @@ import { setCustomDisplay, disableCustomDisplay } from '../../util/custom-animat
 // Import Three.js the same way as other files in the codebase
 import * as THREE from 'three';
 import { getIsPreviewActive, setLastTextureUpdateTime } from '../../util/custom-animation/animation-util';
-import { maxCaptureRate, previewHtml } from '../../util/custom-animation/preview-util';
+import { previewHtml } from '../../util/custom-animation/preview-util';
 import { cleanupThreeJsPreview, frameBuffer, previewRenderTarget } from '../../util/custom-animation/threejs-util.js';
 import { getHtmlSettingsForMesh, loadHtmlForMesh, loadSettingsForMesh, saveHtmlForMesh, saveSettingsForMesh } from '../../util/mesh-data-util.js';
 
 export let originalAnimationStartTime = 0;
 
-// Store HTML settings for each mesh (integrated from mesh-settings-modal.js)
+// Add variables for frame buffering at the top of the file with other variables
+ let maxCaptureRate = 0.5;
 
 // Default settings for HTML content (integrated from mesh-settings-modal.js)
 export const defaultSettings = {
