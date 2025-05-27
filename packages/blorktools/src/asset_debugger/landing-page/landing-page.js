@@ -1,4 +1,5 @@
 import ExamplesModal from "../modals/examples-modal/examples-modal";
+import { startDebugging } from "../scene/asset_debugger";
 import { hasFiles, initState } from "../scene/state";
 import { loadSettings } from "../util/localstorage-util";
 import { setupDropzones } from "./dropzone-util";
@@ -31,13 +32,11 @@ export function initalizeLandingPage() {
 function verifyFileDrop() {
     // Verify if any files were dropped
     if (hasFiles()) {
-        // Start debugging
-        // startDebugging();
-        console.info("BAZINGA");
+        // Transition to the asset debugger page
+        window.location.href = '../scene/asset_debugger.html';
     } else {
-        // Show examples modal
+        // Show examples modal if not files were given
         showExamplesModal();
-        console.error("BAZLORPA");
     }
 }
 
