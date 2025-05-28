@@ -8,21 +8,24 @@ const FILE_TYPE_CONFIG = {
         instruction: 'Drag & drop your base color texture atlas here',
         acceptedFileTypes: ['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'],
         stateKey: 'textureFiles',
-        handler: handleTextureUpload
+        handler: handleTextureUpload,
+        resetState: resetBaseColorState
     },
     orm: {
         title: 'ORM Atlas',
         instruction: 'Drag & drop your ORM (Occlusion, Roughness, Metalness) texture atlas here',
         acceptedFileTypes: ['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'],
         stateKey: 'textureFiles',
-        handler: handleTextureUpload
+        handler: handleTextureUpload,
+        resetState: resetOrmState
     },
     normal: {
         title: 'Normal Atlas',
         instruction: 'Drag & drop your normal map texture atlas here',
         acceptedFileTypes: ['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'], 
         stateKey: 'textureFiles',
-        handler: handleTextureUpload
+        handler: handleTextureUpload,
+        resetState: resetNormalState
     },
     model: {
         title: '3D Model',
@@ -30,114 +33,171 @@ const FILE_TYPE_CONFIG = {
         optionalText: 'If not provided, a cube will be used',
         acceptedFileTypes: ['.glb'],
         stateKey: 'modelFile',
-        resetState: () => {
-            // Get current model and clear it from the scene if needed
-            const state = getState();
-            if (state.model && state.scene) {
-                // Remove model from scene
-                state.scene.remove(state.model);
-                // Dispose of any textures or geometries within the model
-                if (state.model.traverse) {
-                    state.model.traverse((node) => {
-                        if (node.geometry) node.geometry.dispose();
-                        if (node.material) {
-                            if (Array.isArray(node.material)) {
-                                node.material.forEach(mat => {
-                                    Object.values(mat).forEach(value => {
-                                        if (value && typeof value.dispose === 'function') value.dispose();
-                                    });
-                                    mat.dispose();
-                                });
-                            } else {
-                                Object.values(node.material).forEach(value => {
-                                    if (value && typeof value.dispose === 'function') value.dispose();
-                                });
-                                node.material.dispose();
-                            }
-                        }
-                    });
-                }
-            }
-            
-            // Clear model-related state
-            updateState('modelFile', null);
-            updateState('useCustomModel', false);
-            updateState('model', null);
-        },
-        handler: handleModelUpload
+        handler: handleModelUpload,
+        resetState: resetModelState
     },
     lighting: {
         title: 'Lighting File',
         instruction: 'Drag & drop your HDR or EXR lighting file here',
         acceptedFileTypes: ['.hdr', '.exr'],
         stateKey: 'lightingFile',
-        resetState: () => {
-            // Get current state
-            const state = getState();
-            
-            // Remove environment map from scene if it exists
-            if (state.scene && state.scene.environment) {
-                // Dispose of the environment texture
-                if (state.scene.environment.dispose) {
-                    state.scene.environment.dispose();
-                }
-                state.scene.environment = null;
-                
-                // Also reset the background if it was using the same environment map
-                if (state.scene.background === state.scene.environment) {
-                    state.scene.background = null;
-                }
-            }
-            
-            // Clear lighting-related state
-            updateState('lightingFile', null);
-            updateState('environmentLightingEnabled', false);
-            updateState('environmentTexture', null);
-        },
-        handler: handleLightingUpload
+        handler: handleLightingUpload,
+        resetState: resetLightingState
     },
     background: {
         title: 'Background Image',
         instruction: 'Drag & drop your HDR, EXR, JPEG, PNG, WebP, or TIFF background image here',
         acceptedFileTypes: ['.hdr', '.exr', '.jpg', '.jpeg', '.png', '.webp', '.tiff', '.tif'],
         stateKey: 'backgroundFile',
-        resetState: () => {
-            // Get current state
-            const state = getState();
-            
-            // Dispose of background texture if it exists
-            if (state.backgroundTexture && state.backgroundTexture.dispose) {
-                state.backgroundTexture.dispose();
-            }
-            
-            // Remove background from scene if it exists and is different from environment
-            if (state.scene && state.scene.background && state.scene.background !== state.scene.environment) {
-                if (state.scene.background.dispose) {
-                    state.scene.background.dispose();
-                }
-                state.scene.background = null;
-            }
-            
-            // Clear background-related state
-            updateState({ 
-                backgroundFile: null, 
-                backgroundTexture: null,
-                backgroundEnabled: false
-            });
-        },
-        handler: handleBackgroundUpload
+        handler: handleBackgroundUpload,
+        resetState: resetBackgroundState
     },
     zip: {
         title: 'ZIP Archive',
         instruction: 'Drag & drop a ZIP file containing asset files here',
         acceptedFileTypes: ['.zip'],
         stateKey: 'zipFile',
-        resetState: () => {
-            updateState('zipFile', null);
-        },
-        handler: handleZipUpload
+        handler: handleZipUpload,
+        resetState: resetZipState
     }
 };
+
+/**
+ * Reset state for base color texture
+ */
+function resetBaseColorState() {
+    console.debug('Resetting base color texture state');
+    const state = getState();
+    if (state.textureFiles) {
+        state.textureFiles.baseColor = null;
+        updateState('textureFiles', state.textureFiles);
+    }
+}
+
+/**
+ * Reset state for ORM texture
+ */
+function resetOrmState() {
+    console.debug('Resetting ORM texture state');
+    const state = getState();
+    if (state.textureFiles) {
+        state.textureFiles.orm = null;
+        updateState('textureFiles', state.textureFiles);
+    }
+}
+
+/**
+ * Reset state for normal texture
+ */
+function resetNormalState() {
+    console.debug('Resetting normal texture state');
+    const state = getState();
+    if (state.textureFiles) {
+        state.textureFiles.normal = null;
+        updateState('textureFiles', state.textureFiles);
+    }
+}
+
+/**
+ * Reset state for model file
+ */
+function resetModelState() {
+    // Get current model and clear it from the scene if needed
+    const state = getState();
+    if (state.model && state.scene) {
+        // Remove model from scene
+        state.scene.remove(state.model);
+        // Dispose of any textures or geometries within the model
+        if (state.model.traverse) {
+            state.model.traverse((node) => {
+                if (node.geometry) node.geometry.dispose();
+                if (node.material) {
+                    if (Array.isArray(node.material)) {
+                        node.material.forEach(mat => {
+                            Object.values(mat).forEach(value => {
+                                if (value && typeof value.dispose === 'function') value.dispose();
+                            });
+                            mat.dispose();
+                        });
+                    } else {
+                        Object.values(node.material).forEach(value => {
+                            if (value && typeof value.dispose === 'function') value.dispose();
+                        });
+                        node.material.dispose();
+                    }
+                }
+            });
+        }
+    }
+    
+    // Clear model-related state
+    updateState('modelFile', null);
+    updateState('useCustomModel', false);
+    updateState('model', null);
+}
+
+/**
+ * Reset state for lighting file
+ */
+function resetLightingState() {
+    // Get current state
+    const state = getState();
+    
+    // Remove environment map from scene if it exists
+    if (state.scene && state.scene.environment) {
+        // Dispose of the environment texture
+        if (state.scene.environment.dispose) {
+            state.scene.environment.dispose();
+        }
+        state.scene.environment = null;
+        
+        // Also reset the background if it was using the same environment map
+        if (state.scene.background === state.scene.environment) {
+            state.scene.background = null;
+        }
+    }
+    
+    // Clear lighting-related state
+    updateState('lightingFile', null);
+    updateState('environmentLightingEnabled', false);
+    updateState('environmentTexture', null);
+}
+
+/**
+ * Reset state for background file
+ */
+function resetBackgroundState() {
+    // Get current state
+    const state = getState();
+    
+    // Dispose of background texture if it exists
+    if (state.backgroundTexture && state.backgroundTexture.dispose) {
+        state.backgroundTexture.dispose();
+    }
+    
+    // Remove background from scene if it exists and is different from environment
+    if (state.scene && state.scene.background && state.scene.background !== state.scene.environment) {
+        if (state.scene.background.dispose) {
+            state.scene.background.dispose();
+        }
+        state.scene.background = null;
+    }
+    
+    // Clear background-related state
+    updateState({ 
+        backgroundFile: null, 
+        backgroundTexture: null,
+        backgroundEnabled: false
+    });
+}
+
+/**
+ * Reset state for ZIP file
+ */
+function resetZipState() {
+    console.debug('Resetting ZIP file state');
+    updateState('zipFile', null);
+}
 
 /**
  * Setup dropzones for file input

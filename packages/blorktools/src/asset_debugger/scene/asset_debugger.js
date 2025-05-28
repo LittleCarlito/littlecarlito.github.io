@@ -25,7 +25,7 @@ import {
 } from '../landing-page/zip-util.js';
 import { initHtmlEditorModal } from '../modals/html-editor-modal/html-editor-modal.js';
 import { initWorldPanel } from '../panels/world-panel/world-panel.js';
-import { initState, updateState } from './state.js';
+import { updateState } from './state.js';
 import { initUiManager } from '../util/ui-manager.js';
 import { hideLoadingSplash, showLoadingSplash, updateLoadingProgress } from '../loading-splash/loading-splash.js';
 import { setupDropzones } from '../landing-page/dropzone-util.js';
@@ -65,12 +65,6 @@ export function setupAssetDebugger() {
     updateLoadingProgress('Initializing asset debugger...');
     
     console.log('Asset Debugger UI: Initializing...');
-    
-    // Set up theme and UI elements
-    setupThemeAndUI();
-    
-    // Initialize state
-    initState();
     
     // Initialize UI components
     initUiManager();
@@ -510,15 +504,6 @@ function initializeDebugger(settings) {
     
     // Start checking for the header
     checkHeaderAndInit();
-}
-
-/**
- * Set up theme, UI elements, and basic event listeners
- */
-function setupThemeAndUI() {
-    // Always use terminal theme (dark mode)
-    document.documentElement.classList.add('dark-mode');
-    document.documentElement.classList.remove('light-mode');
 }
 
 /**

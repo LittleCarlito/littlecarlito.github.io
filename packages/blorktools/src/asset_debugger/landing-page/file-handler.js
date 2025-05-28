@@ -292,9 +292,11 @@ export function handleTextureUpload(file, textureType, infoElement, previewEleme
  * @param {HTMLElement} dropzone - The dropzone element
  */
 export function handleModelUpload(file, infoElement, dropzone) {
-    // Store the file in the state
-    updateState('modelFile', file);
-    updateState('useCustomModel', true);
+    // Store the file in the state with a single update
+    updateState({
+        modelFile: file,
+        useCustomModel: true
+    });
     
     // If dropzone is null, find it by ID
     if (!dropzone) {

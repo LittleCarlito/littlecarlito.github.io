@@ -105,9 +105,9 @@ export function startAnimation() {
     }
 }
 
-/**
- * Animation loop
- */
+// Animation loop
+let lastFrameTime = performance.now();
+
 function animate() {
     const state = getState();
     
@@ -117,8 +117,8 @@ function animate() {
     
     // Time tracking for smooth animation
     const now = performance.now();
-    const delta = now - (state.lastFrameTime || now);
-    updateState('lastFrameTime', now);
+    const delta = now - lastFrameTime;
+    lastFrameTime = now;
     
     // Update rig animation if available
     updateRigAnimation();

@@ -5,8 +5,12 @@
  * It provides methods to initialize, access, and update the application state.
  */
 
+import { saveCurrentSession, loadCurrentSession, clearSessionData } from '../util/localstorage-util.js';
+
 // Define the initial state
 const initialState = {
+    sessionId: null,
+    timestamp: null,
     scene: null,
     camera: null,
     renderer: null,
@@ -88,23 +92,38 @@ const initialState = {
     }
 };
 
-// The actual state object
+// The actual state object - singleton
 let state = null;
 
 /**
- * Initialize the application state
+ * Initialize a new draft state for the landing page
+ * This state won't be saved as current until startDebugging is called
  * @returns {Object} The initialized state object
  */
-export function initState() {
-    // Check if there's an existing state object in the window and use it
-    if (window.assetDebuggerState) {
-        state = window.assetDebuggerState;
-    } else {
-        // Create a new state object
-        state = { ...initialState };
-        // Store in window for persistence
-        window.assetDebuggerState = state;
+export function initDraftState() {
+    // Generate a new session ID and timestamp
+    const sessionId = Date.now().toString();
+    const timestamp = new Date().toISOString();
+    
+    // Create a new state object with session ID and timestamp
+    state = { ...initialState, sessionId, timestamp };
+    
+    return state;
+}
+
+/**
+ * Start a new debugging session with the current draft state
+ * This makes the current draft state the "current" session
+ * @returns {Object} The current state object
+ */
+export function startDebugging() {
+    if (!state) {
+        state = initDraftState();
     }
+    
+    // Save to localStorage as current session
+    saveCurrentSession(state);
+    
     return state;
 }
 
@@ -116,29 +135,31 @@ export function initState() {
  */
 export function updateState(key, value) {
     if (!state) {
-        initState();
+        initDraftState();
     }
     
+    // Helper function to get file name or null
+    const getFileName = (file) => file ? file.name : null;
+    
+    // Log the state update
+    console.debug('State update:', {
+        key: typeof key === 'object' ? Object.keys(key) : key,
+        model: getFileName(state.modelFile),
+        lighting: getFileName(state.lightingFile),
+        background: getFileName(state.backgroundFile),
+        textures: {
+            baseColor: getFileName(state.textureFiles?.baseColor),
+            orm: getFileName(state.textureFiles?.orm),
+            normal: getFileName(state.textureFiles?.normal)
+        }
+    });
+    
     if (typeof key === 'object') {
-        // If key is an object, use it directly as updates
         Object.assign(state, key);
     } else {
         state[key] = value;
     }
     
-    // Ensure window.assetDebuggerState is always updated
-    window.assetDebuggerState = state;
-    
-    return state;
-}
-
-/**
- * Reset the state to initial values
- * @returns {Object} The reset state
- */
-export function resetState() {
-    state = { ...initialState };
-    window.assetDebuggerState = state;
     return state;
 }
 
@@ -148,27 +169,41 @@ export function resetState() {
  */
 export function getState() {
     if (!state) {
-        return initState();
+        // Try to load from localStorage
+        const savedState = loadCurrentSession();
+        if (savedState) {
+            console.debug('Loading state from localStorage:', {
+                hasModelFile: !!savedState.modelFile,
+                hasLightingFile: !!savedState.lightingFile,
+                hasBackgroundFile: !!savedState.backgroundFile,
+                hasTextureFiles: savedState.textureFiles ? Object.values(savedState.textureFiles).some(f => f !== null) : false,
+                sessionId: savedState.sessionId,
+                timestamp: savedState.timestamp
+            });
+            state = savedState;
+        } else {
+            console.debug('No saved state found in localStorage, initializing new state');
+            state = initDraftState();
+        }
     }
     return state;
 }
 
 /**
- * Update multiple parts of the state at once
- * @param {Object} updates - An object with keys and values to update
- * @returns {Object} The updated state
+ * Reset the state to initial values
+ * @returns {Object} The reset state
  */
-export function setState(updates) {
-    if (!state) {
-        initState();
-    }
-    
-    Object.assign(state, updates);
-    
-    // Ensure window.assetDebuggerState is always updated
-    window.assetDebuggerState = state;
-    
+export function resetState() {
+    state = initDraftState();
     return state;
+}
+
+/**
+ * Clear all session data
+ */
+export function clearState() {
+    clearSessionData();
+    state = null;
 }
 
 export function hasFiles() {
@@ -222,4 +257,19 @@ export function hasNormalFile() {
 
 export function getNormalFile() {
     return state.textureFiles.normal;
+}
+
+/**
+ * Update multiple parts of the state at once
+ * @param {Object} updates - An object with keys and values to update
+ * @returns {Object} The updated state
+ */
+export function setState(updates) {
+    if (!state) {
+        initDraftState();
+    }
+    
+    Object.assign(state, updates);
+    
+    return state;
 }

@@ -1,13 +1,14 @@
 import ExamplesModal from "../modals/examples-modal/examples-modal";
 import { startDebugging } from "../scene/asset_debugger";
-import { getBackgroundFile, getBaseColorFile, getLightingFile, getModelFile, getNormalFile, getOrmFile, hasFiles, initState, setState } from "../scene/state";
+import { getBackgroundFile, getBaseColorFile, getLightingFile, getModelFile, getNormalFile, getOrmFile, hasFiles, initDraftState, setState } from "../scene/state";
 import { loadSettings } from "../util/localstorage-util";
 import { setupDropzones } from "./dropzone-util";
+import { handleModelUpload } from "./file-handler";
 import { handleAutoLoad, loadLightingIntoDropzone, loadModelIntoDropzone, processZipContents } from "./zip-util";
 
 export function initalizeLandingPage() {
     preventDefaultDragBehavior();
-    initState();
+    initDraftState();
     setupDropzones();
     setupMainContainerDropzone();
     
@@ -41,6 +42,8 @@ function verifyFileDrop() {
     });
 
     if (hasFiles()) {
+        // Start debugging and save current state before navigating
+        startDebugging();
         window.location.href = '../scene/asset_debugger.html';
     } else {
         showExamplesModal();
@@ -255,54 +258,29 @@ function uploadToDropzone(file, dropzoneId) {
     
     console.debug(`Uploading ${file.name} to ${dropzoneId}`);
     
-    // Create a FileList-like object
-    const fileList = {
-        0: file,
-        length: 1,
-        item: (index) => index === 0 ? file : null
-    };
+    // Get the info element for this dropzone
+    const infoElement = document.getElementById(`${dropzoneId.split('-')[0]}-info`);
     
-    // Create a drop event
-    const dropEvent = new Event('drop', {
-        bubbles: true,
-        cancelable: true
-    });
-    
-    // Add dataTransfer property with files
-    Object.defineProperty(dropEvent, 'dataTransfer', {
-        value: {
-            files: fileList
-        }
-    });
-    
-    console.debug('Dispatching drop event with file:', {
-        name: file.name,
-        type: file.type,
-        size: file.size
-    });
-
-    // Dispatch the drop event on the dropzone
-    dropzone.dispatchEvent(dropEvent);
-    
-    // Handle file based on dropzone type
+    // Handle file based on dropzone type directly instead of creating a new drop event
     switch(dropzoneId) {
         case 'model-dropzone':
             console.debug('Loading model into dropzone:', file.name);
-            loadModelIntoDropzone(file);
+            handleModelUpload(file, infoElement, dropzone);
             break;
         case 'background-dropzone':
             console.debug('Loading background into dropzone:', file.name);
-            loadBackgroundIntoDropzone(file);
+            handleBackgroundUpload(file, infoElement, null, dropzone);
             break;
         case 'lighting-dropzone':
             console.debug('Loading lighting into dropzone:', file.name);
-            loadLightingIntoDropzone(file);
+            handleLightingUpload(file, infoElement, null, dropzone);
             break;
         case 'basecolor-dropzone':
         case 'orm-dropzone':
         case 'normal-dropzone':
             console.debug('Loading texture into dropzone:', file.name, 'type:', dropzoneId);
-            loadTextureIntoDropzone(file, dropzoneId);
+            const textureType = dropzoneId.split('-')[0];
+            handleTextureUpload(file, textureType, infoElement, null, dropzone);
             break;
     }
 }
