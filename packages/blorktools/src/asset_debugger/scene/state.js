@@ -273,3 +273,30 @@ export function setState(updates) {
     
     return state;
 }
+
+/**
+ * Prints a formatted table report of the current state's file status
+ * @param {string} [caller='unknown'] - The name of the calling function/module
+ * @returns {void}
+ */
+export function printStateReport(caller = 'unknown') {
+    console.log('\nState Report (called by ' + caller + ')\n');
+    
+    const files = [
+        { name: 'Model', file: getModelFile(), hasFile: hasModelFile() },
+        { name: 'Lighting', file: getLightingFile(), hasFile: hasLightingFile() },
+        { name: 'Background', file: getBackgroundFile(), hasFile: hasBackgroundFile() },
+        { name: 'Base Color', file: getBaseColorFile(), hasFile: hasBaseColorFile() },
+        { name: 'ORM', file: getOrmFile(), hasFile: hasOrmFile() },
+        { name: 'Normal', file: getNormalFile(), hasFile: hasNormalFile() }
+    ];
+
+    console.table(
+        files.map(({ name, file, hasFile }) => ({
+            'Drop Box': name,
+            'File Name': file?.name || 'None',
+            'Processed': hasFile
+        }))
+    );
+    console.log('\n');
+}

@@ -1,6 +1,6 @@
 import ExamplesModal from "../modals/examples-modal/examples-modal";
 import { startDebugging } from "../scene/asset_debugger";
-import { getBackgroundFile, getBaseColorFile, getLightingFile, getModelFile, getNormalFile, getOrmFile, hasFiles, initDraftState, setState } from "../scene/state";
+import { getBackgroundFile, getBaseColorFile, getLightingFile, getModelFile, getNormalFile, getOrmFile, hasFiles, initDraftState, setState, printStateReport } from "../scene/state";
 import { loadSettings } from "../util/localstorage-util";
 import { setupDropzones } from "./dropzone-util";
 import { handleModelUpload } from "./file-handler";
@@ -31,15 +31,7 @@ export function initalizeLandingPage() {
 }
 
 function verifyFileDrop() {
-    console.debug('Verifying file drop, checking state:', {
-        hasModelFile: hasFiles(),
-        modelFile: getModelFile()?.name,
-        lightingFile: getLightingFile()?.name,
-        backgroundFile: getBackgroundFile()?.name,
-        baseColorFile: getBaseColorFile()?.name,
-        ormFile: getOrmFile()?.name,
-        normalFile: getNormalFile()?.name
-    });
+    printStateReport('Landing Page');
 
     if (hasFiles()) {
         // Start debugging and save current state before navigating
