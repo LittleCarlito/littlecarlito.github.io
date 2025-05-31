@@ -3,7 +3,7 @@ import { startDebugging } from "../scene/asset_debugger";
 import { getBackgroundFile, getBaseColorFile, getLightingFile, getModelFile, getNormalFile, getOrmFile, hasFiles, initDraftState, setState, printStateReport } from "../scene/state";
 import { loadSettings } from "../util/localstorage-util";
 import { setupDropzones } from "./dropzone-util";
-import { handleModelUpload } from "./file-handler";
+import { handleBackgroundUpload, handleLightingUpload, handleModelUpload, handleTextureUpload } from "./file-handler";
 import { handleAutoLoad, loadLightingIntoDropzone, loadModelIntoDropzone, processZipContents } from "./zip-util";
 
 export function initalizeLandingPage() {

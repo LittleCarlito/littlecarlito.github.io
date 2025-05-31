@@ -4,32 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload Section - Asset Debugger</title>
-    <link rel="stylesheet" href="../styles.css">
-    <script>
-        // Get pinned state from localStorage before DOM is constructed
-        function getPinnedState() {
-            try {
-                const savedSettings = localStorage.getItem('assetDebuggerSettings');
-                if (savedSettings) {
-                    const settings = JSON.parse(savedSettings);
-                    if (settings && settings.hasOwnProperty('pinned')) {
-                        return settings.pinned;
-                    }
-                }
-            } catch (e) {
-                console.error('Error checking pin state:', e);
-            }
-            return true; // Default to pinned if no setting or error
-        }
-        
-        // Store for later use in JS
-        window.initialPinState = getPinnedState();
-    </script>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Header container - will be populated by the header-loader.js script -->
-    <div id="header-container"></div>
-    
     <!-- Upload section overlay -->
     <div id="upload-section" class="tool-panel dropzone-container-main">
         <h2 class="section-heading">Asset Files</h2>
@@ -101,18 +78,5 @@
     </div>
     
     <div id="examples-modal-container"></div>
-
-    <!-- Load the header component -->
-    <script type="module">
-        import { loadHeader } from '../header/header-loader.js';
-        
-        // Load the header when the DOM is ready
-        document.addEventListener('DOMContentLoaded', () => {
-            loadHeader('header-container');
-        });
-    </script>
-    
-    <!-- Main application script -->
-    <script type="module" src="./landing-page.js"></script>
 </body>
 </html>

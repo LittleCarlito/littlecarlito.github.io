@@ -28,7 +28,7 @@ export function loadHeader(containerId = 'header-container') {
         }
 
         // Fetch the header HTML
-        fetch('../header/header.html')
+        fetch('./header/header.html')
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`Failed to load header: ${response.status} ${response.statusText}`);
@@ -39,6 +39,15 @@ export function loadHeader(containerId = 'header-container') {
                 // Insert the header HTML into the container
                 container.innerHTML = html;
                 
+                // Wait for the DOM to be updated before setting up components
+                return new Promise(resolve => {
+                    // Use requestAnimationFrame to ensure DOM is painted
+                    requestAnimationFrame(() => {
+                        resolve();
+                    });
+                });
+            })
+            .then(() => {
                 // Add the pin button with the correct state
                 setupPinButton();
                 

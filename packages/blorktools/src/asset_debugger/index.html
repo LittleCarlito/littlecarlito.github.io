@@ -4,22 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Asset Debugger - Blorktools</title>
-    <script>
-        // Redirect to the scene directory
-        window.location.href = './landing-page/landing-page.html';
-    </script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #121212;
             color: #e1e1e1;
+            margin: 0;
+            padding: 0;
+        }
+        #app {
+            min-height: 100vh;
+        }
+        .loading {
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            margin: 0;
-        }
-        .loading {
             text-align: center;
         }
         h1 {
@@ -28,10 +28,27 @@
     </style>
 </head>
 <body>
-    <div class="loading">
+    <!-- Header container - will be populated by the header-loader.js script -->
+    <div id="header-container"></div>
+
+    <div id="app">
+        <div class="loading">
         <h1>Asset Debugger</h1>
         <p>Redirecting to the Asset Debugger tool...</p>
         <p>If you are not redirected automatically, <a href="./landing-page/landing-page.html" style="color: #5d8fff;">click here</a>.</p>
+        </div>
     </div>
+
+    <!-- Load the header component -->
+    <script type="module">
+        import { loadHeader } from './header/header-loader.js';
+        
+        // Load the header when the DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            loadHeader('header-container');
+        });
+    </script>
+
+    <script src="router.js"></script>
 </body>
-</html> 
+</html>
