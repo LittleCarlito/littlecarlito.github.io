@@ -1,32 +1,156 @@
-import ExamplesModal from "../modals/examples-modal/examples-modal";
-import { startDebugging } from "../scene/asset_debugger";
-import { getBackgroundFile, getBaseColorFile, getLightingFile, getModelFile, getNormalFile, getOrmFile, hasFiles, initDraftState, setState, printStateReport } from "../scene/state";
-import { loadSettings } from "../util/localstorage-util";
-import { setupDropzones } from "./dropzone-util";
-import { handleBackgroundUpload, handleLightingUpload, handleModelUpload, handleTextureUpload } from "./file-handler";
-import { handleAutoLoad, loadLightingIntoDropzone, loadModelIntoDropzone, processZipContents } from "./zip-util";
+// landing-page.js - Landing page module with proper imports and event handling
 
+// Import all dependencies at the top
+import ExamplesModal from "../modals/examples-modal/examples-modal.js";
+import { startDebugging } from "../scene/asset_debugger.js";
+import { 
+    getBackgroundFile, 
+    getBaseColorFile, 
+    getLightingFile, 
+    getModelFile, 
+    getNormalFile, 
+    getOrmFile, 
+    hasFiles, 
+    initDraftState, 
+    setState, 
+    printStateReport 
+} from "../scene/state.js";
+import { loadSettings } from "../util/localstorage-util.js";
+import { setupDropzones } from "./dropzone-util.js";
+import { 
+    handleBackgroundUpload, 
+    handleLightingUpload, 
+    handleModelUpload, 
+    handleTextureUpload 
+} from "./file-handler.js";
+import { 
+    handleAutoLoad, 
+    loadLightingIntoDropzone, 
+    loadModelIntoDropzone, 
+    processZipContents 
+} from "./zip-util.js";
+
+// Module state
+let isInitialized = false;
+let eventListeners = [];
+
+// Main initialization function
 export function initalizeLandingPage() {
-    preventDefaultDragBehavior();
-    initDraftState();
-    setupDropzones();
-    setupMainContainerDropzone();
+    console.log('Initializing landing page...');
     
-    // Load the examples modal HTML content
-    fetch('./modals/examples-modal/examples-modal.html')
-        .then(response => response.text())
-        .then(html => {
-            // Insert the HTML into the container
-            document.getElementById('examples-modal-container').innerHTML = html;
-        })
-        .catch(error => {
-            console.error('Error loading examples modal:', error);
+    // Prevent double initialization
+    if (isInitialized) {
+        console.warn('Landing page already initialized');
+        return Promise.resolve(cleanup);
+    }
+    
+    // Check if required DOM elements exist
+    if (!validateRequiredElements()) {
+        console.warn('Required DOM elements not found, waiting for them...');
+        // Use MutationObserver to wait for elements to be added
+        return waitForElements().then(() => {
+            return initializeLandingPageInternal();
         });
+    }
     
-    // Setup listeners
+    return Promise.resolve(initializeLandingPageInternal());
+}
+
+function validateRequiredElements() {
+    const requiredElements = [
+        'upload-section',
+        'start-debug'
+    ];
+    
+    const results = requiredElements.map(id => {
+        const element = document.getElementById(id);
+        const found = !!element;
+        console.log(`Element ${id}: ${found ? 'found' : 'NOT FOUND'}`);
+        return found;
+    });
+    
+    const allFound = results.every(found => found);
+    console.log(`All required elements found: ${allFound}`);
+    return allFound;
+}
+
+function waitForElements() {
+    return new Promise((resolve) => {
+        const observer = new MutationObserver((mutations) => {
+            if (validateRequiredElements()) {
+                observer.disconnect();
+                resolve();
+            }
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        // Timeout after 5 seconds
+        setTimeout(() => {
+            observer.disconnect();
+            resolve();
+        }, 5000);
+    });
+}
+
+function initializeLandingPageInternal() {
+    console.log('Starting landing page internal initialization...');
+    
+    try {
+        // Initialize core functionality
+        preventDefaultDragBehavior();
+        initDraftState();
+        setupDropzones();
+        setupMainContainerDropzone();
+        setupEventListeners();
+        loadExamplesModal();
+        
+        isInitialized = true;
+        console.log('Landing page initialization complete');
+        
+        return cleanup;
+        
+    } catch (error) {
+        console.error('Error during landing page initialization:', error);
+        return cleanup;
+    }
+}
+
+function setupEventListeners() {
+    // Setup start debug button listener
     const startDebugBtn = document.getElementById('start-debug');
     if (startDebugBtn) {
-        startDebugBtn.addEventListener('click', verifyFileDrop);
+        const verifyFileDropHandler = () => verifyFileDrop();
+        startDebugBtn.addEventListener('click', verifyFileDropHandler);
+        eventListeners.push({ element: startDebugBtn, event: 'click', handler: verifyFileDropHandler });
+        console.log('Start debug button listener attached');
+    } else {
+        console.warn('start-debug button not found in DOM');
+    }
+}
+
+function loadExamplesModal() {
+    const examplesModalContainer = document.getElementById('examples-modal-container');
+    if (examplesModalContainer) {
+        fetch('./modals/examples-modal/examples-modal.html')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.text();
+            })
+            .then(html => {
+                examplesModalContainer.innerHTML = html;
+                console.log('Examples modal HTML loaded');
+            })
+            .catch(error => {
+                console.error('Error loading examples modal:', error);
+            });
+    } else {
+        console.warn('examples-modal-container not found in DOM');
     }
 }
 
@@ -36,7 +160,17 @@ function verifyFileDrop() {
     if (hasFiles()) {
         // Start debugging and save current state before navigating
         startDebugging();
-        window.location.href = '../scene/asset_debugger.html';
+        
+        // Use router navigation instead of direct window.location.href
+        if (window.appRouter) {
+            window.appRouter.navigateToPage('asset_debugger', {
+                hasFiles: true,
+                source: 'landing_page_verify'
+            });
+        } else {
+            console.error('Router not available, falling back to direct navigation');
+            window.location.href = './scene/asset_debugger.html';
+        }
     } else {
         showExamplesModal();
     }
@@ -50,8 +184,17 @@ function showExamplesModal() {
     const examplesModal = new ExamplesModal((exampleType) => {
         // Set flag in state to track which example was selected
         setState({ selectedExample: exampleType });
-        // Navigate to the asset debugger page
-        window.location.href = '../scene/asset_debugger.html';
+        
+        // Use router navigation instead of direct window.location.href
+        if (window.appRouter) {
+            window.appRouter.navigateToPage('asset_debugger', {
+                selectedExample: exampleType,
+                source: 'examples_modal'
+            });
+        } else {
+            console.error('Router not available, falling back to direct navigation');
+            window.location.href = './scene/asset_debugger.html';
+        }
     });
     
     // Show the examples modal
@@ -60,15 +203,18 @@ function showExamplesModal() {
 
 // Prevent default drag-and-drop behavior for the entire document
 function preventDefaultDragBehavior() {
+    const dragEventHandler = (e) => {
+        // Only prevent if it's actually a file drag operation
+        if (e.dataTransfer && e.dataTransfer.types && 
+            (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('application/x-moz-file'))) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    };
+
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        document.addEventListener(eventName, (e) => {
-            // Only prevent if it's actually a file drag operation
-            if (e.dataTransfer && e.dataTransfer.types && 
-                (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('application/x-moz-file'))) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-        }, false);
+        document.addEventListener(eventName, dragEventHandler, false);
+        eventListeners.push({ element: document, event: eventName, handler: dragEventHandler });
     });
 }
 
@@ -79,7 +225,12 @@ function setupMainContainerDropzone() {
     const mainContainer = document.getElementById('upload-section');
     const zipInfoElement = document.getElementById('zip-info');
     
-    if (!mainContainer) return;
+    if (!mainContainer) {
+        console.warn('upload-section not found in DOM, skipping main container dropzone setup');
+        return;
+    }
+    
+    console.log('Setting up main container dropzone');
     
     // Function to check if an element is a child of any dropzone
     const isChildOfDropzone = (element) => {
@@ -102,8 +253,8 @@ function setupMainContainerDropzone() {
         return false;
     };
     
-    // Add drag enter event
-    mainContainer.addEventListener('dragenter', function(e) {
+    // Event handlers
+    const dragEnterHandler = function(e) {
         e.preventDefault();
         e.stopPropagation();
         
@@ -112,10 +263,9 @@ function setupMainContainerDropzone() {
         
         // Add active class to show it's a valid drop target
         mainContainer.classList.add('dropzone-container-active');
-    });
+    };
     
-    // Add drag over event
-    mainContainer.addEventListener('dragover', function(e) {
+    const dragOverHandler = function(e) {
         e.preventDefault();
         e.stopPropagation();
         
@@ -124,10 +274,9 @@ function setupMainContainerDropzone() {
         
         // Set the drop effect
         e.dataTransfer.dropEffect = 'copy';
-    });
+    };
     
-    // Add drag leave event
-    mainContainer.addEventListener('dragleave', function(e) {
+    const dragLeaveHandler = function(e) {
         e.preventDefault();
         e.stopPropagation();
         
@@ -137,10 +286,9 @@ function setupMainContainerDropzone() {
         
         // Remove active class
         mainContainer.classList.remove('dropzone-container-active');
-    });
+    };
     
-    // Add drop event
-    mainContainer.addEventListener('drop', function(e) {
+    const dropHandler = function(e) {
         e.preventDefault();
         e.stopPropagation();
         
@@ -155,7 +303,20 @@ function setupMainContainerDropzone() {
         
         // Process the files based on type
         processMainDroppedFiles(files, zipInfoElement);
-    });
+    };
+    
+    // Add event listeners and track them for cleanup
+    mainContainer.addEventListener('dragenter', dragEnterHandler);
+    mainContainer.addEventListener('dragover', dragOverHandler);
+    mainContainer.addEventListener('dragleave', dragLeaveHandler);
+    mainContainer.addEventListener('drop', dropHandler);
+    
+    eventListeners.push(
+        { element: mainContainer, event: 'dragenter', handler: dragEnterHandler },
+        { element: mainContainer, event: 'dragover', handler: dragOverHandler },
+        { element: mainContainer, event: 'dragleave', handler: dragLeaveHandler },
+        { element: mainContainer, event: 'drop', handler: dropHandler }
+    );
 }
 
 /**
@@ -169,9 +330,11 @@ function processMainDroppedFiles(files, infoElement) {
     const file = files[0]; // Process only the first file for simplicity
     
     // Show starting message
-    infoElement.textContent = `Processing ${file.name}...`;
-    infoElement.style.display = 'block';
-    infoElement.style.color = '#007bff';
+    if (infoElement) {
+        infoElement.textContent = `Processing ${file.name}...`;
+        infoElement.style.display = 'block';
+        infoElement.style.color = '#007bff';
+    }
     
     // Check file type and extension
     const extension = file.name.split('.').pop().toLowerCase();
@@ -198,16 +361,20 @@ function processMainDroppedFiles(files, infoElement) {
         uploadToDropzone(file, targetDropzone);
         
         // Show success message
-        infoElement.textContent = `File "${file.name}" loaded into ${getDropzoneName(targetDropzone)}`;
-        infoElement.style.display = 'block';
-        infoElement.style.color = 'green';
+        if (infoElement) {
+            infoElement.textContent = `File "${file.name}" loaded into ${getDropzoneName(targetDropzone)}`;
+            infoElement.style.display = 'block';
+            infoElement.style.color = 'green';
+        }
     } else {
         // No appropriate dropzone found
         console.error('No appropriate dropzone found for file:', file.name);
-        infoElement.textContent = `Error: Could not determine target for "${file.name}". 
-            Supported types: ZIP, GLB, GLTF, HDR, EXR, JPG, PNG, WebP, TIFF`;
-        infoElement.style.display = 'block';
-        infoElement.style.color = 'red';
+        if (infoElement) {
+            infoElement.textContent = `Error: Could not determine target for "${file.name}". 
+                Supported types: ZIP, GLB, GLTF, HDR, EXR, JPG, PNG, WebP, TIFF`;
+            infoElement.style.display = 'block';
+            infoElement.style.color = 'red';
+        }
     }
 }
 
@@ -322,6 +489,23 @@ async function processZipFile(file) {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    initalizeLandingPage();
-});
+// Cleanup function to remove event listeners and reset state
+function cleanup() {
+    console.log('Cleaning up landing page...');
+    
+    // Remove all event listeners
+    eventListeners.forEach(({ element, event, handler }) => {
+        element.removeEventListener(event, handler);
+    });
+    eventListeners = [];
+    
+    // Reset state
+    isInitialized = false;
+    
+    console.log('Landing page cleanup complete');
+}
+
+// Remove the DOM event listener - this will be handled by the router
+// document.addEventListener('DOMContentLoaded', () => {
+//     initalizeLandingPage();
+// });

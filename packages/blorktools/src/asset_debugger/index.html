@@ -13,8 +13,7 @@
     <div id="app">
         <div class="loading">
             <h1>Asset Debugger</h1>
-            <p>Redirecting to the Asset Debugger tool...</p>
-            <p>If you are not redirected automatically, <a href="./landing-page/landing-page.html">click here</a>.</p>
+            <p>Loading application...</p>
         </div>
     </div>
 
@@ -33,17 +32,11 @@
     console.log('Current URL:', window.location.href);
     console.log('Current hash:', window.location.hash);
 
-    // Force navigation to landing page if no hash is set
+    // DOM ready handler for debugging
     document.addEventListener('DOMContentLoaded', function() {
         console.log('DOM loaded for asset debugger');
         
-        // If no hash is set, force navigate to landing
-        if (!window.location.hash || window.location.hash === '#') {
-            console.log('No hash found, navigating to landing');
-            window.location.hash = '#/landing';
-        }
-        
-        // Also ensure the app div is ready
+        // Log app div status
         const appDiv = document.getElementById('app');
         if (appDiv) {
             console.log('App div found:', appDiv);
@@ -54,6 +47,7 @@
     });
     </script>
     
-    <script src="router.js"></script>
+    <!-- Load router as a module -->
+    <script type="module" src="router.js"></script>
 </body>
 </html>
