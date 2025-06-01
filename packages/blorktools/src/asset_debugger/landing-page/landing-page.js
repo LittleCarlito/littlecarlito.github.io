@@ -36,17 +36,17 @@ let eventListeners = [];
 
 // Main initialization function
 export function initalizeLandingPage() {
-    console.log('Initializing landing page...');
+    console.log('🌟 Initializing landing page...');
     
     // Prevent double initialization
     if (isInitialized) {
-        console.warn('Landing page already initialized');
+        console.warn('⚠️ Landing page already initialized, skipping...');
         return Promise.resolve(cleanup);
     }
     
     // Check if required DOM elements exist
     if (!validateRequiredElements()) {
-        console.warn('Required DOM elements not found, waiting for them...');
+        console.warn('⏳ Required DOM elements not found, waiting for them...');
         // Use MutationObserver to wait for elements to be added
         return waitForElements().then(() => {
             return initializeLandingPageInternal();
@@ -97,7 +97,7 @@ function waitForElements() {
 }
 
 function initializeLandingPageInternal() {
-    console.log('Starting landing page internal initialization...');
+    console.log('🔧 Starting landing page internal initialization...');
     
     try {
         // Initialize core functionality
@@ -109,12 +109,12 @@ function initializeLandingPageInternal() {
         loadExamplesModal();
         
         isInitialized = true;
-        console.log('Landing page initialization complete');
+        console.log('✅ Landing page initialization complete');
         
         return cleanup;
         
     } catch (error) {
-        console.error('Error during landing page initialization:', error);
+        console.error('💥 Error during landing page initialization:', error);
         return cleanup;
     }
 }
@@ -158,8 +158,8 @@ function verifyFileDrop() {
     printStateReport('Landing Page');
 
     if (hasFiles()) {
-        // Start debugging and save current state before navigating
-        startDebugging();
+        // DON'T start debugging here - let the asset debugger page handle it
+        console.log('Files detected, navigating to asset debugger...');
         
         // Use router navigation instead of direct window.location.href
         if (window.appRouter) {

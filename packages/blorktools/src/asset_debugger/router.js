@@ -3,7 +3,6 @@ class Router {
     constructor() {
         this.routes = new Map();
         this.appDiv = document.getElementById('app');
-        this.currentCleanupFunctions = [];
         this.currentModuleCleanup = null;
         this.init();
     }
@@ -14,11 +13,30 @@ class Router {
     }
 
     init() {
-        window.addEventListener('hashchange', this.handleRoute.bind(this));
-        window.addEventListener('load', this.handleRoute.bind(this));
+        // Use a flag to prevent double handling
+        this.isHandlingRoute = false;
+        
+        window.addEventListener('hashchange', this.handleRouteDebounced.bind(this));
+        window.addEventListener('load', this.handleRouteDebounced.bind(this));
+        
         // Default route if no hash
         if (!window.location.hash) {
             this.navigate('/landing');
+        }
+    }
+
+    // Debounced route handler to prevent double execution
+    async handleRouteDebounced() {
+        if (this.isHandlingRoute) {
+            console.log('Route handling already in progress, skipping...');
+            return;
+        }
+        
+        this.isHandlingRoute = true;
+        try {
+            await this.handleRoute();
+        } finally {
+            this.isHandlingRoute = false;
         }
     }
 
@@ -29,6 +47,7 @@ class Router {
         if (handler) {
             await handler();
         } else {
+            console.warn(`Route not found: ${hash}, redirecting to landing`);
             this.navigate('/landing');
         }
     }
@@ -37,55 +56,39 @@ class Router {
         window.location.hash = path;
     }
 
-    // Navigation function with proper routing
+    // Navigation function with proper routing and BAZINGA log
     navigateToPage(targetPage, params = {}) {
         console.debug('BAZINGA - Router navigating to:', targetPage, 'with params:', params);
         
-        // Dispatch a custom event to notify other parts of the app about navigation
+        // Dispatch navigation event
         const navigationEvent = new CustomEvent('routerNavigation', {
-            detail: {
-                targetPage: targetPage,
-                params: params,
-                timestamp: Date.now()
-            }
+            detail: { targetPage, params, timestamp: Date.now() }
         });
-        
-        // Emit the event before navigation
         window.dispatchEvent(navigationEvent);
         
-        // Handle different target pages
-        switch(targetPage) {
-            case 'asset_debugger':
-                this.navigate('/asset-debugger');
-                break;
-            case 'landing':
-                this.navigate('/landing');
-                break;
-            case 'tools':
-                this.navigate('/tools');
-                break;
-            default:
-                console.warn('Unknown target page:', targetPage, 'defaulting to landing');
-                this.navigate('/landing');
+        // Route mapping
+        const routeMap = {
+            'asset_debugger': '/asset-debugger',
+            'landing': '/landing',
+            'tools': '/tools'
+        };
+        
+        const route = routeMap[targetPage];
+        if (route) {
+            this.navigate(route);
+        } else {
+            console.warn('Unknown target page:', targetPage, 'defaulting to landing');
+            this.navigate('/landing');
         }
     }
 
-    // Simple cleanup - just clear the app content but preserve header
-    clearContent() {
-        // Run any cleanup functions from the previous page
-        this.currentCleanupFunctions.forEach(cleanup => {
-            try {
-                cleanup();
-            } catch (error) {
-                console.warn('Cleanup function failed:', error);
-            }
-        });
-        this.currentCleanupFunctions = [];
-
+    // Cleanup previous content and modules
+    async clearContent() {
         // Clean up current module if it has cleanup
         if (this.currentModuleCleanup) {
             try {
                 this.currentModuleCleanup();
+                console.log('Previous module cleaned up');
             } catch (error) {
                 console.warn('Module cleanup failed:', error);
             }
@@ -94,97 +97,97 @@ class Router {
 
         // Clear only the app content, preserve header
         this.appDiv.innerHTML = '';
-        
-        return Promise.resolve();
     }
 
+    // Load HTML content into the app div
     async loadContent(url) {
         try {
             console.log('Loading content from:', url);
             
-            // Clear previous content but preserve header
             await this.clearContent();
-            
-            // Load header if it doesn't exist
             await this.ensureHeaderLoaded();
             
-            // Add loading state
+            // Show loading state
             this.appDiv.innerHTML = '<div class="loading">Loading...</div>';
             
+            // Fetch content
             const response = await fetch(url);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             
             const html = await response.text();
-            console.log('Content fetched, parsing...');
+            console.log('Content fetched, extracting...');
             
-            // Parse and insert content
-            const contentToInsert = this.extractContent(html);
+            // Extract and insert content
+            const contentToInsert = this.extractContent(html, url);
             this.appDiv.innerHTML = contentToInsert;
             console.log('Content inserted into DOM');
             
-            // Small delay to ensure DOM is ready
+            // Ensure DOM is ready
             await new Promise(resolve => requestAnimationFrame(resolve));
             
         } catch (error) {
             console.error('Error loading content:', error);
-            this.appDiv.innerHTML = `<div class="loading"><h1>Error</h1><p>Could not load content: ${error.message}</p></div>`;
+            this.appDiv.innerHTML = `
+                <div class="loading">
+                    <h1>Error</h1>
+                    <p>Could not load content from ${url}</p>
+                    <p>Error: ${error.message}</p>
+                </div>
+            `;
         }
     }
 
-    extractContent(html) {
-        // Handle full HTML documents vs partial content
-        if (html.includes('<!DOCTYPE html>')) {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            
-            // For landing-page.html, we want the entire body content since it's designed as a page
-            if (html.includes('Upload Section - Asset Debugger')) {
-                console.log('Extracting landing page content from body');
-                const body = doc.body;
-                if (body) {
-                    // Remove any header containers and scripts
-                    const headerContainer = body.querySelector('#header-container');
-                    if (headerContainer) {
-                        headerContainer.remove();
-                    }
-                    
-                    const scripts = body.querySelectorAll('script');
-                    scripts.forEach(script => script.remove());
-                    
-                    return body.innerHTML;
-                }
-            }
-            
-            // Extract only the app content for other pages
-            const sourceAppDiv = doc.getElementById('app');
-            if (sourceAppDiv) {
-                return sourceAppDiv.innerHTML;
-            } else {
-                // Fallback: use body content but exclude header-related elements
-                const bodyContent = doc.body.cloneNode(true);
-                
-                // Use querySelector instead of getElementById on the cloned node
-                const headerContainer = bodyContent.querySelector('#header-container');
-                if (headerContainer) {
-                    headerContainer.remove();
-                }
-                
-                // Remove any scripts that might interfere
-                const scripts = bodyContent.querySelectorAll('script');
-                scripts.forEach(script => script.remove());
-                
-                return bodyContent.innerHTML;
-            }
-        } else {
-            return html;
+    // Extract content from HTML based on file type
+    extractContent(html, url) {
+        if (!html.includes('<!DOCTYPE html>')) {
+            return html; // Return as-is if not a full HTML document
         }
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        // Special handling for landing page
+        if (url.includes('landing-page.html')) {
+            console.log('Extracting landing page content');
+            return this.extractBodyContent(doc);
+        }
+        
+        // For other pages, try to extract app div content first
+        const sourceAppDiv = doc.getElementById('app');
+        if (sourceAppDiv) {
+            console.log('Extracting app div content');
+            return sourceAppDiv.innerHTML;
+        }
+        
+        // Fallback to body content
+        console.log('Extracting body content as fallback');
+        return this.extractBodyContent(doc);
     }
 
+    // Helper to extract body content while removing unwanted elements
+    extractBodyContent(doc) {
+        const body = doc.body.cloneNode(true);
+        
+        // Remove elements that shouldn't be duplicated
+        const elementsToRemove = [
+            '#header-container',
+            'script',
+            'link[rel="stylesheet"]'
+        ];
+        
+        elementsToRemove.forEach(selector => {
+            const elements = body.querySelectorAll(selector);
+            elements.forEach(el => el.remove());
+        });
+        
+        return body.innerHTML;
+    }
+
+    // Ensure header is loaded
     async ensureHeaderLoaded() {
         const headerContainer = document.getElementById('header-container');
         if (headerContainer && headerContainer.innerHTML.trim() === '') {
             try {
-                // Dynamically import and load the header
                 const { loadHeader } = await import('./header/header-loader.js');
                 await loadHeader('header-container');
                 console.log('Header loaded by router');
@@ -194,91 +197,53 @@ class Router {
         }
     }
 
-    // Method to register cleanup functions
-    addCleanupFunction(cleanupFn) {
-        this.currentCleanupFunctions.push(cleanupFn);
-    }
-
-    // Method to register module cleanup
-    setModuleCleanup(cleanupFn) {
-        this.currentModuleCleanup = cleanupFn;
+    // Initialize a module after content is loaded
+    async initializeModule(modulePath, initFunctionName, routeName) {
+        try {
+            console.log(`Importing ${routeName} module from: ${modulePath}`);
+            const module = await import(`${modulePath}?t=${Date.now()}`);
+            
+            console.log(`Module imported. Available exports:`, Object.keys(module));
+            
+            if (module[initFunctionName]) {
+                console.log(`Initializing ${routeName}...`);
+                const cleanup = await module[initFunctionName]();
+                
+                if (cleanup && typeof cleanup === 'function') {
+                    this.currentModuleCleanup = cleanup;
+                }
+                
+                console.log(`${routeName} initialized successfully`);
+            } else {
+                console.error(`${initFunctionName} function not found in ${routeName} module`);
+                console.error('Available functions:', Object.keys(module));
+            }
+        } catch (error) {
+            console.error(`Error importing or initializing ${routeName} module:`, error);
+            console.error('Module path:', modulePath);
+            console.error('Init function name:', initFunctionName);
+        }
     }
 }
 
 // Initialize router
 const router = new Router();
 
-// Route handlers that properly wait for content to load before initializing modules
+// Define routes
 router
     .addRoute('/landing', async () => {
-        console.log('Loading landing page route...');
+        console.log('🏠 Loading landing page...');
         await router.loadContent('./landing-page/landing-page.html');
-        
-        // Initialize directly after content is loaded
-        try {
-            console.log('Importing landing page module...');
-            const module = await import('./landing-page/landing-page.js?t=' + Date.now());
-            console.log('Landing page module imported, initializing...');
-            
-            if (module.initalizeLandingPage) {
-                const cleanup = await module.initalizeLandingPage();
-                if (cleanup) {
-                    router.setModuleCleanup(cleanup);
-                }
-                console.log('Landing page initialized successfully');
-            } else {
-                console.error('initalizeLandingPage function not found in module');
-            }
-        } catch (error) {
-            console.error('Error importing or initializing landing page module:', error);
-        }
+        await router.initializeModule('./landing-page/landing-page.js', 'initalizeLandingPage', 'landing page');
     })
     .addRoute('/asset-debugger', async () => {
-        console.log('Loading asset debugger route...');
+        console.log('🎯 Loading asset debugger...');
         await router.loadContent('./scene/asset_debugger.html');
-        
-        try {
-            console.log('Importing asset debugger module...');
-            // Import and initialize the asset debugger module
-            const module = await import('./scene/asset_debugger.js?t=' + Date.now());
-            
-            if (module.initializeAssetDebugger) {
-                const cleanup = await module.initializeAssetDebugger();
-                if (cleanup) {
-                    router.setModuleCleanup(cleanup);
-                }
-                console.log('Asset debugger initialized successfully');
-            } else {
-                console.error('initializeAssetDebugger function not found in module');
-            }
-        } catch (error) {
-            console.error('Error importing or initializing asset debugger module:', error);
-        }
+        await router.initializeModule('./scene/asset_debugger.js', 'setupAssetDebugger', 'asset debugger');
     })
     .addRoute('/tools', async () => {
-        await router.loadContent('./index.html');
-        console.log('Development tools page loaded');
-    })
-    .addRoute('/js', async () => {
-        console.log('Loading js route (landing page)...');
-        await router.loadContent('./landing-page/landing-page.html');
-        
-        try {
-            console.log('Importing landing page module for js route...');
-            const module = await import('./landing-page/landing-page.js?t=' + Date.now());
-            
-            if (module.initalizeLandingPage) {
-                const cleanup = await module.initalizeLandingPage();
-                if (cleanup) {
-                    router.setModuleCleanup(cleanup);
-                }
-                console.log('Landing page initialized successfully for js route');
-            } else {
-                console.error('initalizeLandingPage function not found in module for js route');
-            }
-        } catch (error) {
-            console.error('Error importing or initializing landing page module for js route:', error);
-        }
+        console.log('🔧 Loading tools page...');
+        await router.loadContent('./tools.html'); // Assuming you have a tools.html file
     });
 
 // Make router globally available
