@@ -1,8 +1,9 @@
-// router.js - SPA router that loads content into div
+// router.js - Simple SPA router
 class Router {
     constructor() {
         this.routes = new Map();
         this.appDiv = document.getElementById('app');
+        this.currentCleanupFunctions = [];
         this.init();
     }
 
@@ -14,7 +15,6 @@ class Router {
     init() {
         window.addEventListener('hashchange', this.handleRoute.bind(this));
         window.addEventListener('load', this.handleRoute.bind(this));
-        
         // Default route if no hash
         if (!window.location.hash) {
             this.navigate('/landing');
@@ -36,13 +36,58 @@ class Router {
         window.location.hash = path;
     }
 
+    // Simple cleanup - just clear the app content
+    clearContent() {
+        // Run any cleanup functions from the previous page
+        this.currentCleanupFunctions.forEach(cleanup => {
+            try {
+                cleanup();
+            } catch (error) {
+                console.warn('Cleanup function failed:', error);
+            }
+        });
+        this.currentCleanupFunctions = [];
+
+        // Simple clear
+        this.appDiv.innerHTML = '';
+        
+        // Clear header container if it exists
+        const headerContainer = document.getElementById('header-container');
+        if (headerContainer) {
+            headerContainer.innerHTML = '';
+        }
+        
+        return Promise.resolve();
+    }
+
     async loadContent(url) {
         try {
+            // Clear previous content
+            await this.clearContent();
+            
+            // Add loading state
+            this.appDiv.innerHTML = '<div class="loading">Loading...</div>';
+            
             const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
             const html = await response.text();
-            this.appDiv.innerHTML = html;
+            
+            // Clear loading and set new content
+            this.appDiv.innerHTML = '';
+            
+            // Handle full HTML documents vs partial content
+            if (url.endsWith('index.html') || html.includes('<!DOCTYPE html>')) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                this.appDiv.innerHTML = doc.body.innerHTML;
+            } else {
+                this.appDiv.innerHTML = html;
+            }
+            
+            // Execute any scripts in the loaded content
             this.executeScripts();
+            
         } catch (error) {
             this.appDiv.innerHTML = `<div class="loading"><h1>Error</h1><p>Could not load content: ${error.message}</p></div>`;
         }
@@ -50,27 +95,18 @@ class Router {
 
     executeScripts() {
         const scripts = this.appDiv.querySelectorAll('script');
-        console.log('Found scripts:', scripts.length);
         
-        scripts.forEach((script, index) => {
-            console.log(`Script ${index}:`, {
-                src: script.src,
-                type: script.type,
-                textContent: script.textContent.substring(0, 100)
-            });
-            
+        scripts.forEach((script) => {
             const newScript = document.createElement('script');
             
-            // Copy all attributes
+            // Copy attributes
             Array.from(script.attributes).forEach(attr => {
                 newScript.setAttribute(attr.name, attr.value);
             });
             
-            // Copy script content
+            // Copy content
             if (script.src) {
                 newScript.src = script.src;
-                newScript.onload = () => console.log(`Script loaded: ${script.src}`);
-                newScript.onerror = (e) => console.error(`Script failed: ${script.src}`, e);
             } else {
                 newScript.textContent = script.textContent;
             }
@@ -79,19 +115,19 @@ class Router {
             script.parentNode.replaceChild(newScript, script);
         });
     }
+
+    // Method to register cleanup functions
+    addCleanupFunction(cleanupFn) {
+        this.currentCleanupFunctions.push(cleanupFn);
+    }
 }
-
-
 
 // Initialize router
 const router = new Router();
 
 router
-router
     .addRoute('/landing', async () => {
         await router.loadContent('./landing-page/landing-page.html');
-        
-        // Directly import and execute the landing page module
         try {
             const module = await import('./landing-page/landing-page.js');
             if (module.initalizeLandingPage) {
@@ -101,6 +137,10 @@ router
         } catch (error) {
             console.error('Error importing landing page module:', error);
         }
+    })
+    .addRoute('/tools', async () => {
+        await router.loadContent('./index.html');
+        console.log('Development tools page loaded');
     })
     .addRoute('/js', async () => {
         await router.loadContent('./landing-page/landing-page.html');

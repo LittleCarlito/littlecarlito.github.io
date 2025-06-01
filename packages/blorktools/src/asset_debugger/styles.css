@@ -2275,3 +2275,38 @@ h2 {
     border-radius: 3px;
     width: 100px;
 }
+
+/* TODO Murder users of this and instead use landing-page */
+#app {
+    min-height: 100vh;
+}
+
+.loading {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    text-align: center;
+    font-family: var(--font-family);
+}
+
+.loading h1 {
+    color: var(--primary-color);
+    margin-bottom: 20px;
+}
+
+.loading p {
+    color: var(--text-color);
+    margin: 10px 0;
+}
+
+.loading a {
+    color: var(--button-color);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.loading a:hover {
+    color: var(--primary-color);
+}

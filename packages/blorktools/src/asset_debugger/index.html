@@ -4,28 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Asset Debugger - Blorktools</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #121212;
-            color: #e1e1e1;
-            margin: 0;
-            padding: 0;
-        }
-        #app {
-            min-height: 100vh;
-        }
-        .loading {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            text-align: center;
-        }
-        h1 {
-            color: #5d8fff;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <!-- Header container - will be populated by the header-loader.js script -->
@@ -33,9 +12,9 @@
 
     <div id="app">
         <div class="loading">
-        <h1>Asset Debugger</h1>
-        <p>Redirecting to the Asset Debugger tool...</p>
-        <p>If you are not redirected automatically, <a href="./landing-page/landing-page.html" style="color: #5d8fff;">click here</a>.</p>
+            <h1>Asset Debugger</h1>
+            <p>Redirecting to the Asset Debugger tool...</p>
+            <p>If you are not redirected automatically, <a href="./landing-page/landing-page.html">click here</a>.</p>
         </div>
     </div>
 
@@ -49,6 +28,32 @@
         });
     </script>
 
+    <script>
+    console.log('Asset Debugger page loaded');
+    console.log('Current URL:', window.location.href);
+    console.log('Current hash:', window.location.hash);
+
+    // Force navigation to landing page if no hash is set
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM loaded for asset debugger');
+        
+        // If no hash is set, force navigate to landing
+        if (!window.location.hash || window.location.hash === '#') {
+            console.log('No hash found, navigating to landing');
+            window.location.hash = '#/landing';
+        }
+        
+        // Also ensure the app div is ready
+        const appDiv = document.getElementById('app');
+        if (appDiv) {
+            console.log('App div found:', appDiv);
+            console.log('App div content:', appDiv.innerHTML.substring(0, 100));
+        } else {
+            console.error('App div not found!');
+        }
+    });
+    </script>
+    
     <script src="router.js"></script>
 </body>
 </html>

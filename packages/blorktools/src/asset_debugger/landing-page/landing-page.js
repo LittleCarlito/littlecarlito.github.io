@@ -13,7 +13,7 @@ export function initalizeLandingPage() {
     setupMainContainerDropzone();
     
     // Load the examples modal HTML content
-    fetch('../modals/examples-modal/examples-modal.html')
+    fetch('./modals/examples-modal/examples-modal.html')
         .then(response => response.text())
         .then(html => {
             // Insert the HTML into the container
@@ -62,8 +62,12 @@ function showExamplesModal() {
 function preventDefaultDragBehavior() {
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         document.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+            // Only prevent if it's actually a file drag operation
+            if (e.dataTransfer && e.dataTransfer.types && 
+                (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('application/x-moz-file'))) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
         }, false);
     });
 }
