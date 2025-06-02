@@ -69,11 +69,11 @@ export async function processModelFileForHtmlEditor(file) {
         const result = await processGLBModel(file);
         
         if (!result || !result.arrayBuffer) {
-            console.error('[DEBUG] processGLBModel failed to return a valid buffer');
+            console.error('processGLBModel failed to return a valid buffer');
             return null;
         }
         
-        console.log(`[DEBUG] processModelFileForHtmlEditor: processed buffer size ${result.arrayBuffer.byteLength} bytes`);
+        console.debig(`processModelFileForHtmlEditor: processed buffer size ${result.arrayBuffer.byteLength} bytes`);
         
         // Clone the buffer to ensure we don't have reference issues
         const clonedBuffer = result.arrayBuffer.slice(0);

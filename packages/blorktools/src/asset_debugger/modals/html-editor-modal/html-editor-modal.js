@@ -677,7 +677,7 @@ export function initHtmlEditorModal() {
                     // Get the current GLB buffer first
                     const glbArrayBuffer = getCurrentGlbBuffer();
                     
-                    console.log(`[DEBUG] Initial GLB buffer reference: ${glbArrayBuffer ? 'valid' : 'null'}, size: ${glbArrayBuffer ? glbArrayBuffer.byteLength : 0} bytes, id: ${glbArrayBuffer ? glbArrayBuffer.toString().substring(0, 20) : 'none'}`);
+                    console.debug(`Initial GLB buffer reference: ${glbArrayBuffer ? 'valid' : 'null'}, size: ${glbArrayBuffer ? glbArrayBuffer.byteLength : 0} bytes, id: ${glbArrayBuffer ? glbArrayBuffer.toString().substring(0, 20) : 'none'}`);
                     
                     if (!glbArrayBuffer) {
                         throw new Error('GLB buffer not found. Make sure the model is loaded properly.');

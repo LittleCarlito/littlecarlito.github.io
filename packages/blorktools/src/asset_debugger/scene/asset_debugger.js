@@ -251,7 +251,7 @@ function startDebugging() {
     import('./state.js')
         .then(stateModule => {
             const currentState = stateModule.getState();
-            console.log('[DEBUG] Initial state before debugging:', {
+            console.debug('Initial state before debugging:', {
                 backgroundFile: currentState.backgroundFile ? 
                     `${currentState.backgroundFile.name} (${currentState.backgroundFile.type})` : 'null',
                 backgroundTexture: currentState.backgroundTexture ? 'Texture present' : 'null'

@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
-import { getState, updateState } from '../scene/state.js';
+import { getState, updateState } from '../../scene/state.js';
 
 // Track loaded textures to avoid duplicates
 const textureCache = new Map();
@@ -176,7 +176,7 @@ function applyBackgroundTexture(texture, file) {
         return;
     }
     
-    console.log('[DEBUG] Adding background texture to state');
+    console.debug('Adding background texture to state');
     
     // Store the file and texture in state for reference
     updateState({
@@ -194,7 +194,7 @@ function applyBackgroundTexture(texture, file) {
     document.dispatchEvent(event);
     
     // Call into world panel to update metadata, but don't change the radio selection
-    import('../panels/world-panel/world-panel.js').then(worldPanelModule => {
+    import('../../panels/world-panel/world-panel.js').then(worldPanelModule => {
         if (worldPanelModule.updateBackgroundInfo) {
             // Get metadata to display in the UI
             const metadata = {
@@ -225,7 +225,7 @@ function applyBackgroundTexture(texture, file) {
         console.warn('Could not update world panel with background info:', error);
     });
     
-    console.log('[DEBUG] Background texture added to state successfully');
+    console.debug('Background texture added to state successfully');
 }
 
 /**
@@ -247,11 +247,11 @@ export function toggleBackgroundVisibility(visible) {
     if (visible) {
         // Show the background - apply the texture if available
         if (backgroundTexture) {
-            console.log('[DEBUG] Showing background texture');
+            console.debug('Showing background texture');
             
             // For all textures, set the scene background directly
             scene.background = backgroundTexture;
-            console.log('[DEBUG] Restored background texture');
+            console.debug('Restored background texture');
             
             // Dispatch event to notify UI components
             const event = new CustomEvent('background-visibility-changed', { 
@@ -260,7 +260,7 @@ export function toggleBackgroundVisibility(visible) {
             document.dispatchEvent(event);
         } else if (state.backgroundFile) {
             // If we have a background file but no texture, try to load it
-            console.log('[DEBUG] No texture but have file, reloading background:', 
+            console.debug('No texture but have file, reloading background:', 
                 state.backgroundFile.name);
             setupBackgroundImage(state.backgroundFile);
         }
@@ -272,7 +272,7 @@ export function toggleBackgroundVisibility(visible) {
             if (!scene.userData) scene.userData = {};
             scene.userData.savedBackground = scene.background;
             scene.background = null;
-            console.log('[DEBUG] Background hidden');
+            console.debug('Background hidden');
         }
         
         // Dispatch event to notify UI components

@@ -105,7 +105,7 @@ export function toggleOptionVisibility(optionId, visible) {
  */
 function updateBackgroundUIVisibility(uiState) {
     // Log the current state for debugging
-    console.log('[DEBUG] Updating background UI visibility with state:', uiState);
+    console.debug('Updating background UI visibility with state:', uiState);
     
     // 1. Update the preview canvas opacity
     updateCanvasOpacity(currentBackgroundOption);
@@ -149,7 +149,7 @@ export function initWorldPanel() {
         return;
     }
     
-    console.log('[DEBUG] Initializing World Panel...');
+    console.debug('Initializing World Panel...');
     
     // Look for world-tab (from world-panel.html) or world-tab-container (from asset_debugger.html)
     const worldPanel = document.getElementById('world-tab') || document.getElementById('world-tab-container');
@@ -159,7 +159,7 @@ export function initWorldPanel() {
         return;
     }
     
-    console.log('[DEBUG] World panel found, initializing...');
+    console.debug('World panel found, initializing...');
     
     // Initially hide background and HDR options until content is loaded
     toggleOptionVisibility('background-option', false);
@@ -492,7 +492,7 @@ export function toggleBackgroundMessages(hasContent, forceShow = false) {
     const backgroundDataInfo = document.querySelector('.background-data-info');
     
     if (!noBackgroundMessage || !backgroundDataInfo) {
-        console.warn('[DEBUG] Background message elements not found');
+        console.warn('Background message elements not found');
         return;
     }
     
@@ -519,7 +519,7 @@ function toggleLightingMessages(hasContent, forceShow = false) {
     const lightingDataInfo = document.querySelector('.lighting-data-info');
     
     if (!noDataMessage || !lightingDataInfo) {
-        console.warn('[DEBUG] Lighting message elements not found');
+        console.warn('Lighting message elements not found');
         return;
     }
     

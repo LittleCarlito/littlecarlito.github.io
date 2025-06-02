@@ -25,7 +25,7 @@ export function initAssetPanel() {
         return;
     }
     
-    console.log('[DEBUG] Initializing Asset Panel...');
+    console.debug('Initializing Asset Panel...');
     
     // Look for asset-tab or asset-tab-container
     const assetPanel = document.getElementById('asset-tab') || document.getElementById('asset-tab-container');
@@ -35,7 +35,7 @@ export function initAssetPanel() {
         return;
     }
     
-    console.log('[DEBUG] Asset panel found, initializing...');
+    console.debug('Asset panel found, initializing...');
     
     // Initialize collapsible functionality
     const collapsibleHeaders = document.querySelectorAll('.asset-section .collapsible-header');
