@@ -36,6 +36,32 @@ export function initControls(camera, domElement) {
     if (!domElement) {
         throw new Error('DOM element is required to initialize controls');
     }
+
+    // TODO If works refactor to function
+    // Prevent standard right click behavior
+    let controlsActive = false;
+    let isDragging = false;
+    // Set state when orbit controls are engaged
+    document.addEventListener('mousedown', function(e) {
+        if (e.button === 2) { // Right mouse button
+            controlsActive = true;
+            isDragging = true;
+        }
+    });
+    document.addEventListener('mouseup', function(e) {
+        if (e.button === 2) {
+            isDragging = false;
+            // Keep controlsActive true briefly to prevent context menu
+            setTimeout(() => controlsActive = false, 50);
+        }
+    });
+    document.addEventListener('contextmenu', function(e) {
+        if (controlsActive || isDragging) {
+            e.preventDefault();
+            return false;
+        }
+    });
+
     
     const controls = new OrbitControls(camera, domElement);
     

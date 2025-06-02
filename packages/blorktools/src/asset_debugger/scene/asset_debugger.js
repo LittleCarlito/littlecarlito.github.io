@@ -410,12 +410,7 @@ function checkAllResourcesLoaded() {
         
         if (!loadingComplete) {
             loadingComplete = true;
-            console.log('All resources loaded, hiding splash screen');
-            
-            // Give a small delay to ensure everything is rendered properly
-            setTimeout(() => {
-                hideLoadingSplash();
-            }, 500);
+            console.debug('All resources loaded...');
         }
     } else {
         // Log which resources are still not loaded
