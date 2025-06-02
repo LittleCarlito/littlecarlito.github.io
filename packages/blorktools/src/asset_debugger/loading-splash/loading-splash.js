@@ -1,5 +1,7 @@
 // LOADING FUNCTIONS
 
+// TODO Turn this into an overlay and have the SPA have functions to turn it on and off as well as update what it says
+
 /**
  * Shows the loading splash screen
  */

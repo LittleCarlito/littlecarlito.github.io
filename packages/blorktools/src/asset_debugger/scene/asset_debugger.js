@@ -233,10 +233,6 @@ function initializeScene() {
 function startDebugging() {
     console.log('Starting debugging...');
     
-    // Show the loading splash screen first
-    showLoadingSplash();
-    updateLoadingProgress('Initializing asset debugger...');
-    
     // Load settings from localStorage at the start
     const savedSettings = loadSettings();
     
