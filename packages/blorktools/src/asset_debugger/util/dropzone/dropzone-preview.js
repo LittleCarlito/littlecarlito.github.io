@@ -340,7 +340,7 @@ function addClearButton(container, file) {
                 });
                 
                 // Reset state model file
-                import('../scene/state.js').then(stateModule => {
+                import('../../scene/state.js').then(stateModule => {
                     const state = stateModule.getState();
                     state.modelFile = null;
                     state.useCustomModel = false;

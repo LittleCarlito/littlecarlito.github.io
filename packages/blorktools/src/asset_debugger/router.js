@@ -115,10 +115,14 @@ class Router {
             if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             
             const html = await response.text();
-            console.log('Content fetched, extracting...');
+            console.log('Content fetched, size:', html.length, 'bytes');
+            console.log('Content preview:', html.substring(0, 200) + '...');
             
             // Extract and insert content
             const contentToInsert = this.extractContent(html, url);
+            console.log('Extracted content size:', contentToInsert.length, 'bytes');
+            console.log('Extracted content preview:', contentToInsert.substring(0, 200) + '...');
+            
             this.appDiv.innerHTML = contentToInsert;
             console.log('Content inserted into DOM');
             
@@ -140,28 +144,29 @@ class Router {
     // Extract content from HTML based on file type
     extractContent(html, url) {
         if (!html.includes('<!DOCTYPE html>')) {
-            return html; // Return as-is if not a full HTML document
+            console.log(`Content is not a full HTML document, returning as-is`);
+            return html;
         }
 
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         
+        console.log(`Extracting content from ${url}`);
+        
         // Special handling for landing page
         if (url.includes('landing-page.html')) {
-            console.log('Extracting landing page content');
+            console.log('Processing landing page HTML');
             return this.extractBodyContent(doc);
         }
         
-        // For other pages, try to extract app div content first
-        const sourceAppDiv = doc.getElementById('app');
-        if (sourceAppDiv) {
-            console.log('Extracting app div content');
-            return sourceAppDiv.innerHTML;
+        // Special handling for asset debugger
+        if (url.includes('asset_debugger.html')) {
+            console.log('Processing asset debugger HTML');
+            return this.extractBodyContent(doc);
         }
         
-        // Fallback to body content
-        console.log('Extracting body content as fallback');
-        return this.extractBodyContent(doc);
+        // For all other pages, fail explicitly if we don't know how to handle them
+        throw new Error(`Don't know how to extract content from ${url}. Add explicit handling for this file type.`);
     }
 
     // Helper to extract body content while removing unwanted elements
@@ -240,10 +245,6 @@ router
         console.log('🎯 Loading asset debugger...');
         await router.loadContent('./scene/asset_debugger.html');
         await router.initializeModule('./scene/asset_debugger.js', 'setupAssetDebugger', 'asset debugger');
-    })
-    .addRoute('/tools', async () => {
-        console.log('🔧 Loading tools page...');
-        await router.loadContent('./tools.html'); // Assuming you have a tools.html file
     });
 
 // Make router globally available

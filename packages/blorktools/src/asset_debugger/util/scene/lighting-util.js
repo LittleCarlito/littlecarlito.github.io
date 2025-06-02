@@ -4,7 +4,7 @@
  * This module handles lighting setup and management for the Asset Debugger.
  */
 import * as THREE from 'three';
-import { getState, updateState } from './state';
+import { getState, updateState } from '../../scene/state';
 
 // Default exposure value for HDR/EXR environment maps
 let environmentExposure = 1.0;

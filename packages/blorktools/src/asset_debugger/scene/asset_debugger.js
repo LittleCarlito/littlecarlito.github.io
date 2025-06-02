@@ -13,22 +13,12 @@ import { SettingsModal } from '../modals/settings-modal/settings-modal.js';
 import { initAssetPanel } from '../panels/asset-panel/asset-panel.js';
 // Import Model Integration for HTML Editor
 import { initModelIntegration } from '../modals/html-editor-modal/model-integration.js';
-// Import ZIP utilities
-import { 
-    processZipContents, 
-    loadTextureIntoDropzone, 
-    updateStateWithBestTextures,
-    loadModelIntoDropzone,
-    loadLightingIntoDropzone,
-    loadBackgroundIntoDropzone,
-    updateStateWithOtherAssets
-} from '../landing-page/zip-util.js';
 import { initHtmlEditorModal } from '../modals/html-editor-modal/html-editor-modal.js';
 import { initWorldPanel } from '../panels/world-panel/world-panel.js';
-import { updateState } from './state.js';
+import { getState, printStateReport } from './state.js';
 import { initUiManager } from '../util/ui-manager.js';
 import { hideLoadingSplash, showLoadingSplash, updateLoadingProgress } from '../loading-splash/loading-splash.js';
-import { setupDropzones } from '../landing-page/dropzone-util.js';
+import { setupDropzones } from '../util/dropzone/dropzone-util.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
@@ -60,29 +50,20 @@ let loadingComplete = false;
  * Sets up the UI, loads components, and initializes the 3D scene.
  */
 export function setupAssetDebugger() {
-    // Show loading splash screen
-    showLoadingSplash();
-    updateLoadingProgress('Initializing asset debugger...');
-    
-    console.log('Asset Debugger UI: Initializing...');
-    
+    getState();
+    printStateReport('Asset-Debugger');
+    console.debug('Asset Debugger UI: Initializing...');
     // Initialize UI components
     initUiManager();
-    
     // Load all component HTML files
     loadComponentHtml();
-    
-    // Initialize the 3D environment
+    // // Initialize the 3D environment
     initializeScene();
-    
-    // Set up the event listeners for debugging
+    // // Set up the event listeners for debugging
     const restartDebugBtn = document.getElementById('restart-debug');
     if (restartDebugBtn) {
         restartDebugBtn.addEventListener('click', restartDebugging);
     }
-    
-    // Update loading text to show we're done with initialization
-    updateLoadingProgress('Asset debugger initialized - waiting for all components to load...');
 }
 
 /**
@@ -90,7 +71,7 @@ export function setupAssetDebugger() {
  */
 function loadComponentHtml() {
     // Create promises for each component load
-    const worldPanelPromise = fetch('../panels/world-panel/world-panel.html')
+    const worldPanelPromise = fetch('./panels/world-panel/world-panel.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('world-tab-container').innerHTML = html;
@@ -103,7 +84,7 @@ function loadComponentHtml() {
             throw error;
         });
 
-    const assetPanelPromise = fetch('../panels/asset-panel/asset-panel.html')
+    const assetPanelPromise = fetch('./panels/asset-panel/asset-panel.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('asset-tab-container').innerHTML = html;
@@ -116,7 +97,7 @@ function loadComponentHtml() {
             throw error;
         });
 
-    const settingsModalPromise = fetch('../modals/settings-modal/settings-modal.html')
+    const settingsModalPromise = fetch('./modals/settings-modal/settings-modal.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('settings-modal-container').innerHTML = html;
@@ -151,7 +132,7 @@ function loadComponentHtml() {
             throw error;
         });
 
-    const htmlEditorPromise = fetch('../modals/html-editor-modal/html-editor-modal.html')
+    const htmlEditorPromise = fetch('./modals/html-editor-modal/html-editor-modal.html')
         .then(response => response.text())
         .then(html => {
             document.getElementById('html-editor-modal-container').innerHTML = html;
@@ -220,7 +201,7 @@ function initializeScene() {
                     updateLoadingProgress('Finalizing camera controls...');
                     
                     // Import and ensure camera controls are fully initialized
-                    import('./controls.js')
+                    import('../util/scene/controls.js')
                         .then(() => {
                             resourcesLoaded.controlsReady = true;
                             checkAllResourcesLoaded();
@@ -249,7 +230,7 @@ function initializeScene() {
 /**
  * Main function that handles the debugging process
  */
-export function startDebugging() {
+function startDebugging() {
     console.log('Starting debugging...');
     
     // Show the loading splash screen first
@@ -294,7 +275,7 @@ export function startDebugging() {
                 const lightingFile = stateModule.getLightingFile();
                 promiseChain = promiseChain.then(() => {
                     console.log('Setting up environment lighting from:', lightingFile.name);
-                    return import('./lighting-util.js')
+                    return import('../util/scene/lighting-util.js')
                         .then(lightingModule => {
                             return lightingModule.setupEnvironmentLighting(lightingFile)
                                 .then(texture => {
@@ -329,7 +310,7 @@ export function startDebugging() {
                 const backgroundFile = stateModule.getBackgroundFile();
                 promiseChain = promiseChain.then(() => {
                     console.log('Setting up background from:', backgroundFile.name);
-                    return import('../util/background-util.js')
+                    return import('../util/scene/background-util.js')
                         .then(backgroundModule => {
                             return backgroundModule.setupBackgroundImage(backgroundFile)
                                 .then(texture => {
@@ -401,7 +382,7 @@ export function startDebugging() {
             return promiseChain.then(() => {
                 console.log('Finalizing camera controls...');
                 updateLoadingProgress('Finalizing camera controls...');
-                return import('./controls.js')
+                return import('../util/scene/controls.js')
                     .then(() => {
                         console.log('Camera controls initialized');
                         resourcesLoaded.controlsReady = true;

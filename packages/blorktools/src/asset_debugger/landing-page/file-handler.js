@@ -17,8 +17,8 @@ import {
   processLightingFile, 
   terminateAllWorkers 
 } from '../util/workers/worker-manager.js';
-import { parseLightingData } from '../scene/lighting-util';
-import { clearDropzone, setupDropzone } from './dropzone-util';
+import { parseLightingData } from '../util/scene/lighting-util';
+import { clearDropzone, setupDropzone } from '../util/dropzone/dropzone-util';
 
 // Add event listener to terminate all workers when the page is unloaded
 window.addEventListener('beforeunload', () => {

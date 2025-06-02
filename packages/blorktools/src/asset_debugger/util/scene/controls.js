@@ -7,11 +7,12 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { getState, updateState } from './state';
+import { getState, updateState } from '../../scene/state';
 
 // Store a reference to the controls instance
 let controlsInstance = null;
 let previousState = { target: new THREE.Vector3(), position: new THREE.Vector3() };
+let isInitialized = false;
 
 /**
  * Initialize camera controls
@@ -20,6 +21,22 @@ let previousState = { target: new THREE.Vector3(), position: new THREE.Vector3()
  * @returns {OrbitControls} The initialized controls
  */
 export function initControls(camera, domElement) {
+    console.log('Controls: initControls called');
+    
+    // Prevent multiple initializations
+    if (isInitialized && controlsInstance) {
+        console.warn('Controls already initialized, returning existing instance');
+        return controlsInstance;
+    }
+    
+    if (!camera) {
+        throw new Error('Camera is required to initialize controls');
+    }
+    
+    if (!domElement) {
+        throw new Error('DOM element is required to initialize controls');
+    }
+    
     const controls = new OrbitControls(camera, domElement);
     
     // Configure controls
@@ -45,15 +62,15 @@ export function initControls(camera, domElement) {
         isMouseDown = false;
     });
     
-    // Ensure continuous updating when not interacting
-    controls.addEventListener('change', () => {
-        updateState('lastControlsChange', Date.now());
-    });
-    
-    // Store controls in state and in local reference
+    // Store controls in local reference first
     controlsInstance = controls;
+    isInitialized = true;
+    
+    // Store in state
+    console.log('Controls: Storing controls in state');
     updateState('controls', controls);
     
+    console.log('Controls initialized successfully');
     return controls;
 }
 
@@ -63,7 +80,7 @@ export function initControls(camera, domElement) {
  * @returns {OrbitControls|null} The controls instance or null if not initialized
  */
 export function getControls() {
-    return controlsInstance || getState().controls;
+    return controlsInstance;
 }
 
 /**
@@ -74,6 +91,7 @@ export function getControls() {
  * @returns {OrbitControls} The initialized controls
  */
 export function createControls(camera, domElement) {
+    console.log('Controls: createControls called');
     return initControls(camera, domElement);
 }
 
@@ -82,7 +100,7 @@ export function createControls(camera, domElement) {
  * @returns {boolean} True if controls are ready, false otherwise
  */
 export function areControlsReady() {
-    return !!getControls();
+    return isInitialized && !!controlsInstance;
 }
 
 /**
@@ -90,9 +108,12 @@ export function areControlsReady() {
  */
 export function resetControls() {
     const controls = getControls();
-    if (controls) {
-        controls.reset();
+    if (!controls) {
+        console.warn('Cannot reset controls: not initialized');
+        return;
     }
+    
+    controls.reset();
 }
 
 /**
@@ -101,7 +122,10 @@ export function resetControls() {
  */
 export function updateControlSettings(settings = {}) {
     const controls = getControls();
-    if (!controls) return;
+    if (!controls) {
+        console.warn('Cannot update control settings: not initialized');
+        return;
+    }
     
     // Apply settings if provided
     if (settings.enableDamping !== undefined) controls.enableDamping = settings.enableDamping;
@@ -119,7 +143,9 @@ export function updateControlSettings(settings = {}) {
  */
 export function updateControls() {
     const controls = getControls();
-    if (!controls) return;
+    if (!controls) {
+        return;
+    }
     
     // Always update controls if they exist, no need for extra checks
     // This ensures smooth camera movement regardless of interaction state
@@ -132,19 +158,16 @@ export function updateControls() {
  */
 export function setControlsTarget(position) {
     const controls = getControls();
-    if (controls) {
-        controls.target.copy(position);
-        controls.update();
+    if (!controls) {
+        console.warn('Cannot set controls target: not initialized');
+        return;
     }
+    
+    if (!position) {
+        console.warn('Cannot set controls target: position is required');
+        return;
+    }
+    
+    controls.target.copy(position);
+    controls.update();
 }
-
-export default {
-    initControls,
-    getControls,
-    createControls,
-    areControlsReady,
-    resetControls,
-    updateControlSettings,
-    updateControls,
-    setControlsTarget
-}; 

@@ -424,6 +424,7 @@ export function loadDebugModel() {
         if (!state.scene) {
             console.log('Scene not initialized yet, waiting for scene initialization...');
             
+            // TODO Refactor this to be proper event based
             // Check periodically for scene initialization
             let attempts = 0;
             const maxAttempts = 10;
@@ -742,10 +743,3 @@ function checkAndApplyCustomDisplaySettings() {
         });
     });
 }
-
-export default {
-    createCube,
-    createLightingTestCube,
-    loadAndSetupModel,
-    loadDebugModel
-}; 

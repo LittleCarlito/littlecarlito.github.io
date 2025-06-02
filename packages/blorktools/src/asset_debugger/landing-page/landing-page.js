@@ -2,7 +2,6 @@
 
 // Import all dependencies at the top
 import ExamplesModal from "../modals/examples-modal/examples-modal.js";
-import { startDebugging } from "../scene/asset_debugger.js";
 import { 
     getBackgroundFile, 
     getBaseColorFile, 
@@ -16,7 +15,7 @@ import {
     printStateReport 
 } from "../scene/state.js";
 import { loadSettings } from "../util/localstorage-util.js";
-import { setupDropzones } from "./dropzone-util.js";
+import { setupDropzones } from "../util/dropzone/dropzone-util.js";
 import { 
     handleBackgroundUpload, 
     handleLightingUpload, 
@@ -28,7 +27,7 @@ import {
     loadLightingIntoDropzone, 
     loadModelIntoDropzone, 
     processZipContents 
-} from "./zip-util.js";
+} from "../util/dropzone/zip-util.js";
 
 // Module state
 let isInitialized = false;
@@ -504,8 +503,3 @@ function cleanup() {
     
     console.log('Landing page cleanup complete');
 }
-
-// Remove the DOM event listener - this will be handled by the router
-// document.addEventListener('DOMContentLoaded', () => {
-//     initalizeLandingPage();
-// });

@@ -6,6 +6,7 @@
  */
 
 import { saveCurrentSession, loadCurrentSession, clearSessionData } from '../util/localstorage-util.js';
+import { getCaller } from '../util/log-util.js';
 
 // Define the initial state
 const initialState = {
@@ -141,18 +142,23 @@ export function updateState(key, value) {
     // Helper function to get file name or null
     const getFileName = (file) => file ? file.name : null;
     
-    // Log the state update
-    console.debug('State update:', {
-        key: typeof key === 'object' ? Object.keys(key) : key,
-        model: getFileName(state.modelFile),
-        lighting: getFileName(state.lightingFile),
-        background: getFileName(state.backgroundFile),
-        textures: {
-            baseColor: getFileName(state.textureFiles?.baseColor),
-            orm: getFileName(state.textureFiles?.orm),
-            normal: getFileName(state.textureFiles?.normal)
-        }
-    });
+    // Log the state update with caller information (throttled to avoid spam)
+    const now = Date.now();
+    if (!updateState._lastLog || now - updateState._lastLog > 100) { // Only log every 100ms
+        updateState._lastLog = now;
+        console.debug('State update:', {
+            caller: getCaller(1), // Skip 1 level (the updateState function itself)
+            key: typeof key === 'object' ? Object.keys(key) : key,
+            model: getFileName(state.modelFile),
+            lighting: getFileName(state.lightingFile),
+            background: getFileName(state.backgroundFile),
+            textures: {
+                baseColor: getFileName(state.textureFiles?.baseColor),
+                orm: getFileName(state.textureFiles?.orm),
+                normal: getFileName(state.textureFiles?.normal)
+            }
+        });
+    }
     
     if (typeof key === 'object') {
         Object.assign(state, key);

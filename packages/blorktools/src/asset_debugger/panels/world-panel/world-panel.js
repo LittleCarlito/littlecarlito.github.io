@@ -4,7 +4,7 @@
  * This module handles world properties, environment, and lighting visualization and controls.
  */
 import { getState } from '../../scene/state';
-import { updateLighting, resetLighting, updateExposure } from '../../scene/lighting-util';
+import { updateLighting, resetLighting, updateExposure } from '../../util/scene/lighting-util';
 import * as THREE from 'three';
 
 // Track initialization state
