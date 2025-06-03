@@ -289,3 +289,4 @@ router
 
 // Make router globally available
 window.appRouter = router;
+

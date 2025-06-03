@@ -73,7 +73,7 @@ export async function processModelFileForHtmlEditor(file) {
             return null;
         }
         
-        console.debig(`processModelFileForHtmlEditor: processed buffer size ${result.arrayBuffer.byteLength} bytes`);
+        console.debug(`processModelFileForHtmlEditor: processed buffer size ${result.arrayBuffer.byteLength} bytes`);
         
         // Clone the buffer to ensure we don't have reference issues
         const clonedBuffer = result.arrayBuffer.slice(0);
