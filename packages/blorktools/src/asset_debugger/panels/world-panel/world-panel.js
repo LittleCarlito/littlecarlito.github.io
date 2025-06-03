@@ -140,12 +140,29 @@ function refreshBackgroundUI() {
 
 /**
  * Initialize the World panel and cache DOM elements
+ * @param {boolean} [forceReset=false] - Force reset even if already initialized
  */
-export function initWorldPanel() {
+export function initWorldPanel(forceReset = false) {
     // Only initialize if not already done, and only if we're in the debug phase
     // where the panel was explicitly requested to be initialized
-    if (controlsInitialized) {
+    if (controlsInitialized && !forceReset) {
         console.log('World Panel already initialized, skipping');
+        return;
+    }
+    
+    // If we're already initialized but forcing a reset, just reset the critical state
+    if (controlsInitialized && forceReset) {
+        console.log('World Panel already initialized, but forcing reset of critical state');
+        // Reset background related state on reinitialization
+        currentBackgroundOption = 'none';
+        currentBackgroundMetadata = null;
+        currentLightingMetadata = null;
+        backgroundTexture = null;
+        environmentTexture = null;
+        
+        // Reset radio button visibility
+        toggleOptionVisibility('background-option', false);
+        toggleOptionVisibility('hdr-option', false);
         return;
     }
     
@@ -160,6 +177,13 @@ export function initWorldPanel() {
     }
     
     console.debug('World panel found, initializing...');
+    
+    // Reset background related state on initialization
+    currentBackgroundOption = 'none';
+    currentBackgroundMetadata = null;
+    currentLightingMetadata = null;
+    backgroundTexture = null;
+    environmentTexture = null;
     
     // Initially hide background and HDR options until content is loaded
     toggleOptionVisibility('background-option', false);
@@ -624,6 +648,10 @@ export function updateLightingInfo(metadata) {
     console.log('Showing lighting data info and hiding no data message');
     toggleLightingMessages(true);
     
+    // Make the HDR option visible since we have environment lighting
+    toggleOptionVisibility('hdr-option', true);
+    console.log('Making HDR/EXR radio option visible');
+    
     // Update slider visibility - we have HDR/EXR data
     updateSliderVisibility(true);
     
@@ -954,6 +982,10 @@ function clearLightingInfo() {
     // Hide lighting info and show no data message
     toggleLightingMessages(false);
     
+    // Hide the HDR/EXR radio option since we no longer have environment lighting
+    toggleOptionVisibility('hdr-option', false);
+    console.log('Hiding HDR/EXR radio option');
+    
     // Hide background info and show no background message
     toggleBackgroundMessages(false);
     
@@ -1037,6 +1069,10 @@ export function updateBackgroundInfo(metadata, skipRendering = false) {
     
     const fileSizeMB = metadata.fileSizeBytes ? (metadata.fileSizeBytes / 1024 / 1024).toFixed(2) + ' MB' : '-';
     sizeEl.textContent = fileSizeMB;
+    
+    // Make the background option visible since we have a background image
+    toggleOptionVisibility('background-option', true);
+    console.log('Making Background Image radio option visible');
     
     // Respect the current radio selection without changing it on automatic background updates
     // Only auto-select the option if this is a fresh load (no option selected yet)
@@ -1401,6 +1437,19 @@ export function updateWorldPanel() {
     // Update lighting message visibility
     updateLightingMessage();
     
+    // Get the current state for file existence
+    const hasEnvironmentTexture = state.lightingFile !== null;
+    const hasBackgroundTexture = state.backgroundTexture !== null || state.backgroundFile !== null;
+    
+    // More careful reset of radio button visibility - only reset buttons if no corresponding file exists
+    console.log('Updating radio button visibility based on current state');
+    if (!hasBackgroundTexture) {
+        toggleOptionVisibility('background-option', false);
+    }
+    if (!hasEnvironmentTexture) {
+        toggleOptionVisibility('hdr-option', false);
+    }
+    
     // First render any available previews
     
     // If we have an environment texture, render its preview
@@ -1417,6 +1466,13 @@ export function updateWorldPanel() {
     
     // Update background UI with our centralized system
     refreshBackgroundUI();
+    
+    // Ensure the radio options visibility matches the current state
+    // Show each radio button if its corresponding file exists
+    toggleOptionVisibility('hdr-option', hasEnvironmentTexture);
+    toggleOptionVisibility('background-option', hasBackgroundTexture);
+    
+    console.log(`Radio button visibility - HDR: ${hasEnvironmentTexture}, Background: ${hasBackgroundTexture}`);
 }
 
 /**

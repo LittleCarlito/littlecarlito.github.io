@@ -76,7 +76,8 @@ function loadComponentHtml() {
         .then(html => {
             document.getElementById('world-tab-container').innerHTML = html;
             console.log('World Panel HTML loaded, initializing panel...');
-            initWorldPanel();
+            // Always force reset to ensure radio buttons are properly initialized
+            initWorldPanel(true);
             componentsLoaded.worldPanel = true;
         })
         .catch(error => {
