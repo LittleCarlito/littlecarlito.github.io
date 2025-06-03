@@ -101,63 +101,92 @@ function loadComponentHtml() {
     const settingsModalPromise = fetch('./modals/settings-modal/settings-modal.html')
         .then(response => response.text())
         .then(html => {
-            document.getElementById('settings-modal-container').innerHTML = html;
+            // Use a safer approach to access the container
+            let container;
+            try {
+                container = document.querySelector('settings-modal-container');
+            } catch (error) {
+                console.warn('Error accessing settings modal container:', error);
+                container = null;
+            }
             
-            // Now that settings modal is loaded, load the axis indicator settings
-            return fetch('./axis-indicator/axis-indicator.html')
-                .then(response => response.text())
-                .then(html => {
-                    const axisSettingsContainer = document.getElementById('axis-settings-container');
-                    if (axisSettingsContainer) {
-                        axisSettingsContainer.innerHTML = html;
-                        
-                        // Make sure the axis settings tab is active if it's currently selected
-                        const axisTabButton = document.querySelector('.settings-tab-button[data-tab="axis-settings"]');
-                        if (axisTabButton && axisTabButton.classList.contains('active')) {
-                            const axisSettings = document.getElementById('axis-settings');
-                            if (axisSettings) {
-                                axisSettings.classList.add('active');
-                            }
-                        }
-                    } else {
-                        console.warn('Element with ID "axis-settings-container" not found in the DOM after loading settings modal');
+            if (container) {
+                console.log('Settings Modal HTML loaded, initializing modal...');
+                container.innerHTML = html;
+                
+                // Delay the modal initialization to avoid interference
+                setTimeout(() => {
+                    try {
+                        new SettingsModal();
+                    } catch (error) {
+                        console.error('Error initializing SettingsModal:', error);
                     }
-                    
-                    // Initialize settings modal with loaded settings
-                    new SettingsModal();
-                    componentsLoaded.settingsModal = true;
-                });
+                }, 0);
+            } else {
+                console.warn('Settings modal container not found, skipping modal initialization');
+            }
+            componentsLoaded.settingsModal = true;
         })
         .catch(error => {
             console.error('Error loading settings modal:', error);
+            componentsLoaded.settingsModal = true;
             throw error;
         });
+    
+        // Separate promise for axis indicator
+        const axisIndicatorPromise = fetch('./axis-indicator/axis-indicator.html')
+            .then(response => response.text())
+            .then(html => {
+                const axisSettingsContainer = document.getElementById('axis-settings-container');
+                if (axisSettingsContainer) {
+                    axisSettingsContainer.innerHTML = html;
+                    
+                    // Make sure the axis settings tab is active if it's currently selected
+                    const axisTabButton = document.querySelector('.settings-tab-button[data-tab="axis-settings"]');
+                    if (axisTabButton && axisTabButton.classList.contains('active')) {
+                        const axisSettings = document.getElementById('axis-settings');
+                        if (axisSettings) {
+                            axisSettings.classList.add('active');
+                        }
+                    }
+                } else {
+                    console.warn('Element with ID "axis-settings-container" not found in the DOM after loading settings modal');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading axis indicator:', error);
+                // Don't throw here to prevent blocking if axis indicator fails
+            });
 
-    const htmlEditorPromise = fetch('./modals/html-editor-modal/html-editor-modal.html')
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('html-editor-modal-container').innerHTML = html;
-            
-            const modalElement = document.getElementById('html-editor-modal');
-            if (modalElement) {
-                modalElement.style.display = 'none';
-                initHtmlEditorModal();
-                initModelIntegration();
-                componentsLoaded.htmlEditor = true;
-            } else {
-                throw new Error('Could not extract HTML editor modal element from HTML: modal element not found');
-            }
-        })
-        .catch(error => {
-            console.error('Error loading HTML editor modal:', error);
-            throw error;
-        });
-
+        const htmlEditorPromise = fetch('./modals/html-editor-modal/html-editor-modal.html')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('html-editor-modal-container').innerHTML = html;
+                
+                const modalElement = document.getElementById('html-editor-modal');
+                if (modalElement) {
+                    modalElement.style.display = 'none';
+                    initHtmlEditorModal();
+                    initModelIntegration();
+                    componentsLoaded.htmlEditor = true;
+                } else {
+                    throw new Error('Could not extract HTML editor modal element from HTML: modal element not found');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading HTML editor modal:', error);
+                throw error;
+            });
+    // console.log('All components loaded successfully');
+    // resourcesLoaded.componentsLoaded = true;
+    // // Start the debugging process after components are loaded
+    // startDebugging();
     // Wait for all components to load
     Promise.all([
         worldPanelPromise,
         assetPanelPromise,
-        settingsModalPromise,
+        // settingsModalPromise,
+        axisIndicatorPromise,
         htmlEditorPromise
     ])
     .then(() => {
@@ -174,6 +203,30 @@ function loadComponentHtml() {
         // Start debugging even if some components failed
         startDebugging();
     });
+}
+
+/**
+ * Checks if all resources have loaded and hides the splash screen when done
+ */
+function checkAllResourcesLoaded() {
+    if (resourcesLoaded.componentsLoaded && 
+        resourcesLoaded.sceneInitialized && 
+        resourcesLoaded.lightingLoaded && 
+        resourcesLoaded.backgroundLoaded && 
+        resourcesLoaded.modelLoaded &&
+        resourcesLoaded.controlsReady) {
+        
+        if (!loadingComplete) {
+            loadingComplete = true;
+            console.debug('All resources loaded...');
+        }
+    } else {
+        // Log which resources are still not loaded
+        const notLoaded = Object.entries(resourcesLoaded)
+            .filter(([_, loaded]) => !loaded)
+            .map(([name]) => name);
+        console.log('Waiting for resources to load:', notLoaded);
+    }
 }
 
 /**
@@ -396,30 +449,6 @@ function startDebugging() {
             resourcesLoaded.controlsReady = true;
             checkAllResourcesLoaded();
         });
-}
-
-/**
- * Checks if all resources have loaded and hides the splash screen when done
- */
-function checkAllResourcesLoaded() {
-    if (resourcesLoaded.componentsLoaded && 
-        resourcesLoaded.sceneInitialized && 
-        resourcesLoaded.lightingLoaded && 
-        resourcesLoaded.backgroundLoaded && 
-        resourcesLoaded.modelLoaded &&
-        resourcesLoaded.controlsReady) {
-        
-        if (!loadingComplete) {
-            loadingComplete = true;
-            console.debug('All resources loaded...');
-        }
-    } else {
-        // Log which resources are still not loaded
-        const notLoaded = Object.entries(resourcesLoaded)
-            .filter(([_, loaded]) => !loaded)
-            .map(([name]) => name);
-        console.log('Waiting for resources to load:', notLoaded);
-    }
 }
 
 /**

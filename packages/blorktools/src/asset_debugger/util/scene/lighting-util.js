@@ -107,6 +107,15 @@ export function setupEnvironmentLighting(file) {
         return Promise.reject(new Error('Scene or renderer not available'));
     }
     
+    // Ensure viewport is visible before setting up lighting
+    const viewport = document.getElementById('viewport');
+    if (viewport) {
+        console.log('DEBUG: Ensuring viewport is visible before environment lighting setup', {
+            currentDisplay: viewport.style.display
+        });
+        viewport.style.display = 'block';
+    }
+    
     // Configure renderer for HDR/EXR
     state.renderer.outputEncoding = THREE.sRGBEncoding;
     state.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -185,6 +194,13 @@ export function setupEnvironmentLighting(file) {
                             noDataMessage.style.display = 'none';
                         }
                         
+                        // Check viewport again to ensure it's still visible
+                        const viewportAfter = document.getElementById('viewport');
+                        if (viewportAfter && viewportAfter.style.display !== 'block') {
+                            console.log('DEBUG: Restoring viewport visibility after EXR loading');
+                            viewportAfter.style.display = 'block';
+                        }
+                        
                         // Resolve the promise with the texture
                         resolve(texture);
                     },
@@ -249,6 +265,13 @@ export function setupEnvironmentLighting(file) {
                         const noDataMessage = document.querySelector('.no-data-message');
                         if (noDataMessage) {
                             noDataMessage.style.display = 'none';
+                        }
+                        
+                        // Check viewport again to ensure it's still visible
+                        const viewportAfter = document.getElementById('viewport');
+                        if (viewportAfter && viewportAfter.style.display !== 'block') {
+                            console.log('DEBUG: Restoring viewport visibility after HDR loading');
+                            viewportAfter.style.display = 'block';
                         }
                         
                         // Resolve the promise with the texture

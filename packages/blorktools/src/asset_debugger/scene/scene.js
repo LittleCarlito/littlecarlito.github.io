@@ -15,6 +15,23 @@ import { createControls, updateControls, setControlsTarget } from '../util/scene
  * @returns {Object} Scene, camera, renderer, and controls
  */
 export function initScene(container) {
+    console.log('DEBUG: initScene called', {
+        containerExists: !!container,
+        containerDimensions: container ? `${container.clientWidth}x${container.clientHeight}` : 'N/A',
+        parentNode: container?.parentNode?.tagName || 'None',
+        viewportID: container?.id || 'Unknown'
+    });
+    
+    // Add a debug cube to confirm scene is rendering
+    const addDebugCube = (scene) => {
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        const cube = new THREE.Mesh(geometry, material);
+        cube.position.set(0, 0.5, 0);
+        scene.add(cube);
+        return cube;
+    };
+    
     const state = getState();
     
     // Create scene
@@ -40,9 +57,18 @@ export function initScene(container) {
     container.appendChild(renderer.domElement);
     updateState('renderer', renderer);
     
+    // Ensure viewport is visible
+    container.style.display = 'block';
+    console.log('DEBUG: Set viewport display to block');
+    
     // Create orbit controls using our controls module
     const controls = createControls(camera, renderer.domElement);
     // No need to update state here as the controls module does it
+    
+    // Add a debug cube to verify the scene is working
+    const cube = addDebugCube(scene);
+    updateState('cube', cube);
+    console.log('DEBUG: Added green debug cube to scene');
     
     // Check if we have an HDR/EXR lighting file to use
     const lightingFile = state.lightingFile;
