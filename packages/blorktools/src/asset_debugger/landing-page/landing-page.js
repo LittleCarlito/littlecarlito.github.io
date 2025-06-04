@@ -501,7 +501,7 @@ async function processZipFile(file) {
                 // Hide after 3 seconds
                 setTimeout(() => {
                     zipInfoElement.style.display = 'none';
-                }, 3000);
+                }, 1000);
             }
         } else {
             // Show error message

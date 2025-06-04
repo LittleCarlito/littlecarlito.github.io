@@ -310,8 +310,9 @@ export function printStateReport(caller = 'unknown') {
 /**
  * NEW: Clear all file-related state
  * This should be called when navigating between pages to prevent state pollution
+ * @param {boolean} skipLocalStorage - Whether to skip saving to localStorage (optional)
  */
-export function clearAllFiles() {
+export function clearAllFiles(skipLocalStorage = false) {
     console.log('Clearing all file state for clean navigation...');
     
     if (!state) {
@@ -344,6 +345,12 @@ export function clearAllFiles() {
     // Don't clear meshes as those are part of the scene cleanup
     
     console.log('File state cleared successfully');
+    
+    // Skip localStorage operations if requested
+    if (skipLocalStorage) {
+        console.log('Skipping localStorage operations as requested for faster navigation');
+        return;
+    }
     
     // FIXED: Use safe save function that handles quota exceeded
     import('../util/localstorage-util.js').then(localStorageModule => {

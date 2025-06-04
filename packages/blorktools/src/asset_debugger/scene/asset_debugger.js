@@ -45,6 +45,9 @@ const resourcesLoaded = {
 // Track if loading is complete
 let loadingComplete = false;
 
+// Flag to indicate that page is being unloaded - used to abort long operations
+let isPageUnloading = false;
+
 /**
  * Main entry point for the Asset Debugger.
  * Sets up the UI, loads components, and initializes the 3D scene.
@@ -150,114 +153,141 @@ function resetThreeJSState() {
 function cleanupAssetDebugger() {
     console.log('Cleaning up Asset Debugger resources...');
     
+    // Set unloading flag to abort any ongoing operations
+    isPageUnloading = true;
+    
+    // Immediately hide UI elements - this should be done synchronously
     const debugControls = document.querySelector('.debug-controls');
     if (debugControls) {
         debugControls.style.display = 'none';
         console.log('Debug controls hidden during cleanup');
     }
     
+    // Force terminate any active workers
     try {
-        // ... rest of existing cleanup code
-        // FIRST: Clean up World Panel event listeners
-        import('../panels/world-panel/world-panel.js').then(worldPanelModule => {
-            if (worldPanelModule.cleanupWorldPanel) {
-                worldPanelModule.cleanupWorldPanel();
-            }
-        }).catch(error => {
-            console.warn('Could not cleanup world panel:', error);
-        });
-        
-        // SECOND: Clear all file state to prevent pollution
-        import('./state.js').then(stateModule => {
-            // Clear all files to prevent state pollution between navigations
-            if (stateModule.clearAllFiles) {
-                stateModule.clearAllFiles();
-            }
-            
-            const state = stateModule.getState();
-            
-            // Stop animation loop
-            if (state.animating) {
-                import('./scene.js').then(sceneModule => {
-                    if (sceneModule.stopAnimation) {
-                        sceneModule.stopAnimation();
-                    }
-                });
-            }
-            
-            // Dispose ThreeJS resources
-            if (state.renderer) {
-                console.log('Disposing renderer');
-                state.renderer.dispose();
-                stateModule.updateState('renderer', null);
-            }
-            
-            // Dispose of controls
-            if (state.controls) {
-                console.log('Disposing controls');
-                // Import and use the proper disposal function from controls module
-                import('../util/scene/controls.js').then(controlsModule => {
-                    if (controlsModule.disposeControls) {
-                        controlsModule.disposeControls();
-                    }
-                });
-                state.controls.dispose();
-                stateModule.updateState('controls', null);
-            }
-            
-            // Clean up scene
-            if (state.scene) {
-                console.log('Cleaning up scene');
-                // Remove all objects
-                while(state.scene.children && state.scene.children.length > 0) {
-                    const obj = state.scene.children[0];
-                    if (obj.geometry) obj.geometry.dispose();
-                    if (obj.material) {
-                        if (Array.isArray(obj.material)) {
-                            obj.material.forEach(mat => mat.dispose());
-                        } else {
-                            obj.material.dispose();
-                        }
-                    }
-                    state.scene.remove(obj);
+        const workerManager = window.workerManager || window.appWorkerManager;
+        if (workerManager && typeof workerManager.terminateAllWorkers === 'function') {
+            workerManager.terminateAllWorkers();
+            console.log('Forcibly terminated all worker threads');
+        }
+    } catch (error) {
+        console.warn('Could not terminate workers:', error);
+    }
+    
+    // Schedule non-critical cleanup to happen asynchronously
+    setTimeout(() => {
+        try {
+            // FIRST: Clean up World Panel event listeners
+            import('../panels/world-panel/world-panel.js').then(worldPanelModule => {
+                if (worldPanelModule.cleanupWorldPanel) {
+                    worldPanelModule.cleanupWorldPanel();
                 }
-                stateModule.updateState('scene', null);
-            }
-            
-            // Clean up any canvas elements with cleanup functions
-            const canvasElements = document.querySelectorAll('canvas[data-animation-id]');
-            canvasElements.forEach(canvas => {
-                if (typeof canvas.cleanup === 'function') {
-                    console.log('Cleaning up canvas:', canvas.id);
-                    canvas.cleanup();
-                }
-                
-                // Cancel any animation frames
-                const animId = canvas.getAttribute('data-animation-id');
-                if (animId) {
-                    cancelAnimationFrame(parseInt(animId, 10));
-                }
+            }).catch(error => {
+                console.warn('Could not cleanup world panel:', error);
             });
             
-            // Reset radio button selection and canvas opacities directly
-            const noneRadioBtn = document.querySelector('input[name="bg-option"][value="none"]');
-            if (noneRadioBtn) {
-                noneRadioBtn.checked = true;
-            }
-            
-            const bgPreviewCanvas = document.getElementById('bg-preview-canvas');
-            const hdrPreviewCanvas = document.getElementById('hdr-preview-canvas');
-            
-            if (bgPreviewCanvas) bgPreviewCanvas.style.opacity = '0.3';
-            if (hdrPreviewCanvas) hdrPreviewCanvas.style.opacity = '0.3';
-            
-            console.log('Asset Debugger cleanup complete');
-        }).catch(error => {
-            console.error('Error importing state module during cleanup:', error);
-        });
-    } catch (error) {
-        console.error('Error during Asset Debugger cleanup:', error);
-    }
+            // SECOND: Clear all file state to prevent pollution - but skip localStorage
+            import('./state.js').then(stateModule => {
+                // Clear all files without saving to localStorage
+                if (stateModule.clearAllFiles) {
+                    try {
+                        // Try to call with skipLocalStorage option if available
+                        stateModule.clearAllFiles(true);
+                    } catch (error) {
+                        // If that fails, the method doesn't support that option
+                        console.warn('Could not skip localStorage in clearAllFiles, using default');
+                        stateModule.clearAllFiles();
+                    }
+                }
+                
+                const state = stateModule.getState();
+                
+                // Stop animation loop
+                if (state.animating) {
+                    import('./scene.js').then(sceneModule => {
+                        if (sceneModule.stopAnimation) {
+                            sceneModule.stopAnimation();
+                        }
+                    });
+                }
+                
+                // Dispose ThreeJS resources
+                if (state.renderer) {
+                    console.log('Disposing renderer');
+                    state.renderer.dispose();
+                    stateModule.updateState('renderer', null);
+                }
+                
+                // Dispose of controls
+                if (state.controls) {
+                    console.log('Disposing controls');
+                    // Import and use the proper disposal function from controls module
+                    import('../util/scene/controls.js').then(controlsModule => {
+                        if (controlsModule.disposeControls) {
+                            controlsModule.disposeControls();
+                        }
+                    });
+                    state.controls.dispose();
+                    stateModule.updateState('controls', null);
+                }
+                
+                // Clean up scene
+                if (state.scene) {
+                    console.log('Cleaning up scene');
+                    // Remove all objects
+                    while(state.scene.children && state.scene.children.length > 0) {
+                        const obj = state.scene.children[0];
+                        if (obj.geometry) obj.geometry.dispose();
+                        if (obj.material) {
+                            if (Array.isArray(obj.material)) {
+                                obj.material.forEach(mat => mat.dispose());
+                            } else {
+                                obj.material.dispose();
+                            }
+                        }
+                        state.scene.remove(obj);
+                    }
+                    stateModule.updateState('scene', null);
+                }
+                
+                // Clean up any canvas elements with cleanup functions
+                const canvasElements = document.querySelectorAll('canvas[data-animation-id]');
+                canvasElements.forEach(canvas => {
+                    if (typeof canvas.cleanup === 'function') {
+                        console.log('Cleaning up canvas:', canvas.id);
+                        canvas.cleanup();
+                    }
+                    
+                    // Cancel any animation frames
+                    const animId = canvas.getAttribute('data-animation-id');
+                    if (animId) {
+                        cancelAnimationFrame(parseInt(animId, 10));
+                    }
+                });
+                
+                // Reset radio button selection and canvas opacities directly
+                const noneRadioBtn = document.querySelector('input[name="bg-option"][value="none"]');
+                if (noneRadioBtn) {
+                    noneRadioBtn.checked = true;
+                }
+                
+                const bgPreviewCanvas = document.getElementById('bg-preview-canvas');
+                const hdrPreviewCanvas = document.getElementById('hdr-preview-canvas');
+                
+                if (bgPreviewCanvas) bgPreviewCanvas.style.opacity = '0.3';
+                if (hdrPreviewCanvas) hdrPreviewCanvas.style.opacity = '0.3';
+                
+                console.log('Asset Debugger cleanup complete');
+            }).catch(error => {
+                console.error('Error importing state module during cleanup:', error);
+            });
+        } catch (error) {
+            console.error('Error during Asset Debugger cleanup:', error);
+        }
+    }, 0);
+    
+    // Return immediately to allow navigation to proceed
+    return null;
 }
 
 /**
@@ -534,6 +564,19 @@ function startDebugging() {
  * Process all files from state after scene is initialized
  */
 function processFilesFromState() {
+    // Skip processing if page is unloading
+    if (isPageUnloading) {
+        console.log('Page is unloading, skipping file processing');
+        
+        // Mark all as complete to prevent hanging
+        resourcesLoaded.lightingLoaded = true;
+        resourcesLoaded.backgroundLoaded = true;
+        resourcesLoaded.modelLoaded = true;
+        resourcesLoaded.controlsReady = true;
+        checkAllResourcesLoaded();
+        return;
+    }
+    
     // Get current state for loading lighting and background
     import('./state.js')
         .then(stateModule => {
@@ -552,8 +595,17 @@ function processFilesFromState() {
             // Process all files from state in sequence
             let promiseChain = Promise.resolve();
 
+            // Function to check if page is unloading and abort processing if needed
+            const checkContinueProcessing = () => {
+                if (isPageUnloading) {
+                    console.log('Page unloading detected during processing, aborting further operations');
+                    throw new Error('Page unloading - processing aborted');
+                }
+                return true;
+            };
+
             // IMPORTANT: Process lighting first to ensure proper controls creation
-            if (stateModule.hasLightingFile()) {
+            if (stateModule.hasLightingFile() && checkContinueProcessing()) {
                 const lightingFile = stateModule.getLightingFile();
                 promiseChain = promiseChain.then(() => {
                     console.log('Setting up environment lighting from:', lightingFile.name);
@@ -631,7 +683,7 @@ function processFilesFromState() {
             }
 
             // Handle background file if it exists
-            if (stateModule.hasBackgroundFile()) {
+            if (stateModule.hasBackgroundFile() && checkContinueProcessing()) {
                 const backgroundFile = stateModule.getBackgroundFile();
                 promiseChain = promiseChain.then(() => {
                     console.log('Setting up background from:', backgroundFile.name);
@@ -666,7 +718,7 @@ function processFilesFromState() {
             }
 
             // Handle model file if it exists
-            if (stateModule.hasModelFile()) {
+            if (stateModule.hasModelFile() && checkContinueProcessing()) {
                 const modelFile = stateModule.getModelFile();
                 promiseChain = promiseChain.then(() => {
                     console.log('Loading model from:', modelFile.name);
@@ -692,7 +744,7 @@ function processFilesFromState() {
             }
 
             // Handle texture files if they exist
-            if (stateModule.hasBaseColorFile() || stateModule.hasOrmFile() || stateModule.hasNormalFile()) {
+            if ((stateModule.hasBaseColorFile() || stateModule.hasOrmFile() || stateModule.hasNormalFile()) && checkContinueProcessing()) {
                 promiseChain = promiseChain.then(() => {
                     return import('../util/materials-util.js')
                         .then(textureModule => {

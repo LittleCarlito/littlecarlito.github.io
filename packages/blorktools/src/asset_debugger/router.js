@@ -87,12 +87,16 @@ class Router {
         // Clean up current module if it has cleanup
         if (this.currentModuleCleanup) {
             try {
-                this.currentModuleCleanup();
-                console.log('Previous module cleaned up');
+                // Call cleanup but don't wait for it to finish
+                const result = this.currentModuleCleanup();
+                console.log('Previous module cleanup initiated');
+                
+                // Reset currentModuleCleanup immediately
+                this.currentModuleCleanup = null;
             } catch (error) {
                 console.warn('Module cleanup failed:', error);
+                this.currentModuleCleanup = null;
             }
-            this.currentModuleCleanup = null;
         }
 
         // Clear only the app content, preserve header
