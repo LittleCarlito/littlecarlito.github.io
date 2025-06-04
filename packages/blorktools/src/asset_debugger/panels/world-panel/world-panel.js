@@ -163,6 +163,22 @@ export function initWorldPanel(forceReset = false) {
         // Reset radio button visibility
         toggleOptionVisibility('background-option', false);
         toggleOptionVisibility('hdr-option', false);
+        
+        // REMOVED early return to allow checking state
+        console.log('Continuing initialization to check for loaded files');
+        
+        // Get current state to check for loaded files
+        const state = getState();
+        const hasEnvironmentTexture = state.lightingFile !== null || (state.scene && state.scene.environment);
+        const hasBackgroundTexture = state.backgroundTexture !== null || state.backgroundFile !== null;
+        
+        // Show options based on available files
+        toggleOptionVisibility('hdr-option', hasEnvironmentTexture);
+        toggleOptionVisibility('background-option', hasBackgroundTexture);
+        console.log(`Updated radio visibility after reset - HDR: ${hasEnvironmentTexture}, Background: ${hasBackgroundTexture}`);
+        
+        // Also update the background UI
+        refreshBackgroundUI();
         return;
     }
     
@@ -424,7 +440,8 @@ function setupBgToggleListener() {
         initialOption = 'background';
     }
     
-    // Set the initial selection
+    // Set the initial selection - always default to 'none' unless otherwise specified
+    initialOption = 'none'; // Force none as default
     const selectedRadio = document.querySelector(`input[name="bg-option"][value="${initialOption}"]`);
     if (selectedRadio) {
         selectedRadio.checked = true;
@@ -454,6 +471,7 @@ function setupBgToggleListener() {
                     case 'none':
                         // Set background to null or a dark color
                         setNullBackground(state.scene);
+                        console.log('Background set to none');
                         break;
                         
                     case 'hdr':
@@ -461,12 +479,40 @@ function setupBgToggleListener() {
                         if (state.scene.environment) {
                             console.log('Setting background to HDR/EXR environment map');
                             state.scene.background = state.scene.environment;
+                            console.log('HDR/EXR background applied successfully:', state.scene.environment);
+                        } else if (environmentTexture) {
+                            // Try using the cached environment texture if the scene doesn't have one
+                            console.log('Using cached environment texture');
+                            state.scene.background = environmentTexture;
+                            // Also set it as the environment if not already set
+                            if (!state.scene.environment) {
+                                state.scene.environment = environmentTexture;
+                            }
+                        } else if (state.lightingFile) {
+                            // If we have a lighting file but no texture, try to reload it
+                            console.log('Attempting to reload environment texture from lighting file');
+                            
+                            // Import lighting utility and load the texture again
+                            import('../../util/scene/lighting-util.js').then(lightingModule => {
+                                if (lightingModule.setupEnvironmentLighting && state.lightingFile) {
+                                    lightingModule.setupEnvironmentLighting(state.lightingFile)
+                                        .then(newTexture => {
+                                            if (newTexture) {
+                                                console.log('Successfully reloaded environment texture');
+                                                state.scene.background = newTexture;
+                                                state.scene.environment = newTexture;
+                                                environmentTexture = newTexture;
+                                            }
+                                        })
+                                        .catch(error => {
+                                            console.error('Error reloading environment texture:', error);
+                                        });
+                                }
+                            });
                         } else {
                             console.warn('No HDR/EXR environment map available');
                             // Fall back to null background but KEEP the radio selection
                             setNullBackground(state.scene);
-                            // Don't reset the radio selection - keep HDR/EXR selected 
-                            // even if there's no environment map available
                         }
                         break;
                         
@@ -475,12 +521,14 @@ function setupBgToggleListener() {
                         if (state.backgroundTexture) {
                             console.log('Setting background to loaded background texture');
                             state.scene.background = state.backgroundTexture;
+                        } else if (backgroundTexture) {
+                            // Try using the cached background texture if the state doesn't have one
+                            console.log('Using cached background texture');
+                            state.scene.background = backgroundTexture;
                         } else {
                             console.warn('No background texture available');
                             // Fall back to null background but KEEP the radio selection
                             setNullBackground(state.scene);
-                            // Don't reset the radio selection - keep Background Image selected
-                            // even if there's no background image available
                         }
                         break;
                 }
@@ -655,14 +703,10 @@ export function updateLightingInfo(metadata) {
     // Update slider visibility - we have HDR/EXR data
     updateSliderVisibility(true);
     
-    // Select the HDR/EXR radio button unless user has explicitly chosen a different option
-    if (currentBackgroundOption !== 'none' && currentBackgroundOption !== 'background') {
-        const environmentRadio = document.querySelector('input[name="bg-option"][value="hdr"]');
-        if (environmentRadio) {
-            environmentRadio.checked = true;
-            currentBackgroundOption = 'hdr';
-        }
-    }
+    // IMPORTANT: We no longer auto-select the HDR/EXR option
+    // The "None" option will remain selected by default
+    // Only update the radio option if it doesn't exist yet
+    console.log('HDR/EXR radio option is available but not auto-selected');
     
     // Make sure any collapsible content is still properly collapsed
     const metadataContents = document.querySelectorAll('.metadata-content');
@@ -1437,18 +1481,34 @@ export function updateWorldPanel() {
     // Update lighting message visibility
     updateLightingMessage();
     
-    // Get the current state for file existence
-    const hasEnvironmentTexture = state.lightingFile !== null;
-    const hasBackgroundTexture = state.backgroundTexture !== null || state.backgroundFile !== null;
+    // Get the current state for file existence - be more thorough with checks
+    const hasEnvironmentTexture = state.lightingFile !== null || 
+                               (state.scene && state.scene.environment) || 
+                               currentLightingMetadata !== null;
+                               
+    const hasBackgroundTexture = state.backgroundTexture !== null || 
+                              state.backgroundFile !== null || 
+                              currentBackgroundMetadata !== null;
     
-    // More careful reset of radio button visibility - only reset buttons if no corresponding file exists
-    console.log('Updating radio button visibility based on current state');
-    if (!hasBackgroundTexture) {
-        toggleOptionVisibility('background-option', false);
-    }
-    if (!hasEnvironmentTexture) {
-        toggleOptionVisibility('hdr-option', false);
-    }
+    // Log the current state for debugging
+    console.log('Updating world panel with state:', {
+        hasEnvironmentTexture,
+        hasBackgroundTexture,
+        lightingFile: state.lightingFile ? state.lightingFile.name : null,
+        backgroundFile: state.backgroundFile ? state.backgroundFile.name : null,
+        environment: state.scene && state.scene.environment ? 'present' : null,
+        backgroundTexture: state.backgroundTexture ? 'present' : null,
+        metadata: {
+            lighting: currentLightingMetadata ? 'present' : null,
+            background: currentBackgroundMetadata ? 'present' : null
+        }
+    });
+    
+    // Always update radio button visibility based on current state
+    toggleOptionVisibility('hdr-option', hasEnvironmentTexture);
+    toggleOptionVisibility('background-option', hasBackgroundTexture);
+    
+    console.log(`Radio button visibility updated - HDR: ${hasEnvironmentTexture}, Background: ${hasBackgroundTexture}`);
     
     // First render any available previews
     
@@ -1466,13 +1526,6 @@ export function updateWorldPanel() {
     
     // Update background UI with our centralized system
     refreshBackgroundUI();
-    
-    // Ensure the radio options visibility matches the current state
-    // Show each radio button if its corresponding file exists
-    toggleOptionVisibility('hdr-option', hasEnvironmentTexture);
-    toggleOptionVisibility('background-option', hasBackgroundTexture);
-    
-    console.log(`Radio button visibility - HDR: ${hasEnvironmentTexture}, Background: ${hasBackgroundTexture}`);
 }
 
 /**

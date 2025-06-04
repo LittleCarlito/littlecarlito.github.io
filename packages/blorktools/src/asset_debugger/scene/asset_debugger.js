@@ -50,6 +50,9 @@ let loadingComplete = false;
  * Sets up the UI, loads components, and initializes the 3D scene.
  */
 export function setupAssetDebugger() {
+    // Reset the state before initializing
+    resetThreeJSState();
+    
     getState();
     printStateReport('Asset-Debugger');
     console.debug('Asset Debugger UI: Initializing...');
@@ -63,6 +66,169 @@ export function setupAssetDebugger() {
     const restartDebugBtn = document.getElementById('restart-debug');
     if (restartDebugBtn) {
         restartDebugBtn.addEventListener('click', restartDebugging);
+    }
+    
+    // Ensure collapsible headers will work by adding direct event handlers
+    // This runs after all components are loaded
+    setTimeout(ensureCollapsibleHeadersWork, 500);
+    
+    // Return a cleanup function that the router can call
+    return cleanupAssetDebugger;
+}
+
+/**
+ * Reset ThreeJS state to ensure clean initialization
+ */
+function resetThreeJSState() {
+    console.log('Resetting ThreeJS state for clean initialization');
+    try {
+        // Import state module directly
+        import('./state.js').then(stateModule => {
+            const state = stateModule.getState();
+            
+            // Clear ThreeJS objects
+            if (state.scene) {
+                console.log('Disposing existing scene');
+                // Remove all objects from scene
+                while(state.scene.children && state.scene.children.length > 0) { 
+                    state.scene.remove(state.scene.children[0]); 
+                }
+            }
+            
+            // Dispose renderer
+            if (state.renderer) {
+                console.log('Disposing existing renderer');
+                state.renderer.dispose();
+            }
+            
+            // Dispose controls
+            if (state.controls) {
+                console.log('Disposing existing controls');
+                state.controls.dispose();
+            }
+            
+            // Reset critical state values
+            stateModule.updateState('scene', null);
+            stateModule.updateState('camera', null);
+            stateModule.updateState('renderer', null);
+            stateModule.updateState('controls', null);
+            stateModule.updateState('cube', null);
+            stateModule.updateState('animating', false);
+            
+            // Reset background option via DOM directly - safer than trying to import module
+            setTimeout(() => {
+                console.log('Resetting background option radio buttons');
+                // Find the 'none' radio button and check it
+                const noneRadioBtn = document.querySelector('input[name="bg-option"][value="none"]');
+                if (noneRadioBtn) {
+                    noneRadioBtn.checked = true;
+                }
+                
+                // Reset all canvas opacities
+                const bgPreviewCanvas = document.getElementById('bg-preview-canvas');
+                const hdrPreviewCanvas = document.getElementById('hdr-preview-canvas');
+                
+                if (bgPreviewCanvas) bgPreviewCanvas.style.opacity = '0.3';
+                if (hdrPreviewCanvas) hdrPreviewCanvas.style.opacity = '0.3';
+                
+                console.log('Background options reset complete');
+            }, 100);
+            
+            console.log('ThreeJS state reset complete');
+        }).catch(error => {
+            console.error('Error importing state module:', error);
+        });
+    } catch (error) {
+        console.error('Error resetting ThreeJS state:', error);
+    }
+}
+
+/**
+ * Cleanup function for the asset debugger
+ * This is called by the router when navigating away
+ */
+function cleanupAssetDebugger() {
+    console.log('Cleaning up Asset Debugger resources...');
+    
+    try {
+        // Get current state module
+        import('./state.js').then(stateModule => {
+            const state = stateModule.getState();
+            
+            // Stop animation loop
+            if (state.animating) {
+                import('./scene.js').then(sceneModule => {
+                    if (sceneModule.stopAnimation) {
+                        sceneModule.stopAnimation();
+                    }
+                });
+            }
+            
+            // Dispose ThreeJS resources
+            if (state.renderer) {
+                console.log('Disposing renderer');
+                state.renderer.dispose();
+                stateModule.updateState('renderer', null);
+            }
+            
+            if (state.controls) {
+                console.log('Disposing controls');
+                state.controls.dispose();
+                stateModule.updateState('controls', null);
+            }
+            
+            // Clean up scene
+            if (state.scene) {
+                console.log('Cleaning up scene');
+                // Remove all objects
+                while(state.scene.children && state.scene.children.length > 0) {
+                    const obj = state.scene.children[0];
+                    if (obj.geometry) obj.geometry.dispose();
+                    if (obj.material) {
+                        if (Array.isArray(obj.material)) {
+                            obj.material.forEach(mat => mat.dispose());
+                        } else {
+                            obj.material.dispose();
+                        }
+                    }
+                    state.scene.remove(obj);
+                }
+                stateModule.updateState('scene', null);
+            }
+            
+            // Clean up any canvas elements with cleanup functions
+            const canvasElements = document.querySelectorAll('canvas[data-animation-id]');
+            canvasElements.forEach(canvas => {
+                if (typeof canvas.cleanup === 'function') {
+                    console.log('Cleaning up canvas:', canvas.id);
+                    canvas.cleanup();
+                }
+                
+                // Cancel any animation frames
+                const animId = canvas.getAttribute('data-animation-id');
+                if (animId) {
+                    cancelAnimationFrame(parseInt(animId, 10));
+                }
+            });
+            
+            // Reset radio button selection and canvas opacities directly
+            const noneRadioBtn = document.querySelector('input[name="bg-option"][value="none"]');
+            if (noneRadioBtn) {
+                noneRadioBtn.checked = true;
+            }
+            
+            const bgPreviewCanvas = document.getElementById('bg-preview-canvas');
+            const hdrPreviewCanvas = document.getElementById('hdr-preview-canvas');
+            
+            if (bgPreviewCanvas) bgPreviewCanvas.style.opacity = '0.3';
+            if (hdrPreviewCanvas) hdrPreviewCanvas.style.opacity = '0.3';
+            
+            console.log('Asset Debugger cleanup complete');
+        }).catch(error => {
+            console.error('Error importing state module during cleanup:', error);
+        });
+    } catch (error) {
+        console.error('Error during Asset Debugger cleanup:', error);
     }
 }
 
@@ -367,15 +533,53 @@ function processFilesFromState() {
                         .then(lightingModule => {
                             return lightingModule.setupEnvironmentLighting(lightingFile)
                                 .then(texture => {
+                                    // Log texture details for debugging
+                                    console.log('Environment texture loaded:', {
+                                        isValid: !!texture,
+                                        name: lightingFile.name,
+                                        dimensions: texture && texture.image ? 
+                                            `${texture.image.width}x${texture.image.height}` : 'unknown'
+                                    });
+                                    
+                                    // Verify texture is set in the scene
+                                    const state = stateModule.getState();
+                                    if (state && state.scene) {
+                                        console.log('Scene environment before update:', !!state.scene.environment);
+                                        // Ensure the texture is set as the scene's environment
+                                        if (texture && !state.scene.environment) {
+                                            state.scene.environment = texture;
+                                            console.log('Environment texture manually set to scene');
+                                        }
+                                        console.log('Scene environment after update:', !!state.scene.environment);
+                                    }
+                                    
                                     // Update world panel with lighting info
                                     return import('../panels/world-panel/world-panel.js')
                                         .then(worldPanelModule => {
                                             if (worldPanelModule.updateLightingInfo) {
-                                                worldPanelModule.updateLightingInfo({
+                                                // Create more detailed metadata
+                                                const lightingMetadata = {
                                                     fileName: lightingFile.name,
                                                     type: lightingFile.name.split('.').pop().toUpperCase(),
-                                                    fileSizeBytes: lightingFile.size
-                                                });
+                                                    fileSizeBytes: lightingFile.size,
+                                                    // Add texture info if available
+                                                    dimensions: texture && texture.image ? {
+                                                        width: texture.image.width || 0,
+                                                        height: texture.image.height || 0
+                                                    } : { width: 0, height: 0 }
+                                                };
+                                                
+                                                // Important: Log the metadata being sent
+                                                console.log('Sending lighting metadata to world panel:', lightingMetadata);
+                                                
+                                                // Call updateLightingInfo with the metadata
+                                                worldPanelModule.updateLightingInfo(lightingMetadata);
+                                                
+                                                // Also ensure the HDR radio option is visible
+                                                if (worldPanelModule.toggleOptionVisibility) {
+                                                    worldPanelModule.toggleOptionVisibility('hdr-option', true);
+                                                    console.log('Explicitly setting HDR radio option visible from asset_debugger');
+                                                }
                                             }
                                             return texture;
                                         });
@@ -489,7 +693,38 @@ function processFilesFromState() {
                 import('../panels/world-panel/world-panel.js').then(worldPanelModule => {
                     if (worldPanelModule.initWorldPanel) {
                         console.log('Initializing World Panel after resource processing');
-                        worldPanelModule.initWorldPanel(true);
+                        // Initialize without force reset to prevent hiding radio buttons
+                        worldPanelModule.initWorldPanel(false);
+                        
+                        // Explicitly update the panel to reflect the current state
+                        if (worldPanelModule.updateWorldPanel) {
+                            console.log('Explicitly updating World Panel to show radio buttons for loaded files');
+                            worldPanelModule.updateWorldPanel();
+                        }
+                        
+                        // Double-check lighting file visibility - but don't select it
+                        const state = stateModule.getState();
+                        if (state.lightingFile && worldPanelModule.toggleOptionVisibility) {
+                            console.log('Ensuring HDR radio option is visible for lighting file:', state.lightingFile.name);
+                            worldPanelModule.toggleOptionVisibility('hdr-option', true);
+                            
+                            // If lighting metadata exists, make sure it's applied (without selecting the radio button)
+                            if (state.lightingFile && worldPanelModule.updateLightingInfo) {
+                                const lightingMetadata = {
+                                    fileName: state.lightingFile.name,
+                                    type: state.lightingFile.name.split('.').pop().toUpperCase(),
+                                    fileSizeBytes: state.lightingFile.size
+                                };
+                                worldPanelModule.updateLightingInfo(lightingMetadata);
+                            }
+                            
+                            // Ensure "None" is selected as the default
+                            const noneRadio = document.querySelector('input[name="bg-option"][value="none"]');
+                            if (noneRadio) {
+                                noneRadio.checked = true;
+                                console.log('Setting "None" as the default background option');
+                            }
+                        }
                     }
                 });
                 
@@ -789,5 +1024,67 @@ function setupTogglePanelButton() {
             settings.tabPanelHidden = isPanelHidden;
             saveSettings(settings);
         });
+    });
+}
+
+/**
+ * Ensures collapsible headers work correctly despite SPA routing
+ * This directly adds click handlers to all collapsible headers
+ */
+function ensureCollapsibleHeadersWork() {
+    const headers = document.querySelectorAll('.collapsible-header');
+    console.log(`Found ${headers.length} collapsible headers to fix after SPA navigation`);
+    
+    headers.forEach(header => {
+        // First, remove existing event listeners by cloning the node
+        const newHeader = header.cloneNode(true);
+        header.parentNode.replaceChild(newHeader, header);
+        
+        // Now add our direct click handler to the new element
+        newHeader.addEventListener('click', function(event) {
+            // Prevent event bubbling and stop any other handlers
+            event.preventDefault();
+            event.stopPropagation();
+            
+            const content = this.nextElementSibling;
+            if (!content || !content.classList.contains('metadata-content')) {
+                console.log("No valid content section found for header");
+                return;
+            }
+            
+            // Get the current actual computed display style
+            const currentDisplay = window.getComputedStyle(content).display;
+            console.log(`Header clicked: ${this.textContent.trim()}, content display: ${currentDisplay}`);
+            
+            // Toggle visibility - force block if not already visible
+            if (currentDisplay === 'none') {
+                // EXPAND the content
+                content.style.display = 'block';
+                
+                // Update indicator
+                const indicator = this.querySelector('.collapse-indicator');
+                if (indicator) {
+                    indicator.textContent = '[-]';
+                }
+                
+                // Log expanded section for debugging
+                console.log(`Expanded section: ${this.querySelector('.metadata-header')?.textContent}`);
+            } else {
+                // COLLAPSE the content
+                content.style.display = 'none';
+                
+                // Update indicator
+                const indicator = this.querySelector('.collapse-indicator');
+                if (indicator) {
+                    indicator.textContent = '[+]';
+                }
+                
+                // Log collapsed section for debugging
+                console.log(`Collapsed section: ${this.querySelector('.metadata-header')?.textContent}`);
+            }
+            
+            // Return false to prevent default behavior
+            return false;
+        }, true);  // Use capture phase to ensure our handler runs first
     });
 }
