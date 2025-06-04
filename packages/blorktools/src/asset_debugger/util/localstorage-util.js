@@ -187,4 +187,79 @@ export function clearSessionData() {
     localStorage.removeItem(CURRENT_SESSION_KEY);
     localStorage.removeItem(SESSION_HISTORY_KEY);
     console.debug('Cleared all session data from localStorage');
-} 
+}
+
+/**
+ * NEW: Clean up localStorage when quota is exceeded
+ * Removes old sessions and keeps only the most recent ones
+ */
+export function cleanupLocalStorage() {
+    try {
+        console.log('Cleaning up localStorage to free space...');
+        
+        // Get all keys from localStorage
+        const keys = Object.keys(localStorage);
+        
+        // Find session keys (they typically start with a timestamp or contain 'session')
+        const sessionKeys = keys.filter(key => 
+            key.includes('session') || 
+            key.includes('assetDebugger') ||
+            /^\d+$/.test(key) // Keys that are just numbers (timestamps)
+        );
+        
+        // Sort by key name (newer timestamps will be larger)
+        sessionKeys.sort();
+        
+        // Keep only the 3 most recent sessions, remove the rest
+        const keysToRemove = sessionKeys.slice(0, -3);
+        
+        keysToRemove.forEach(key => {
+            try {
+                localStorage.removeItem(key);
+                console.log(`Removed old session: ${key}`);
+            } catch (error) {
+                console.warn(`Could not remove key ${key}:`, error);
+            }
+        });
+        
+        console.log(`Cleaned up ${keysToRemove.length} old sessions from localStorage`);
+        
+    } catch (error) {
+        console.error('Error during localStorage cleanup:', error);
+        // If all else fails, clear everything
+        try {
+            localStorage.clear();
+            console.log('Cleared all localStorage due to cleanup failure');
+        } catch (clearError) {
+            console.error('Cannot clear localStorage:', clearError);
+        }
+    }
+}
+
+/**
+ * NEW: Safe save function that handles quota exceeded errors
+ */
+export function safeSaveCurrentSession(sessionData) {
+    try {
+        saveCurrentSession(sessionData);
+        return true;
+    } catch (error) {
+        if (error.name === 'QuotaExceededError' || error.message.includes('quota')) {
+            console.warn('localStorage quota exceeded, attempting cleanup...');
+            cleanupLocalStorage();
+            
+            // Try saving again after cleanup
+            try {
+                saveCurrentSession(sessionData);
+                console.log('Successfully saved session after cleanup');
+                return true;
+            } catch (secondError) {
+                console.error('Still cannot save after cleanup:', secondError);
+                return false;
+            }
+        } else {
+            console.error('Error saving session:', error);
+            return false;
+        }
+    }
+}

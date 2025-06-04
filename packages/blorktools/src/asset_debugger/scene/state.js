@@ -306,3 +306,140 @@ export function printStateReport(caller = 'unknown') {
     );
     console.log('\n');
 }
+
+/**
+ * NEW: Clear all file-related state
+ * This should be called when navigating between pages to prevent state pollution
+ */
+export function clearAllFiles() {
+    console.log('Clearing all file state for clean navigation...');
+    
+    if (!state) {
+        console.log('No state to clear');
+        return;
+    }
+    
+    // Clear all file references
+    state.modelFile = null;
+    state.lightingFile = null;
+    state.backgroundFile = null;
+    state.backgroundTexture = null;
+    state.environmentTexture = null;
+    
+    // Clear texture files
+    state.textureFiles = {
+        baseColor: null,
+        orm: null,
+        normal: null
+    };
+    
+    // Clear texture objects
+    state.textureObjects = {
+        baseColor: null,
+        orm: null,
+        normal: null
+    };
+    
+    // Don't clear scene, camera, renderer, controls as those are handled by ThreeJS cleanup
+    // Don't clear meshes as those are part of the scene cleanup
+    
+    console.log('File state cleared successfully');
+    
+    // FIXED: Use safe save function that handles quota exceeded
+    import('../util/localstorage-util.js').then(localStorageModule => {
+        if (localStorageModule.safeSaveCurrentSession) {
+            const success = localStorageModule.safeSaveCurrentSession(state);
+            if (!success) {
+                console.warn('Could not save cleared state to localStorage, continuing without persistence');
+            }
+        } else {
+            // Fallback to regular save
+            try {
+                saveCurrentSession(state);
+            } catch (error) {
+                console.warn('Could not save session:', error.message);
+            }
+        }
+    }).catch(error => {
+        console.warn('Could not import localStorage utility:', error);
+    });
+}
+
+/**
+ * NEW: Clear only lighting-related state
+ */
+export function clearLightingState() {
+    if (!state) return;
+    
+    console.log('Clearing lighting state...');
+    state.lightingFile = null;
+    state.environmentTexture = null;
+    state.environmentLightingEnabled = false;
+    
+    // Clear scene environment if it exists
+    if (state.scene) {
+        state.scene.environment = null;
+    }
+}
+
+/**
+ * NEW: Clear only background-related state
+ */
+export function clearBackgroundState() {
+    if (!state) return;
+    
+    console.log('Clearing background state...');
+    state.backgroundFile = null;
+    state.backgroundTexture = null;
+    
+    // Clear scene background if it exists
+    if (state.scene) {
+        state.scene.background = null;
+    }
+}
+
+/**
+ * NEW: Clear only texture-related state
+ */
+export function clearTextureState() {
+    if (!state) return;
+    
+    console.log('Clearing texture state...');
+    state.textureFiles = {
+        baseColor: null,
+        orm: null,
+        normal: null
+    };
+    
+    state.textureObjects = {
+        baseColor: null,
+        orm: null,
+        normal: null
+    };
+}
+
+/**
+ * NEW: Reset to clean navigation state
+ * This preserves the session but clears all loaded content
+ */
+export function resetToNavigationState() {
+    console.log('Resetting to clean navigation state...');
+    
+    if (!state) {
+        state = initDraftState();
+        return state;
+    }
+    
+    // Preserve session info
+    const sessionId = state.sessionId;
+    const timestamp = state.timestamp;
+    
+    // Reset to initial state but preserve session
+    state = { ...initialState, sessionId, timestamp };
+    
+    // Save the reset state
+    saveCurrentSession(state);
+    
+    console.log('Reset to navigation state complete');
+    return state;
+}

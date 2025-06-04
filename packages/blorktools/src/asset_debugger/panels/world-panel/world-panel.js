@@ -31,6 +31,32 @@ let exrLoadInProgress = false;
 // Add a single flag to track when an EXR/HDR file is being loaded
 let isLoadingEnvironmentFile = false;
 
+// NEW: Track event listeners for proper cleanup
+let eventListeners = [];
+
+/**
+ * NEW: Cleanup function to remove all event listeners
+ */
+function cleanupEventListeners() {
+    console.log('Cleaning up world panel event listeners...');
+    eventListeners.forEach(({ element, event, handler }) => {
+        if (element && typeof element.removeEventListener === 'function') {
+            element.removeEventListener(event, handler);
+        }
+    });
+    eventListeners = [];
+}
+
+/**
+ * NEW: Helper to add tracked event listeners
+ */
+function addTrackedEventListener(element, event, handler) {
+    if (element && typeof element.addEventListener === 'function') {
+        element.addEventListener(event, handler);
+        eventListeners.push({ element, event, handler });
+    }
+}
+
 /**
  * Set the scene background to null and save the current background if it exists
  * @param {THREE.Scene} scene - The Three.js scene
@@ -150,6 +176,9 @@ export function initWorldPanel(forceReset = false) {
         return;
     }
     
+    // ALWAYS cleanup existing event listeners first
+    cleanupEventListeners();
+    
     // If we're already initialized but forcing a reset, just reset the critical state
     if (controlsInitialized && forceReset) {
         console.log('World Panel already initialized, but forcing reset of critical state');
@@ -164,7 +193,6 @@ export function initWorldPanel(forceReset = false) {
         toggleOptionVisibility('background-option', false);
         toggleOptionVisibility('hdr-option', false);
         
-        // REMOVED early return to allow checking state
         console.log('Continuing initialization to check for loaded files');
         
         // Get current state to check for loaded files
@@ -176,6 +204,9 @@ export function initWorldPanel(forceReset = false) {
         toggleOptionVisibility('hdr-option', hasEnvironmentTexture);
         toggleOptionVisibility('background-option', hasBackgroundTexture);
         console.log(`Updated radio visibility after reset - HDR: ${hasEnvironmentTexture}, Background: ${hasBackgroundTexture}`);
+        
+        // Set up event listeners again
+        setupBgToggleListener();
         
         // Also update the background UI
         refreshBackgroundUI();
@@ -204,7 +235,7 @@ export function initWorldPanel(forceReset = false) {
     // Initially hide background and HDR options until content is loaded
     toggleOptionVisibility('background-option', false);
     toggleOptionVisibility('hdr-option', false);
-    
+
     // Initialize value displays on sliders and set up event listeners
     document.querySelectorAll('.control-group input[type="range"]').forEach(slider => {
         const valueDisplay = slider.previousElementSibling.querySelector('.value-display');
@@ -213,19 +244,21 @@ export function initWorldPanel(forceReset = false) {
         }
         
         // Add input event listener to update value display when dragging
-        slider.addEventListener('input', function() {
+        const inputHandler = function() {
             const valueDisplay = this.previousElementSibling.querySelector('.value-display');
             if (valueDisplay) {
                 valueDisplay.textContent = this.value;
             }
-        });
+        };
+        
+        addTrackedEventListener(slider, 'input', inputHandler);
     });
     
     // Initialize collapsible functionality
     const collapsibleHeaders = document.querySelectorAll('.collapsible-header');
     if (collapsibleHeaders) {
         collapsibleHeaders.forEach(header => {
-            header.addEventListener('click', function() {
+            const clickHandler = function() {
                 const content = this.nextElementSibling;
                 const indicator = this.querySelector('.collapse-indicator');
                 
@@ -236,10 +269,11 @@ export function initWorldPanel(forceReset = false) {
                     content.style.display = 'none';
                     indicator.textContent = '[+]';
                 }
-            });
+            };
+            
+            addTrackedEventListener(header, 'click', clickHandler);
         });
     }
-    
     
     // Set up event listeners for lighting controls
     setupLightingControls();
@@ -248,7 +282,7 @@ export function initWorldPanel(forceReset = false) {
     setupBgToggleListener();
     
     // Add event listener for background updates from background-util.js
-    document.addEventListener('background-updated', function(e) {
+    const backgroundUpdateHandler = function(e) {
         const texture = e.detail.texture;
         if (texture) {
             console.log('Background texture updated event received');
@@ -299,7 +333,10 @@ export function initWorldPanel(forceReset = false) {
             // Render the preview using the texture
             renderBackgroundPreview(texture);
         }
-    });
+    };
+    
+    addTrackedEventListener(document, 'background-updated', backgroundUpdateHandler);
+    
     // Mark as initialized
     controlsInitialized = true;
 }
@@ -330,7 +367,7 @@ function setupLightingControls() {
     
     // Set up ambient light intensity control
     if (ambientIntensityControl) {
-        ambientIntensityControl.addEventListener('input', (e) => {
+        const ambientHandler = (e) => {
             const value = parseFloat(e.target.value);
             updateLighting({
                 ambient: { intensity: value }
@@ -340,12 +377,14 @@ function setupLightingControls() {
             if (valueDisplay) {
                 valueDisplay.textContent = value.toFixed(1);
             }
-        });
+        };
+        
+        addTrackedEventListener(ambientIntensityControl, 'input', ambientHandler);
     }
     
     // Set up directional light intensity control
     if (directionalIntensityControl) {
-        directionalIntensityControl.addEventListener('input', (e) => {
+        const directionalHandler = (e) => {
             const value = parseFloat(e.target.value);
             updateLighting({
                 directional: { intensity: value }
@@ -355,12 +394,14 @@ function setupLightingControls() {
             if (valueDisplay) {
                 valueDisplay.textContent = value.toFixed(1);
             }
-        });
+        };
+        
+        addTrackedEventListener(directionalIntensityControl, 'input', directionalHandler);
     }
     
     // Set up exposure control
     if (exposureControl) {
-        exposureControl.addEventListener('input', (e) => {
+        const exposureHandler = (e) => {
             const value = parseFloat(e.target.value);
             updateExposure(value);
             // Update value display
@@ -368,12 +409,14 @@ function setupLightingControls() {
             if (valueDisplay) {
                 valueDisplay.textContent = value.toFixed(1);
             }
-        });
+        };
+        
+        addTrackedEventListener(exposureControl, 'input', exposureHandler);
     }
     
     // Set up reset lighting button
     if (resetLightingButton) {
-        resetLightingButton.addEventListener('click', () => {
+        const resetHandler = () => {
             resetLighting();
             
             // Reset control values if they exist
@@ -412,7 +455,9 @@ function setupLightingControls() {
             
             // Update slider visibility based on whether environment is loaded
             updateSliderVisibility(hasEnvironmentTexture);
-        });
+        };
+        
+        addTrackedEventListener(resetLightingButton, 'click', resetHandler);
     }
     
     // Initialize message visibility
@@ -430,18 +475,7 @@ function setupBgToggleListener() {
     // Initial selection based on loaded files
     let initialOption = 'none'; // Default is none
     
-    // If we have lighting file, default to HDR
-    if (state.lightingFile && state.environmentLightingEnabled) {
-        initialOption = 'hdr';
-    }
-    
-    // If we have background file, that takes precedence
-    if (state.backgroundFile) {
-        initialOption = 'background';
-    }
-    
-    // Set the initial selection - always default to 'none' unless otherwise specified
-    initialOption = 'none'; // Force none as default
+    // Always default to 'none' unless otherwise specified
     const selectedRadio = document.querySelector(`input[name="bg-option"][value="${initialOption}"]`);
     if (selectedRadio) {
         selectedRadio.checked = true;
@@ -452,12 +486,24 @@ function setupBgToggleListener() {
     const uiState = determineBackgroundUIState();
     updateBackgroundUIVisibility(uiState);
     
-    // Add event listeners to each radio button
+    // CRITICAL FIX: Remove any existing change listeners before adding new ones
     backgroundOptions.forEach(option => {
-        option.addEventListener('change', function() {
+        // Clone the node to remove all existing event listeners
+        const newOption = option.cloneNode(true);
+        option.parentNode.replaceChild(newOption, option);
+    });
+    
+    // Now get the fresh nodes and add new listeners
+    const freshBackgroundOptions = document.querySelectorAll('input[name="bg-option"]');
+    
+    // Add event listeners to each radio button
+    freshBackgroundOptions.forEach(option => {
+        const changeHandler = function() {
             if (this.checked) {
                 const selectedValue = this.value;
                 currentBackgroundOption = selectedValue;
+                
+                console.log(`Background option changed to: ${selectedValue}`);
                 
                 // Get scene from state
                 const state = getState();
@@ -536,7 +582,10 @@ function setupBgToggleListener() {
                 // Update canvas opacity based on selection
                 updateCanvasOpacity(selectedValue);
             }
-        });
+        };
+        
+        // Add the event listener and track it for cleanup
+        addTrackedEventListener(option, 'change', changeHandler);
     });
     
     // Helper function to update canvas opacity based on selection
@@ -1819,4 +1868,24 @@ export function setCurrentBackgroundOption(option) {
     } else {
         console.warn('Invalid background option:', option);
     }
+}
+
+/**
+ * NEW: Add cleanup function for the module
+ */
+export function cleanupWorldPanel() {
+    console.log('Cleaning up World Panel...');
+    cleanupEventListeners();
+    
+    // Reset state variables
+    controlsInitialized = false;
+    currentLightingMetadata = null;
+    currentBackgroundMetadata = null;
+    environmentTexture = null;
+    backgroundTexture = null;
+    currentBackgroundOption = null;
+    exrLoadInProgress = false;
+    isLoadingEnvironmentFile = false;
+    
+    console.log('World Panel cleanup complete');
 }

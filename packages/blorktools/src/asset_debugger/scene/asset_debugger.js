@@ -151,8 +151,22 @@ function cleanupAssetDebugger() {
     console.log('Cleaning up Asset Debugger resources...');
     
     try {
-        // Get current state module
+        // FIRST: Clean up World Panel event listeners
+        import('../panels/world-panel/world-panel.js').then(worldPanelModule => {
+            if (worldPanelModule.cleanupWorldPanel) {
+                worldPanelModule.cleanupWorldPanel();
+            }
+        }).catch(error => {
+            console.warn('Could not cleanup world panel:', error);
+        });
+        
+        // SECOND: Clear all file state to prevent pollution
         import('./state.js').then(stateModule => {
+            // Clear all files to prevent state pollution between navigations
+            if (stateModule.clearAllFiles) {
+                stateModule.clearAllFiles();
+            }
+            
             const state = stateModule.getState();
             
             // Stop animation loop
