@@ -358,7 +358,7 @@ function processFilesFromState() {
             // Process all files from state in sequence
             let promiseChain = Promise.resolve();
 
-            // Handle lighting file if it exists
+            // IMPORTANT: Process lighting first to ensure proper controls creation
             if (stateModule.hasLightingFile()) {
                 const lightingFile = stateModule.getLightingFile();
                 promiseChain = promiseChain.then(() => {
@@ -480,6 +480,27 @@ function processFilesFromState() {
                         });
                 });
             }
+
+            // Initialize UI panels AFTER all resources are loaded
+            promiseChain = promiseChain.then(() => {
+                console.log('All resources processed, initializing UI panels...');
+                
+                // Initialize World Panel
+                import('../panels/world-panel/world-panel.js').then(worldPanelModule => {
+                    if (worldPanelModule.initWorldPanel) {
+                        console.log('Initializing World Panel after resource processing');
+                        worldPanelModule.initWorldPanel(true);
+                    }
+                });
+                
+                // Initialize Asset Panel
+                import('../panels/asset-panel/asset-panel.js').then(assetPanelModule => {
+                    if (assetPanelModule.initAssetPanel) {
+                        console.log('Initializing Asset Panel after resource processing');
+                        assetPanelModule.initAssetPanel();
+                    }
+                });
+            });
 
             // Return the promise chain
             return promiseChain;

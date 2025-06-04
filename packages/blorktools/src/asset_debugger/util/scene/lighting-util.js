@@ -144,6 +144,75 @@ export function setupEnvironmentLighting(file) {
         // Create object URL from the file
         const url = URL.createObjectURL(file);
         
+        // Function to handle successful texture loading
+        const handleTextureLoaded = (texture) => {
+            if (DEBUG_LIGHTING) {
+                console.log(`${isEXR ? 'EXR' : 'HDR'} texture loaded successfully:`, texture);
+            }
+            
+            texture.mapping = THREE.EquirectangularReflectionMapping;
+            
+            // Set scene environment but NOT background
+            state.scene.environment = texture;
+            
+            // Store the texture in state for later reference if needed
+            updateState('environmentTexture', texture);
+            
+            // Clean up object URL
+            URL.revokeObjectURL(url);
+            
+            // Update exposure control if it exists
+            const exposureControl = document.getElementById('exposure-value');
+            if (exposureControl) {
+                exposureControl.value = environmentExposure;
+                const valueDisplay = exposureControl.previousElementSibling.querySelector('.value-display');
+                if (valueDisplay) {
+                    valueDisplay.textContent = environmentExposure.toFixed(1);
+                }
+            }
+            
+            // Hide no data message since we now have lighting data
+            const noDataMessage = document.querySelector('.no-data-message');
+            if (noDataMessage) {
+                noDataMessage.style.display = 'none';
+            }
+            
+            // Check viewport again to ensure it's still visible
+            const viewportAfter = document.getElementById('viewport');
+            if (viewportAfter && viewportAfter.style.display !== 'block') {
+                console.log(`DEBUG: Restoring viewport visibility after ${isEXR ? 'EXR' : 'HDR'} loading`);
+                viewportAfter.style.display = 'block';
+            }
+            
+            // Ensure controls are properly set up for the current scene
+            import('./controls.js').then(controlsModule => {
+                console.log('Setting up camera and controls after environment lighting setup');
+                
+                if (state.camera && state.renderer) {
+                    // Reset camera position
+                    state.camera.position.set(3, 2, 5);
+                    state.camera.lookAt(0, 0, 0);
+                    state.camera.updateProjectionMatrix();
+                    
+                    // Instead of resetting existing controls, recreate them entirely
+                    if (controlsModule.recreateControls) {
+                        controlsModule.recreateControls(state.camera, state.renderer.domElement);
+                        console.log('Controls recreated successfully - scene should now be interactive');
+                    } else {
+                        console.warn('recreateControls function not found, controls may not work properly');
+                    }
+                    
+                    // Trigger a resize event to ensure everything is rendered correctly
+                    window.dispatchEvent(new Event('resize'));
+                }
+            }).catch(error => {
+                console.error('Error fixing controls:', error);
+            });
+            
+            // Resolve the promise with the texture
+            resolve(texture);
+        };
+        
         if (isEXR) {
             // Use EXRLoader for EXR files
             if (DEBUG_LIGHTING) {
@@ -162,48 +231,7 @@ export function setupEnvironmentLighting(file) {
                 
                 loader.load(url, 
                     // Success callback
-                    (texture) => {
-                        if (DEBUG_LIGHTING) {
-                            console.log('EXR texture loaded successfully:', texture);
-                        }
-                        
-                        texture.mapping = THREE.EquirectangularReflectionMapping;
-                        
-                        // Set scene environment but NOT background (fixes conflict with background images)
-                        state.scene.environment = texture;
-                        
-                        // Store the texture in state for later reference if needed
-                        updateState('environmentTexture', texture);
-                        
-                        // Clean up object URL
-                        URL.revokeObjectURL(url);
-                        
-                        // Update exposure control if it exists
-                        const exposureControl = document.getElementById('exposure-value');
-                        if (exposureControl) {
-                            exposureControl.value = environmentExposure;
-                            const valueDisplay = exposureControl.previousElementSibling.querySelector('.value-display');
-                            if (valueDisplay) {
-                                valueDisplay.textContent = environmentExposure.toFixed(1);
-                            }
-                        }
-                        
-                        // Hide no data message since we now have lighting data
-                        const noDataMessage = document.querySelector('.no-data-message');
-                        if (noDataMessage) {
-                            noDataMessage.style.display = 'none';
-                        }
-                        
-                        // Check viewport again to ensure it's still visible
-                        const viewportAfter = document.getElementById('viewport');
-                        if (viewportAfter && viewportAfter.style.display !== 'block') {
-                            console.log('DEBUG: Restoring viewport visibility after EXR loading');
-                            viewportAfter.style.display = 'block';
-                        }
-                        
-                        // Resolve the promise with the texture
-                        resolve(texture);
-                    },
+                    handleTextureLoaded,
                     // Progress callback
                     undefined,
                     // Error callback
@@ -235,48 +263,7 @@ export function setupEnvironmentLighting(file) {
                 
                 loader.load(url, 
                     // Success callback
-                    (texture) => {
-                        if (DEBUG_LIGHTING) {
-                            console.log('HDR texture loaded successfully:', texture);
-                        }
-                        
-                        texture.mapping = THREE.EquirectangularReflectionMapping;
-                        
-                        // Set scene environment but NOT background
-                        state.scene.environment = texture;
-                        
-                        // Store the texture in state for later reference if needed
-                        updateState('environmentTexture', texture);
-                        
-                        // Clean up object URL
-                        URL.revokeObjectURL(url);
-                        
-                        // Update exposure control if it exists
-                        const exposureControl = document.getElementById('exposure-value');
-                        if (exposureControl) {
-                            exposureControl.value = environmentExposure;
-                            const valueDisplay = exposureControl.previousElementSibling.querySelector('.value-display');
-                            if (valueDisplay) {
-                                valueDisplay.textContent = environmentExposure.toFixed(1);
-                            }
-                        }
-                        
-                        // Hide no data message since we now have lighting data
-                        const noDataMessage = document.querySelector('.no-data-message');
-                        if (noDataMessage) {
-                            noDataMessage.style.display = 'none';
-                        }
-                        
-                        // Check viewport again to ensure it's still visible
-                        const viewportAfter = document.getElementById('viewport');
-                        if (viewportAfter && viewportAfter.style.display !== 'block') {
-                            console.log('DEBUG: Restoring viewport visibility after HDR loading');
-                            viewportAfter.style.display = 'block';
-                        }
-                        
-                        // Resolve the promise with the texture
-                        resolve(texture);
-                    },
+                    handleTextureLoaded,
                     // Progress callback
                     undefined,
                     // Error callback

@@ -246,8 +246,8 @@ class Router {
     async initializeModule(modulePath, initFunctionName, routeName) {
         try {
             console.log(`Importing ${routeName} module from: ${modulePath}`);
-            const module = await import(`${modulePath}?t=${Date.now()}`);
-            
+            const module = await import(/* @vite-ignore */ `${modulePath}?t=${Date.now()}`);
+                  
             console.log(`Module imported. Available exports:`, Object.keys(module));
             
             if (module[initFunctionName]) {

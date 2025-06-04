@@ -143,6 +143,46 @@ export function resetControls() {
 }
 
 /**
+ * Force recreation of controls - use when controls are not working properly
+ * @param {THREE.Camera} camera - The camera to control
+ * @param {HTMLElement} domElement - The DOM element for control events
+ * @returns {OrbitControls} The new controls instance
+ */
+export function recreateControls(camera, domElement) {
+    console.log('Controls: Forcibly recreating controls');
+    
+    // Clean up existing controls
+    disposeControls();
+    
+    // Reset flags
+    isInitialized = false;
+    controlsInstance = null;
+    
+    // Create new controls
+    return initControls(camera, domElement);
+}
+
+/**
+ * Dispose controls properly to prevent memory leaks
+ */
+export function disposeControls() {
+    const controls = getControls();
+    if (!controls) {
+        return;
+    }
+    
+    console.log('Controls: Disposing controls');
+    
+    // Remove from state
+    updateState('controls', null);
+    
+    // Dispose and remove the controls
+    controls.dispose();
+    controlsInstance = null;
+    isInitialized = false;
+}
+
+/**
  * Update control settings
  * @param {Object} settings - Control settings to update
  */
