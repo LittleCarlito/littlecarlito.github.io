@@ -150,7 +150,14 @@ function resetThreeJSState() {
 function cleanupAssetDebugger() {
     console.log('Cleaning up Asset Debugger resources...');
     
+    const debugControls = document.querySelector('.debug-controls');
+    if (debugControls) {
+        debugControls.style.display = 'none';
+        console.log('Debug controls hidden during cleanup');
+    }
+    
     try {
+        // ... rest of existing cleanup code
         // FIRST: Clean up World Panel event listeners
         import('../panels/world-panel/world-panel.js').then(worldPanelModule => {
             if (worldPanelModule.cleanupWorldPanel) {
