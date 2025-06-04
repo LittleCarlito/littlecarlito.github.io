@@ -694,18 +694,18 @@ function processFilesFromState() {
             // Handle texture files if they exist
             if (stateModule.hasBaseColorFile() || stateModule.hasOrmFile() || stateModule.hasNormalFile()) {
                 promiseChain = promiseChain.then(() => {
-                    return import('../util/custom-animation/texture-util.js')
+                    return import('../util/materials-util.js')
                         .then(textureModule => {
                             const promises = [];
                             
                             if (stateModule.hasBaseColorFile()) {
-                                promises.push(textureModule.loadTexture(stateModule.getBaseColorFile(), 'baseColor'));
+                                promises.push(textureModule.loadTextureFromFile(stateModule.getBaseColorFile(), 'baseColor'));
                             }
                             if (stateModule.hasOrmFile()) {
-                                promises.push(textureModule.loadTexture(stateModule.getOrmFile(), 'orm'));
+                                promises.push(textureModule.loadTextureFromFile(stateModule.getOrmFile(), 'orm'));
                             }
                             if (stateModule.hasNormalFile()) {
-                                promises.push(textureModule.loadTexture(stateModule.getNormalFile(), 'normal'));
+                                promises.push(textureModule.loadTextureFromFile(stateModule.getNormalFile(), 'normal'));
                             }
                             
                             return Promise.all(promises);
