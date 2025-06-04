@@ -12,14 +12,16 @@ import { createControls, updateControls, setControlsTarget } from '../util/scene
 /**
  * Initialize the Three.js scene, camera, renderer and controls
  * @param {HTMLElement} container - The container element for the renderer
+ * @param {boolean} showDebugCube - Whether to show the debug cube (default: false)
  * @returns {Object} Scene, camera, renderer, and controls
  */
-export function initScene(container) {
+export function initScene(container, showDebugCube = false) {
     console.log('DEBUG: initScene called', {
         containerExists: !!container,
         containerDimensions: container ? `${container.clientWidth}x${container.clientHeight}` : 'N/A',
         parentNode: container?.parentNode?.tagName || 'None',
-        viewportID: container?.id || 'Unknown'
+        viewportID: container?.id || 'Unknown',
+        showDebugCube: showDebugCube
     });
     
     // Add a debug cube to confirm scene is rendering
@@ -65,10 +67,15 @@ export function initScene(container) {
     const controls = createControls(camera, renderer.domElement);
     // No need to update state here as the controls module does it
     
-    // Add a debug cube to verify the scene is working
-    const cube = addDebugCube(scene);
+    // Add a debug cube to verify the scene is working if showDebugCube is true
+    let cube = null;
+    if (showDebugCube) {
+        cube = addDebugCube(scene);
+        console.log('DEBUG: Added green debug cube to scene');
+    } else {
+        console.log('DEBUG: Debug cube disabled');
+    }
     updateState('cube', cube);
-    console.log('DEBUG: Added green debug cube to scene');
     
     // Check if we have an HDR/EXR lighting file to use
     const lightingFile = state.lightingFile;

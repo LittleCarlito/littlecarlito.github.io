@@ -443,7 +443,7 @@ function initializeScene() {
                     console.log(`Viewport properly sized: ${viewport.offsetWidth}x${viewport.offsetHeight}`);
                     
                     // Initialize scene - handle case where it doesn't return a Promise
-                    const result = sceneModule.initScene(viewport);
+                    const result = sceneModule.initScene(viewport, false);
                     
                     // Start animation loop
                     sceneModule.startAnimation();
