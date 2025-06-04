@@ -23,11 +23,15 @@ let isInitialized = false;
 export function initControls(camera, domElement) {
     console.log('Controls: initControls called');
     
-    // Prevent multiple initializations
-    if (isInitialized && controlsInstance) {
+    // Prevent multiple initializations - but only if we actually have a valid instance
+    if (isInitialized && controlsInstance && !controlsInstance._disposed) {
         console.warn('Controls already initialized, returning existing instance');
         return controlsInstance;
     }
+    
+    // Reset flags in case of stale state
+    isInitialized = false;
+    controlsInstance = null;
     
     if (!camera) {
         throw new Error('Camera is required to initialize controls');

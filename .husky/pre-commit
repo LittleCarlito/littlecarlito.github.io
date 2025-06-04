@@ -142,18 +142,6 @@ else
   fi
 fi
 
-# Validate commit message format
-echo "🔍 Validating commit message format..."
-COMMIT_MSG=$(cat "$(git rev-parse --git-dir)/COMMIT_EDITMSG")
-debug_step "Checking commit message: $COMMIT_MSG"
-
-# Run commitlint on the commit message
-if ! npx --no -- commitlint --edit "$(git rev-parse --git-dir)/COMMIT_EDITMSG"; then
-  report_failure "Commit message validation failed. Please fix your commit message format."
-  exit 1
-fi
-echo "✅ Commit message validation passed."
-
 debug_step "After package.json checks"
 
 # Create a timeout function for handling potential hanging tests

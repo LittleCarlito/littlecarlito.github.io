@@ -185,8 +185,15 @@ function cleanupAssetDebugger() {
                 stateModule.updateState('renderer', null);
             }
             
+            // Dispose of controls
             if (state.controls) {
                 console.log('Disposing controls');
+                // Import and use the proper disposal function from controls module
+                import('../util/scene/controls.js').then(controlsModule => {
+                    if (controlsModule.disposeControls) {
+                        controlsModule.disposeControls();
+                    }
+                });
                 state.controls.dispose();
                 stateModule.updateState('controls', null);
             }
