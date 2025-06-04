@@ -1,3 +1,6 @@
+// Add this import at the top of router.js
+import { showLoadingSplash, updateLoadingProgress, hideLoadingSplash } from './loading-splash/loading-splash';
+
 // router.js - Simple SPA router
 class Router {
     constructor() {
@@ -105,44 +108,24 @@ class Router {
 
     // Load HTML content into the app div
     async loadContent(url) {
-        try {
-            console.log('Loading content from:', url);
-            
-            await this.clearContent();
-            await this.ensureHeaderLoaded();
-            
-            // Show loading state
-            this.appDiv.innerHTML = '<div class="loading">Loading...</div>';
-            
-            // Fetch content
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            
-            const html = await response.text();
-            console.log('Content fetched, size:', html.length, 'bytes');
-            console.log('Content preview:', html.substring(0, 200) + '...');
-            
-            // Extract and insert content
-            const contentToInsert = this.extractContent(html, url);
-            console.log('Extracted content size:', contentToInsert.length, 'bytes');
-            console.log('Extracted content preview:', contentToInsert.substring(0, 200) + '...');
-            
-            this.appDiv.innerHTML = contentToInsert;
-            console.log('Content inserted into DOM');
-            
-            // Ensure DOM is ready
-            await new Promise(resolve => requestAnimationFrame(resolve));
-            
-        } catch (error) {
-            console.error('Error loading content:', error);
-            this.appDiv.innerHTML = `
-                <div class="loading">
-                    <h1>Error</h1>
-                    <p>Could not load content from ${url}</p>
-                    <p>Error: ${error.message}</p>
-                </div>
-            `;
-        }
+        console.log('Loading content from:', url);
+        
+        await this.clearContent();
+        await this.ensureHeaderLoaded();
+                
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        
+        const html = await response.text();
+        console.log('Content fetched, size:', html.length, 'bytes');
+                
+        const contentToInsert = this.extractContent(html, url);
+        console.log('Extracted content size:', contentToInsert.length, 'bytes');
+        
+        this.appDiv.innerHTML = contentToInsert;
+        console.log('Content inserted into DOM');
+        
+        await new Promise(resolve => requestAnimationFrame(resolve));
     }
 
     // Extract content from HTML based on file type

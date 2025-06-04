@@ -53,6 +53,7 @@ let isPageUnloading = false;
  * Sets up the UI, loads components, and initializes the 3D scene.
  */
 export function setupAssetDebugger() {
+    showLoadingSplash("Setting up debugging environment");
     // Reset the state before initializing
     resetThreeJSState();
     
@@ -60,22 +61,25 @@ export function setupAssetDebugger() {
     printStateReport('Asset-Debugger');
     console.debug('Asset Debugger UI: Initializing...');
     // Initialize UI components
+    updateLoadingProgress("Initializing UI");
     initUiManager();
     // Load all component HTML files
+    updateLoadingProgress("Loading HTML components");
     loadComponentHtml();
     // // Initialize the 3D environment
+    updateLoadingProgress("Setting up 3D scene");
     initializeScene();
     // // Set up the event listeners for debugging
+    updateLoadingProgress("Setting up event listeners");
     const restartDebugBtn = document.getElementById('restart-debug');
     if (restartDebugBtn) {
         restartDebugBtn.addEventListener('click', restartDebugging);
     }
-    
     // Ensure collapsible headers will work by adding direct event handlers
     // This runs after all components are loaded
     setTimeout(ensureCollapsibleHeadersWork, 500);
-    
     // Return a cleanup function that the router can call
+    updateLoadingProgress("Finalizing startup");
     return cleanupAssetDebugger;
 }
 
@@ -439,6 +443,7 @@ function checkAllResourcesLoaded() {
         if (!loadingComplete) {
             loadingComplete = true;
             console.debug('All resources loaded...');
+            hideLoadingSplash();
         }
     } else {
         // Log which resources are still not loaded
@@ -483,7 +488,6 @@ function initializeScene() {
                     
                     // Ensure camera controls are ready after a short delay
                     setTimeout(() => {
-                        updateLoadingProgress('Finalizing camera controls...');
                         
                         // Import and ensure camera controls are fully initialized
                         import('../util/scene/controls.js')
