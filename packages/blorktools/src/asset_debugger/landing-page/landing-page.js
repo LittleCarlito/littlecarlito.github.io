@@ -472,7 +472,17 @@ function getDropzoneName(dropzoneId) {
 async function processZipFile(file) {
     console.log(`ZIP file received: ${file.name} size: ${file.size}`);
     
+    // Get the zip info element to show status
+    const zipInfoElement = document.getElementById('zip-info');
+    
     try {
+        // Show processing message
+        if (zipInfoElement) {
+            zipInfoElement.textContent = `Processing ${file.name}...`;
+            zipInfoElement.style.display = 'block';
+            zipInfoElement.style.color = '#007bff';
+        }
+        
         // Process the ZIP file contents using the zip-util module
         const results = await processZipContents(file);
         
@@ -482,9 +492,32 @@ async function processZipFile(file) {
         // If successful, load files into dropzones
         if (results.success) {
             handleAutoLoad(results);
+            
+            // Show success message
+            if (zipInfoElement) {
+                zipInfoElement.textContent = `ZIP file "${file.name}" processed successfully`;
+                zipInfoElement.style.color = 'green';
+                
+                // Hide after 3 seconds
+                setTimeout(() => {
+                    zipInfoElement.style.display = 'none';
+                }, 3000);
+            }
+        } else {
+            // Show error message
+            if (zipInfoElement) {
+                zipInfoElement.textContent = `Error processing ZIP file: ${results.error}`;
+                zipInfoElement.style.color = 'red';
+            }
         }
     } catch (error) {
         console.error('Error processing ZIP file:', error);
+        
+        // Show error message
+        if (zipInfoElement) {
+            zipInfoElement.textContent = `Error processing ZIP file: ${error.message}`;
+            zipInfoElement.style.color = 'red';
+        }
     }
 }
 
