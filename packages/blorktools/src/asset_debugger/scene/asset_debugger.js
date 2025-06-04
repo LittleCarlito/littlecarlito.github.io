@@ -15,7 +15,7 @@ import { initAssetPanel } from '../panels/asset-panel/asset-panel.js';
 import { initModelIntegration } from '../modals/html-editor-modal/model-integration.js';
 import { initHtmlEditorModal } from '../modals/html-editor-modal/html-editor-modal.js';
 import { initWorldPanel } from '../panels/world-panel/world-panel.js';
-import { getState, printStateReport } from './state.js';
+import { getState, printStateReport, hasFiles } from './state.js';
 import { initUiManager } from '../util/ui-manager.js';
 import { hideLoadingSplash, showLoadingSplash, updateLoadingProgress } from '../loading-splash/loading-splash.js';
 import { setupDropzones } from '../util/dropzone/dropzone-util.js';
@@ -177,10 +177,6 @@ function loadComponentHtml() {
                 console.error('Error loading HTML editor modal:', error);
                 throw error;
             });
-    // console.log('All components loaded successfully');
-    // resourcesLoaded.componentsLoaded = true;
-    // // Start the debugging process after components are loaded
-    // startDebugging();
     // Wait for all components to load
     Promise.all([
         worldPanelPromise,
@@ -241,31 +237,51 @@ function initializeScene() {
         .then(sceneModule => {
             console.log('Scene module loaded, initializing scene');
             try {
-                // Initialize scene - handle case where it doesn't return a Promise
-                const result = sceneModule.initScene(viewport);
-                
-                // Start animation loop
-                sceneModule.startAnimation();
-                componentsLoaded.scene = true;
-                resourcesLoaded.sceneInitialized = true;
-                checkAllResourcesLoaded();
-                
-                // Ensure camera controls are ready after a short delay
-                setTimeout(() => {
-                    updateLoadingProgress('Finalizing camera controls...');
+                // Wait for viewport to be properly sized
+                const ensureViewportSize = () => {
+                    if (viewport.offsetWidth === 0 || viewport.offsetHeight === 0) {
+                        console.log('Viewport not sized yet, waiting...');
+                        // Try again after a short delay
+                        setTimeout(ensureViewportSize, 50);
+                        return;
+                    }
                     
-                    // Import and ensure camera controls are fully initialized
-                    import('../util/scene/controls.js')
-                        .then(() => {
-                            resourcesLoaded.controlsReady = true;
-                            checkAllResourcesLoaded();
-                        })
-                        .catch(error => {
-                            console.error('Error ensuring controls are ready:', error);
-                            resourcesLoaded.controlsReady = true;
-                            checkAllResourcesLoaded();
-                        });
-                }, 500);
+                    console.log(`Viewport properly sized: ${viewport.offsetWidth}x${viewport.offsetHeight}`);
+                    
+                    // Initialize scene - handle case where it doesn't return a Promise
+                    const result = sceneModule.initScene(viewport);
+                    
+                    // Start animation loop
+                    sceneModule.startAnimation();
+                    componentsLoaded.scene = true;
+                    resourcesLoaded.sceneInitialized = true;
+                    checkAllResourcesLoaded();
+                    
+                    // Ensure camera controls are ready after a short delay
+                    setTimeout(() => {
+                        updateLoadingProgress('Finalizing camera controls...');
+                        
+                        // Import and ensure camera controls are fully initialized
+                        import('../util/scene/controls.js')
+                            .then(controlsModule => {
+                                // Reset controls if we're loading files from landing page
+                                if (hasFiles()) {
+                                    console.log('Files detected from landing page, ensuring controls are properly initialized');
+                                    controlsModule.resetControls && controlsModule.resetControls();
+                                }
+                                resourcesLoaded.controlsReady = true;
+                                checkAllResourcesLoaded();
+                            })
+                            .catch(error => {
+                                console.error('Error ensuring controls are ready:', error);
+                                resourcesLoaded.controlsReady = true;
+                                checkAllResourcesLoaded();
+                            });
+                    }, 500);
+                };
+                
+                // Start ensuring viewport size
+                ensureViewportSize();
             } catch (error) {
                 console.error('Error initializing scene:', error);
                 componentsLoaded.scene = true; // Mark as loaded to prevent hanging
@@ -281,6 +297,9 @@ function initializeScene() {
         });
 }
 
+/**
+ * Main function that handles the debugging process
+ */
 /**
  * Main function that handles the debugging process
  */
@@ -301,21 +320,40 @@ function startDebugging() {
     // Initialize the debugger with the loaded settings
     initializeDebugger(savedSettings);
 
+    // WAIT for scene to be initialized before processing files
+    const waitForSceneAndProcessFiles = () => {
+        if (!resourcesLoaded.sceneInitialized) {
+            console.log('Waiting for scene initialization before processing files...');
+            setTimeout(waitForSceneAndProcessFiles, 100);
+            return;
+        }
+
+        // Now that scene is ready, process files
+        processFilesFromState();
+    };
+
+    // Start waiting for scene
+    waitForSceneAndProcessFiles();
+}
+
+/**
+ * Process all files from state after scene is initialized
+ */
+function processFilesFromState() {
     // Get current state for loading lighting and background
     import('./state.js')
         .then(stateModule => {
             const currentState = stateModule.getState();
-            console.debug('Initial state before debugging:', {
+            console.debug('Processing files after scene initialization:', {
                 backgroundFile: currentState.backgroundFile ? 
                     `${currentState.backgroundFile.name} (${currentState.backgroundFile.type})` : 'null',
                 backgroundTexture: currentState.backgroundTexture ? 'Texture present' : 'null'
             });
 
-            // Initialize all resource flags to false
+            // Initialize resource flags for files
             resourcesLoaded.lightingLoaded = false;
             resourcesLoaded.backgroundLoaded = false;
             resourcesLoaded.modelLoaded = false;
-            resourcesLoaded.controlsReady = false;
 
             // Process all files from state in sequence
             let promiseChain = Promise.resolve();
@@ -347,6 +385,11 @@ function startDebugging() {
                             console.log('Lighting loaded successfully');
                             resourcesLoaded.lightingLoaded = true;
                             checkAllResourcesLoaded();
+                        })
+                        .catch(error => {
+                            console.error('Error setting up lighting:', error);
+                            resourcesLoaded.lightingLoaded = true; // Mark as complete even on error
+                            checkAllResourcesLoaded();
                         });
                 });
             } else {
@@ -377,6 +420,11 @@ function startDebugging() {
                             console.log('Background loaded successfully');
                             resourcesLoaded.backgroundLoaded = true;
                             checkAllResourcesLoaded();
+                        })
+                        .catch(error => {
+                            console.error('Error setting up background:', error);
+                            resourcesLoaded.backgroundLoaded = true; // Mark as complete even on error
+                            checkAllResourcesLoaded();
                         });
                 });
             } else {
@@ -397,6 +445,11 @@ function startDebugging() {
                         .then(() => {
                             console.log('Model loaded successfully');
                             resourcesLoaded.modelLoaded = true;
+                            checkAllResourcesLoaded();
+                        })
+                        .catch(error => {
+                            console.error('Error loading model:', error);
+                            resourcesLoaded.modelLoaded = true; // Mark as complete even on error
                             checkAllResourcesLoaded();
                         });
                 });
@@ -428,25 +481,15 @@ function startDebugging() {
                 });
             }
 
-            // Ensure camera controls are ready after all other resources
-            return promiseChain.then(() => {
-                console.log('Finalizing camera controls...');
-                updateLoadingProgress('Finalizing camera controls...');
-                return import('../util/scene/controls.js')
-                    .then(() => {
-                        console.log('Camera controls initialized');
-                        resourcesLoaded.controlsReady = true;
-                        checkAllResourcesLoaded();
-                    });
-            });
+            // Return the promise chain
+            return promiseChain;
         })
         .catch(error => {
-            console.error('Error in debugging sequence:', error);
-            // Even on error, mark as complete to hide splash screen
+            console.error('Error in file processing sequence:', error);
+            // Mark all as complete to prevent hanging
             resourcesLoaded.lightingLoaded = true;
             resourcesLoaded.backgroundLoaded = true;
             resourcesLoaded.modelLoaded = true;
-            resourcesLoaded.controlsReady = true;
             checkAllResourcesLoaded();
         });
 }
