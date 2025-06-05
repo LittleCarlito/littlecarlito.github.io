@@ -281,7 +281,7 @@ jobs:
           
           # Create regex pattern from version types
           # Format each type as "^type(\([^)]+\))?:" and join with |
-          TYPES_REGEX=$(echo "$VERSION_TYPES" | tr ' ' '\n' | sed 's/^/^/' | sed 's/$/\\(\\([^)]+\\)\\)?:/' | tr '\n' '|' | sed 's/|$//')
+          TYPES_REGEX=$(echo "$VERSION_TYPES" | tr ' ' '\n' | sed 's/^/^/' | sed 's/$/\\([^)]*\\)?:/' | tr '\n' '|' | sed 's/|$//')
           echo "Using regex pattern: $TYPES_REGEX"
           
           # Read ignored scopes

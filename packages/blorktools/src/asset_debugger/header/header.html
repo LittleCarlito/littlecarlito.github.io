@@ -1,0 +1,24 @@
+<!-- Reusable header component -->
+<header>
+    <div class="title-area">
+        <h1>Asset Debugger</h1>
+        <div class="debug-controls" style="display: none; margin-left: 15px;">
+            <button id="restart-debug" class="theme-toggle">Restart</button>
+            <button id="settings-button" class="theme-toggle pin-button" aria-label="Settings" style="padding: 8px; display: flex; align-items: center; justify-content: center;">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M17.4039 10.9839C17.4373 10.6618 17.4373 10.3382 17.4039 10.0161L19.0039 8.7661C19.1706 8.63275 19.2239 8.41608 19.1373 8.23275L17.3039 5.10775C17.2173 4.92441 17.0039 4.84108 16.8206 4.92441L14.9373 5.69108C14.5039 5.35775 14.0373 5.09108 13.5373 4.89108L13.2706 2.89108C13.2373 2.69108 13.0706 2.55774 12.8706 2.55774H9.20394C9.00394 2.55774 8.83727 2.69108 8.80394 2.89108L8.53727 4.89108C8.03727 5.09108 7.57061 5.35775 7.13727 5.69108L5.25394 4.92441C5.07061 4.84108 4.85727 4.92441 4.77061 5.10775L2.93727 8.23275C2.85061 8.41608 2.90394 8.63275 3.07061 8.7661L4.67061 10.0161C4.63727 10.3382 4.63727 10.6618 4.67061 10.9839L3.07061 12.2339C2.90394 12.3672 2.85061 12.5839 2.93727 12.7672L4.77061 15.8922C4.85727 16.0755 5.07061 16.1589 5.25394 16.0755L7.13727 15.3089C7.57061 15.6422 8.03727 15.9089 8.53727 16.1089L8.80394 18.1089C8.83727 18.3089 9.00394 18.4422 9.20394 18.4422H12.8706C13.0706 18.4422 13.2373 18.3089 13.2706 18.1089L13.5373 16.1089C14.0373 15.9089 14.5039 15.6422 14.9373 15.3089L16.8206 16.0755C17.0039 16.1589 17.2173 16.0755 17.3039 15.8922L19.1373 12.7672C19.2239 12.5839 19.1706 12.3672 19.0039 12.2339L17.4039 10.9839ZM11.0373 13.8089C9.17061 13.8089 7.65394 12.2922 7.65394 10.4255C7.65394 8.55889 9.17061 7.04222 11.0373 7.04222C12.9039 7.04222 14.4206 8.55889 14.4206 10.4255C14.4206 12.2922 12.9039 13.8089 11.0373 13.8089Z" fill="currentColor"/>
+                </svg>
+            </button>
+            <button id="toggle-panel" class="theme-toggle pin-button" aria-label="Toggle Panel" title="Hide Side Panel" style="padding: 8px; display: flex; align-items: center; justify-content: center;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" fill="currentColor"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+    <div class="header-controls">
+        <button id="return-to-toolbox" class="theme-toggle">Exit to Toolbox</button>
+        <button id="theme-toggle" class="theme-toggle">System Status</button>
+        <div id="pin-button-container"></div>
+    </div>
+</header> 

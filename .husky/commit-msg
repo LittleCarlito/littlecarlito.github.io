@@ -1,12 +1,13 @@
 #!/bin/sh
 
-# Run commitlint validation
-npx --no -- commitlint --edit $1
-
 echo "🔍 Validating commit message format..."
 
+# Run commitlint validation and capture result immediately
+npx --no -- commitlint --edit $1
+COMMITLINT_RESULT=$?
+
 # Exit if commitlint failed
-if [ $? -ne 0 ]; then
+if [ $COMMITLINT_RESULT -ne 0 ]; then
   echo "❌ Commit message validation failed."
   exit 1
 fi

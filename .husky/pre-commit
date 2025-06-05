@@ -23,30 +23,124 @@ echo "Checking for package.json changes..."
 PACKAGE_CHANGES=$(git diff --cached --name-only | grep "package.json$" || true)
 debug_step "Found package changes: $PACKAGE_CHANGES"
 
+# Identify packages that need building
+detect_package_builds() {
+  debug_step "Detecting packages that need building"
+  
+  # Get staged files that are about to be committed
+  STAGED_FILES=$(git diff --cached --name-only)
+  
+  # Initialize flags for packages
+  BLORKPACK_NEEDS_BUILD=false
+  BLORKTOOLS_NEEDS_BUILD=false
+  BLORKVISOR_NEEDS_BUILD=false
+  PORTFOLIO_NEEDS_BUILD=false
+  
+  for file in $STAGED_FILES; do
+    # Skip empty lines
+    [ -z "$file" ] && continue
+    
+    # Check if file is in specific packages
+    if [[ "$file" =~ ^packages/blorkpack/ ]]; then
+      BLORKPACK_NEEDS_BUILD=true
+    fi
+    
+    if [[ "$file" =~ ^packages/blorktools/ ]]; then
+      BLORKTOOLS_NEEDS_BUILD=true
+    fi
+    
+    if [[ "$file" =~ ^packages/blorkvisor/ ]]; then
+      BLORKVISOR_NEEDS_BUILD=true
+    fi
+    
+    if [[ "$file" =~ ^apps/portfolio/ ]]; then
+      PORTFOLIO_NEEDS_BUILD=true
+    fi
+  done
+}
+
+# Function to verify and build packages as needed
+build_packages_if_needed() {
+  detect_package_builds
+  
+  # Check and build blorkpack if needed
+  if [ "$BLORKPACK_NEEDS_BUILD" = true ]; then
+    if [ ! -d "packages/blorkpack/dist" ] || [ ! -f "packages/blorkpack/dist/index.js" ]; then
+      echo "🏗️ Building blorkpack package..."
+      if ! pnpm --filter @littlecarlito/blorkpack build; then
+        report_failure "Failed to build blorkpack package"
+        return 1
+      fi
+      echo "✅ blorkpack package built successfully"
+    else
+      echo "✅ blorkpack package is already built"
+    fi
+  fi
+  
+  # Check and build blorktools if needed
+  if [ "$BLORKTOOLS_NEEDS_BUILD" = true ]; then
+    if [ ! -d "packages/blorktools/dist" ]; then
+      echo "🏗️ Building blorktools package..."
+      if ! pnpm --filter @littlecarlito/blorktools build; then
+        report_failure "Failed to build blorktools package"
+        return 1
+      fi
+      echo "✅ blorktools package built successfully"
+    else
+      echo "✅ blorktools package is already built"
+    fi
+  fi
+  
+  # Check and build blorkvisor if needed
+  if [ "$BLORKVISOR_NEEDS_BUILD" = true ]; then
+    if [ ! -d "packages/blorkvisor/dist" ]; then
+      echo "🏗️ Building blorkvisor package..."
+      if ! pnpm --filter @littlecarlito/blorkvisor build; then
+        report_failure "Failed to build blorkvisor package"
+        return 1
+      fi
+      echo "✅ blorkvisor package built successfully"
+    else
+      echo "✅ blorkvisor package is already built"
+    fi
+  fi
+  
+  # For portfolio, we would need to know what constitutes "built"
+  # This is a placeholder and should be adjusted based on your project
+  if [ "$PORTFOLIO_NEEDS_BUILD" = true ]; then
+    echo "⚠️ Portfolio app changes detected. If you need to build it, please do so manually."
+  fi
+  
+  return 0
+}
+
 # If package.json files changed, run build dependency tests
 if [ -n "$PACKAGE_CHANGES" ]; then
   echo "🔄 Package.json files changed:"
   echo "$PACKAGE_CHANGES"
   
+  # First try to build packages if needed
+  echo "📦 Checking if packages need to be built..."
+  if ! build_packages_if_needed; then
+    report_failure "Failed to build required packages"
+    exit 1
+  fi
+  
+  # Then run the build dependency tests
   echo "📦 Running build dependency tests..."
   debug_step "Running pnpm test:build-deps"
   if ! pnpm test:build-deps; then
     report_failure "Build dependency tests failed for package.json changes"
     exit 1
   fi
+else
+  # Even if package.json didn't change, we should still build packages if source files changed
+  echo "📦 Checking if packages need to be built..."
+  if ! build_packages_if_needed; then
+    report_failure "Failed to build required packages"
+    exit 1
+  fi
 fi
-
-# Validate commit message format
-echo "🔍 Validating commit message format..."
-COMMIT_MSG=$(cat "$(git rev-parse --git-dir)/COMMIT_EDITMSG")
-debug_step "Checking commit message: $COMMIT_MSG"
-
-# Run commitlint on the commit message
-if ! npx --no -- commitlint --edit "$(git rev-parse --git-dir)/COMMIT_EDITMSG"; then
-  report_failure "Commit message validation failed. Please fix your commit message format."
-  exit 1
-fi
-echo "✅ Commit message validation passed."
 
 debug_step "After package.json checks"
 
