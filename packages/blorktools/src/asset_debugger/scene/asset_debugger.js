@@ -160,6 +160,21 @@ function cleanupAssetDebugger() {
     // Set unloading flag to abort any ongoing operations
     isPageUnloading = true;
     
+    // Reset HTML editor initialization flag
+    try {
+        import('../modals/html-editor-modal/html-editor-modal.js').then(htmlEditorModule => {
+            // Reset the listeners initialized flag
+            if (htmlEditorModule.resetInitialization) {
+                htmlEditorModule.resetInitialization();
+            }
+        });
+    } catch (error) {
+        console.warn('Could not reset HTML editor initialization:', error);
+    }
+
+    // Set unloading flag to abort any ongoing operations
+    isPageUnloading = true;
+    
     // Immediately hide UI elements - this should be done synchronously
     const debugControls = document.querySelector('.debug-controls');
     if (debugControls) {
@@ -394,17 +409,21 @@ function loadComponentHtml() {
                 const modalElement = document.getElementById('html-editor-modal');
                 if (modalElement) {
                     modalElement.style.display = 'none';
-                    initHtmlEditorModal();
-                    initModelIntegration();
-                    componentsLoaded.htmlEditor = true;
+                    
+                    // Force reset initialization state for SPA
+                    import('../modals/html-editor-modal/html-editor-modal.js').then(htmlEditorModule => {
+                        if (htmlEditorModule.resetInitialization) {
+                            htmlEditorModule.resetInitialization();
+                        }
+                        initHtmlEditorModal();
+                        initModelIntegration();
+                        componentsLoaded.htmlEditor = true;
+                    });
                 } else {
                     throw new Error('Could not extract HTML editor modal element from HTML: modal element not found');
                 }
             })
-            .catch(error => {
-                console.error('Error loading HTML editor modal:', error);
-                throw error;
-            });
+
     // Wait for all components to load
     Promise.all([
         worldPanelPromise,

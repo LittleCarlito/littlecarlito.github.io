@@ -1019,3 +1019,11 @@ async function verifyExtensionExists(glbBuffer, meshId) {
         return false;
     }
 }
+
+/**
+ * Reset initialization state - called during SPA cleanup
+ */
+export function resetInitialization() {
+    listenersInitialized = false;
+    console.log('HTML Editor Modal initialization flag reset');
+}
