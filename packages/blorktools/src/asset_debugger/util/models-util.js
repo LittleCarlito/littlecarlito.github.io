@@ -436,7 +436,6 @@ export function loadDebugModel() {
                     
                     // Load model, then check for custom display settings
                     handleModelLoading()
-                        .then(() => checkAndApplyCustomDisplaySettings())
                         .then(() => {
                             // Hide loading indicator after everything is done
                             if (loadingIndicator) {
@@ -465,7 +464,6 @@ export function loadDebugModel() {
         } else {
             // Scene is already initialized, proceed with model loading
             handleModelLoading()
-                .then(() => checkAndApplyCustomDisplaySettings())
                 .then(() => {
                     // Hide loading indicator after everything is done
                     if (loadingIndicator) {
@@ -617,129 +615,3 @@ function loadModelBasedOnState() {
     });
 }
 
-/**
- * Check for custom display settings in the binary buffer and apply them
- * @returns {Promise} A promise that resolves when all custom display settings are checked
- */
-function checkAndApplyCustomDisplaySettings() {
-    return new Promise((resolve) => {
-        const state = getState();
-        const meshes = state.meshes || [];
-        
-        // Import necessary modules
-        Promise.all([
-            import('../util/glb-utils.js'),
-            import('../util/string-serder.js'),
-            import('./model-texture-util.js'),
-            import('../util/custom-animation/css3d-util.js'),
-            import('../modals/html-editor-modal/model-integration.js') // Add model integration import
-        ]).then(([glbUtils, stringSerder, modelTextureUtil, css3dUtil, modelIntegration]) => {
-            // If no meshes, resolve immediately
-            if (meshes.length === 0) {
-                console.debug('No meshes to check for custom display settings');
-                resolve();
-                return;
-            }
-            
-            console.debug('Checking for custom display settings in GLB buffer...');
-            
-            // Get the GLB buffer from multiple sources to ensure we find it
-            let glbBuffer = state.currentGlb?.arrayBuffer;
-            
-            // If not in state, try to get from model integration module
-            if (!glbBuffer && modelIntegration && typeof modelIntegration.getCurrentGlbBuffer === 'function') {
-                glbBuffer = modelIntegration.getCurrentGlbBuffer();
-                
-                // If found via model integration, update state for future use
-                if (glbBuffer && state.currentGlb) {
-                    state.currentGlb.arrayBuffer = glbBuffer;
-                }
-            }
-            
-            if (!glbBuffer) {
-                console.debug('No GLB buffer available, skipping custom display check');
-                resolve();
-                return;
-            }
-            
-            console.debug(`GLB buffer available, size: ${glbBuffer.byteLength} bytes`);
-            
-            // Create an array to hold all promises for checking each mesh
-            const checkPromises = meshes.map((mesh, index) => {
-                return new Promise((resolveCheck) => {
-                    console.debug(`Checking mesh ${index} (${mesh.name || 'unnamed'}) for custom display data...`);
-                    
-                    glbUtils.getBinaryBufferForMesh(glbBuffer, index)
-                        .then((binaryBuffer) => {
-                            if (!binaryBuffer) {
-                                console.debug(`No binary buffer found for mesh ${index}`);
-                                resolveCheck();
-                                return;
-                            }
-                            
-                            console.debug(`Found binary buffer for mesh ${index}, size: ${binaryBuffer.byteLength} bytes`);
-                            
-                            if (binaryBuffer.byteLength > 0) {
-                                // Deserialize data to get HTML content and settings
-                                const result = stringSerder.deserializeStringFromBinary(binaryBuffer);
-                                
-                                console.debug(`Deserialized data for mesh ${index}:`, 
-                                    result ? `Settings: ${!!result.settings}, Content length: ${result.content ? result.content.length : 0}` : 'No result');
-                                
-                                if (result && result.settings) {
-                                    const settings = result.settings;
-                                    const content = result.content;
-                                    
-                                    console.debug(`Settings for mesh ${index}:`, settings);
-                                    
-                                    // Check if display on mesh is enabled
-                                    if (settings.display && settings.display.displayOnMesh === true) {
-                                        console.debug(`Mesh ${index} has display_on_mesh enabled with render type: ${settings.previewMode}`);
-                                        
-                                        // Create mesh data object
-                                        const meshData = {
-                                            id: index,
-                                            mesh: mesh,
-                                            html: content
-                                        };
-                                        
-                                        // Call appropriate function based on render type
-                                        if (settings.previewMode === 'css3d') {
-                                            // Use CSS3D rendering
-                                            console.debug(`Calling handleCustomDisplay for mesh ${index}`);
-                                            css3dUtil.setCustomDisplay(meshData, settings);
-                                        } else {
-                                            // Use texture-based rendering (either threejs or longExposure)
-                                            console.debug(`Calling handleCustomTexture for mesh ${index} with renderType: ${settings.previewMode}`);
-                                            modelTextureUtil.setCustomTexture(meshData, settings.previewMode, settings);
-                                        }
-                                    } else {
-                                        console.debug(`Display on mesh is not enabled for mesh ${index}`);
-                                    }
-                                }
-                            }
-                            resolveCheck();
-                        })
-                        .catch((error) => {
-                            console.error(`Error checking display settings for mesh ${index}:`, error);
-                            resolveCheck(); // Still resolve even on error to continue the process
-                        });
-                });
-            });
-            
-            // Wait for all mesh checks to complete
-            Promise.all(checkPromises)
-                .then(() => {
-                    console.debug('Finished checking all meshes for custom display settings');
-                    resolve();
-                })
-                .catch((error) => {
-                    console.error('Error checking custom display settings:', error);
-                    resolve(); // Still resolve even on error to continue the process
-                });
-        }).catch((error) => {
-            console.error('Error loading utility modules:', error);
-            resolve(); // Still resolve even on error to continue the process
-        });
-    });
-}
