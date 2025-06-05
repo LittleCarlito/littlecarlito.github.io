@@ -35,7 +35,7 @@ import {
     BINARY_DATA_PROPERTY 
 } from '../../util/glb-utils.js';
 import { updateHtmlIcons } from '../../panels/mesh-panel/mesh-panel';
-import { setCustomTexture, disableCustomTexture, createLongExposureTexture } from '../../util/custom-animation/texture-util';
+import { disableCustomTexture, createLongExposureTexture } from '../../util/custom-animation/texture-util';
 import { setCustomDisplay, disableCustomDisplay } from '../../util/custom-animation/css3d-util.js';
 
 // Import Three.js the same way as other files in the codebase
@@ -44,6 +44,7 @@ import { getIsPreviewActive, setLastTextureUpdateTime } from '../../util/custom-
 import { previewHtml } from '../../util/custom-animation/preview-util';
 import { cleanupThreeJsPreview, frameBuffer, previewRenderTarget } from '../../util/custom-animation/threejs-util.js';
 import { getHtmlSettingsForMesh, loadHtmlForMesh, loadSettingsForMesh, saveHtmlForMesh, saveSettingsForMesh } from '../../util/mesh-data-util.js';
+import { setCustomTexture } from '../../util/model-texture-util';
 
 // Add variables for frame buffering at the top of the file with other variables
  let maxCaptureRate = 0.5;

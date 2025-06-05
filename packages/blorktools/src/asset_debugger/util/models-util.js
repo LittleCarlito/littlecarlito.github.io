@@ -630,10 +630,10 @@ function checkAndApplyCustomDisplaySettings() {
         Promise.all([
             import('../util/glb-utils.js'),
             import('../util/string-serder.js'),
-            import('../util/custom-animation/texture-util.js'),
+            import('./model-texture-util.js'),
             import('../util/custom-animation/css3d-util.js'),
             import('../modals/html-editor-modal/model-integration.js') // Add model integration import
-        ]).then(([glbUtils, stringSerder, textureUtil, css3dUtil, modelIntegration]) => {
+        ]).then(([glbUtils, stringSerder, modelTextureUtil, css3dUtil, modelIntegration]) => {
             // If no meshes, resolve immediately
             if (meshes.length === 0) {
                 console.debug('No meshes to check for custom display settings');
@@ -711,7 +711,7 @@ function checkAndApplyCustomDisplaySettings() {
                                         } else {
                                             // Use texture-based rendering (either threejs or longExposure)
                                             console.debug(`Calling handleCustomTexture for mesh ${index} with renderType: ${settings.previewMode}`);
-                                            textureUtil.setCustomTexture(meshData, settings.previewMode, settings);
+                                            modelTextureUtil.setCustomTexture(meshData, settings.previewMode, settings);
                                         }
                                     } else {
                                         console.debug(`Display on mesh is not enabled for mesh ${index}`);
