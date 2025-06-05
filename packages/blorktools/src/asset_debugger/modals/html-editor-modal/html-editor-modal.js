@@ -45,8 +45,6 @@ import { previewHtml } from '../../util/custom-animation/preview-util';
 import { cleanupThreeJsPreview, frameBuffer, previewRenderTarget } from '../../util/custom-animation/threejs-util.js';
 import { getHtmlSettingsForMesh, loadHtmlForMesh, loadSettingsForMesh, saveHtmlForMesh, saveSettingsForMesh } from '../../util/mesh-data-util.js';
 
-export let originalAnimationStartTime = 0;
-
 // Add variables for frame buffering at the top of the file with other variables
  let maxCaptureRate = 0.5;
 
@@ -930,14 +928,6 @@ function createErrorContainer() {
     }
     
     return container;
-}
-
-/**
- * Set original animation start time
- * @param {number} incomingValue - The new value to set
- */
-export function setOriginalAnimationStartTime(incomingValue) {
-    originalAnimationStartTime = incomingValue;
 }
 
 /**

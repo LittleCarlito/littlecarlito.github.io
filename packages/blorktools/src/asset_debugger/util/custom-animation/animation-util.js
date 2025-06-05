@@ -1,7 +1,9 @@
 import * as THREE from 'three';
-import { setOriginalAnimationStartTime, showStatus } from "../../modals/html-editor-modal/html-editor-modal";
+import { showStatus } from "../../modals/html-editor-modal/html-editor-modal";
 import { calculateTextureHash, createLongExposureTexture, createTextureFromIframe, setCapturingForLongExposure } from "../custom-animation/texture-util";
 import { createMeshInfoPanel } from '../../modals/html-editor-modal/mesh-info-panel-util';
+
+const ANALYSIS_DURATION_MS = 30000; // 30 seconds - matches preRenderMaxDuration
 
 // Debug reporting function for animation analysis
 function logAnimationAnalysisReport(renderType, data) {
@@ -64,6 +66,113 @@ export let isAnimationFinite = false;
 export let isPreviewActive = true; // Exported for use in preview-util.js
 export let isPreviewAnimationPaused = false; // Exported for use in preview-util.js
 export let lastTextureUpdateTime = 0; // Exported for use in preview-util.js and threejs-util.js
+
+// TIMING STATE - This module owns all animation timing
+export let animationPlaybackStartTime = 0; // When playback actually started
+export let animationCaptureStartTime = 0;  // When capture started (for offset calculations)
+export let isPlaybackInitialized = false;
+// Active playback values
+export let playbackStartTime = 0;
+export let isPlaybackActive = false;
+
+/**
+ * Initialize playback timing - called when preview starts playing
+ * This should be called regardless of animation type (finite/infinite)
+ */
+export function initializePlaybackTiming() {
+    const now = Date.now();
+    animationPlaybackStartTime = now;
+    isPlaybackInitialized = true;
+    
+    // Calculate the capture start time from the first frame if available
+    if (preRenderedFrames.length > 0) {
+        animationCaptureStartTime = preRenderedFrames[0].timestamp;
+    } else {
+        animationCaptureStartTime = now;
+    }
+    
+    console.log('Playback timing initialized:', {
+        playbackStart: animationPlaybackStartTime,
+        captureStart: animationCaptureStartTime,
+        framesAvailable: preRenderedFrames.length
+    });
+}
+
+/**
+ * Get current frame based on elapsed playback time
+ */
+export function getCurrentFrameForPlayback(playbackSpeed = 1.0, animationType = 'play') {
+    if (!isPlaybackActive || preRenderedFrames.length === 0) {
+        return preRenderedFrames.length > 0 ? preRenderedFrames[preRenderedFrames.length - 1] : null;
+    }
+    
+    const now = Date.now();
+    const playbackElapsed = now - playbackStartTime;
+    const adjustedElapsed = playbackElapsed * playbackSpeed;
+    
+    // Use the analysis duration as our animation duration
+    // This represents the full time period we analyzed for animation
+    const naturalDuration = isAnimationFinite && animationDuration > 0 ? 
+        animationDuration : ANALYSIS_DURATION_MS;
+    
+    let normalizedTime;
+    
+    switch (animationType) {
+        case 'play':
+            if (adjustedElapsed >= naturalDuration) {
+                setIsPreviewAnimationPaused(true);
+                return preRenderedFrames[preRenderedFrames.length - 1];
+            }
+            normalizedTime = adjustedElapsed / naturalDuration;
+            break;
+            
+        case 'loop':
+            normalizedTime = (adjustedElapsed % naturalDuration) / naturalDuration;
+            break;
+            
+        case 'bounce':
+            const cycle = Math.floor(adjustedElapsed / naturalDuration);
+            const position = (adjustedElapsed % naturalDuration) / naturalDuration;
+            normalizedTime = (cycle % 2 === 0) ? position : (1 - position);
+            break;
+            
+        default:
+            normalizedTime = (adjustedElapsed % naturalDuration) / naturalDuration;
+            break;
+    }
+    
+    const frameIndex = Math.min(
+        Math.floor(normalizedTime * preRenderedFrames.length),
+        preRenderedFrames.length - 1
+    );
+    
+    return preRenderedFrames[frameIndex];
+}
+
+/**
+ * Reset all timing
+ */
+export function resetPlaybackTiming() {
+    playbackStartTime = 0;
+    isPlaybackActive = false;
+}
+
+/**
+ * Start playback timing - called when preview should begin playing
+ */
+export function startPlayback() {
+    playbackStartTime = Date.now();
+    isPlaybackActive = true;
+    console.log('Playback started at:', playbackStartTime);
+}
+
+/**
+ * Stop playback timing
+ */
+export function stopPlayback() {
+    isPlaybackActive = false;
+    console.log('Playback stopped');
+}
 
 /**
  * Start pre-rendering animation frames
@@ -225,7 +334,7 @@ export function startImage2TexturePreRendering(iframe, callback, progressBar = n
                         setIsPreviewAnimationPaused(true);
                     } else {
                         // Reset animation start time to now
-                        setOriginalAnimationStartTime(Date.now());
+                        startPlayback();
                         
                         // Start the animation
                         setIsPreviewAnimationPaused(false);
@@ -613,30 +722,42 @@ export function startCss3dPreRendering(iframe, callback, progressBar = null, set
                         loadingOverlay.parentNode.removeChild(loadingOverlay);
                     }
                     
-                    // IMPORTANT: First execute the callback to initialize the CSS3D preview
-                    if (typeof callback === 'function') {
-                        console.log('Executing CSS3D pre-rendering callback');
-                        callback();
+                    // CRITICAL: Initialize playback timing for ALL animation types
+                    initializePlaybackTiming();
+                    
+                    // Now create the info panel after pre-rendering is complete
+                    const canvasContainer = document.querySelector('#html-preview-content');
+                    if (canvasContainer) {
+                        const modal = document.getElementById('html-editor-modal');
+                        const currentMeshId = parseInt(modal.dataset.meshId);
+                        createMeshInfoPanel(canvasContainer, currentMeshId);
                     }
                     
-                    // The info panel is now created in the callback when initializing CSS3D preview
-                    
-                    // Now we prepare for animation to start
-                    const modal = document.getElementById('html-editor-modal');
-                    const currentMeshId = parseInt(modal.dataset.meshId);
-                    
-                    // For long exposure, create the static composite view
-                    if (isLongExposureMode && domSnapshotFrames.length > 0) {
-                        createAndApplyCss3dLongExposure();
-                    } else {
-                        // Reset animation start time to now
-                        setOriginalAnimationStartTime(Date.now());
+                    // Handle different animation types
+                    if (isLongExposureMode && preRenderedFrames.length > 0) {
+                        // For long exposure, create the static image
+                        const longExposureTexture = createLongExposureTexture(preRenderedFrames, playbackSpeed);
                         
-                        // Start the animation
+                        if (previewPlane) {
+                            updateMeshTexture(longExposureTexture, previewPlane);
+                        }
+                        
+                        showStatus(`Long exposure created from ${preRenderedFrames.length} frames`, 'success');
+                        setIsPreviewAnimationPaused(true);
+                    } else {
+                        // For all other types, start playback
                         setIsPreviewAnimationPaused(false);
                         
-                        // Show a message that playback is starting
-                        showStatus(`CSS3D animation playback starting at ${playbackSpeed}x speed`, 'success');
+                        const typeDescription = isAnimationFinite ? 
+                            `finite (${(animationDuration/1000).toFixed(1)}s)` : 
+                            'static/infinite';
+                            
+                        showStatus(`Animation playback starting - ${typeDescription}, ${preRenderedFrames.length} frames at ${playbackSpeed}x speed`, 'success');
+                    }
+                    
+                    // Execute the callback if provided
+                    if (typeof callback === 'function') {
+                        callback();
                     }
                 }, 500);
                 

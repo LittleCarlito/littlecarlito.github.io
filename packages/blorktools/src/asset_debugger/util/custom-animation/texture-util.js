@@ -48,7 +48,7 @@ export function ensureHtml2Canvas() {
     return new Promise((resolve) => {
         // If already loaded, resolve immediately
         if (window.html2canvas) {
-            console.log('[HTML2CANVAS] Library already loaded and available');
+            console.debug('[HTML2CANVAS] Library already loaded and available');
             resolve(true);
             return;
         }
@@ -62,7 +62,7 @@ export function ensureHtml2Canvas() {
         
         // If already loading, add to callbacks
         if (html2canvasLoading) {
-            console.log('[HTML2CANVAS] Library already loading, waiting');
+            console.debug('[HTML2CANVAS] Library already loading, waiting');
             html2canvasCallbacks.push(resolve);
             return;
         }
@@ -239,35 +239,16 @@ export function createLongExposureTexture(frames, playbackSpeed) {
 export async function createTextureFromIframe(iframe) {
     return new Promise(async (resolve, reject) => {
         try {
-            console.log('[IFRAME_DEBUG] Starting texture creation from iframe');
-            
-            // Check if preview is still active, but don't reject - just log a warning and continue
-            if (!getIsPreviewActive()) {
-                console.warn('[IFRAME_DEBUG] Preview is no longer active, but proceeding with texture creation anyway');
-                // Instead of rejecting, we'll continue and try to create a texture
-            }
-            
+                        
             // Make sure we can access the iframe
             if (!iframe || !document.body.contains(iframe)) {
-                console.warn('[IFRAME_DEBUG] Iframe not found in DOM or removed, using empty texture');
-                resolve(createEmptyTexture());
+                reject(new Error('Iframe not found in DOM or removed'));
                 return;
             }
             
-            // Log iframe properties
-            console.log('[IFRAME_DEBUG] Iframe properties:', {
-                width: iframe.style.width,
-                height: iframe.style.height,
-                visibility: iframe.style.visibility,
-                contentDocument: !!iframe.contentDocument,
-                contentWindow: !!iframe.contentWindow
-            });
-            
             // Ensure html2canvas is loaded
-            console.log('[IFRAME_DEBUG] Ensuring html2canvas is loaded');
             const html2canvasAvailable = await ensureHtml2Canvas();
             if (!html2canvasAvailable) {
-                console.error('[IFRAME_DEBUG] html2canvas not available - cannot create texture');
                 reject(new Error('html2canvas library not available - cannot render HTML to texture'));
                 return;
             }
@@ -276,38 +257,23 @@ export async function createTextureFromIframe(iframe) {
             const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
             
             // Give more time for the iframe to fully load - increase from 300ms to 1000ms
-            console.log('[IFRAME_DEBUG] Waiting for iframe content to fully load');
             delay(1000).then(async () => {
                 try {
                     // Check if we can access the iframe content safely
                     if (!iframe.contentDocument || !iframe.contentWindow) {
-                        console.error('[IFRAME_DEBUG] Cannot access iframe content - security restriction or iframe removed');
                         reject(new Error('Cannot access iframe content - security restriction or iframe removed'));
                         return;
-                    }
-                    
-                    // Log content document properties
-                    console.log('[IFRAME_DEBUG] Content document properties:', {
-                        hasBody: !!iframe.contentDocument.body,
-                        bodyContent: iframe.contentDocument.body ? 
-                            iframe.contentDocument.body.innerHTML.substring(0, 100) + '...' : 'none',
-                        docReady: iframe.contentDocument.readyState
-                    });
-                    
+                    }                    
                     // Make sure the body is fully loaded
                     if (!iframe.contentDocument.body) {
-                        console.error('[IFRAME_DEBUG] Iframe body not available - iframe content failed to load');
                         reject(new Error('Iframe body not available - iframe content failed to load'));
                         return;
                     }
                     
                     // Inject animation detection script if not already injected
                     if (!iframe.contentWindow.__animationDetection) {
-                        console.log('[IFRAME_DEBUG] Injecting animation detection script');
                         injectAnimationDetectionScript(iframe);
                     }
-                    
-                    console.log('[IFRAME_DEBUG] Preparing to capture iframe content...');
 
                     // Ensure iframe is visible for capture (even if off-screen)
                     const originalStyle = iframe.style.cssText;
@@ -370,24 +336,18 @@ export async function createTextureFromIframe(iframe) {
                     
                     try {
                         // Add the style element temporarily for rendering
-                        console.log('[IFRAME_DEBUG] Adding style element to iframe head');
                         iframe.contentDocument.head.appendChild(styleElement);
                         
                         // Force a layout/repaint in the iframe
                         iframe.contentWindow.scrollTo(0, 0);
                         
                         // Wait a bit longer for styles to apply
-                        console.log('[IFRAME_DEBUG] Waiting for styles to apply');
                         await delay(200);
-                        
-                        // Debug logging the content
-                        console.log(`[IFRAME_DEBUG] Capturing HTML content: ${iframe.contentDocument.body.innerHTML.substring(0, 100)}...`);
-                        
+                                                
                         // Use html2canvas to capture the iframe content
                         const targetElement = iframe.contentDocument.body;
                         
                         try {
-                            console.log('[IFRAME_DEBUG] Starting html2canvas capture with scale factor 8');
                             // Increase scale factor for better quality
                             const canvas = await window.html2canvas(targetElement, {
                                 backgroundColor: '#FFFFFF', // Explicitly set to white to match HTML default
@@ -396,12 +356,6 @@ export async function createTextureFromIframe(iframe) {
                                 allowTaint: true,
                                 useCORS: true,
                                 foreignObjectRendering: true
-                            });
-                            
-                            console.log('[IFRAME_DEBUG] html2canvas capture successful');
-                            console.log('[IFRAME_DEBUG] Canvas dimensions:', {
-                                width: canvas.width,
-                                height: canvas.height
                             });
                             
                             // Remove the temporary style element after rendering
@@ -429,20 +383,12 @@ export async function createTextureFromIframe(iframe) {
                                 }
                             }
                             
-                            console.log('[IFRAME_DEBUG] Canvas content check:', {
-                                hasContent,
-                                nonWhitePixelCount,
-                                totalPixels: data.length / 4
-                            });
-                            
                             if (!hasContent) {
-                                console.error('[IFRAME_DEBUG] Canvas capture appears to be blank - no content rendered');
                                 reject(new Error('Canvas capture appears to be blank - no content was rendered'));
                                 return;
                             }
                             
                             // Create texture from the canvas
-                            console.log('[IFRAME_DEBUG] Creating THREE.CanvasTexture from canvas');
                             const texture = new THREE.CanvasTexture(canvas);
                             
                             // Improve texture quality settings
@@ -452,10 +398,8 @@ export async function createTextureFromIframe(iframe) {
                             texture.generateMipmaps = false;
                             texture.needsUpdate = true;
                             
-                            console.log('[IFRAME_DEBUG] Texture created successfully');
                             resolve(texture);
                         } catch (error) {
-                            console.error('[IFRAME_DEBUG] Error capturing with html2canvas:', error);
                             
                             // Remove the temporary style element if it exists
                             if (styleElement && styleElement.parentNode) {
@@ -469,16 +413,13 @@ export async function createTextureFromIframe(iframe) {
                             reject(new Error(`Failed to capture HTML content with html2canvas: ${error.message}`));
                         }
                     } catch (error) {
-                        console.error('[IFRAME_DEBUG] Error in texture creation:', error);
                         reject(new Error(`Error creating texture from iframe: ${error.message}`));
                     }
                 } catch (error) {
-                    console.error('[IFRAME_DEBUG] Error in texture creation:', error);
                     reject(new Error(`Error in iframe content processing: ${error.message}`));
                 }
             });
         } catch (error) {
-            console.error('[IFRAME_DEBUG] Error in createTextureFromIframe:', error);
             reject(new Error(`Failed to create texture from iframe: ${error.message}`));
         }
     });
@@ -1264,9 +1205,10 @@ export function setCustomTexture(meshData, renderType, settings = {}) {
                                         // Make sure we show completion
                                         updateProgress(100);
                                         
-                                        // Set original animation start time to now for proper playback timing
-                                        if (typeof animationModule.setOriginalAnimationStartTime === 'function') {
-                                            animationModule.setOriginalAnimationStartTime(Date.now());
+                                        if (typeof animationModule.startPlayback === 'function') {
+                                            animationModule.startPlayback();
+                                        } else {
+                                            console.warn('startPlayback function not available in animation module');
                                         }
                                         
                                         // Setup animation loop that properly maintains mesh reference
