@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { showStatus } from "../../modals/html-editor-modal/html-editor-modal";
-import { calculateTextureHash, createLongExposureTexture, createTextureFromIframe, setCapturingForLongExposure } from "../custom-animation/texture-util";
+import { calculateTextureHash, createLongExposureTexture, setCapturingForLongExposure } from "../custom-animation/texture-util";
 import { createMeshInfoPanel } from '../../modals/html-editor-modal/mesh-info-panel-util';
+import { createTextureFromIframe, injectUnifiedAnimationDetectionScript } from './html2canvas-util';
 
 const ANALYSIS_DURATION_MS = 30000; // 30 seconds - matches preRenderMaxDuration
 
@@ -912,110 +913,6 @@ export function startCss3dPreRendering(iframe, callback, progressBar = null, set
         }
     };
     
-    // Inject animation detection script into iframe
-    const injectAnimationDetectionScript = () => {
-        try {
-            if (!iframe || !iframe.contentDocument) return;
-            
-            const script = iframe.contentDocument.createElement('script');
-            script.textContent = `
-                // Animation detection
-                window.__css3dAnimationDetection = {
-                    setTimeout: 0,
-                    setInterval: 0,
-                    rAF: 0,
-                    activeTimeouts: 0,
-                    activeIntervals: 0,
-                    animationFrameIds: new Set(),
-                    cssAnimations: new Set(),
-                    cssTransitions: new Set(),
-                    domChanges: 0,
-                    lastDomChange: 0
-                };
-                
-                // Override setTimeout
-                const originalSetTimeout = window.setTimeout;
-                window.setTimeout = function(callback, delay) {
-                    window.__css3dAnimationDetection.setTimeout++;
-                    window.__css3dAnimationDetection.activeTimeouts++;
-                    const id = originalSetTimeout.call(this, function() {
-                        window.__css3dAnimationDetection.activeTimeouts--;
-                        if (typeof callback === 'function') callback();
-                    }, delay);
-                    return id;
-                };
-                
-                // Override setInterval
-                const originalSetInterval = window.setInterval;
-                window.setInterval = function(callback, delay) {
-                    window.__css3dAnimationDetection.setInterval++;
-                    window.__css3dAnimationDetection.activeIntervals++;
-                    return originalSetInterval.call(this, callback, delay);
-                };
-                
-                // Override requestAnimationFrame
-                const originalRAF = window.requestAnimationFrame;
-                window.requestAnimationFrame = function(callback) {
-                    window.__css3dAnimationDetection.rAF++;
-                    const id = originalRAF.call(this, function(timestamp) {
-                        window.__css3dAnimationDetection.animationFrameIds.add(id);
-                        if (typeof callback === 'function') callback(timestamp);
-                    });
-                    return id;
-                };
-                
-                // Listen for CSS animation events
-                document.addEventListener('animationstart', (event) => {
-                    window.__css3dAnimationDetection.cssAnimations.add(event.animationName);
-                });
-                
-                document.addEventListener('animationend', (event) => {
-                    window.__css3dAnimationDetection.cssAnimations.delete(event.animationName);
-                });
-                
-                // Listen for CSS transition events
-                document.addEventListener('transitionstart', (event) => {
-                    window.__css3dAnimationDetection.cssTransitions.add(event.propertyName);
-                });
-                
-                document.addEventListener('transitionend', (event) => {
-                    window.__css3dAnimationDetection.cssTransitions.delete(event.propertyName);
-                });
-                
-                // Detect DOM changes that might indicate animation
-                try {
-                    const observer = new MutationObserver(mutations => {
-                        window.__css3dAnimationDetection.domChanges += mutations.length;
-                        window.__css3dAnimationDetection.lastDomChange = Date.now();
-                        
-                        for (const mutation of mutations) {
-                            // Check for style or class changes which might indicate animation
-                            if (mutation.type === 'attributes' && 
-                                (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
-                                window.__css3dAnimationDetection.styleChanges = true;
-                            }
-                        }
-                    });
-                    
-                    // Observe the entire document for changes
-                    observer.observe(document.documentElement, {
-                        attributes: true,
-                        childList: true,
-                        subtree: true,
-                        attributeFilter: ['style', 'class']
-                    });
-                } catch (e) {
-                    // MutationObserver might not be available in all contexts
-                    console.debug('MutationObserver not available:', e);
-                }
-            `;
-            
-            iframe.contentDocument.head.appendChild(script);
-        } catch (e) {
-            console.debug('Error injecting CSS3D animation detection script:', e);
-        }
-    };
-    
     // Detect CSS3D animation loops
     const detectCSS3DAnimationLoop = (frames, currentHash) => {
         // Need at least 30 frames to detect a loop (increased from 20)
@@ -1182,14 +1079,11 @@ export function startCss3dPreRendering(iframe, callback, progressBar = null, set
             if (progressText) {
                 progressText.textContent = `Analyzing CSS3D animation... ${domSnapshotFrames.length} snapshots captured`;
             }
-            
-            // Log capture rate for debugging
-            console.debug(`CSS3D capture interval: ${captureInterval}ms, frames: ${domSnapshotFrames.length}, elapsed: ${elapsedTime}ms`);
         }
         
         // Inject animation detection script if not already done
         if (domSnapshotFrames.length === 0) {
-            injectAnimationDetectionScript();
+            injectUnifiedAnimationDetectionScript(iframe, 'css3d');
         }
         
         // Create a DOM snapshot

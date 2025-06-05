@@ -35,7 +35,7 @@ import {
     BINARY_DATA_PROPERTY 
 } from '../../util/glb-utils.js';
 import { updateHtmlIcons } from '../../panels/mesh-panel/mesh-panel';
-import { setCustomTexture, disableCustomTexture, createLongExposureTexture, createTextureFromIframe } from '../../util/custom-animation/texture-util';
+import { setCustomTexture, disableCustomTexture, createLongExposureTexture } from '../../util/custom-animation/texture-util';
 import { setCustomDisplay, disableCustomDisplay } from '../../util/custom-animation/css3d-util.js';
 
 // Import Three.js the same way as other files in the codebase

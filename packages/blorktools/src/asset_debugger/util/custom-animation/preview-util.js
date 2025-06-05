@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { createTextureFromIframe } from './texture-util';
 import { showStatus, CustomTextureSettings } from '../../modals/html-editor-modal/html-editor-modal';
 import { 
     getAnimationDuration, 

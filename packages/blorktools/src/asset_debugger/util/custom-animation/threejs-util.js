@@ -7,10 +7,10 @@ import {
     setLastTextureUpdateTime,
     getIsPreviewAnimationPaused
 } from './animation-util';
-import { createTextureFromIframe } from './texture-util';
 import { getState } from '../../scene/state';
 import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
 import { createMeshInfoPanel, infoPanel, resetInfoPanel } from '../../modals/html-editor-modal/mesh-info-panel-util';
+import { createTextureFromIframe } from './html2canvas-util';
 
 let pendingTextureUpdate = false;
 export let previewPlane;
