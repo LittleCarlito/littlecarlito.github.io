@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.47.14 (2025-06-05)</small>
+
+- slice(portfolio): contact improved ([e0e1a08](https://github.com/littlecarlito/threejs_site/commit/e0e1a08))
+
 ## <small>0.47.13 (2025-05-04)</small>
 
 **Note:** Version bump only for package @littlecarlito/portfolio
