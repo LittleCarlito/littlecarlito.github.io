@@ -13,7 +13,7 @@ import {
     resetPlaybackTiming
 } from '../../util/custom-animation/animation-util';
 import { sanitizeHtml } from '../../util/string-serder';
-import { initCSS3DPreview } from '../css3d/css3d-util';
+import { initCSS3DAnimation } from '../css3d/css3d-animation-util';
 import { 
     animationPreviewCamera, 
     animationPreviewRenderer, 
@@ -289,7 +289,7 @@ export function previewHtml(settings, previewContent, setModalData) {
                         settings.updateStatus('Initializing CSS3D preview...', 'info');
                         
                         // Pass true for createInfoPanel to ensure the info panel is created
-                        initCSS3DPreview(canvasContainer, renderIframe, currentMeshId, true);
+                        initCSS3DAnimation(canvasContainer, renderIframe, currentMeshId, true);
                     }, progressBar, settings, previewPlane);
                     break;
                     
