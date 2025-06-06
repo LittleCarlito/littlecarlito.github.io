@@ -5,11 +5,11 @@ import {
     setIsPreviewActive, 
     setIsPreviewAnimationPaused, 
     setLastTextureUpdateTime,
-} from '../animation/state/animation-state';
+} from '../state/animation-state';
 import { getState } from '../../scene/state';
 import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
 import { createMeshInfoPanel, infoPanel, resetInfoPanel } from '../../modals/html-editor-modal/mesh-info-panel-util';
-import { resetAnimationState, reverseAnimationFrameId } from '../animation/state/css3d-state';
+import { resetAnimationState, reverseAnimationFrameId } from '../state/css3d-state';
 import { createTextureFromIframe } from '../animation/render/iframe2texture-render';
 
 let pendingTextureUpdate = false;

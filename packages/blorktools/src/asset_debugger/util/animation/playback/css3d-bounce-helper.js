@@ -12,7 +12,7 @@ import {
     resetCurrentAniamtionBatch,
     setLastAnimationTime,
     setLastBatchTime
-} from "../state/css3d-state";
+} from "../../state/css3d-state";
 
 /**
  * Set up bounce animation tracking for the iframe

@@ -7,7 +7,7 @@ import {
     resetPlaybackTimingState,
     isPreviewAnimationPaused,
     isPreviewActive
-} from '../animation/state/animation-state';
+} from '../state/animation-state';
 import { sanitizeHtml } from '../../util/string-serder';
 import { 
     animationPreviewCamera, 

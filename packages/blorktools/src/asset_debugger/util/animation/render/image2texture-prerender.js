@@ -19,7 +19,7 @@ import {
     setIsPreviewAnimationPaused, 
     setPreRenderedFrames, 
     setPreRenderingInProgress, 
-} from "../state/animation-state";
+} from "../../state/animation-state";
 import { showStatus } from '../../../modals/html-editor-modal/html-editor-modal';
 import { createMeshInfoPanel } from '../../../modals/html-editor-modal/mesh-info-panel-util';
 import { logAnimationAnalysisReport } from '../../log-util';

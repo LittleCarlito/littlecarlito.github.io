@@ -22,7 +22,7 @@ import {
     setIsPreviewAnimationPaused, 
     setPreRenderedFrames, 
     setPreRenderingInProgress 
-} from "../state/animation-state";
+} from "../../state/animation-state";
 import { logAnimationAnalysisReport } from "../../log-util";
 import { injectUnifiedAnimationDetectionScript } from "../../classifier/animation-classifier";
 

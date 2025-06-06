@@ -8,7 +8,7 @@ import {
     setIsPlaybackActive, 
     setIsPreviewAnimationPaused, 
     setPlaybackStartTime 
-} from "../state/animation-state";
+} from "../../state/animation-state";
 
 /**
  * Start playback timing - called when preview should begin playing
