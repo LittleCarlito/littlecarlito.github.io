@@ -5,11 +5,12 @@ import {
     setIsPreviewActive, 
     setIsPreviewAnimationPaused, 
     setLastTextureUpdateTime,
-} from './animation-util';
+} from '../animation/state/animation-state';
 import { getState } from '../../scene/state';
 import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
 import { createMeshInfoPanel, infoPanel, resetInfoPanel } from '../../modals/html-editor-modal/mesh-info-panel-util';
 import { createTextureFromIframe } from './html2canvas-util';
+import { resetAnimationState, reverseAnimationFrameId } from '../animation/state/css3d-state';
 
 let pendingTextureUpdate = false;
 export let previewPlane;
@@ -408,15 +409,7 @@ export function cleanupThreeJsPreview() {
     // Mark preview as inactive to stop animation loop first
     setIsPreviewActive(false);
     
-    // Clean up CSS3D preview timers
-    // Import and call cleanupCSS3D to stop any animation restart timers
-    import('../css3d/css3d-animation-util.js').then(module => {
-        if (typeof module.cleanupCSS3D === 'function') {
-            module.cleanupCSS3D();
-        }
-    }).catch(err => {
-        console.log('Failed to clean up CSS3D restart timers:', err);
-    });
+    cleanupCSS3D();
     
     // Clean up info panel
     cleanupInfoPanel();
@@ -743,6 +736,38 @@ function setupOrbitControls(camera, domElement) {
     });
 }
 
+function cleanupCSS3D(targetElement = null) {
+   resetAnimationState();
+   
+   if (reverseAnimationFrameId) {
+       cancelAnimationFrame(reverseAnimationFrameId);
+       resetReverseAnimationFrameId();
+   }
+   
+   const iframe = targetElement || document.getElementById('css3d-panel-iframe');
+   if (iframe) {
+       if (iframe.restartTimer) {
+           clearInterval(iframe.restartTimer);
+           iframe.restartTimer = null;
+       }
+       
+       if (iframe._animationStartHandler && iframe.contentDocument) {
+           iframe.contentDocument.removeEventListener('animationstart', iframe._animationStartHandler);
+           iframe._animationStartHandler = null;
+       }
+       
+       if (iframe._transitionStartHandler && iframe.contentDocument) {
+           iframe.contentDocument.removeEventListener('transitionstart', iframe._transitionStartHandler);
+           iframe._transitionStartHandler = null;
+       }
+       
+       if (iframe.mutationObserver) {
+           iframe.mutationObserver.disconnect();
+           iframe.mutationObserver = null;
+       }
+   }
+}
+
 /**
  * Set aniamtion css 3d scene
  * @param {THREE.Scene} incomingValue - The new value to set
@@ -766,4 +791,3 @@ export function setAnimationCss3dRenderer(incomingValue) {
 export function setAnimationCss3dObject(incomingValue) {
     animationCss3dObject = incomingValue;
 }
-

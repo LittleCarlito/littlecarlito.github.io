@@ -6,8 +6,9 @@ import {
     playbackStartTime, 
     preRenderedFrames, 
     setIsPlaybackActive, 
+    setIsPreviewAnimationPaused, 
     setPlaybackStartTime 
-} from "./custom-animation/animation-util";
+} from "../state/animation-state";
 
 /**
  * Start playback timing - called when preview should begin playing

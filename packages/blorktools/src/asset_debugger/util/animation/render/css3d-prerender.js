@@ -1,6 +1,6 @@
-import { showStatus } from "../../modals/html-editor-modal/html-editor-modal";
-import { createMeshInfoPanel } from "../../modals/html-editor-modal/mesh-info-panel-util";
-import { updateMeshTexture } from "../animation-playback-util";
+import { showStatus } from "../../../modals/html-editor-modal/html-editor-modal";
+import { createMeshInfoPanel } from "../../../modals/html-editor-modal/mesh-info-panel-util";
+import { updateMeshTexture } from "../playback/animation-playback-util";
 import { 
     animationCaptureStartTime,
     animationDuration, 
@@ -22,9 +22,9 @@ import {
     setIsPreviewAnimationPaused, 
     setPreRenderedFrames, 
     setPreRenderingInProgress 
-} from "../custom-animation/animation-util";
-import { injectUnifiedAnimationDetectionScript } from "../custom-animation/html2canvas-util";
-import { logAnimationAnalysisReport } from "../log-util";
+} from "../state/animation-state";
+import { injectUnifiedAnimationDetectionScript } from "../../custom-animation/html2canvas-util";
+import { logAnimationAnalysisReport } from "../../log-util";
 
 /**
  * Start pre-rendering for CSS3D content

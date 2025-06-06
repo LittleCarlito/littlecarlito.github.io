@@ -11,8 +11,8 @@ import {
     reverseAnimationFrameId,
     animationStack,
     resetAnimationState
-} from './css3d-state';
-import { createMeshInfoPanel } from '../../modals/html-editor-modal/mesh-info-panel-util';
+} from '../state/css3d-state';
+import { createMeshInfoPanel } from '../../../modals/html-editor-modal/mesh-info-panel-util';
 import {     
     setAnimationCss3dRenderer,
     setAnimationCss3dScene,
@@ -20,11 +20,11 @@ import {
     setAnimationPreviewCamera,
     setPreviewRenderTarget,
     animationPreviewCamera
-} from '../custom-animation/threejs-util';
-import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
+} from '../../custom-animation/threejs-util';
+import { showStatus } from '../../../modals/html-editor-modal/html-editor-modal';
 import { playNextReverseAnimation } from './css3d-reversal-helper';
 import { setupBounceAnimationTracking } from './css3d-bounce-helper';
-import { isPreviewActive } from '../custom-animation/animation-util';
+import { isPreviewActive } from '../state/animation-state';
 
 /**
  * Setup the CSS3D scene
@@ -200,7 +200,7 @@ export function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, c
                     element.contentDocument.close();
                     
                     // Get detected animation duration from pre-render (animationDuration is in milliseconds)
-                    import('../custom-animation/animation-util').then(module => {
+                    import('../state/animation-state').then(module => {
                         const { animationDuration, isAnimationFinite } = module;
                         
                         // Get animation type from dropdown

@@ -1,4 +1,4 @@
-import { animationStack, reverseAnimationFrameId } from "./css3d-state";
+import { animationStack, reverseAnimationFrameId } from "../state/css3d-state";
 
 /**
  * Pop and play the next animation from the stack in reverse

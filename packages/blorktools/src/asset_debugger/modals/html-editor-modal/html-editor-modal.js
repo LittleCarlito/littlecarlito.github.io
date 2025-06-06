@@ -37,7 +37,7 @@ import {
 import { updateHtmlIcons } from '../../panels/mesh-panel/mesh-panel';
 // Import Three.js the same way as other files in the codebase
 import * as THREE from 'three';
-import { isPreviewActive, setLastTextureUpdateTime } from '../../util/custom-animation/animation-util';
+import { isPreviewActive, setLastTextureUpdateTime } from '../../util/animation/state/animation-state';
 import { previewHtml } from '../../util/custom-animation/preview-util';
 import { cleanupThreeJsPreview, frameBuffer, previewRenderTarget } from '../../util/custom-animation/threejs-util.js';
 import { getHtmlSettingsForMesh, loadHtmlForMesh, loadSettingsForMesh, saveHtmlForMesh, saveSettingsForMesh } from '../../util/mesh-data-util.js';

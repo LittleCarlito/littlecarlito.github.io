@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { showStatus, CustomTextureSettings } from '../../modals/html-editor-modal/html-editor-modal';
+import { CustomTextureSettings, showStatus } from '../../modals/html-editor-modal/html-editor-modal';
 import { 
     resetPreRenderState, 
     setIsPreviewActive,
@@ -7,9 +7,8 @@ import {
     resetPlaybackTimingState,
     isPreviewAnimationPaused,
     isPreviewActive
-} from '../../util/custom-animation/animation-util';
+} from '../animation/state/animation-state';
 import { sanitizeHtml } from '../../util/string-serder';
-import { initCSS3DAnimation } from '../css3d/css3d-animation-util';
 import { 
     animationPreviewCamera, 
     animationPreviewRenderer, 
@@ -19,9 +18,10 @@ import {
     previewPlane, 
     setPreviewRenderTarget 
 } from '../../util/custom-animation/threejs-util';
-import { startImage2TexturePreRendering } from '../image2texture/image2texture-prerender';
-import { startCss3dPreRendering } from '../css3d/css3d-prerender';
-import { getCurrentFrameForPlayback, updateMeshTexture } from '../animation-playback-util';
+import { getCurrentFrameForPlayback, updateMeshTexture } from '../animation/playback/animation-playback-util';
+import { setupCSS3DScene } from '../animation/playback/css3d-scene-helper';
+import { startImage2TexturePreRendering } from '../animation/render/image2texture-prerender';
+import { startCss3dPreRendering } from '../animation/render/css3d-prerender';
 
 export let lastAnimationFrameTime = 0;
 export let previewAnimationId = null;
@@ -287,8 +287,12 @@ export function previewHtml(settings, previewContent, setModalData) {
                         // Now create and show the CSS3D preview
                         settings.updateStatus('Initializing CSS3D preview...', 'info');
                         
-                        // Pass true for createInfoPanel to ensure the info panel is created
-                        initCSS3DAnimation(canvasContainer, renderIframe, currentMeshId, true);
+                        // Use setupCSS3DScene directly without the import module nonsense
+                        import('three/examples/jsm/renderers/CSS3DRenderer.js')
+                            .then(module => {
+                                const { CSS3DRenderer, CSS3DObject } = module;
+                                setupCSS3DScene(canvasContainer, renderIframe, CSS3DRenderer, CSS3DObject, currentMeshId, true);
+                            });
                     }, progressBar, settings, previewPlane);
                     break;
                     
