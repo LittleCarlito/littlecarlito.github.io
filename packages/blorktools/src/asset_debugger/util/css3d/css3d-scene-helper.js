@@ -13,7 +13,6 @@ import {
     resetLastBatchTime, 
     lastBatchTime, 
     setupBounceAnimationTracking,
-    playNextReverseAnimation,
     resetReverseAnimationFrameId,
     reverseAnimationFrameId
 } from './css3d-util';
@@ -28,6 +27,7 @@ import {
     animationPreviewCamera
 } from '../custom-animation/threejs-util';
 import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
+import { playNextReverseAnimation } from './css3d-animation-helper';
 
 /**
  * Setup the CSS3D scene

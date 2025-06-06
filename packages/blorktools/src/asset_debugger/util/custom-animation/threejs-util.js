@@ -410,10 +410,10 @@ export function cleanupThreeJsPreview() {
     setIsPreviewActive(false);
     
     // Clean up CSS3D preview timers
-    // Import and call cleanupCSS3DPreview to stop any animation restart timers
+    // Import and call cleanupCSS3D to stop any animation restart timers
     import('../css3d/css3d-util.js').then(module => {
-        if (typeof module.cleanupCSS3DPreview === 'function') {
-            module.cleanupCSS3DPreview();
+        if (typeof module.cleanupCSS3D === 'function') {
+            module.cleanupCSS3D();
         }
     }).catch(err => {
         console.log('Failed to clean up CSS3D restart timers:', err);
