@@ -1,10 +1,6 @@
 import * as THREE from 'three';
 import { showStatus, CustomTextureSettings } from '../../modals/html-editor-modal/html-editor-modal';
 import { 
-    getAnimationDuration, 
-    getIsAnimationFinite, 
-    getPreRenderedFrames, 
-    getPreRenderingInProgress, 
     resetPreRender, 
     startImage2TexturePreRendering, 
     startCss3dPreRendering,

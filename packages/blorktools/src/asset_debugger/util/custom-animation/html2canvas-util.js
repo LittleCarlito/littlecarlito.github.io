@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { isCapturingForLongExposure } from "./texture-util";
 
 // Track if we've attempted to load html2canvas
 let html2canvasLoaded = false;
@@ -163,7 +162,7 @@ export async function createTextureFromIframe(iframe) {
                     const styleElement = iframe.contentDocument.createElement('style');
                     
                     // Never show borders when capturing for long exposure
-                    const shouldShowBorders = window.showPreviewBorders && !isCapturingForLongExposure;
+                    const shouldShowBorders = window.showPreviewBorders;
                     
                     styleElement.textContent = `
                         body {

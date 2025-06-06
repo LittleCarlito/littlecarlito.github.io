@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { showStatus } from "../../modals/html-editor-modal/html-editor-modal";
-import { calculateTextureHash, createLongExposureTexture, setCapturingForLongExposure } from "../custom-animation/texture-util";
 import { createMeshInfoPanel } from '../../modals/html-editor-modal/mesh-info-panel-util';
 import { createTextureFromIframe, injectUnifiedAnimationDetectionScript } from './html2canvas-util';
 
@@ -36,7 +35,6 @@ function logAnimationAnalysisReport(renderType, data) {
     });
 }
 
-let isPreRenderingComplete = false;
 let finalProgressAnimation = false;
 let finalProgressStartTime = 0;
 let finalProgressDuration = 800; // Duration of final progress animation in ms
@@ -46,12 +44,9 @@ let animationIdleThreshold = 30; // Number of similar frames before considering 
 let frameChangeRates = []; // Store recent frame change rates
 let animationIdleCount = 0;
 let previousChangeFrequency = 0; // Track previous change frequency
-let bufferExhausted = false;
-let bufferExhaustWarningShown = false;
-let fallbackToRealtime = false;
-let preRenderAttempted = false;
 let preRenderStartTime = 0;
 let preRenderMaxDuration = 30000; // Increased to 30 seconds for longer animations
+// Image2texture variables
 let animationDetectionSensitivity = 0.85; // Increased from 0.5 to 0.85 for much stricter detection by default
 let animationEndTime = 0;
 let animationStartTime = 0;
@@ -59,7 +54,7 @@ let animationStartDetected = false;
 let animationDetected = false;
 export let preRenderedFrames = [];
 export let animationDuration = 0; // Store detected animation duration
-export let preRenderingInProgress = false;
+let preRenderingInProgress = false;
 export let isAnimationFinite = false;
 
 // Update references to use internal functions instead of imports
@@ -69,12 +64,11 @@ export let isPreviewAnimationPaused = false; // Exported for use in preview-util
 export let lastTextureUpdateTime = 0; // Exported for use in preview-util.js and threejs-util.js
 
 // TIMING STATE - This module owns all animation timing
-export let animationPlaybackStartTime = 0; // When playback actually started
-export let animationCaptureStartTime = 0;  // When capture started (for offset calculations)
-export let isPlaybackInitialized = false;
+let animationPlaybackStartTime = 0; // When playback actually started
+let animationCaptureStartTime = 0;  // When capture started (for offset calculations)
 // Active playback values
-export let playbackStartTime = 0;
-export let isPlaybackActive = false;
+let playbackStartTime = 0;
+let isPlaybackActive = false;
 
 /**
  * Initialize playback timing - called when preview starts playing
@@ -83,7 +77,6 @@ export let isPlaybackActive = false;
 export function initializePlaybackTiming() {
     const now = Date.now();
     animationPlaybackStartTime = now;
-    isPlaybackInitialized = true;
     
     // Calculate the capture start time from the first frame if available
     if (preRenderedFrames.length > 0) {
@@ -1219,15 +1212,9 @@ export function startCss3dPreRendering(iframe, callback, progressBar = null, set
 }
 
 export function resetPreRender() {
-            // Reset pre-rendering state
-            isPreRenderingComplete = false;
             preRenderedFrames = [];
             isAnimationFinite = false;
-            preRenderAttempted = false;
             preRenderingInProgress = false;
-            bufferExhausted = false;
-            fallbackToRealtime = false;
-            bufferExhaustWarningShown = false;
             finalProgressAnimation = false;
             finalProgressStartTime = 0;
 }
@@ -1544,4 +1531,42 @@ export function getIsAnimationFinite() {
  */
 export function setIsAnimationFinite(incomingValue) {
     isAnimationFinite = incomingValue;
+}
+
+/**
+ * Calculate a simple hash of a texture to detect changes between frames
+ * @param {THREE.Texture} texture - The texture to hash
+ * @returns {string} A simple hash of the texture
+ */
+function calculateTextureHash(texture) {
+    if (!texture || !texture.image) return '';
+    
+    try {
+        // Create a small canvas to sample the texture
+        const canvas = document.createElement('canvas');
+        const size = 16; // Small sample size for performance
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        
+        // Draw the texture to the canvas
+        ctx.drawImage(texture.image, 0, 0, size, size);
+        
+        // Get image data
+        const imageData = ctx.getImageData(0, 0, size, size).data;
+        
+        // Sample pixels at regular intervals
+        const samples = [];
+        const step = 4 * 4; // Sample every 4th pixel (RGBA)
+        for (let i = 0; i < imageData.length; i += step) {
+            // Use just the RGB values (skip alpha)
+            samples.push(imageData[i], imageData[i+1], imageData[i+2]);
+        }
+        
+        // Create a simple hash from the samples
+        return samples.join(',');
+    } catch (e) {
+        console.error('Error calculating texture hash:', e);
+        return '';
+    }
 }

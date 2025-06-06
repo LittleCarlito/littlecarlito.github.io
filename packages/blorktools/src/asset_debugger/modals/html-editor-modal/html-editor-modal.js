@@ -35,7 +35,6 @@ import {
     BINARY_DATA_PROPERTY 
 } from '../../util/glb-utils.js';
 import { updateHtmlIcons } from '../../panels/mesh-panel/mesh-panel';
-import { disableCustomTexture, createLongExposureTexture } from '../../util/custom-animation/texture-util';
 import { setCustomDisplay, disableCustomDisplay } from '../../util/custom-animation/css3d-util.js';
 
 // Import Three.js the same way as other files in the codebase
@@ -430,29 +429,6 @@ export function initHtmlEditorModal() {
                                     /transition-duration:\s*[^;]+/,
                                     `transition-duration: ${1.0/newPlaybackSpeed}s !important`
                                 );
-                            }
-                        }
-                        
-                        // For image2texture preview - adjust timing without resetting frames
-                        if (frameBuffer.length > 0) {
-                            // Calculate how much animation time has elapsed at the old speed
-                            const currentTime = Date.now();
-                            const realElapsedTime = currentTime - originalAnimationStartTime;
-                            const animationElapsedTime = realElapsedTime * oldPlaybackSpeed;
-                            
-                            // Reset the animation start time to maintain current position
-                            // but continue with the new speed
-                            originalAnimationStartTime = currentTime - (animationElapsedTime / newPlaybackSpeed);
-                            
-                            // For speeds > 1x, we need to ensure we have enough frames in the buffer
-                            // to maintain smooth playback
-                            if (newPlaybackSpeed > 1.0) {
-                                // Increase capture rate for faster playback
-                                maxCaptureRate = Math.max(1, Math.floor(1 / newPlaybackSpeed));
-                                console.log(`Adjusted capture rate for ${newPlaybackSpeed}x speed: ${maxCaptureRate}ms`);
-                            } else {
-                                // Reset to normal capture rate
-                                maxCaptureRate = 1;
                             }
                         }
                     } catch (err) {
