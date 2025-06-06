@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { showStatus, CustomTextureSettings } from '../../modals/html-editor-modal/html-editor-modal';
 import { 
     resetPreRender, 
-    startCss3dPreRendering,
     updateMeshTexture,
     setIsPreviewActive,
     setIsPreviewAnimationPaused,
@@ -23,6 +22,7 @@ import {
     setPreviewRenderTarget 
 } from '../../util/custom-animation/threejs-util';
 import { startImage2TexturePreRendering } from '../image2texture/image2texture-prerender';
+import { startCss3dPreRendering } from '../css3d/css3d-prerender';
 
 export let lastAnimationFrameTime = 0;
 export let previewAnimationId = null;
