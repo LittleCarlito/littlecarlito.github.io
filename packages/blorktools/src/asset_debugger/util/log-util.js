@@ -33,3 +33,33 @@ export function getCaller(skipLevels = 1) {
         return 'error';
     }
 }
+
+// Debug reporting function for animation analysis
+export function logAnimationAnalysisReport(renderType, data) {
+    const {
+        frameCount,
+        duration,
+        isFinite,
+        loopDetected,
+        endDetected,
+        analysisTime,
+        metrics
+    } = data;
+    
+    console.debug(
+        `%c Animation Analysis Report: ${renderType} %c`,
+        'background: #4285f4; color: white; padding: 2px 6px; border-radius: 2px; font-weight: bold;',
+        'background: transparent;'
+    );
+    
+    console.debug({
+        renderType,
+        framesAnalyzed: frameCount,
+        duration: duration ? `${(duration/1000).toFixed(2)}s` : 'unknown',
+        isFiniteAnimation: isFinite,
+        loopDetected,
+        endDetected,
+        analysisTime: `${(analysisTime/1000).toFixed(2)}s`,
+        metrics
+    });
+}

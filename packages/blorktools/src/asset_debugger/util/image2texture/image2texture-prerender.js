@@ -9,7 +9,6 @@ import {
     finalProgressStartTime, 
     isAnimationFinite, 
     isPreviewActive, 
-    logAnimationAnalysisReport, 
     preRenderedFrames, 
     preRenderingInProgress, 
     preRenderMaxDuration, 
@@ -25,6 +24,7 @@ import {
 import { createTextureFromIframe } from "../custom-animation/html2canvas-util";
 import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
 import { createMeshInfoPanel } from '../../modals/html-editor-modal/mesh-info-panel-util';
+import { logAnimationAnalysisReport } from '../log-util';
 
 /**
  * Start pre-rendering animation frames

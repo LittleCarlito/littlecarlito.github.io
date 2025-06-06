@@ -34,62 +34,27 @@ export let isPreviewAnimationPaused = false; // Exported for use in preview-util
 export let lastTextureUpdateTime = 0; // Exported for use in preview-util.js and threejs-util.js
 
 // TIMING STATE - This module owns all animation timing
-let animationPlaybackStartTime = 0; // When playback actually started
-let animationCaptureStartTime = 0;  // When capture started (for offset calculations)
+export let animationPlaybackStartTime = 0; // When playback actually started
+export let animationCaptureStartTime = 0;  // When capture started (for offset calculations)
 // Active playback values
 let playbackStartTime = 0;
 let isPlaybackActive = false;
 
-// Debug reporting function for animation analysis
-export function logAnimationAnalysisReport(renderType, data) {
-    const {
-        frameCount,
-        duration,
-        isFinite,
-        loopDetected,
-        endDetected,
-        analysisTime,
-        metrics
-    } = data;
-    
-    console.debug(
-        `%c Animation Analysis Report: ${renderType} %c`,
-        'background: #4285f4; color: white; padding: 2px 6px; border-radius: 2px; font-weight: bold;',
-        'background: transparent;'
-    );
-    
-    console.debug({
-        renderType,
-        framesAnalyzed: frameCount,
-        duration: duration ? `${(duration/1000).toFixed(2)}s` : 'unknown',
-        isFiniteAnimation: isFinite,
-        loopDetected,
-        endDetected,
-        analysisTime: `${(analysisTime/1000).toFixed(2)}s`,
-        metrics
-    });
+/**
+ * Start playback timing - called when preview should begin playing
+ */
+export function startPlayback() {
+    playbackStartTime = Date.now();
+    isPlaybackActive = true;
+    console.log('Playback started at:', playbackStartTime);
 }
 
 /**
- * Initialize playback timing - called when preview starts playing
- * This should be called regardless of animation type (finite/infinite)
+ * Stop playback timing
  */
-export function initializePlaybackTiming() {
-    const now = Date.now();
-    animationPlaybackStartTime = now;
-    
-    // Calculate the capture start time from the first frame if available
-    if (preRenderedFrames.length > 0) {
-        animationCaptureStartTime = preRenderedFrames[0].timestamp;
-    } else {
-        animationCaptureStartTime = now;
-    }
-    
-    console.log('Playback timing initialized:', {
-        playbackStart: animationPlaybackStartTime,
-        captureStart: animationCaptureStartTime,
-        framesAvailable: preRenderedFrames.length
-    });
+export function stopPlayback() {
+    isPlaybackActive = false;
+    console.log('Playback stopped');
 }
 
 /**
@@ -151,22 +116,7 @@ export function resetPlaybackTiming() {
     isPlaybackActive = false;
 }
 
-/**
- * Start playback timing - called when preview should begin playing
- */
-export function startPlayback() {
-    playbackStartTime = Date.now();
-    isPlaybackActive = true;
-    console.log('Playback started at:', playbackStartTime);
-}
 
-/**
- * Stop playback timing
- */
-export function stopPlayback() {
-    isPlaybackActive = false;
-    console.log('Playback stopped');
-}
 
 export function resetPreRender() {
             preRenderedFrames = [];
@@ -174,177 +124,6 @@ export function resetPreRender() {
             preRenderingInProgress = false;
             finalProgressAnimation = false;
             finalProgressStartTime = 0;
-}
-
-/**
- * Analyze animation frames to detect the end of an animation
- * @param {Array} frames - Array of captured frames with hash and timestamp
- * @param {string} currentFrameHash - Hash of the current frame
- * @param {number} sensitivity - Detection sensitivity (0.0-1.0, higher = more sensitive)
- * @returns {Object} Detection results including whether end is detected
- */
-function analyzeAnimationFrames(frames, currentFrameHash, sensitivity = 0.85) {
-    // Normalize sensitivity to ensure it's between 0.0 and 1.0
-    sensitivity = Math.max(0.0, Math.min(1.0, sensitivity));
-    
-    // Calculate adaptive thresholds based on sensitivity
-    // Higher sensitivity = lower thresholds = easier to detect changes/end
-    const changeThreshold = animationChangeThreshold * (1.0 - sensitivity * 0.7); // More aggressive scaling (was 0.5)
-    const idleThreshold = Math.round(animationIdleThreshold * (1.0 - sensitivity * 0.85)); // More aggressive reduction (was 0.7)
-    
-    // Initialize result object
-    const result = {
-        endDetected: false,
-        loopDetected: false,
-        isSignificantChange: false,
-        idleCount: 0,
-        patternLength: 0,
-        metrics: {
-            changeThreshold,
-            idleThreshold,
-            avgChangeRate: 0,
-            changeFrequency: 0
-        }
-    };
-    
-    // Need at least 2 frames to analyze
-    if (frames.length < 2) {
-        return result;
-    }
-    
-    // Get the previous frame hash
-    const prevHash = frames[frames.length - 1].hash;
-    
-    // Calculate difference between current and previous frame
-    const hashDiff = calculateHashDifference(currentFrameHash, prevHash);
-    result.isSignificantChange = hashDiff > changeThreshold;
-    
-    // Store the change rate
-    frameChangeRates.push(hashDiff);
-    
-    // Keep only the most recent 60 change rates
-    if (frameChangeRates.length > 60) {
-        frameChangeRates.shift();
-    }
-    
-    // Calculate average change rate and frequency
-    result.metrics.avgChangeRate = frameChangeRates.reduce((sum, rate) => sum + rate, 0) / frameChangeRates.length;
-    
-    // Calculate how many of the recent frames had significant changes
-    const recentFrames = Math.min(20, frameChangeRates.length);
-    const significantChanges = frameChangeRates.slice(-recentFrames).filter(rate => rate > changeThreshold).length;
-    result.metrics.changeFrequency = significantChanges / recentFrames;
-    
-    // Detect animation end using idle count
-    if (result.isSignificantChange) {
-        result.idleCount = 0;
-    } else {
-        // Get current idle count from global variable
-        result.idleCount = animationIdleCount + 1;
-        
-        // Check if we've reached the idle threshold
-        if (result.idleCount >= idleThreshold) {
-            result.endDetected = true;
-        }
-    }
-    
-    // Detect animation end using frequency analysis (more sensitive with higher sensitivity)
-    const frequencyThreshold = 0.15 * (1.0 - sensitivity * 0.7); // More aggressive reduction (was 0.5)
-    if (previousChangeFrequency > 0.2 && result.metrics.changeFrequency < frequencyThreshold) { // Lower threshold (was 0.3)
-        result.endDetected = true;
-    }
-    
-    // Detect animation loops
-    if (frames.length >= 20) { // Reduced from 30 to detect loops earlier
-        result.loopDetected = detectAnimationLoop(frames, sensitivity);
-        if (result.loopDetected) {
-            result.endDetected = true;
-        }
-    }
-    
-    // Store current change frequency for next comparison
-    previousChangeFrequency = result.metrics.changeFrequency;
-    
-    return result;
-}
-
-/**
- * Detect if the animation has completed a loop by comparing frame hashes
- * @param {Array} frames - Array of captured frames with hash and timestamp
- * @param {number} sensitivity - Detection sensitivity (0.0-1.0, higher = more sensitive)
- * @returns {boolean} True if a loop is detected
- */
-function detectAnimationLoop(frames, sensitivity = 0.85) {
-    // Need at least 20 frames to detect a loop (reduced from 30)
-    if (frames.length < 20) return false;
-    
-    // Adjust threshold based on sensitivity
-    const loopThreshold = 0.05 * (1.0 - sensitivity * 0.8); // More aggressive reduction (was 0.6)
-    
-    const minLoopSize = 4;  // Minimum number of frames that could constitute a loop (reduced from 5)
-    const maxLoopSize = Math.floor(frames.length / 2); // Max half the total frames
-    
-    // Try different loop sizes
-    for (let loopSize = minLoopSize; loopSize <= maxLoopSize; loopSize++) {
-        let isLoop = true;
-        
-        // Compare the last loopSize frames with the previous loopSize frames
-        for (let i = 0; i < loopSize; i++) {
-            const currentIndex = frames.length - 1 - i;
-            const previousIndex = currentIndex - loopSize;
-            
-            if (previousIndex < 0) {
-                isLoop = false;
-                break;
-            }
-            
-            const currentHash = frames[currentIndex].hash;
-            const previousHash = frames[previousIndex].hash;
-            
-            // If hashes are different by more than the threshold, it's not a loop
-            if (calculateHashDifference(currentHash, previousHash) > loopThreshold) {
-                isLoop = false;
-                break;
-            }
-        }
-        
-        if (isLoop) {
-            console.log(`Detected animation loop of ${loopSize} frames (sensitivity: ${sensitivity.toFixed(2)})`);
-            return true;
-        }
-    }
-    
-    return false;
-}
-
-/**
- * Calculate the difference between two texture hashes
- * @param {string} hash1 - First hash
- * @param {string} hash2 - Second hash
- * @returns {number} Difference value between 0 and 1
- */
-function calculateHashDifference(hash1, hash2) {
-    if (!hash1 || !hash2) return 1;
-    
-    try {
-        const arr1 = hash1.split(',').map(Number);
-        const arr2 = hash2.split(',').map(Number);
-        
-        // If arrays are different lengths, return max difference
-        if (arr1.length !== arr2.length) return 1;
-        
-        // Calculate mean absolute difference
-        let totalDiff = 0;
-        for (let i = 0; i < arr1.length; i++) {
-            totalDiff += Math.abs(arr1[i] - arr2[i]);
-        }
-        
-        // Normalize by max possible difference (255 per channel)
-        return totalDiff / (arr1.length * 255);
-    } catch (e) {
-        console.error('Error calculating hash difference:', e);
-        return 1;
-    }
 }
 
 /**
@@ -437,4 +216,12 @@ export function setFinalProgressAnimation(incomingValue) {
 
 export function setFinalProgressStartTime(incomingValue) {
     finalProgressStartTime = incomingValue;
+}
+
+export function setAnimationPlaybackStartTime(incomingValue) {
+    setAnimationPlaybackStartTime = incomingValue;
+}
+
+export function setAnimationCaptureStartTime(incomingValue) {
+    animationCaptureStartTime = incomingValue;
 }

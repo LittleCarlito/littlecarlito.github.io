@@ -1,18 +1,20 @@
 import { showStatus } from "../../modals/html-editor-modal/html-editor-modal";
 import { createMeshInfoPanel } from "../../modals/html-editor-modal/mesh-info-panel-util";
 import { 
+    animationCaptureStartTime,
     animationDuration, 
+    animationPlaybackStartTime, 
     finalProgressAnimation, 
     finalProgressDuration, 
     finalProgressStartTime, 
-    initializePlaybackTiming, 
     isAnimationFinite, 
     isPreviewActive, 
-    logAnimationAnalysisReport, 
     preRenderedFrames, 
     preRenderingInProgress, 
     preRenderMaxDuration, 
+    setAnimationCaptureStartTime, 
     setAnimationDuration, 
+    setAnimationPlaybackStartTime, 
     setFinalProgressAnimation, 
     setFinalProgressStartTime, 
     setIsAnimationFinite, 
@@ -21,6 +23,7 @@ import {
     setPreRenderingInProgress 
 } from "../custom-animation/animation-util";
 import { injectUnifiedAnimationDetectionScript } from "../custom-animation/html2canvas-util";
+import { logAnimationAnalysisReport } from "../log-util";
 
 /**
  * Start pre-rendering for CSS3D content
@@ -667,4 +670,26 @@ export function startCss3dPreRendering(iframe, callback, progressBar = null, set
     
     // Store the DOM snapshot frames in the preRenderedFrames array for compatibility
     setPreRenderedFrames(domSnapshotFrames);
+}
+
+/**
+ * Initialize playback timing - called when preview starts playing
+ * This should be called regardless of animation type (finite/infinite)
+ */
+function initializePlaybackTiming() {
+    const now = Date.now();
+    setAnimationPlaybackStartTime(now);
+    
+    // Calculate the capture start time from the first frame if available
+    if (preRenderedFrames.length > 0) {
+        setAnimationCaptureStartTime(preRenderedFrames[0].timestamp);
+    } else {
+        setAnimationCaptureStartTime(now);
+    }
+    
+    console.log('Playback timing initialized:', {
+        playbackStart: animationPlaybackStartTime,
+        captureStart: animationCaptureStartTime,
+        framesAvailable: preRenderedFrames.length
+    });
 }
