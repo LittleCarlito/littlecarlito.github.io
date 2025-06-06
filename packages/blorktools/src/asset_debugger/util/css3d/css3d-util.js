@@ -5,22 +5,7 @@ import {
 import { getHtmlSettingsForMesh } from '../mesh-data-util';
 import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
 import { setupCSS3DScene } from './css3d-scene-helper';
-
-// Add animation stack tracking variables at the top of the file
-export let animationStack = [];
-export let isReversingAnimations = false;
-// Add flag to disable animation capture during reversal
-export let isCapturingAnimations = true;
-// Store animation properties to properly reverse them
-export let animationProperties = {};
-// Store timestamps for calculating delays
-export let lastAnimationTime = 0;
-// Animation frame tracking
-export let reverseAnimationFrameId = null;
-// Add animation batch tracking for composite effects
-export let currentAnimationBatch = [];
-export let batchTimeWindow = 50; // ms window to consider animations as part of the same batch
-export let lastBatchTime = 0;
+import { resetAnimationState, resetReverseAnimationFrameId, reverseAnimationFrameId } from './css3d-state';
 
 /**
  * Initialize CSS3D renderer for HTML preview
@@ -60,16 +45,12 @@ export function initCSS3DPreview(container, iframe, currentMeshId, createInfoPan
 }
 
 export function cleanupCSS3D(targetElement = null) {
-    // Clear animation stack and state
-    animationStack = [];
-    isReversingAnimations = false;
-    isCapturingAnimations = true;
-    animationProperties = {};
+    resetAnimationState();
     
     // Cancel any pending animation frame
     if (reverseAnimationFrameId) {
         cancelAnimationFrame(reverseAnimationFrameId);
-        reverseAnimationFrameId = null;
+        resetReverseAnimationFrameId();
     }
     
     const iframe = targetElement || document.getElementById('css3d-panel-iframe');
@@ -107,68 +88,4 @@ export function cleanupCSS3D(targetElement = null) {
     }
     
     console.debug('CSS3D cleanup complete');
-}
-
-export function resetAnimationStack() {
-    animationStack = [];
-}
-
-export function pushAnimationStack(incomingValue) {
-    if(!incomingValue) {
-        return;
-    }
-    animationStack.push(incomingValue);
-}
-
-export function setReversingAnimation(incomingValue) {
-    isReversingAnimations = incomingValue;
-}
-
-export function setCapturingAnimations(incomingValue) {
-    isCapturingAnimations = incomingValue;
-}
-
-export function resetAnimationProperties() {
-    animationProperties = {};
-}
-
-export function setLastAnimationTime(incomingValue) {
-    if(!incomingValue) {
-        return;
-    }
-    lastAnimationTime = incomingValue;
-}
-
-export function resetCurrentAniamtionBatch() {
-    currentAnimationBatch = [];
-}
-
-export function pushAnimationBatch(incomingValue) {
-    if(!incomingValue){
-        return;
-    }
-    currentAnimationBatch.push(incomingValue);
-}
-
-export function resetLastBatchTime() {
-    lastBatchTime = 0;
-}
-
-export function setLastBatchTime(incomingValue) {
-    lastBatchTime = incomingValue;
-}
-
-export function resetReverseAnimationFrameId() {
-    reverseAnimationFrameId = null;
-}
-
-export function resetAnimationState() {
-        // Clear existing animation stack
-        resetAnimationStack();
-        setReversingAnimation(false);
-        setCapturingAnimations(true);
-        resetAnimationProperties();
-        setLastAnimationTime(Date.now());
-        resetCurrentAniamtionBatch();
-        resetLastBatchTime();
 }

@@ -1,6 +1,18 @@
 import { classifyAnimation, classifyTransition } from "../animation-classifier";
-import { animationProperties, animationStack, batchTimeWindow, currentAnimationBatch, isCapturingAnimations, lastAnimationTime, lastBatchTime, pushAnimationBatch, resetAnimationState, resetCurrentAniamtionBatch, setLastAnimationTime, setLastBatchTime } from "./css3d-util";
-
+import { 
+    animationProperties,
+    animationStack,
+    batchTimeWindow,
+    currentAnimationBatch,
+    isCapturingAnimations,
+    lastAnimationTime,
+    lastBatchTime,
+    pushAnimationBatch,
+    resetAnimationState,
+    resetCurrentAniamtionBatch,
+    setLastAnimationTime,
+    setLastBatchTime
+} from "./css3d-state";
 
 /**
  * Set up bounce animation tracking for the iframe

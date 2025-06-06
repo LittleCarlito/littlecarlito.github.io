@@ -1,7 +1,7 @@
-import { animationStack, reverseAnimationFrameId } from "./css3d-util";
+import { animationStack, reverseAnimationFrameId } from "./css3d-state";
 
 /**
- * Play the next animation in reverse from the stack
+ * Pop and play the next animation from the stack in reverse
  * @param {HTMLIFrameElement} iframe - The iframe containing animations
  */
 export function playNextReverseAnimation(iframe) {

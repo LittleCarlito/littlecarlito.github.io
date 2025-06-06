@@ -11,7 +11,7 @@ import {
     reverseAnimationFrameId,
     animationStack,
     resetAnimationState
-} from './css3d-util';
+} from './css3d-state';
 import { createMeshInfoPanel } from '../../modals/html-editor-modal/mesh-info-panel-util';
 import { getIsPreviewActive } from '../custom-animation/animation-util';
 import {     
@@ -23,7 +23,7 @@ import {
     animationPreviewCamera
 } from '../custom-animation/threejs-util';
 import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
-import { playNextReverseAnimation } from './css3d-animation-helper';
+import { playNextReverseAnimation } from './css3d-reversal-helper';
 import { setupBounceAnimationTracking } from './css3d-bounce-helper';
 
 /**
