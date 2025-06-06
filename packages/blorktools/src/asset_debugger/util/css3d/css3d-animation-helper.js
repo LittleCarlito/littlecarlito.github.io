@@ -601,3 +601,222 @@ function applyReverseAnimation(target, animation) {
     // Force a reflow to ensure the animation runs
     void target.offsetWidth;
 }
+
+/**
+ * Create opposite animation for an animation property
+ * @param {string} animationName - Original animation name
+ * @param {Object} classification - Animation classification
+ * @returns {string} Opposite animation name
+ */
+function getOppositeAnimation(animationName, classification) {
+    if (!animationName) return '';
+    
+    // If we have a valid classification, use it
+    if (classification) {
+        if (classification.isFadeIn) return animationName.replace(/fadein|fade-in|fade-in/i, 'fadeout');
+        if (classification.isFadeOut) return animationName.replace(/fadeout|fade-out|fade-out/i, 'fadein');
+        if (classification.isSlideIn) return animationName.replace(/slidein|slide-in|slide-in/i, 'slideout');
+        if (classification.isSlideOut) return animationName.replace(/slideout|slide-out|slide-out/i, 'slidein');
+        if (classification.isZoomIn) return animationName.replace(/zoomin|zoom-in|zoom-in/i, 'zoomout');
+        if (classification.isZoomOut) return animationName.replace(/zoomout|zoom-out|zoom-out/i, 'zoomin');
+    }
+    
+    const name = animationName.toLowerCase();
+    
+    // Common animation pairs
+    const pairs = {
+        'fadein': 'fadeout',
+        'fade-in': 'fade-out',
+        'fadeout': 'fadein',
+        'fade-out': 'fade-in',
+        'slidein': 'slideout',
+        'slide-in': 'slide-out',
+        'slideout': 'slidein',
+        'slide-out': 'slide-in',
+        'zoomin': 'zoomout',
+        'zoom-in': 'zoom-out',
+        'zoomout': 'zoomin',
+        'zoom-out': 'zoom-in',
+        'rotatein': 'rotateout',
+        'rotate-in': 'rotate-out',
+        'rotateout': 'rotatein',
+        'rotate-out': 'rotate-in',
+        'scalein': 'scaleout',
+        'scale-in': 'scale-out',
+        'scaleout': 'scalein',
+        'scale-out': 'scale-in',
+        'expand': 'collapse',
+        'collapse': 'expand',
+        'show': 'hide',
+        'hide': 'show',
+        'open': 'close',
+        'close': 'open'
+    };
+    
+    // Check for each pattern in the animation name
+    for (const [pattern, opposite] of Object.entries(pairs)) {
+        if (name.includes(pattern)) {
+            // Replace the pattern with its opposite
+            return animationName.replace(new RegExp(pattern, 'i'), opposite);
+        }
+    }
+    
+    // If no specific pattern is found, just use reverse
+    return animationName;
+}
+
+/**
+ * Apply a reverse transition intelligently
+ * @param {Element} target - The target element
+ * @param {Object} transition - The transition data
+ */
+function applyReverseTransition(target, transition) {
+    if (!target || !transition) return;
+    
+    console.debug(`Applying reverse transition for: ${transition.property}`);
+    
+    const classified = transition.classified || {};
+    const property = transition.property;
+    const duration = transition.duration || 0.3;
+    const timing = transition.timingFunction || 'ease';
+    const initialValue = transition.initialValue || null;
+    const finalValue = transition.finalValue || null;
+    const initialStyle = transition.initialStyle || {};
+    
+    if (!property) {
+        console.debug('No property defined for transition');
+        return;
+    }
+    
+    // First, remove any existing transitions
+    target.style.transition = 'none';
+    
+    // Force a reflow to ensure previous transitions are cleared
+    void target.offsetWidth;
+    
+    // Set up the new transition
+    if (property === 'opacity') {
+        // For opacity transitions, handle them specially to ensure visibility
+        const currentOpacity = window.getComputedStyle(target).opacity;
+        const targetOpacity = initialValue !== null ? initialValue : 
+                             (classified.isFadeIn ? '0' : '1');
+        
+        // Check if the element should be visible in its original state
+        const wasOriginallyHidden = initialStyle.display === 'none' || 
+                                   initialStyle.visibility === 'hidden' ||
+                                   parseFloat(initialStyle.opacity) < 0.1;
+        
+        if (parseFloat(currentOpacity) > 0 && parseFloat(targetOpacity) === 0) {
+            // Currently visible, going to fade out
+            target.style.transition = 'none';
+            target.style.visibility = 'visible';
+            target.style.opacity = '1';
+            
+            // Force reflow
+            void target.offsetWidth;
+            
+            // Now set up the transition
+            target.style.transition = `opacity ${duration}s ${timing}`;
+            
+            // Apply the new opacity value using requestAnimationFrame
+            requestAnimationFrame(() => {
+                target.style.opacity = targetOpacity;
+                
+                // Once fade out is complete, update visibility based on original state
+                setTimeout(() => {
+                    if (wasOriginallyHidden) {
+                        target.style.visibility = 'hidden';
+                        target.style.display = 'none';
+                    }
+                }, duration * 1000);
+            });
+        } else if (parseFloat(currentOpacity) < 0.1) {
+            // Currently invisible, but should it fade in?
+            if (wasOriginallyHidden) {
+                // It was originally hidden, so keep it hidden
+                console.debug('Element was originally hidden, keeping it hidden');
+                target.style.opacity = '0';
+                target.style.visibility = 'hidden';
+                target.style.display = 'none';
+            } else {
+                // It was originally visible, so fade it in
+                target.style.transition = 'none';
+                target.style.visibility = 'visible';
+                target.style.display = 'block';
+                target.style.opacity = '0';
+                
+                // Force reflow
+                void target.offsetWidth;
+                
+                // Set up transition
+                target.style.transition = `opacity ${duration}s ${timing}`;
+                
+                // Apply the new opacity value using requestAnimationFrame
+                requestAnimationFrame(() => {
+                    target.style.opacity = targetOpacity;
+                });
+            }
+        } else {
+            // Regular opacity transition
+            target.style.transition = `opacity ${duration}s ${timing}`;
+            // Force reflow
+            void target.offsetWidth;
+            // Apply the opacity value
+            target.style.opacity = targetOpacity;
+        }
+    } else {
+        // For non-opacity transitions, use a simpler approach
+        target.style.transition = `${property} ${duration}s ${timing}`;
+        
+        // Force a reflow
+        void target.offsetWidth;
+        
+        // For transitions, we want to go back to the initial value
+        if (initialValue) {
+            // If we have a valid initial value, use it
+            console.debug(`Reversing ${property} to initial value: ${initialValue}`);
+            requestAnimationFrame(() => {
+                target.style[property] = initialValue;
+            });
+        } else {
+            // Handle based on the property type
+            switch (classified.category) {
+                case 'move':
+                    // Move transitions typically use position properties
+                    requestAnimationFrame(() => {
+                        target.style[property] = '0';
+                    });
+                    break;
+                    
+                case 'size':
+                    if (classified.isExpand) {
+                        // Was expanding, now shrink
+                        requestAnimationFrame(() => {
+                            target.style[property] = '0';
+                        });
+                    } else {
+                        // Was shrinking, now expand
+                        requestAnimationFrame(() => {
+                            target.style[property] = 'auto';
+                        });
+                    }
+                    break;
+                    
+                case 'transform':
+                    requestAnimationFrame(() => {
+                        target.style.transform = 'none';
+                    });
+                    break;
+                    
+                default:
+                    // Reset to a sensible default
+                    console.debug(`Using default reversal for ${property}`);
+                    if (target.getAttribute(`data-initial-${property}`)) {
+                        requestAnimationFrame(() => {
+                            target.style[property] = target.getAttribute(`data-initial-${property}`);
+                        });
+                    }
+            }
+        }
+    }
+}

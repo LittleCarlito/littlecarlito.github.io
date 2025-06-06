@@ -1,20 +1,16 @@
 import * as THREE from 'three';
 import { 
-    animationStack,
-    resetAnimationStack,
     isReversingAnimations,
     pushAnimationStack,
     setCapturingAnimations,
     setReversingAnimation,
-    resetAnimationProperties,
-    setLastAnimationTime, 
     resetCurrentAniamtionBatch, 
     currentAnimationBatch, 
-    resetLastBatchTime, 
     lastBatchTime, 
-    setupBounceAnimationTracking,
     resetReverseAnimationFrameId,
-    reverseAnimationFrameId
+    reverseAnimationFrameId,
+    animationStack,
+    resetAnimationState
 } from './css3d-util';
 import { createMeshInfoPanel } from '../../modals/html-editor-modal/mesh-info-panel-util';
 import { getIsPreviewActive } from '../custom-animation/animation-util';
@@ -28,6 +24,7 @@ import {
 } from '../custom-animation/threejs-util';
 import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
 import { playNextReverseAnimation } from './css3d-animation-helper';
+import { setupBounceAnimationTracking } from './css3d-bounce-helper';
 
 /**
  * Setup the CSS3D scene
@@ -40,14 +37,7 @@ export function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, c
     try {
         console.log('Setting up CSS3D scene with container:', container);
 
-        // Clear existing animation stack
-        resetAnimationStack();
-        setReversingAnimation(false);
-        setCapturingAnimations(true);
-        resetAnimationProperties();
-        setLastAnimationTime(Date.now());
-        resetCurrentAniamtionBatch();
-        resetLastBatchTime();
+        resetAnimationState();
         
         // Clear any existing content
         container.innerHTML = '';
@@ -472,14 +462,7 @@ function resetAndRestartAnimationCycle(iframe, html) {
             
             // Give a brief moment to ensure cleanup
             setTimeout(() => {
-                // Reset animation tracking state
-                resetAnimationStack();
-                setReversingAnimation(false);
-                setCapturingAnimations(true);
-                resetAnimationProperties();
-                setLastAnimationTime(Date.now());
-                resetCurrentAniamtionBatch();
-                resetLastBatchTime();
+                resetAnimationState();
                 
                 // Now reload the real content
                 iframe.contentDocument.open();

@@ -112,3 +112,24 @@ export function classifyTransition(property, initialValue, currentValue) {
     
     return classification;
 }
+
+/**
+ * Extract scale value from a transform string
+ * @param {string} transform - CSS transform value
+ * @returns {number} Extracted scale or 1 if not found
+ */
+function extractScaleValue(transform) {
+    try {
+        const scaleMatch = transform.match(/scale\(([^)]+)\)/);
+        if (scaleMatch && scaleMatch[1]) {
+            return parseFloat(scaleMatch[1]) || 1;
+        }
+        
+        const scale3dMatch = transform.match(/scale3d\(([^,]+),/);
+        if (scale3dMatch && scale3dMatch[1]) {
+            return parseFloat(scale3dMatch[1]) || 1;
+        }
+    } catch (e) {}
+    
+    return 1;
+}
