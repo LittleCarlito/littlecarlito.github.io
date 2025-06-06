@@ -20,11 +20,11 @@ import {
     setPreRenderedFrames, 
     setPreRenderingInProgress, 
 } from "../state/animation-state";
-import { createTextureFromIframe } from "../../custom-animation/html2canvas-util";
 import { showStatus } from '../../../modals/html-editor-modal/html-editor-modal';
 import { createMeshInfoPanel } from '../../../modals/html-editor-modal/mesh-info-panel-util';
 import { logAnimationAnalysisReport } from '../../log-util';
 import { startPlayback, updateMeshTexture } from '../playback/animation-playback-util';
+import { createTextureFromIframe } from './iframe2texture-render';
 
 /**
  * Start pre-rendering animation frames

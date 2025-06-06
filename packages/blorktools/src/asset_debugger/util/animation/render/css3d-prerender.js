@@ -23,8 +23,8 @@ import {
     setPreRenderedFrames, 
     setPreRenderingInProgress 
 } from "../state/animation-state";
-import { injectUnifiedAnimationDetectionScript } from "../../custom-animation/html2canvas-util";
 import { logAnimationAnalysisReport } from "../../log-util";
+import { injectUnifiedAnimationDetectionScript } from "../../classifier/animation-classifier";
 
 /**
  * Start pre-rendering for CSS3D content

@@ -1,8 +1,3 @@
-import * as THREE from 'three';
-import { showStatus } from "../../../modals/html-editor-modal/html-editor-modal";
-import { createMeshInfoPanel } from '../../../modals/html-editor-modal/mesh-info-panel-util';
-import { createTextureFromIframe, injectUnifiedAnimationDetectionScript } from '../../custom-animation/html2canvas-util';
-
 export const ANALYSIS_DURATION_MS = 30000; // 30 seconds - matches preRenderMaxDuration
 
 export let finalProgressAnimation = false;

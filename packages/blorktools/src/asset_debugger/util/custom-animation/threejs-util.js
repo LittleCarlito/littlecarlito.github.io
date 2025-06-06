@@ -9,8 +9,8 @@ import {
 import { getState } from '../../scene/state';
 import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
 import { createMeshInfoPanel, infoPanel, resetInfoPanel } from '../../modals/html-editor-modal/mesh-info-panel-util';
-import { createTextureFromIframe } from './html2canvas-util';
 import { resetAnimationState, reverseAnimationFrameId } from '../animation/state/css3d-state';
+import { createTextureFromIframe } from '../animation/render/iframe2texture-render';
 
 let pendingTextureUpdate = false;
 export let previewPlane;
