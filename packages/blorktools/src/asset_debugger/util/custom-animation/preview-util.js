@@ -1,14 +1,12 @@
 import * as THREE from 'three';
 import { showStatus, CustomTextureSettings } from '../../modals/html-editor-modal/html-editor-modal';
 import { 
-    resetPreRender, 
-    updateMeshTexture,
+    resetPreRenderState, 
     setIsPreviewActive,
     setIsPreviewAnimationPaused,
-    resetPlaybackTiming,
+    resetPlaybackTimingState,
     isPreviewAnimationPaused,
-    isPreviewActive,
-    getCurrentFrameForPlayback
+    isPreviewActive
 } from '../../util/custom-animation/animation-util';
 import { sanitizeHtml } from '../../util/string-serder';
 import { initCSS3DAnimation } from '../css3d/css3d-animation-util';
@@ -23,6 +21,7 @@ import {
 } from '../../util/custom-animation/threejs-util';
 import { startImage2TexturePreRendering } from '../image2texture/image2texture-prerender';
 import { startCss3dPreRendering } from '../css3d/css3d-prerender';
+import { getCurrentFrameForPlayback, updateMeshTexture } from '../animation-playback-util';
 
 export let lastAnimationFrameTime = 0;
 export let previewAnimationId = null;
@@ -95,8 +94,8 @@ export function previewHtml(settings, previewContent, setModalData) {
         const isLongExposureMode = settings.isLongExposureMode;
         window.showPreviewBorders = settings.showPreviewBorders;
 
-        resetPreRender();
-        resetPlaybackTiming(); // Reset timing state for new preview
+        resetPreRenderState();
+        resetPlaybackTimingState(); // Reset timing state for new preview
 
         // Store the preview mode in the modal dataset if setModalData function is provided
         if (setModalData) {
