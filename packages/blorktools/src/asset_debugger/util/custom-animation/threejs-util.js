@@ -1,11 +1,10 @@
 import * as THREE from 'three';
 import { animatePreview, previewAnimationId, resetLastAnimationFrameTime, resetPreviewAnimationId } from './preview-util';
 import { 
-    getIsPreviewActive, 
+    isPreviewActive,
     setIsPreviewActive, 
     setIsPreviewAnimationPaused, 
     setLastTextureUpdateTime,
-    getIsPreviewAnimationPaused
 } from './animation-util';
 import { getState } from '../../scene/state';
 import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
@@ -352,7 +351,7 @@ function setupThreeJsScene(container, iframe, currentMeshId, createInfoPanel = t
                     
                     // Add keyboard shortcuts for zooming
                     const handleKeydown = (event) => {
-                        if (!getIsPreviewActive()) return;
+                        if (!isPreviewActive) return;
                         
                         // Get current controls - they should be attached to the camera by this point
                         const controls = animationPreviewCamera.userData.controls;

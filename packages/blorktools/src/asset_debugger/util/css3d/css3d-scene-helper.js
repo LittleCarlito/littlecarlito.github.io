@@ -13,7 +13,6 @@ import {
     resetAnimationState
 } from './css3d-state';
 import { createMeshInfoPanel } from '../../modals/html-editor-modal/mesh-info-panel-util';
-import { getIsPreviewActive } from '../custom-animation/animation-util';
 import {     
     setAnimationCss3dRenderer,
     setAnimationCss3dScene,
@@ -25,6 +24,7 @@ import {
 import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
 import { playNextReverseAnimation } from './css3d-reversal-helper';
 import { setupBounceAnimationTracking } from './css3d-bounce-helper';
+import { isPreviewActive } from '../custom-animation/animation-util';
 
 /**
  * Setup the CSS3D scene
@@ -221,7 +221,7 @@ export function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, c
                             
                             // Create repeating timer to reload the iframe content
                             const restartTimer = setInterval(() => {
-                                if (!getIsPreviewActive()) {
+                                if (!isPreviewActive) {
                                     // Clean up timer if preview is no longer active
                                     clearInterval(restartTimer);
                                     return;
@@ -344,7 +344,7 @@ export function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, c
 
             // Animation loop
             function animate() {
-                if (!getIsPreviewActive()) {
+                if (!isPreviewActive) {
                     return;
                 }
 
@@ -365,7 +365,7 @@ export function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, c
 
             // Add keyboard shortcuts for zooming
             const handleKeydown = (event) => {
-                if (!getIsPreviewActive()) return;
+                if (!isPreviewActive) return;
 
                 // Get current controls - they should be attached to the camera by this point
                 const controls = animationPreviewCamera.userData.controls;

@@ -2,15 +2,14 @@ import * as THREE from 'three';
 import { showStatus, CustomTextureSettings } from '../../modals/html-editor-modal/html-editor-modal';
 import { 
     resetPreRender, 
-    startImage2TexturePreRendering, 
     startCss3dPreRendering,
     updateMeshTexture,
-    getIsPreviewActive,
-    getIsPreviewAnimationPaused,
     setIsPreviewActive,
     setIsPreviewAnimationPaused,
-    getCurrentFrameForPlayback,
-    resetPlaybackTiming
+    resetPlaybackTiming,
+    isPreviewAnimationPaused,
+    isPreviewActive,
+    getCurrentFrameForPlayback
 } from '../../util/custom-animation/animation-util';
 import { sanitizeHtml } from '../../util/string-serder';
 import { initCSS3DAnimation } from '../css3d/css3d-animation-util';
@@ -23,6 +22,7 @@ import {
     previewPlane, 
     setPreviewRenderTarget 
 } from '../../util/custom-animation/threejs-util';
+import { startImage2TexturePreRendering } from '../image2texture/image2texture-prerender';
 
 export let lastAnimationFrameTime = 0;
 export let previewAnimationId = null;
@@ -150,7 +150,7 @@ export function previewHtml(settings, previewContent, setModalData) {
         // Wait for iframe to be ready
         renderIframe.onload = () => {
             // Only proceed if preview is still active
-            if (!getIsPreviewActive()) return;
+            if (!isPreviewActive) return;
 
             // Create container for Three.js canvas
             const canvasContainer = document.createElement('div');
@@ -379,7 +379,7 @@ function logPreviewError(message, previewContent, existingErrorLog, statusCallba
  */
 export function animatePreview() {
     // If preview is no longer active, don't continue the animation loop
-    if (!getIsPreviewActive()) {
+    if (!isPreviewActive) {
         console.log('Preview no longer active, stopping animation loop');
         return;
     }
@@ -403,7 +403,7 @@ export function animatePreview() {
         const playbackSpeed = currentPreviewSettings?.playbackSpeed || 1.0;
         
         // Skip frame updates if animation is paused
-        if (getIsPreviewAnimationPaused()) {
+        if (isPreviewAnimationPaused) {
             // Still render the scene with the current frame
             if (animationPreviewRenderer && animationPreviewScene && animationPreviewCamera) {
                 animationPreviewRenderer.render(animationPreviewScene, animationPreviewCamera);
@@ -419,7 +419,7 @@ export function animatePreview() {
         }
         
         // Apply mesh animation (rotation, bounce, etc.) if not 'play' type
-        if (animationType !== 'play' && !getIsPreviewAnimationPaused()) {
+        if (animationType !== 'play' && !isPreviewAnimationPaused) {
             applyMeshAnimation(animationType, playbackSpeed);
         }
         
