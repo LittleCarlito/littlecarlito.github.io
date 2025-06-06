@@ -9,17 +9,11 @@ import {
     getIsPreviewAnimationPaused,
     setIsPreviewActive,
     setIsPreviewAnimationPaused,
-    getLastTextureUpdateTime,
-    setLastTextureUpdateTime,
     getCurrentFrameForPlayback,
-    initializePlaybackTiming, 
-    resetPlaybackTiming,
-    startPlayback, 
-    stopPlayback
+    resetPlaybackTiming
 } from '../../util/custom-animation/animation-util';
 import { sanitizeHtml } from '../../util/string-serder';
-import { getState } from '../../scene/state';
-import { initCSS3DPreview } from '../../util/custom-animation/css3d-util';
+import { initCSS3DPreview } from '../css3d/css3d-util';
 import { 
     animationPreviewCamera, 
     animationPreviewRenderer, 
@@ -29,7 +23,6 @@ import {
     previewPlane, 
     setPreviewRenderTarget 
 } from '../../util/custom-animation/threejs-util';
-import { getHtmlSettingsForMesh } from '../../util/mesh-data-util';
 
 export let lastAnimationFrameTime = 0;
 export let previewAnimationId = null;

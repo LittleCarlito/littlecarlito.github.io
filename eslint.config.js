@@ -107,6 +107,12 @@ export default [
 			}],
 			// Apply our custom rule
 			'custom/no-unnecessary-dynamic-imports': 'error',
+			// Catch unused variables and imports
+			'no-unused-vars': ['error', { 
+				vars: 'all', 
+				args: 'none',
+				ignoreRestSiblings: true 
+			}],
 		},
 	},
-]; 
+];
