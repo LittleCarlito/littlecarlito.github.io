@@ -1,4 +1,4 @@
-import { frameInterval, lastAnimationFrameTime, setLastAnimationFrameTime } from "../../custom-animation/preview-util";
+import { frameInterval } from "../../custom-animation/preview-util";
 import { 
     ANALYSIS_DURATION_MS,
     animationDuration,
