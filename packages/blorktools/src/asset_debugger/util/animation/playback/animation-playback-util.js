@@ -1,3 +1,4 @@
+import { frameInterval, lastAnimationFrameTime, setLastAnimationFrameTime } from "../../custom-animation/preview-util";
 import { 
     ANALYSIS_DURATION_MS,
     animationDuration,
@@ -9,6 +10,7 @@ import {
     setIsPreviewAnimationPaused, 
     setPlaybackStartTime 
 } from "../../state/animation-state";
+import { setLastAnimationTime } from "../../state/css3d-state";
 
 /**
  * Start playback timing - called when preview should begin playing
@@ -109,4 +111,40 @@ export function updateMeshTexture(texture, previewPlane) {
             previewPlane.material.needsUpdate = true;
         }
     }
+}
+
+export function runAnimationFrame(renderer, scene, camera, mesh, settings, frameState) {
+    // Extract settings
+    const { animationType, playbackSpeed, isPaused } = settings;
+    const { lastFrameTime, frameInterval } = frameState;
+    // Frame rate throttling
+    const now = performance.now();
+    const elapsed = now - lastFrameTime;
+    if (elapsed < frameInterval) {
+        return null; // Return null to indicate no frame update
+    }
+    const newFrameTime = now - (elapsed % frameInterval);
+    // Skip frame updates if animation is paused
+    if (isPaused) {
+        // Still render the scene with the current frame
+        if (renderer && scene && camera) {
+            renderer.render(scene, camera);
+        }
+        return newFrameTime;
+    }
+    // Get current frame
+    const currentFrame = getCurrentFrameForPlayback(playbackSpeed, animationType);
+    // Update texture
+    if (currentFrame && currentFrame.texture && mesh) {
+        updateMeshTexture(currentFrame.texture, mesh);
+    }
+    // Apply mesh animation (this would need to be imported if moved to separate module)
+    if (animationType !== 'play' && !isPaused && mesh) {
+        applyMeshAnimation(animationType, playbackSpeed, mesh);
+    }
+    // Render scene
+    if (renderer && scene && camera) {
+        renderer.render(scene, camera);
+    }
+    return newFrameTime;
 }

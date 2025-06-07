@@ -1,4 +1,121 @@
 /**
+ * Create or get an error log container
+ * @param {HTMLElement} container - Parent container for the error log
+ * @param {string} [logId] - Custom ID for the error log element
+ * @param {string} [className] - Custom class name for styling
+ * @returns {HTMLElement} The error log element
+ */
+export function createErrorLog(container, logId = 'error-log', className = 'error-log') {
+    if (!container) throw new Error('Container element is required');
+    
+    let errorLog = container.querySelector(`#${logId}`);
+    
+    if (!errorLog) {
+        errorLog = document.createElement('div');
+        errorLog.id = logId;
+        errorLog.className = className;
+        errorLog.style.display = 'none';
+        container.appendChild(errorLog);
+    }
+    
+    return errorLog;
+}
+
+/**
+ * Add an error entry to an error log
+ * @param {HTMLElement} errorLog - The error log container
+ * @param {string} message - Error message to display
+ * @param {Object} [options] - Additional options
+ * @param {boolean} [options.showTimestamp=true] - Whether to show timestamp
+ * @param {string} [options.entryClassName='error-entry'] - Class name for the entry
+ * @param {string} [options.timeClassName='error-time'] - Class name for the timestamp
+ */
+export function addErrorEntry(errorLog, message, options = {}) {
+    const {
+        showTimestamp = true,
+        entryClassName = 'error-entry',
+        timeClassName = 'error-time'
+    } = options;
+    
+    if (!errorLog) throw new Error('Error log element is required');
+    
+    const errorEntry = document.createElement('div');
+    errorEntry.className = entryClassName;
+    errorEntry.textContent = message;
+    
+    if (showTimestamp) {
+        const timestamp = new Date().toLocaleTimeString();
+        const timeSpan = document.createElement('span');
+        timeSpan.className = timeClassName;
+        timeSpan.textContent = `[${timestamp}] `;
+        errorEntry.prepend(timeSpan);
+    }
+    
+    errorLog.appendChild(errorEntry);
+    errorLog.style.display = 'block';
+}
+
+/**
+ * Log an error to a container with automatic error log creation
+ * @param {string} message - Error message to display
+ * @param {HTMLElement} container - Container for the error log
+ * @param {Object} [options] - Configuration options
+ * @param {string} [options.logId] - Custom ID for error log
+ * @param {string} [options.logClassName] - Custom class for error log
+ * @param {Function} [options.statusCallback] - Function to call for status updates
+ * @param {boolean} [options.consoleLog=true] - Whether to also log to console
+ * @param {Object} [options.entryOptions] - Options passed to addErrorEntry
+ */
+export function logError(message, container, options = {}) {
+    const {
+        logId = 'error-log',
+        logClassName = 'error-log',
+        statusCallback,
+        consoleLog = true,
+        entryOptions = {}
+    } = options;
+    
+    if (!container) throw new Error('Container element is required');
+    
+    const errorLog = createErrorLog(container, logId, logClassName);
+    addErrorEntry(errorLog, message, entryOptions);
+    
+    if (statusCallback && typeof statusCallback === 'function') {
+        statusCallback(message, 'error');
+    }
+    
+    if (consoleLog) {
+        console.error(message);
+    }
+}
+
+/**
+ * Clear all entries from an error log
+ * @param {HTMLElement} errorLog - The error log to clear
+ * @param {boolean} [hide=true] - Whether to hide the log after clearing
+ */
+export function clearErrorLog(errorLog, hide = true) {
+    if (!errorLog) return;
+    
+    errorLog.innerHTML = '';
+    if (hide) {
+        errorLog.style.display = 'none';
+    }
+}
+
+/**
+ * Get all error entries from an error log
+ * @param {HTMLElement} errorLog - The error log to read from
+ * @returns {string[]} Array of error messages
+ */
+export function getErrorEntries(errorLog) {
+    if (!errorLog) return [];
+    
+    const entries = errorLog.querySelectorAll('.error-entry');
+    return Array.from(entries).map(entry => entry.textContent);
+}
+
+/**
  * Utility function to get caller information from stack trace
  * @param {number} [skipLevels=1] - Number of stack levels to skip (default skips the getCaller function itself)
  * @returns {string} Caller information in format "function@file.js:line"
