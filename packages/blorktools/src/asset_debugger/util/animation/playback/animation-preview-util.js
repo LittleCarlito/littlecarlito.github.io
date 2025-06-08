@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CustomTextureSettings, showStatus } from '../../modals/html-editor-modal/html-editor-modal';
+import { CustomTextureSettings, showStatus } from '../../../modals/html-editor-modal/html-editor-modal';
 import { 
     resetPreRenderState, 
     setIsPreviewActive,
@@ -7,8 +7,8 @@ import {
     resetPlaybackTimingState,
     isPreviewAnimationPaused,
     isPreviewActive
-} from '../state/animation-state';
-import { sanitizeHtml } from '../../util/string-serder';
+} from '../../state/animation-state';
+import { sanitizeHtml } from '../../string-serder';
 import { 
     animationPreviewCamera, 
     animationPreviewRenderer, 
@@ -17,35 +17,18 @@ import {
     initThreeJsPreview, 
     previewPlane, 
     setPreviewRenderTarget 
-} from '../../util/custom-animation/threejs-util';
-import { runAnimationFrame } from '../animation/playback/animation-playback-util';
-import { setupCSS3DScene } from '../animation/playback/css3d-scene-helper';
-import { startImage2TexturePreRendering } from '../animation/render/image2texture-prerender';
-import { startCss3dPreRendering } from '../animation/render/css3d-prerender';
-import { logError } from '../log-util';
+} from '../../custom-animation/threejs-util';
+import { runAnimationFrame } from './animation-playback-util';
+import { setupCSS3DScene } from './css3d-scene-helper';
+import { startImage2TexturePreRendering } from '../render/image2texture-prerender';
+import { startCss3dPreRendering } from '../render/css3d-prerender';
+import { logError } from '../../log-util';
 
 let currentPreviewSettings = null;
 const targetFrameRate = 60;
 let lastAnimationFrameTime = 0;
 export const frameInterval = 1000 / targetFrameRate;
 export let previewAnimationId = null;
-
-function initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId, startAnimation = true, createInfoPanel = true, animationType = 'play', settings = null) {
-    if (!startAnimation) {
-        setIsPreviewAnimationPaused(true);
-    }
-
-    if (previewMode === 'css3d') {
-        console.log('CSS3D initialization will happen after pre-rendering');
-    } else {
-        if (settings && typeof settings.updateStatus === 'function') {
-            settings.updateStatus('Initializing 3D cube preview...', 'info');
-        } else {
-            showStatus('Initializing 3D cube preview...', 'info');
-        }
-        initThreeJsPreview(canvasContainer, renderIframe, currentMeshId, createInfoPanel);
-    }
-}
 
 // Core HTML rendering logic (reusable)
 function createHtmlRenderer(html, onLoad) {
@@ -190,7 +173,7 @@ function createLoadingOverlay() {
 }
 
 // Main preview function (wrapper)
-export function previewHtml(settings, previewContent, setModalData) {
+export function initalizePreview(settings, previewContent, setModalData) {
     if (!previewContent) return;
 
     try {
@@ -223,7 +206,18 @@ export function previewHtml(settings, previewContent, setModalData) {
             const progressText = loadingOverlay.querySelector('#loading-progress-text');
 
             setPreviewRenderTarget(renderIframe);
-            initializePreview(previewMode, canvasContainer, renderIframe, currentMeshId, false, false, animationType, settings);
+            setIsPreviewAnimationPaused(true);
+
+            if (previewMode === 'css3d') {
+                console.log('CSS3D initialization will happen after pre-rendering');
+            } else {
+                if (settings && typeof settings.updateStatus === 'function') {
+                    settings.updateStatus('Initializing 3D cube preview...', 'info');
+                } else {
+                    showStatus('Initializing 3D cube preview...', 'info');
+                }
+                initThreeJsPreview(canvasContainer, renderIframe, currentMeshId, true);
+            }
 
             switch (previewMode) {
                 case 'css3d':

@@ -38,7 +38,7 @@ import { updateHtmlIcons } from '../../panels/mesh-panel/mesh-panel';
 // Import Three.js the same way as other files in the codebase
 import * as THREE from 'three';
 import { isPreviewActive, setLastTextureUpdateTime } from '../../util/state/animation-state';
-import { previewHtml } from '../../util/custom-animation/preview-util';
+import { initalizePreview } from '../../util/animation/playback/animation-preview-util';
 import { cleanupThreeJsPreview, frameBuffer, previewRenderTarget } from '../../util/custom-animation/threejs-util.js';
 import { getHtmlSettingsForMesh, loadHtmlForMesh, loadSettingsForMesh, saveHtmlForMesh, saveSettingsForMesh } from '../../util/mesh-data-util.js';
 
@@ -581,7 +581,7 @@ export function initHtmlEditorModal() {
             };
             
             // Generate the preview with the collected settings
-            previewHtml(settings, previewContent, setModalData);
+            initalizePreview(settings, previewContent, setModalData);
             
             // Add preview mode class to modal for CSS control
             modal.classList.add('preview-mode');

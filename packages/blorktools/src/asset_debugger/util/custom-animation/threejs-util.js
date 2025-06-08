@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { animatePreview, previewAnimationId, resetLastAnimationFrameTime, resetPreviewAnimationId } from './preview-util';
+import { animatePreview, previewAnimationId, resetLastAnimationFrameTime, resetPreviewAnimationId } from '../animation/playback/animation-preview-util';
 import { 
     isPreviewActive,
     setIsPreviewActive, 
