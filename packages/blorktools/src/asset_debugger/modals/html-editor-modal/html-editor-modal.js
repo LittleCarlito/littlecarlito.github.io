@@ -28,8 +28,6 @@ import {
     onGlbBufferUpdate
 } from './model-integration';
 import { 
-    getBinaryBufferForMesh,
-    associateBinaryBufferWithMesh,
     MESH_BINARY_EXTENSION, 
     MESH_INDEX_PROPERTY, 
     BINARY_DATA_PROPERTY 
