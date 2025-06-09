@@ -1,6 +1,6 @@
 import { showStatus } from "../../../modals/html-editor-modal/html-editor-modal";
 import { createMeshInfoPanel } from "../../../modals/html-editor-modal/mesh-info-panel-util";
-import { updateMeshTexture } from "../playback/animation-playback-util";
+import { updateMeshTexture } from "../playback/animation-playback-controller";
 import { 
     animationCaptureStartTime,
     animationDuration, 

@@ -1,4 +1,4 @@
-import { getState, updateState } from "../../scene/state";
+import { getState, updateState } from "../state/scene-state";
 import { handleBackgroundUpload, handleLightingUpload, handleModelUpload, handleTextureUpload, handleZipUpload } from "../../landing-page/file-handler";
 
 // File type configuration object - a centralized definition of properties for each file type

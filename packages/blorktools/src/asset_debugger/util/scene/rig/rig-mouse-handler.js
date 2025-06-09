@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { rigOptions, getJointLabelGroup, getBoneLabelGroup } from './rig-controller';
 import { furthestBoneHandle, restoreLockedBoneRotations, updateBoneVisuals, moveBonesForTarget } from './bone-kinematics';
-import { getState } from "../../../scene/state";
+import { getState } from "../../state/scene-state";
 
 // Raycaster for mouse interaction
 let raycaster = new THREE.Raycaster();

@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
-import { getState, updateState } from '../../scene/state.js';
+import { getState, updateState } from '../state/scene-state.js';
 
 // Track loaded textures to avoid duplicates
 const textureCache = new Map();

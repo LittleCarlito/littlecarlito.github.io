@@ -16,12 +16,12 @@ import {
     previewPlane, 
     setPreviewRenderTarget 
 } from '../state/threejs-state';
-import { runAnimationFrame } from '../animation/playback/animation-playback-util';
-import { setupCSS3DScene } from '../scene/css3d-scene-util';
-import { startImage2TexturePreRendering } from '../animation/render/image2texture-prerender';
-import { startCss3dPreRendering } from '../animation/render/css3d-prerender';
+import { runAnimationFrame } from '../animation/playback/animation-playback-controller';
+import { setupCSS3DScene } from '../scene/css3d-scene-controller';
+import { startImage2TexturePreRendering } from '../animation/render/image2texture-prerender-controller';
+import { startCss3dPreRendering } from '../animation/render/css3d-prerender-controller';
 import { logError, logPreviewError } from '../state/log-util';
-import { cleanupThreeJsPreview, initThreeJsPreview } from './threejs-preview-util';
+import { cleanupThreeJsPreview, initThreeJsPreview } from '../scene/threejs-preview-manager';
 
 let currentPreviewSettings = null;
 const targetFrameRate = 60;

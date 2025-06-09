@@ -1,8 +1,8 @@
-import { getState } from "../../scene/state";
+import { getState } from "../state/scene-state";
 import { deserializeStringFromBinary, serializeStringWithSettingsToBinary } from "./string-serder";
 import { getCurrentGlbBuffer, updateGlbFile } from "../../modals/html-editor-modal/model-integration";
 import { defaultSettings, getSettingsFromForm } from "../../modals/html-editor-modal/html-editor-modal";
-import { associateBinaryBufferWithMesh, getBinaryBufferForMesh } from "./glb-binary-buffer-util";
+import { associateBinaryBufferWithMesh, getBinaryBufferForMesh } from "./glb-binary-buffer-handler";
 
 // Store HTML content for each mesh
 const meshHtmlContent = new Map();

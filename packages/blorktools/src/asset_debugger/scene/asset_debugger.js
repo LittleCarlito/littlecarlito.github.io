@@ -6,7 +6,7 @@
  */
 
 // Import loadSettings and saveSettings from localstorage-util.js
-import { loadSettings, saveSettings } from '../util/data/localstorage-util.js';
+import { loadSettings, saveSettings } from '../util/data/localstorage-manager.js';
 // Import SettingsModal 
 import { SettingsModal } from '../modals/settings-modal/settings-modal.js';
 // Import Asset Panel
@@ -15,10 +15,10 @@ import { initAssetPanel } from '../panels/asset-panel/asset-panel.js';
 import { initModelIntegration } from '../modals/html-editor-modal/model-integration.js';
 import { initHtmlEditorModal } from '../modals/html-editor-modal/html-editor-modal.js';
 import { initWorldPanel } from '../panels/world-panel/world-panel.js';
-import { getState, printStateReport, hasFiles } from './state.js';
+import { getState, printStateReport, hasFiles } from '../util/state/scene-state.js';
 import { initUiManager } from '../util/scene/ui-manager.js';
 import { hideLoadingSplash, showLoadingSplash, updateLoadingProgress } from '../loading-splash/loading-splash.js';
-import { setupDropzones } from '../util/upload/file-upload-util.js';
+import { setupDropzones } from '../util/upload/file-upload-handler.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
@@ -90,7 +90,7 @@ function resetThreeJSState() {
     console.log('Resetting ThreeJS state for clean initialization');
     try {
         // Import state module directly
-        import('./state.js').then(stateModule => {
+        import('../util/state/scene-state.js').then(stateModule => {
             const state = stateModule.getState();
             
             // Clear ThreeJS objects
@@ -206,7 +206,7 @@ function cleanupAssetDebugger() {
             });
             
             // SECOND: Clear all file state to prevent pollution - but skip localStorage
-            import('./state.js').then(stateModule => {
+            import('../util/state/scene-state.js').then(stateModule => {
                 // Clear all files without saving to localStorage
                 if (stateModule.clearAllFiles) {
                     try {
@@ -223,7 +223,7 @@ function cleanupAssetDebugger() {
                 
                 // Stop animation loop
                 if (state.animating) {
-                    import('./scene.js').then(sceneModule => {
+                    import('../util/scene/threejs-scene-controller.js').then(sceneModule => {
                         if (sceneModule.stopAnimation) {
                             sceneModule.stopAnimation();
                         }
@@ -241,7 +241,7 @@ function cleanupAssetDebugger() {
                 if (state.controls) {
                     console.log('Disposing controls');
                     // Import and use the proper disposal function from controls module
-                    import('../util/scene/controls-util.js').then(controlsModule => {
+                    import('../util/scene/camera-controller.js').then(controlsModule => {
                         if (controlsModule.disposeControls) {
                             controlsModule.disposeControls();
                         }
@@ -481,7 +481,7 @@ function initializeScene() {
     const viewport = document.getElementById('viewport');
     
     // Import and initialize scene
-    import('./scene.js')
+    import('../util/scene/threejs-scene-controller.js')
         .then(sceneModule => {
             console.log('Scene module loaded, initializing scene');
             try {
@@ -509,7 +509,7 @@ function initializeScene() {
                     setTimeout(() => {
                         
                         // Import and ensure camera controls are fully initialized
-                        import('../util/scene/controls-util.js')
+                        import('../util/scene/camera-controller.js')
                             .then(controlsModule => {
                                 // Reset controls if we're loading files from landing page
                                 if (hasFiles()) {
@@ -601,7 +601,7 @@ function processFilesFromState() {
     }
     
     // Get current state for loading lighting and background
-    import('./state.js')
+    import('../util/state/scene-state.js')
         .then(stateModule => {
             const currentState = stateModule.getState();
             console.debug('Processing files after scene initialization:', {
@@ -632,7 +632,7 @@ function processFilesFromState() {
                 const lightingFile = stateModule.getLightingFile();
                 promiseChain = promiseChain.then(() => {
                     console.log('Setting up environment lighting from:', lightingFile.name);
-                    return import('../util/scene/lighting-util.js')
+                    return import('../util/scene/lighting-manager.js')
                         .then(lightingModule => {
                             return lightingModule.setupEnvironmentLighting(lightingFile)
                                 .then(texture => {
@@ -710,7 +710,7 @@ function processFilesFromState() {
                 const backgroundFile = stateModule.getBackgroundFile();
                 promiseChain = promiseChain.then(() => {
                     console.log('Setting up background from:', backgroundFile.name);
-                    return import('../util/scene/background-util.js')
+                    return import('../util/scene/background-manager.js')
                         .then(backgroundModule => {
                             return backgroundModule.setupBackgroundImage(backgroundFile)
                                 .then(texture => {
@@ -745,7 +745,7 @@ function processFilesFromState() {
                 const modelFile = stateModule.getModelFile();
                 promiseChain = promiseChain.then(() => {
                     console.log('Loading model from:', modelFile.name);
-                    return import('../util/scene/models-util.js')
+                    return import('../util/scene/model-handler.js')
                         .then(modelsModule => {
                             return modelsModule.loadDebugModel();
                         })
@@ -1054,7 +1054,7 @@ function setupTogglePanelButton() {
     }
     
     // Load the panel state from localStorage
-    import('../util/data/localstorage-util.js').then(({ loadSettings, saveSettings }) => {
+    import('../util/data/localstorage-manager.js').then(({ loadSettings, saveSettings }) => {
         const settings = loadSettings() || {};
         
         // Initialize panel hidden state from settings (default to false if not set)

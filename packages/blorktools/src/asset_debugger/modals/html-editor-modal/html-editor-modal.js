@@ -5,7 +5,7 @@
  * It allows users to add custom HTML code to a mesh.
  */
 
-import { getState, updateState } from '../../scene/state';
+import { getState, updateState } from '../../util/state/scene-state';
 import { 
     deserializeStringFromBinary, 
     serializeStringToBinary,
@@ -36,7 +36,7 @@ import { updateHtmlIcons } from '../../panels/mesh-panel/mesh-panel';
 // Import Three.js the same way as other files in the codebase
 import * as THREE from 'three';
 import { isPreviewActive, setLastTextureUpdateTime } from '../../util/state/animation-state';
-import { initalizePreview } from '../../util/upload/animation-preview-util';
+import { initalizePreview } from '../../util/upload/animation-preview-controller';
 import { frameBuffer, previewRenderTarget } from '../../util/state/threejs-state.js';
 import { 
     getHtmlSettingsForMesh, 
@@ -44,8 +44,8 @@ import {
     loadSettingsForMesh, 
     saveHtmlForMesh, 
     saveSettingsForMesh 
-} from '../../util/data/mesh-html-util.js';
-import { cleanupThreeJsPreview } from '../../util/upload/threejs-preview-util';
+} from '../../util/data/mesh-html-manager.js';
+import { cleanupThreeJsPreview } from '../../util/scene/threejs-preview-manager';
 
 // Add variables for frame buffering at the top of the file with other variables
  let maxCaptureRate = 0.5;
@@ -178,7 +178,7 @@ export async function openEmbeddedHtmlEditor(meshName, meshId) {
         // Clear in-memory settings cache if needed to ensure we get the actual saved settings
         if (forceReload) {
             // Import here to avoid circular dependency
-            const meshDataUtil = await import('../../util/data/mesh-html-util');
+            const meshDataUtil = await import('../../util/data/mesh-html-manager');
             // Clear the settings from memory cache so we reload from binary
             meshDataUtil.clearMeshHtmlSettings(meshId);
         }

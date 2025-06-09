@@ -5,7 +5,7 @@
  * when no files are uploaded by the user.
  */
 import * as THREE from 'three';
-import { getState, updateState } from '../../scene/state.js';
+import { getState, updateState } from '../../util/state/scene-state.js';
 import { createMeshVisibilityPanel } from '../../panels/mesh-panel/mesh-panel.js';
 
 /**
@@ -53,7 +53,7 @@ export function createWireframeCubeExample() {
             console.log('[EXAMPLE] Background color set to #222222');
             
             // Import lighting utilities to use their default lighting
-            import('../../util/scene/lighting-util.js').then(lightingUtil => {
+            import('../../util/scene/lighting-manager.js').then(lightingUtil => {
                 // Add standard lighting from lighting-util.js
                 lightingUtil.addLighting(state.scene);
                 console.log('[EXAMPLE] Added standard lighting using lighting-util.js');

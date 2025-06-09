@@ -4,7 +4,7 @@
  * This module handles lighting setup and management for the Asset Debugger.
  */
 import * as THREE from 'three';
-import { getState, updateState } from '../../scene/state';
+import { getState, updateState } from '../state/scene-state';
 
 // Default exposure value for HDR/EXR environment maps
 let environmentExposure = 1.0;
@@ -185,7 +185,7 @@ export function setupEnvironmentLighting(file) {
             }
             
             // Ensure controls are properly set up for the current scene
-            import('./controls-util.js').then(controlsModule => {
+            import('./camera-controller.js').then(controlsModule => {
                 console.log('Setting up camera and controls after environment lighting setup');
                 
                 if (state.camera && state.renderer) {

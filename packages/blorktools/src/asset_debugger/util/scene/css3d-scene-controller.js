@@ -22,8 +22,8 @@ import {
     animationPreviewCamera
 } from '../state/threejs-state';
 import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
-import { playNextReverseAnimation } from '../animation/playback/css3d-reversal-util';
-import { setupBounceAnimationTracking } from '../animation/playback/css3d-bounce-util';
+import { playNextReverseAnimation } from '../animation/playback/css3d-reversal-controller';
+import { setupBounceAnimationTracking } from '../animation/playback/css3d-bounce-controller';
 import { isPreviewActive } from '../state/animation-state';
 
 /**

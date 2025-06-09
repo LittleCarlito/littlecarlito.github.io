@@ -6,7 +6,7 @@
  */
 
 import { processGLBFile } from '../../landing-page/file-handler.js';
-import { getState, updateState } from '../../scene/state.js';
+import { getState, updateState } from '../../util/state/scene-state.js';
 
 // Current GLB buffer storage
 let currentGlbBuffer = null;

@@ -3,7 +3,7 @@
  * 
  * This module handles texture atlas visualization in the UI.
  */
-import { getState, updateState } from "../../scene/state.js";
+import { getState, updateState } from "../../util/state/scene-state.js";
 
 // Track initialization state
 let isInitialized = false;
@@ -74,7 +74,7 @@ function setupAtlasPanelEvents() {
  */
 export function updateAtlasVisualization() {
     // Get state to retrieve texture objects
-    import('../../scene/state.js').then(stateModule => {
+    import('../../util/state/scene-state.js').then(stateModule => {
         const state = stateModule.getState();
         
         // Check if we have texture objects

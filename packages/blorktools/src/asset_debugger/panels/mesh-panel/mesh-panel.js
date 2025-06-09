@@ -3,10 +3,10 @@
  * 
  * This module handles mesh visibility panel UI and interaction.
  */
-import { getState, updateState } from '../../scene/state.js';
+import { getState, updateState } from '../../util/state/scene-state.js';
 import { getCurrentGlbBuffer, setCurrentGlbBuffer } from '../../modals/html-editor-modal/model-integration.js';
 import { deserializeStringFromBinary, isValidHtml } from '../../util/data/string-serder.js';
-import { getBinaryBufferForMesh } from '../../util/data/glb-binary-buffer-util.js';
+import { getBinaryBufferForMesh } from '../../util/data/glb-binary-buffer-handler.js';
 
 // Track meshes with binary content
 const meshesWithHtml = new Set();

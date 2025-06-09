@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { checkHandleHover, getIsDragging } from './rig-mouse-handler';
-import { getState } from '../../../scene/state';
+import { getState } from '../../state/scene-state';
 import {
     bones,
     boneMaterial,

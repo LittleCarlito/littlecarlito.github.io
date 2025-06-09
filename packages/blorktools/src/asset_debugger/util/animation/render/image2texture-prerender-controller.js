@@ -23,8 +23,8 @@ import {
 import { showStatus } from '../../../modals/html-editor-modal/html-editor-modal';
 import { createMeshInfoPanel } from '../../../modals/html-editor-modal/mesh-info-panel-util';
 import { logAnimationAnalysisReport } from '../../state/log-util';
-import { startPlayback, updateMeshTexture } from '../playback/animation-playback-util';
-import { createTextureFromIframe } from './iframe2texture-render';
+import { startPlayback, updateMeshTexture } from '../playback/animation-playback-controller';
+import { createTextureFromIframe } from './iframe2texture-render-controller';
 
 /**
  * Start pre-rendering animation frames

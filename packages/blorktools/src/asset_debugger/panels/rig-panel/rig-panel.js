@@ -5,7 +5,7 @@
  * It implements the same bone/rig/control parsing as the Rig Debugger.
  */
 import * as THREE from 'three';
-import { getState } from '../../scene/state.js';
+import { getState } from '../../util/state/scene-state.js';
 import { 
     analyzeGltfModel, 
     deduplicateItems, 
@@ -37,7 +37,7 @@ import {
     toggleBoneLock,
     updateAllBoneMatrices
  } from '../../util/scene/rig/bone-kinematics.js';
- import { saveSettings, loadSettings } from '../../util/data/localstorage-util.js';
+ import { saveSettings, loadSettings } from '../../util/data/localstorage-manager.js';
 
 // Tooltip related variables
 let tooltipElement = null;

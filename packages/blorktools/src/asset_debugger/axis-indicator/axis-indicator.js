@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getState } from '../state';
+import { getState } from '../util/state/scene-state';
 
 // Add variables to track axis indicator state
 let axisIndicatorCollapsed = false;

@@ -304,7 +304,7 @@ function addClearButton(container, file) {
                 dropzone.innerHTML = '';
                 
                 // Import the file handler module to properly restore the dropzone
-                import('./file-upload-util.js').then(module => {
+                import('./file-upload-handler.js').then(module => {
                     // Use the clearDropzone function to restore the original content
                     if (module.clearDropzone) {
                         module.clearDropzone(dropzone, 'model', originalTitle);
@@ -340,7 +340,7 @@ function addClearButton(container, file) {
                 });
                 
                 // Reset state model file
-                import('../../scene/state.js').then(stateModule => {
+                import('../state/scene-state.js').then(stateModule => {
                     const state = stateModule.getState();
                     state.modelFile = null;
                     state.useCustomModel = false;

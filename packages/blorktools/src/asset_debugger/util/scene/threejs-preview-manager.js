@@ -1,7 +1,7 @@
 import { infoPanel, resetInfoPanel } from "../../modals/html-editor-modal/mesh-info-panel-util";
 import { logPreviewError } from "../state/log-util";
-import { cleanupCSS3D } from "../scene/css3d-scene-util";
-import { cleanupThreeJsScene, setupThreeJsScene } from "../scene/threejs-scene-util";
+import { cleanupCSS3D } from "./css3d-scene-controller";
+import { cleanupThreeJsScene, setupThreeJsScene } from "./threejs-preview-setup";
 import { setIsPreviewActive, setIsPreviewAnimationPaused, setLastTextureUpdateTime } from "../state/animation-state";
 import { reverseAnimationFrameId } from "../state/css3d-state";
 import { 
@@ -18,7 +18,7 @@ import {
     resetThreeJsState, 
     setPendingTextureUpdate 
 } from "../state/threejs-state";
-import { previewAnimationId, resetLastAnimationFrameTime, resetPreviewAnimationId } from "./animation-preview-util";
+import { previewAnimationId, resetLastAnimationFrameTime, resetPreviewAnimationId } from "../upload/animation-preview-controller";
 
 /**
  * Clean up Three.js preview resources using the generic cleanup utility
