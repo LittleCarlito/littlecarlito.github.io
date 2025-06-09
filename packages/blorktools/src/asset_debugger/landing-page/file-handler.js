@@ -9,7 +9,7 @@ import { updateAtlasVisualization } from '../panels/atlas-panel/atlas-panel.js';
 // Import for HDR/EXR preview rendering
 import * as worldPanelModule from '../panels/world-panel/world-panel.js';
 // Import for GLB model preview from the new GLB utility
-import { processGLBModel, createGLBPreview } from '../util/glb-utils';
+import { processGLBModel } from '../util/glb-utils';
 // Import the worker manager
 import { 
   processTextureFile, 
@@ -19,6 +19,7 @@ import {
 } from '../util/workers/worker-manager.js';
 import { parseLightingData } from '../util/scene/lighting-util';
 import { clearDropzone, setupDropzone } from '../util/dropzone/dropzone-util';
+import { createGLBPreview } from '../util/preview/glb-preview-util';
 
 // Add event listener to terminate all workers when the page is unloaded
 window.addEventListener('beforeunload', () => {
