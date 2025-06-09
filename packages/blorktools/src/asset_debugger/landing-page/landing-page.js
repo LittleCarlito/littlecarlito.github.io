@@ -13,25 +13,29 @@ import {
     initDraftState, 
     setState, 
     printStateReport 
-} from "../scene/state.js";
-import { loadSettings } from "../util/localstorage-util.js";
-import { setupDropzones } from "../util/dropzone/dropzone-util.js";
-import { 
-    handleBackgroundUpload, 
-    handleLightingUpload, 
-    handleModelUpload, 
-    handleTextureUpload 
-} from "./file-handler.js";
+} from "../util/state/scene-state.js";
+import { loadSettings } from "../util/data/localstorage-manager.js";
+import { setupDropzones } from "../util/upload/file-upload-manager.js";
 import { 
     handleAutoLoad, 
     loadLightingIntoDropzone, 
     loadModelIntoDropzone, 
     processZipContents 
-} from "../util/dropzone/zip-util.js";
+} from "../util/upload/zip-handler.js";
+import { handleBackgroundUpload } from "../util/upload/handlers/background-file-handler.js";
+import { handleModelUpload } from "../util/upload/handlers/model/model-file-manager.js";
+import { handleLightingUpload } from "../util/upload/handlers/lighting-file-handler.js";
+import { handleTextureUpload } from "../util/upload/handlers/texture-file-handler.js";
+import { terminateAllWorkers } from "../util/workers/worker-manager.js";
 
 // Module state
 let isInitialized = false;
 let eventListeners = [];
+
+// Add event listener to terminate all workers when the page is unloaded
+window.addEventListener('beforeunload', () => {
+  terminateAllWorkers();
+});
 
 // Main initialization function
 export function initalizeLandingPage() {
@@ -162,13 +166,13 @@ function verifyFileDrop() {
         
         // Use router navigation instead of direct window.location.href
         if (window.appRouter) {
-            window.appRouter.navigateToPage('asset_debugger', {
+            window.appRouter.navigateToPage('debugger-scene', {
                 hasFiles: true,
                 source: 'landing_page_verify'
             });
         } else {
             console.error('Router not available, falling back to direct navigation');
-            window.location.href = './scene/asset_debugger.html';
+            window.location.href = '../debugger-scene/debugger-scene.html';
         }
     } else {
         showExamplesModal();
@@ -186,13 +190,13 @@ function showExamplesModal() {
         
         // Use router navigation instead of direct window.location.href
         if (window.appRouter) {
-            window.appRouter.navigateToPage('asset_debugger', {
+            window.appRouter.navigateToPage('debugger-scene', {
                 selectedExample: exampleType,
                 source: 'examples_modal'
             });
         } else {
             console.error('Router not available, falling back to direct navigation');
-            window.location.href = './scene/asset_debugger.html';
+            window.location.href = '../debugger-scene/debugger-scene.js';
         }
     });
     
@@ -535,4 +539,80 @@ function cleanup() {
     isInitialized = false;
     
     console.log('Landing page cleanup complete');
+}
+
+/**
+ * Creates a clear button for a dropzone
+ * @param {HTMLElement} dropzone - The dropzone element
+ * @param {string} type - The type of asset ('basecolor', 'normal', 'orm', 'model', 'lighting', 'background')
+ * @param {string} originalTitle - The original title of the dropzone
+ * @returns {HTMLElement} The created clear button
+ */
+export function createClearButton(dropzone, type, originalTitle) {
+    const clearButton = document.createElement('button');
+    clearButton.className = 'clear-preview-button';
+    clearButton.innerHTML = '&times;';
+    clearButton.title = 'Clear file';
+    
+    clearButton.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent dropzone click event
+        
+        // Clear all relevant state for this type
+        clearStateForType(type);
+        
+        // Clear the dropzone
+        clearDropzone(dropzone, type, originalTitle);
+        
+        // Reattach the dropzone event handlers
+        setupDropzone(dropzone, type, document.getElementById(`${type}-info`));
+    });
+    
+    return clearButton;
+}
+
+/**
+ * Clears all relevant state for a given asset type
+ * @param {string} type - The type of asset ('basecolor', 'normal', 'orm', 'model', 'lighting', 'background')
+ */
+function clearStateForType(type) {
+    const state = getState();
+    
+    switch (type) {
+        case 'basecolor':
+        case 'normal':
+        case 'orm':
+            // Clear texture object and file
+            if (state.textureObjects && state.textureObjects[type]) {
+                const texture = state.textureObjects[type];
+                if (texture && typeof texture.dispose === 'function') {
+                    texture.dispose();
+                }
+            }
+            updateState('textureFiles', { ...state.textureFiles, [type]: null });
+            break;
+            
+        case 'model':
+            updateState({
+                modelFile: null,
+                useCustomModel: false
+            });
+            break;
+            
+        case 'lighting':
+            updateState({
+                lightingFile: null,
+                environmentTexture: null
+            });
+            break;
+            
+        case 'background':
+            updateState({
+                backgroundFile: null,
+                backgroundTexture: null
+            });
+            break;
+    }
+    
+    // Log the state after clearing
+    console.debug(`State after clearing ${type}:`, getState());
 }

@@ -5,14 +5,14 @@
  * It allows users to add custom HTML code to a mesh.
  */
 
-import { getState, updateState } from '../../scene/state';
+import { getState, updateState } from '../../util/state/scene-state';
 import { 
     deserializeStringFromBinary, 
     serializeStringToBinary,
     serializeStringWithSettingsToBinary,
     isValidHtml,
     sanitizeHtml
-} from '../../util/string-serder.js';
+} from '../../util/data/string-serder.js';
 import { 
     formatHtml as externalFormatHtml, 
     initHtmlFormatter,
@@ -28,24 +28,24 @@ import {
     onGlbBufferUpdate
 } from './model-integration';
 import { 
-    getBinaryBufferForMesh,
-    associateBinaryBufferWithMesh,
     MESH_BINARY_EXTENSION, 
     MESH_INDEX_PROPERTY, 
     BINARY_DATA_PROPERTY 
-} from '../../util/glb-utils.js';
+} from '../../util/state/glb-preview-state.js';
 import { updateHtmlIcons } from '../../panels/mesh-panel/mesh-panel';
-import { setCustomTexture, disableCustomTexture, createLongExposureTexture, createTextureFromIframe } from '../../util/custom-animation/texture-util';
-import { setCustomDisplay, disableCustomDisplay } from '../../util/custom-animation/css3d-util.js';
-
 // Import Three.js the same way as other files in the codebase
 import * as THREE from 'three';
-import { getIsPreviewActive, setLastTextureUpdateTime } from '../../util/custom-animation/animation-util';
-import { previewHtml } from '../../util/custom-animation/preview-util';
-import { cleanupThreeJsPreview, frameBuffer, previewRenderTarget } from '../../util/custom-animation/threejs-util.js';
-import { getHtmlSettingsForMesh, loadHtmlForMesh, loadSettingsForMesh, saveHtmlForMesh, saveSettingsForMesh } from '../../util/mesh-data-util.js';
-
-export let originalAnimationStartTime = 0;
+import { isPreviewActive, setLastTextureUpdateTime } from '../../util/state/animation-state';
+import { initalizePreview } from '../../util/upload/animation-preview-controller';
+import { frameBuffer, previewRenderTarget } from '../../util/state/threejs-state.js';
+import { 
+    getHtmlSettingsForMesh, 
+    loadHtmlForMesh, 
+    loadSettingsForMesh, 
+    saveHtmlForMesh, 
+    saveSettingsForMesh 
+} from '../../util/data/mesh-html-manager.js';
+import { cleanupThreeJsPreview } from '../../util/scene/threejs-preview-manager';
 
 // Add variables for frame buffering at the top of the file with other variables
  let maxCaptureRate = 0.5;
@@ -178,7 +178,7 @@ export async function openEmbeddedHtmlEditor(meshName, meshId) {
         // Clear in-memory settings cache if needed to ensure we get the actual saved settings
         if (forceReload) {
             // Import here to avoid circular dependency
-            const meshDataUtil = await import('../../util/mesh-data-util');
+            const meshDataUtil = await import('../../util/data/mesh-html-manager');
             // Clear the settings from memory cache so we reload from binary
             meshDataUtil.clearMeshHtmlSettings(meshId);
         }
@@ -417,7 +417,7 @@ export function initHtmlEditorModal() {
                 saveSettingsForMesh(meshId, settings);
                 
                 // Update CSS3D preview if active
-                if (getIsPreviewActive()) {
+                if (isPreviewActive) {
                     try {
                         // For CSS3D preview - update animation speed via CSS
                         const css3dIframe = document.getElementById('css3d-panel-iframe');
@@ -432,29 +432,6 @@ export function initHtmlEditorModal() {
                                     /transition-duration:\s*[^;]+/,
                                     `transition-duration: ${1.0/newPlaybackSpeed}s !important`
                                 );
-                            }
-                        }
-                        
-                        // For image2texture preview - adjust timing without resetting frames
-                        if (frameBuffer.length > 0) {
-                            // Calculate how much animation time has elapsed at the old speed
-                            const currentTime = Date.now();
-                            const realElapsedTime = currentTime - originalAnimationStartTime;
-                            const animationElapsedTime = realElapsedTime * oldPlaybackSpeed;
-                            
-                            // Reset the animation start time to maintain current position
-                            // but continue with the new speed
-                            originalAnimationStartTime = currentTime - (animationElapsedTime / newPlaybackSpeed);
-                            
-                            // For speeds > 1x, we need to ensure we have enough frames in the buffer
-                            // to maintain smooth playback
-                            if (newPlaybackSpeed > 1.0) {
-                                // Increase capture rate for faster playback
-                                maxCaptureRate = Math.max(1, Math.floor(1 / newPlaybackSpeed));
-                                console.log(`Adjusted capture rate for ${newPlaybackSpeed}x speed: ${maxCaptureRate}ms`);
-                            } else {
-                                // Reset to normal capture rate
-                                maxCaptureRate = 1;
                             }
                         }
                     } catch (err) {
@@ -485,7 +462,7 @@ export function initHtmlEditorModal() {
             window.showPreviewBorders = showWireframeCheckbox.checked;
             
             // If preview is active, update it immediately
-            if (getIsPreviewActive() && previewRenderTarget) {
+            if (isPreviewActive && previewRenderTarget) {
                 // Force a texture update
                 setLastTextureUpdateTime(0);
                 showStatus(`Borders ${showWireframeCheckbox.checked ? 'enabled' : 'disabled'}`, 'info');
@@ -609,7 +586,7 @@ export function initHtmlEditorModal() {
             };
             
             // Generate the preview with the collected settings
-            previewHtml(settings, previewContent, setModalData);
+            initalizePreview(settings, previewContent, setModalData);
             
             // Add preview mode class to modal for CSS control
             modal.classList.add('preview-mode');
@@ -661,172 +638,7 @@ export function initHtmlEditorModal() {
     
     // Apply button
     applyBtn.addEventListener('click', async () => {
-        try {
-            const currentMeshId = modal.dataset.meshId;
-            if (currentMeshId) {
-                const html = textarea.value;
-                const meshIdInt = parseInt(currentMeshId);
-                
-                // Show status message to indicate processing
-                showStatus('Saving HTML to binary buffer...', 'info');
-                
-                // Get all settings to save with HTML
-                const settings = getSettingsFromForm();
-                
-                try {
-                    // Get the current GLB buffer first
-                    const glbArrayBuffer = getCurrentGlbBuffer();
-                    
-                    console.debug(`Initial GLB buffer reference: ${glbArrayBuffer ? 'valid' : 'null'}, size: ${glbArrayBuffer ? glbArrayBuffer.byteLength : 0} bytes, id: ${glbArrayBuffer ? glbArrayBuffer.toString().substring(0, 20) : 'none'}`);
-                    
-                    if (!glbArrayBuffer) {
-                        throw new Error('GLB buffer not found. Make sure the model is loaded properly.');
-                    }
-                    
-                    // Create a promise that will resolve when the buffer is successfully updated
-                    const bufferUpdatePromise = new Promise((resolve, reject) => {
-                        // Register a one-time listener for buffer updates
-                        const unregister = onGlbBufferUpdate((updatedBuffer) => {
-                            if (!updatedBuffer) {
-                                unregister();
-                                reject(new Error('Received null buffer in update notification'));
-                                return;
-                            }
-                            
-                            console.log(`Buffer update notification received, buffer size: ${updatedBuffer.byteLength} bytes`);
-                            unregister(); // Remove listener after one call
-                            resolve(updatedBuffer);
-                        });
-                        
-                        // If no update comes within a reasonable timeout, fail
-                        setTimeout(() => {
-                            unregister();
-                            reject(new Error('Timed out waiting for buffer update notification'));
-                        }, 2000);
-                    });
-                    
-                    // 1. First, serialize HTML with settings to binary
-                    const binaryBuffer = serializeStringWithSettingsToBinary(html, settings);
-                    console.log(`Serialized HTML to binary buffer, size: ${binaryBuffer.byteLength} bytes`);
-                    
-                    // 2. Associate binary buffer with mesh
-                    console.log(`Before associating binary data with mesh ${meshIdInt}, GLB buffer size: ${glbArrayBuffer.byteLength} bytes`);
-                    
-                    // IMPORTANT: associateBinaryBufferWithMesh returns a NEW buffer, not modifying the original
-                    const updatedGlbBuffer = await associateBinaryBufferWithMesh(glbArrayBuffer, meshIdInt, binaryBuffer);
-                    
-                    if (!updatedGlbBuffer) {
-                        throw new Error('Failed to associate binary data with mesh - no buffer returned');
-                    }
-                    
-                    console.log(`After associating binary data, new buffer size: ${updatedGlbBuffer.byteLength} bytes`);
-                    
-                    // 3. Update GLB file with the NEW buffer from the association function
-                    console.log(`Updating GLB file with the new buffer...`);
-                    await updateGlbFile(updatedGlbBuffer, true);
-                    
-                    // 4. Wait for buffer update to complete and get the latest buffer reference
-                    console.log(`Waiting for GLB buffer update notification...`);
-                    const currentBuffer = await bufferUpdatePromise;
-                    console.log(`GLB buffer update received, buffer size: ${currentBuffer.byteLength} bytes`);
-                    
-                    // Update HTML icons to reflect the new state
-                    updateHtmlIcons();
-                    
-                    // Reset the needs reload flag since we've just saved
-                    htmlEditorState.needsReload = false;
-                    
-                    showStatus('HTML saved to model buffer successfully', 'success');
-                    
-                    // Check if Display on Mesh is checked
-                    const displayOnMeshCheckbox = document.getElementById('display-on-mesh');
-                    if (displayOnMeshCheckbox && displayOnMeshCheckbox.checked) {
-                        // Show a status message to indicate processing
-                        showStatus('Applying HTML from binary buffer to mesh...', 'info');
-                        
-                        // Get rendering settings
-                        const renderTypeSelect = document.getElementById('html-render-type');
-                        const renderType = renderTypeSelect ? renderTypeSelect.value : 'threejs';
-                        
-                        // Create mesh data object, using the binary buffer we just saved
-                        console.log(`Attempting to retrieve binary data from buffer reference (size: ${currentBuffer.byteLength} bytes)`);
-                        
-                        // Check if extension exists to validate our binary data was saved
-                        const extensionExists = await verifyExtensionExists(currentBuffer, meshIdInt);
-                        
-                        if (!extensionExists) {
-                            throw new Error('Binary extension not found in GLB after saving. Save operation failed.');
-                        }
-                        
-                        const binaryData = await getBinaryBufferForMesh(currentBuffer, meshIdInt);
-                        
-                        if (!binaryData) {
-                            console.error(`Failed to retrieve binary data for mesh ${meshIdInt} after saving.`);
-                            throw new Error('Binary data not found for mesh after saving. Save operation failed.');
-                        }
-                        
-                        console.log(`Successfully retrieved binary data for mesh ${meshIdInt} (${binaryData.byteLength} bytes)`);
-                        
-                        const meshData = {
-                            id: meshIdInt,
-                            binaryData: binaryData
-                            // No HTML fallback - we want to fail if binary approach doesn't work
-                        };
-                        
-                        // Call appropriate function based on render type
-                        if (renderType === 'css3d') {
-                            // Use CSS3D rendering
-                            await setCustomDisplay(meshData, settings);
-                        } else {
-                            // Use texture-based rendering (either threejs or longExposure)
-                            // Ensure custom settings are passed through properly
-                            const textureSettings = {
-                                ...settings,
-                                // Make sure these properties are explicitly set for the texture renderer
-                                playbackSpeed: parseFloat(settings.playbackSpeed) || 1.0,
-                                animation: {
-                                    type: settings.animation?.type || 'play'
-                                },
-                                display: {
-                                    showBorders: settings.display?.showBorders === undefined ? true : settings.display.showBorders,
-                                    displayOnMesh: true
-                                }
-                            };
-                            
-                            await setCustomTexture(meshData, renderType, textureSettings);
-                        }
-                        
-                        console.debug(`Displaying HTML on mesh ${currentMeshId} using ${renderType} renderer`);
-                        showStatus('HTML saved and applied to mesh successfully', 'success');
-                    } else {
-                        // Display on Mesh is not checked, disable any existing custom display
-                        const meshData = {
-                            id: meshIdInt
-                        };
-                        
-                        try {
-                            // Disable both types to ensure cleanup
-                            await Promise.all([
-                                disableCustomTexture(meshData),
-                                disableCustomDisplay(meshData)
-                            ]);
-                            
-                            console.debug(`Removing custom display from mesh ${currentMeshId}`);
-                            showStatus('HTML saved to model but display is disabled', 'info');
-                        } catch (error) {
-                            console.error('Error removing custom display:', error);
-                            showStatus(`Error removing custom display: ${error.message}`, 'error');
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error saving HTML to binary buffer:', error);
-                    showStatus(`Error saving HTML to binary buffer: ${error.message}`, 'error');
-                }
-            }
-        } catch (error) {
-            console.error('Error saving and applying HTML to mesh:', error);
-            showStatus(`Error saving and applying HTML to mesh: ${error.message}`, 'error');
-        }
+        console.debug("BAZINGA; There isn't anything tied to this yet");
     });
     
     // Make textarea tab-friendly
@@ -930,14 +742,6 @@ function createErrorContainer() {
     }
     
     return container;
-}
-
-/**
- * Set original animation start time
- * @param {number} incomingValue - The new value to set
- */
-export function setOriginalAnimationStartTime(incomingValue) {
-    originalAnimationStartTime = incomingValue;
 }
 
 /**

@@ -3,8 +3,8 @@
  * 
  * This module handles world properties, environment, and lighting visualization and controls.
  */
-import { getState } from '../../scene/state';
-import { updateLighting, resetLighting, updateExposure } from '../../util/scene/lighting-util';
+import { getState } from '../../util/state/scene-state';
+import { updateLighting, resetLighting, updateExposure } from '../../util/scene/lighting-manager';
 import * as THREE from 'three';
 
 // Track initialization state
@@ -215,7 +215,7 @@ export function initWorldPanel(forceReset = false) {
     
     console.debug('Initializing World Panel...');
     
-    // Look for world-tab (from world-panel.html) or world-tab-container (from asset_debugger.html)
+    // Look for world-tab (from world-panel.html) or world-tab-container (from debugger-scene.html)
     const worldPanel = document.getElementById('world-tab') || document.getElementById('world-tab-container');
     
     if (!worldPanel) {
@@ -539,7 +539,7 @@ function setupBgToggleListener() {
                             console.log('Attempting to reload environment texture from lighting file');
                             
                             // Import lighting utility and load the texture again
-                            import('../../util/scene/lighting-util.js').then(lightingModule => {
+                            import('../../util/scene/lighting-manager.js').then(lightingModule => {
                                 if (lightingModule.setupEnvironmentLighting && state.lightingFile) {
                                     lightingModule.setupEnvironmentLighting(state.lightingFile)
                                         .then(newTexture => {
@@ -1684,7 +1684,7 @@ export function generatePreviewOnly(file, previewElement) {
                     backgroundTextureCache.set(file.name, texture);
                     
                     // Also store in state for use with debugging
-                    import('../../scene/state.js').then(stateModule => {
+                    import('../../util/state/scene-state.js').then(stateModule => {
                         stateModule.updateState({
                             backgroundTexture: texture
                         });

@@ -71,7 +71,7 @@ class Router {
         
         // Route mapping
         const routeMap = {
-            'asset_debugger': '/asset-debugger',
+            'debugger-scene': '/debugger-scene',
             'landing': '/landing',
             'tools': '/tools'
         };
@@ -147,10 +147,10 @@ class Router {
         }
         
         // Special handling for asset debugger
-        if (url.includes('asset_debugger.html')) {
-            console.log('Processing asset debugger HTML');
+        if (url.includes('debugger-scene.html')) {
+            console.log('Processing debugger sceneHTML');
             
-            // For asset_debugger.html, we need to extract the .container element
+            // For debugger-scene.html, we need to extract the .container element
             // AND the modal containers that are separate siblings
             const container = doc.querySelector('.container');
             const settingsModalContainer = doc.querySelector('#settings-modal-container');
@@ -163,7 +163,7 @@ class Router {
                 htmlEditorModalContainer ? 'html-editor-modal-container' : null
             ].filter(Boolean);
             
-            console.log(`Found elements in asset_debugger.html: ${foundElements.join(', ')}`);
+            console.log(`Found elements in debugger-scene.html: ${foundElements.join(', ')}`);
             
             if (container) {
                 // Create a wrapper for all our content
@@ -268,10 +268,10 @@ router
         await router.loadContent('./landing-page/landing-page.html');
         await router.initializeModule('./landing-page/landing-page.js', 'initalizeLandingPage', 'landing page');
     })
-    .addRoute('/asset-debugger', async () => {
+    .addRoute('/debugger-scene', async () => {
         console.log('🎯 Loading asset debugger...');
-        await router.loadContent('./scene/asset_debugger.html');
-        await router.initializeModule('./scene/asset_debugger.js', 'setupAssetDebugger', 'asset debugger');
+        await router.loadContent('./debugger-scene/debugger-scene.html');
+        await router.initializeModule('./debugger-scene/debugger-scene.js', 'setupDebuggerScene', 'debugger scene');
     });
 
 // Make router globally available

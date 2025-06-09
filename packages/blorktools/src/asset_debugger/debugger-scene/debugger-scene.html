@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en" class="dark-mode">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asset Debugger - Blorktools</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../loading-splash/loading-splash.css">
+    <script>
+        // Get pinned state from localStorage before DOM is constructed
+        function getPinnedState() {
+            try {
+                const savedSettings = localStorage.getItem('assetDebuggerSettings');
+                if (savedSettings) {
+                    const settings = JSON.parse(savedSettings);
+                    if (settings && settings.hasOwnProperty('pinned')) {
+                        return settings.pinned;
+                    }
+                }
+            } catch (e) {
+                console.error('Error checking pin state:', e);
+            }
+            return true; // Default to pinned if no setting or error
+        }
+        
+        // Store for later use in JS
+        window.initialPinState = getPinnedState();
+    </script>
+</head>
+<body>
+    <!-- Header container - will be populated by the header-loader.js script -->
+    <div id="header-container"></div>
+    
+    <div class="container">
+        <!-- Viewport is first to ensure it's behind everything -->
+        <div class="view-container">
+            <div class="view-panel">
+                <div id="viewport"></div>
+                <div id="loading-indicator" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.7); color: white; padding: 15px; border-radius: 5px; z-index: 100; justify-content: center; align-items: center;">
+                    <div>Loading model...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tab container overlay -->
+        <div id="tab-container" class="tab-container" style="display: none !important; visibility: hidden !important;">
+            <div class="tab-navigation">
+                <button id="world-tab-button" class="tab-button active">World</button>
+                <button id="asset-tab-button" class="tab-button">Asset</button>
+            </div>
+            <!-- Tab content containers - will be loaded dynamically -->
+            <div id="world-tab-container" class="tab-content active"></div>
+            <div id="asset-tab-container" class="tab-content"></div>
+        </div>
+    </div>
+    
+    <!-- Modal containers - will be loaded dynamically -->
+    <div id="settings-modal-container"></div>
+    <div id="html-editor-modal-container"></div>
+    
+    <!-- Load the header component -->
+    <script type="module">
+        import { loadHeader } from '../header/header-loader.js';
+        
+        // Load the header when the DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            loadHeader('header-container');
+        });
+    </script>
+    
+    <!-- Main application script -->
+    <script type="module">
+        import { setupDebuggerScene } from './debugger-scene.js';
+        
+        // Initialize the debugger when the DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            setupDebuggerScene();
+        });
+    </script>
+</body>
+</html> 

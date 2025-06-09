@@ -5,8 +5,8 @@
  * to support storing and retrieving HTML content in GLB files.
  */
 
-import { getState, updateState } from '../../scene/state.js';
-import { processGLBModel } from '../../util/glb-utils.js';
+import { getState, updateState } from '../../util/state/scene-state.js';
+import { processGLBFile } from '../../util/upload/handlers/model/glb-file-handler.js';
 
 // Current GLB buffer storage
 let currentGlbBuffer = null;
@@ -66,7 +66,7 @@ function setupModelObserver() {
 export async function processModelFileForHtmlEditor(file) {
     try {
         // Process the model file using our GLB utility
-        const result = await processGLBModel(file);
+        const result = await processGLBFile(file);
         
         if (!result || !result.arrayBuffer) {
             console.error('processGLBModel failed to return a valid buffer');
