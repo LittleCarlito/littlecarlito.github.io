@@ -6,7 +6,7 @@
  */
 
 // Import loadSettings and saveSettings from localstorage-util.js
-import { loadSettings, saveSettings } from '../util/localstorage-util.js';
+import { loadSettings, saveSettings } from '../util/data/localstorage-util.js';
 // Import SettingsModal 
 import { SettingsModal } from '../modals/settings-modal/settings-modal.js';
 // Import Asset Panel
@@ -769,18 +769,18 @@ function processFilesFromState() {
             // Handle texture files if they exist
             if ((stateModule.hasBaseColorFile() || stateModule.hasOrmFile() || stateModule.hasNormalFile()) && checkContinueProcessing()) {
                 promiseChain = promiseChain.then(() => {
-                    return import('../util/materials-util.js')
-                        .then(textureModule => {
+                    return import('../landing-page/file-handler.js')
+                        .then(fileHandler => {
                             const promises = [];
                             
                             if (stateModule.hasBaseColorFile()) {
-                                promises.push(textureModule.loadTextureFromFile(stateModule.getBaseColorFile(), 'baseColor'));
+                                promises.push(fileHandler.loadTextureFromFile(stateModule.getBaseColorFile(), 'baseColor'));
                             }
                             if (stateModule.hasOrmFile()) {
-                                promises.push(textureModule.loadTextureFromFile(stateModule.getOrmFile(), 'orm'));
+                                promises.push(fileHandler.loadTextureFromFile(stateModule.getOrmFile(), 'orm'));
                             }
                             if (stateModule.hasNormalFile()) {
-                                promises.push(textureModule.loadTextureFromFile(stateModule.getNormalFile(), 'normal'));
+                                promises.push(fileHandler.loadTextureFromFile(stateModule.getNormalFile(), 'normal'));
                             }
                             
                             return Promise.all(promises);
@@ -1054,7 +1054,7 @@ function setupTogglePanelButton() {
     }
     
     // Load the panel state from localStorage
-    import('../util/localstorage-util.js').then(({ loadSettings, saveSettings }) => {
+    import('../util/data/localstorage-util.js').then(({ loadSettings, saveSettings }) => {
         const settings = loadSettings() || {};
         
         // Initialize panel hidden state from settings (default to false if not set)

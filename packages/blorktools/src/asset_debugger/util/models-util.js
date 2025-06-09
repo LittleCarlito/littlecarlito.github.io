@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getState, updateState } from '../scene/state.js';
-import { createMaterial, applyTransparencySettings, hasTransparentPixels } from './materials-util.js';
+import { createMaterial } from './scene/material-creation-util.js';
 import { fitCameraToObject } from '../scene/scene.js';
 import { createMeshVisibilityPanel } from '../panels/mesh-panel/mesh-panel.js';
 import { updateAtlasVisualization } from '../panels/atlas-panel/atlas-panel.js';
@@ -35,12 +35,6 @@ export function createCube() {
     
     // Create material with the loaded textures - will use whatever textures are available
     const material = createMaterial();
-    
-    // Apply transparency settings if needed
-    if (state.textureObjects.baseColor && state.textureObjects.baseColor.image && 
-        hasTransparentPixels(state.textureObjects.baseColor.image)) {
-        applyTransparencySettings(material);
-    }
     
     // Create mesh and add to scene
     const cube = new THREE.Mesh(geometry, material);
@@ -329,19 +323,6 @@ function processLoadedModel(gltf) {
                     material.map.offset.copy(originalMaterial.map.offset);
                     material.map.repeat.copy(originalMaterial.map.repeat);
                     material.map.rotation = originalMaterial.map.rotation;
-                }
-                
-                // Apply transparency settings based on both the original material and our base texture
-                const needsTransparency = 
-                    originalMaterial.transparent || 
-                    (originalMaterial.map && originalMaterial.map.image && 
-                     hasTransparentPixels(originalMaterial.map.image)) ||
-                    (state.textureObjects.baseColor && hasTransparentPixels(state.textureObjects.baseColor.image));
-                
-                if (needsTransparency && state.textureObjects.baseColor) {
-                    material.transparent = true;
-                    material.alphaTest = 0.1;
-                    material.alphaMap = state.textureObjects.baseColor;
                 }
                 
                 // Apply new material to mesh

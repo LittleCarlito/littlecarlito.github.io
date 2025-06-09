@@ -10,7 +10,7 @@ import {
     setPreviewControls, 
     setPreviewRenderer, 
     setPreviewScene
-} from "../glb-utils";
+} from "../state/glb-preview-state";
 import { OrbitControls } from 'three/examples/jsm/Addons';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 

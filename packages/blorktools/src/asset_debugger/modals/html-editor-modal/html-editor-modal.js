@@ -31,7 +31,7 @@ import {
     MESH_BINARY_EXTENSION, 
     MESH_INDEX_PROPERTY, 
     BINARY_DATA_PROPERTY 
-} from '../../util/glb-utils.js';
+} from '../../util/state/glb-preview-state.js';
 import { updateHtmlIcons } from '../../panels/mesh-panel/mesh-panel';
 // Import Three.js the same way as other files in the codebase
 import * as THREE from 'three';

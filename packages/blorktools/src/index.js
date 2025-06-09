@@ -17,5 +17,3 @@ export const tools = {
 		init: () => import('./rig_debugger/index.js').then(module => module.default)
 	}
 };
-// Export utility functions that might be useful for consumers
-export { formatFileSize } from './asset_debugger/util/materials-util.js'; 

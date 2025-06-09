@@ -5,7 +5,7 @@
 
 // Import settings utilities for pin button functionality
 // Using relative path with "../" to navigate up from components directory
-import { loadSettings, saveSettings } from '../util/localstorage-util.js';
+import { loadSettings, saveSettings } from '../util/data/localstorage-util.js';
 
 // Mac dock behavior settings
 const HEADER_SHOW_DISTANCE = 20; // px from top to show header

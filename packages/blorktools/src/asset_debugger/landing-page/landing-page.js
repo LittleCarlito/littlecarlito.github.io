@@ -14,7 +14,7 @@ import {
     setState, 
     printStateReport 
 } from "../scene/state.js";
-import { loadSettings } from "../util/localstorage-util.js";
+import { loadSettings } from "../util/data/localstorage-util.js";
 import { setupDropzones } from "../util/dropzone/dropzone-util.js";
 import { 
     handleBackgroundUpload, 

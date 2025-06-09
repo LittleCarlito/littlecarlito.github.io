@@ -5,7 +5,7 @@
  * It provides methods to initialize, access, and update the application state.
  */
 
-import { saveCurrentSession, loadCurrentSession, clearSessionData } from '../util/localstorage-util.js';
+import { saveCurrentSession, loadCurrentSession, clearSessionData } from '../util/data/localstorage-util.js';
 import { getCaller } from '../util/log-util.js';
 
 // Define the initial state
@@ -353,7 +353,7 @@ export function clearAllFiles(skipLocalStorage = false) {
     }
     
     // FIXED: Use safe save function that handles quota exceeded
-    import('../util/localstorage-util.js').then(localStorageModule => {
+    import('../util/data/localstorage-util.js').then(localStorageModule => {
         if (localStorageModule.safeSaveCurrentSession) {
             const success = localStorageModule.safeSaveCurrentSession(state);
             if (!success) {

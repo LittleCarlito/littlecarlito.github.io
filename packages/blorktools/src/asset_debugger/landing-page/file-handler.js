@@ -1,5 +1,5 @@
+import * as THREE from 'three';
 import { getState, updateState } from '../scene/state';
-import { loadTextureFromFile, formatFileSize } from '../util/materials-util';
 import { updateAtlasVisualization } from '../panels/atlas-panel/atlas-panel.js';
 import * as worldPanelModule from '../panels/world-panel/world-panel.js';
 import { 
@@ -918,4 +918,60 @@ export async function processGLBFile(file) {
         console.error('Error in processGLBModel:', error);
         throw error;
     }
+}
+
+/**
+ * Load texture from file object
+ * @param {File} file - The file object containing the texture
+ * @param {string} textureType - The type of texture (baseColor, orm, normal)
+ * @returns {Promise<THREE.Texture>} Promise resolving to the loaded texture
+ */
+export function loadTextureFromFile(file, textureType) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            try {
+                const texture = new THREE.TextureLoader().load(e.target.result, (texture) => {
+                    // Set texture parameters based on type
+                    if (textureType === 'baseColor') {
+                        texture.encoding = THREE.sRGBEncoding;
+                    } else {
+                        texture.encoding = THREE.LinearEncoding;
+                    }
+                    
+                    // Common texture settings for all types
+                    texture.wrapS = THREE.RepeatWrapping;
+                    texture.wrapT = THREE.RepeatWrapping;
+                    texture.flipY = false; // Don't flip Y for GLB compatibility
+                    
+                    // Store the texture in state
+                    const state = getState();
+                    state.textureObjects[textureType] = texture;
+                    updateState('textureObjects', state.textureObjects);
+                    
+                    resolve(texture);
+                });
+            } catch (err) {
+                reject(err);
+            }
+        };
+        
+        reader.onerror = (err) => {
+            reject(err);
+        };
+        
+        reader.readAsDataURL(file);
+    });
+}
+
+/**
+ * Format file size for display
+ * @param {number} bytes - The file size in bytes
+ * @returns {string} Formatted file size
+ */
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' bytes';
+    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    else return (bytes / 1048576).toFixed(1) + ' MB';
 }
