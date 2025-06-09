@@ -3,6 +3,42 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.50.1 (2025-06-09)</small>
+
+- refactor(blorktools): aniamtion preview util ([340b043](https://github.com/littlecarlito/threejs_site/commit/340b043))
+- refactor(blorktools): animation playback util ([aa10f09](https://github.com/littlecarlito/threejs_site/commit/aa10f09))
+- refactor(blorktools): asset_debugger to debugger-scene ([49a6710](https://github.com/littlecarlito/threejs_site/commit/49a6710))
+- refactor(blorktools): bounce helper ([cf1996f](https://github.com/littlecarlito/threejs_site/commit/cf1996f))
+- refactor(blorktools): css3d animation util ([383138c](https://github.com/littlecarlito/threejs_site/commit/383138c))
+- refactor(blorktools): css3d prerender ([8d5248b](https://github.com/littlecarlito/threejs_site/commit/8d5248b))
+- refactor(blorktools): css3d refactor start ([ad3f841](https://github.com/littlecarlito/threejs_site/commit/ad3f841))
+- refactor(blorktools): css3d scene helper ([12b3421](https://github.com/littlecarlito/threejs_site/commit/12b3421))
+- refactor(blorktools): custom animation package ([72a9494](https://github.com/littlecarlito/threejs_site/commit/72a9494))
+- refactor(blorktools): dead code removal ([d03c32e](https://github.com/littlecarlito/threejs_site/commit/d03c32e))
+- refactor(blorktools): debugger-scene dynamic import removal ([38378f8](https://github.com/littlecarlito/threejs_site/commit/38378f8))
+- refactor(blorktools): file handler deletion ([764ad5d](https://github.com/littlecarlito/threejs_site/commit/764ad5d))
+- refactor(blorktools): file handlers ([7541fb3](https://github.com/littlecarlito/threejs_site/commit/7541fb3))
+- refactor(blorktools): glb binary buffer util ([6fafb51](https://github.com/littlecarlito/threejs_site/commit/6fafb51))
+- refactor(blorktools): glb preview util ([cce9ecb](https://github.com/littlecarlito/threejs_site/commit/cce9ecb))
+- refactor(blorktools): html2canvas loader ([9665b81](https://github.com/littlecarlito/threejs_site/commit/9665b81))
+- refactor(blorktools): html2canvas util ([f1552e3](https://github.com/littlecarlito/threejs_site/commit/f1552e3))
+- refactor(blorktools): image2texture prerender ([5138a1d](https://github.com/littlecarlito/threejs_site/commit/5138a1d))
+- refactor(blorktools): log report move ([ed3fb17](https://github.com/littlecarlito/threejs_site/commit/ed3fb17))
+- refactor(blorktools): material creation util ([2c5c1af](https://github.com/littlecarlito/threejs_site/commit/2c5c1af))
+- refactor(blorktools): model-texture-util ([b1b8ab9](https://github.com/littlecarlito/threejs_site/commit/b1b8ab9))
+- refactor(blorktools): preview html split ([5ad15fc](https://github.com/littlecarlito/threejs_site/commit/5ad15fc))
+- refactor(blorktools): preview loading splash ([545113a](https://github.com/littlecarlito/threejs_site/commit/545113a))
+- refactor(blorktools): preview util breakdown start ([969a424](https://github.com/littlecarlito/threejs_site/commit/969a424))
+- refactor(blorktools): processGLBfile ([e6b12a3](https://github.com/littlecarlito/threejs_site/commit/e6b12a3))
+- refactor(blorktools): repacking ([6b66343](https://github.com/littlecarlito/threejs_site/commit/6b66343))
+- refactor(blorktools): rig subpackage of scene ([fcd4141](https://github.com/littlecarlito/threejs_site/commit/fcd4141))
+- refactor(blorktools): state and reversal helper ([fa70308](https://github.com/littlecarlito/threejs_site/commit/fa70308))
+- refactor(blorktools): state hoist ([2d9eff3](https://github.com/littlecarlito/threejs_site/commit/2d9eff3))
+- refactor(blorktools): threejs scene util ([7214a63](https://github.com/littlecarlito/threejs_site/commit/7214a63))
+- refactor(blorktools): util rename ([e90b714](https://github.com/littlecarlito/threejs_site/commit/e90b714))
+- refactor(blorktools): variable cleanup ([3163145](https://github.com/littlecarlito/threejs_site/commit/3163145))
+- fix(blorktools): image2texture playback ([d9503fe](https://github.com/littlecarlito/threejs_site/commit/d9503fe))
+
 ## 0.50.0 (2025-06-05)
 
 - fix(blorktools): 1x playback ([59b5fac](https://github.com/littlecarlito/threejs_site/commit/59b5fac))
