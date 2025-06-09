@@ -15,15 +15,15 @@ import {
     addControlHandleToFurthestBone,
     parseJointConstraints,
     applyJointConstraints
-} from '../../util/rig/rig-factory.js';
-import { setIsDragging, getIsDragging, checkHandleHover } from '../../util/rig/drag-util.js';
+} from '../../util/scene/rig/rig-factory.js';
+import { setIsDragging, getIsDragging, checkHandleHover } from '../../util/scene/rig/rig-mouse-handler.js';
 import { 
     rigDetails,
     updateRigDetails,
     rigOptions,
     updateRigVisualization,
     resetRig
- } from '../../util/rig/rig-manager.js';
+ } from '../../util/scene/rig/rig-controller.js';
  import {
     bones,
     lockedBones,
@@ -36,7 +36,7 @@ import {
     boneMaterial,
     toggleBoneLock,
     updateAllBoneMatrices
- } from '../../util/rig/bone-util.js';
+ } from '../../util/scene/rig/bone-kinematics.js';
  import { saveSettings, loadSettings } from '../../util/data/localstorage-util.js';
 
 // Tooltip related variables

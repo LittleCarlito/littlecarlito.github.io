@@ -8,7 +8,7 @@ import {
     isPreviewAnimationPaused,
     isPreviewActive
 } from '../state/animation-state';
-import { sanitizeHtml } from '../string-serder';
+import { sanitizeHtml } from '../data/string-serder';
 import { 
     animationPreviewCamera, 
     animationPreviewRenderer, 
@@ -20,7 +20,7 @@ import { runAnimationFrame } from '../animation/playback/animation-playback-util
 import { setupCSS3DScene } from '../scene/css3d-scene-util';
 import { startImage2TexturePreRendering } from '../animation/render/image2texture-prerender';
 import { startCss3dPreRendering } from '../animation/render/css3d-prerender';
-import { logError, logPreviewError } from '../log-util';
+import { logError, logPreviewError } from '../state/log-util';
 import { cleanupThreeJsPreview, initThreeJsPreview } from './threejs-preview-util';
 
 let currentPreviewSettings = null;

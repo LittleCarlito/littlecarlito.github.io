@@ -1,4 +1,4 @@
-import { frameInterval } from "../../preview/animation-preview-util";
+import { frameInterval } from "../../upload/animation-preview-util";
 import { 
     ANALYSIS_DURATION_MS,
     animationDuration,

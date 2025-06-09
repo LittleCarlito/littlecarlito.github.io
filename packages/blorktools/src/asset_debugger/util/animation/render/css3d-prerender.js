@@ -23,7 +23,7 @@ import {
     setPreRenderedFrames, 
     setPreRenderingInProgress 
 } from "../../state/animation-state";
-import { logAnimationAnalysisReport } from "../../log-util";
+import { logAnimationAnalysisReport } from "../../state/log-util";
 import { injectUnifiedAnimationDetectionScript } from "../../classifier/animation-classifier";
 
 /**

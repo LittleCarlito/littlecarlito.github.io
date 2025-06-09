@@ -12,7 +12,7 @@ import {
     serializeStringWithSettingsToBinary,
     isValidHtml,
     sanitizeHtml
-} from '../../util/string-serder.js';
+} from '../../util/data/string-serder.js';
 import { 
     formatHtml as externalFormatHtml, 
     initHtmlFormatter,
@@ -36,7 +36,7 @@ import { updateHtmlIcons } from '../../panels/mesh-panel/mesh-panel';
 // Import Three.js the same way as other files in the codebase
 import * as THREE from 'three';
 import { isPreviewActive, setLastTextureUpdateTime } from '../../util/state/animation-state';
-import { initalizePreview } from '../../util/preview/animation-preview-util';
+import { initalizePreview } from '../../util/upload/animation-preview-util';
 import { frameBuffer, previewRenderTarget } from '../../util/state/threejs-state.js';
 import { 
     getHtmlSettingsForMesh, 
@@ -44,8 +44,8 @@ import {
     loadSettingsForMesh, 
     saveHtmlForMesh, 
     saveSettingsForMesh 
-} from '../../util/mesh-data-util.js';
-import { cleanupThreeJsPreview } from '../../util/preview/threejs-preview-util';
+} from '../../util/data/mesh-html-util.js';
+import { cleanupThreeJsPreview } from '../../util/upload/threejs-preview-util';
 
 // Add variables for frame buffering at the top of the file with other variables
  let maxCaptureRate = 0.5;
@@ -178,7 +178,7 @@ export async function openEmbeddedHtmlEditor(meshName, meshId) {
         // Clear in-memory settings cache if needed to ensure we get the actual saved settings
         if (forceReload) {
             // Import here to avoid circular dependency
-            const meshDataUtil = await import('../../util/mesh-data-util');
+            const meshDataUtil = await import('../../util/data/mesh-html-util');
             // Clear the settings from memory cache so we reload from binary
             meshDataUtil.clearMeshHtmlSettings(meshId);
         }

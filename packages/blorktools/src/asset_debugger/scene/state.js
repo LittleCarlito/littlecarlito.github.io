@@ -6,7 +6,7 @@
  */
 
 import { saveCurrentSession, loadCurrentSession, clearSessionData } from '../util/data/localstorage-util.js';
-import { getCaller } from '../util/log-util.js';
+import { getCaller } from '../util/state/log-util.js';
 
 // Define the initial state
 const initialState = {

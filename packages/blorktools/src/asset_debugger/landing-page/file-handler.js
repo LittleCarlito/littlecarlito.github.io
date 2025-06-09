@@ -9,8 +9,8 @@ import {
   terminateAllWorkers 
 } from '../util/workers/worker-manager.js';
 import { parseLightingData } from '../util/scene/lighting-util';
-import { clearDropzone, setupDropzone } from '../util/dropzone/dropzone-util';
-import { createGLBPreview } from '../util/preview/glb-preview-util';
+import { clearDropzone, setupDropzone } from '../util/upload/file-upload-util';
+import { createGLBPreview } from '../util/upload/glb-preview-util';
 
 // Add event listener to terminate all workers when the page is unloaded
 window.addEventListener('beforeunload', () => {

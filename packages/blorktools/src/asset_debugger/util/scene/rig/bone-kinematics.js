@@ -1,7 +1,8 @@
 import * as THREE from 'three';
-import { rigOptions } from './rig-manager';
-import { getIsDragging } from './drag-util';
-import { getState } from '../../scene/state';
+import { rigOptions } from './rig-controller';
+import { getIsDragging } from './rig-mouse-handler';
+import { getState } from '../../../scene/state';
+
 // These variables need to be exported so they're available to both modules
 export let bones = [];
 export let boneVisualsGroup = null;

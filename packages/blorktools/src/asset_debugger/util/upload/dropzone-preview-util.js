@@ -304,7 +304,7 @@ function addClearButton(container, file) {
                 dropzone.innerHTML = '';
                 
                 // Import the file handler module to properly restore the dropzone
-                import('./dropzone-util.js').then(module => {
+                import('./file-upload-util.js').then(module => {
                     // Use the clearDropzone function to restore the original content
                     if (module.clearDropzone) {
                         module.clearDropzone(dropzone, 'model', originalTitle);

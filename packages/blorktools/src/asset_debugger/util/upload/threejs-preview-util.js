@@ -1,5 +1,5 @@
 import { infoPanel, resetInfoPanel } from "../../modals/html-editor-modal/mesh-info-panel-util";
-import { logPreviewError } from "../log-util";
+import { logPreviewError } from "../state/log-util";
 import { cleanupCSS3D } from "../scene/css3d-scene-util";
 import { cleanupThreeJsScene, setupThreeJsScene } from "../scene/threejs-scene-util";
 import { setIsPreviewActive, setIsPreviewAnimationPaused, setLastTextureUpdateTime } from "../state/animation-state";

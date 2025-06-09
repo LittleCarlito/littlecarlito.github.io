@@ -16,9 +16,9 @@ import { initModelIntegration } from '../modals/html-editor-modal/model-integrat
 import { initHtmlEditorModal } from '../modals/html-editor-modal/html-editor-modal.js';
 import { initWorldPanel } from '../panels/world-panel/world-panel.js';
 import { getState, printStateReport, hasFiles } from './state.js';
-import { initUiManager } from '../util/ui-manager.js';
+import { initUiManager } from '../util/scene/ui-manager.js';
 import { hideLoadingSplash, showLoadingSplash, updateLoadingProgress } from '../loading-splash/loading-splash.js';
-import { setupDropzones } from '../util/dropzone/dropzone-util.js';
+import { setupDropzones } from '../util/upload/file-upload-util.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
@@ -558,7 +558,7 @@ function startDebugging() {
     
     // Apply rig options from saved settings if available
     if (savedSettings && savedSettings.rigOptions) {
-        import('../util/rig/rig-manager.js').then(rigManagerModule => {
+        import('../util/scene/rig/rig-controller.js').then(rigManagerModule => {
             console.log('Applying saved rig options:', savedSettings.rigOptions);
             rigManagerModule.updateRigOptions(savedSettings.rigOptions);
         });
@@ -745,7 +745,7 @@ function processFilesFromState() {
                 const modelFile = stateModule.getModelFile();
                 promiseChain = promiseChain.then(() => {
                     console.log('Loading model from:', modelFile.name);
-                    return import('../util/models-util.js')
+                    return import('../util/scene/models-util.js')
                         .then(modelsModule => {
                             return modelsModule.loadDebugModel();
                         })

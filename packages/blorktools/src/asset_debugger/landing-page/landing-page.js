@@ -15,7 +15,7 @@ import {
     printStateReport 
 } from "../scene/state.js";
 import { loadSettings } from "../util/data/localstorage-util.js";
-import { setupDropzones } from "../util/dropzone/dropzone-util.js";
+import { setupDropzones } from "../util/upload/file-upload-util.js";
 import { 
     handleBackgroundUpload, 
     handleLightingUpload, 
@@ -27,7 +27,7 @@ import {
     loadLightingIntoDropzone, 
     loadModelIntoDropzone, 
     processZipContents 
-} from "../util/dropzone/zip-util.js";
+} from "../util/upload/zip-util.js";
 
 // Module state
 let isInitialized = false;

@@ -3,9 +3,9 @@
  * 
  * This module handles the UI interactions and tab switching.
  */
-import { getState } from '../scene/state.js';
-import { updateAtlasVisualization } from '../panels/atlas-panel/atlas-panel.js';
-import { updateUvPanel } from '../panels/uv-panel/uv-panel.js';
+import { getState } from '../../scene/state.js';
+import { updateAtlasVisualization } from '../../panels/atlas-panel/atlas-panel.js';
+import { updateUvPanel } from '../../panels/uv-panel/uv-panel.js';
 
 /**
  * Initialize the UI manager and set up event listeners

@@ -5,7 +5,7 @@
  */
 import { getState, updateState } from '../../scene/state.js';
 import { getCurrentGlbBuffer, setCurrentGlbBuffer } from '../../modals/html-editor-modal/model-integration.js';
-import { deserializeStringFromBinary, isValidHtml } from '../../util/string-serder.js';
+import { deserializeStringFromBinary, isValidHtml } from '../../util/data/string-serder.js';
 import { getBinaryBufferForMesh } from '../../util/data/glb-binary-buffer-util.js';
 
 // Track meshes with binary content

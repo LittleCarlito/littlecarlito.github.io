@@ -2,7 +2,7 @@
  * Settings Modal UI Component for Asset Debugger
  */
 import { saveSettings, loadSettings, getDefaultSettings } from '../../util/data/localstorage-util.js';
-import { updateRigOptions } from '../../util/rig/rig-manager.js';
+import { updateRigOptions } from '../../util/scene/rig/rig-controller.js';
 
 export class SettingsModal {
     constructor(settings = null) {
