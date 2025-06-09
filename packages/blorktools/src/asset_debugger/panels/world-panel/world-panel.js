@@ -215,7 +215,7 @@ export function initWorldPanel(forceReset = false) {
     
     console.debug('Initializing World Panel...');
     
-    // Look for world-tab (from world-panel.html) or world-tab-container (from asset_debugger.html)
+    // Look for world-tab (from world-panel.html) or world-tab-container (from debugger-scene.html)
     const worldPanel = document.getElementById('world-tab') || document.getElementById('world-tab-container');
     
     if (!worldPanel) {

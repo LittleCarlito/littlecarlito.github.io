@@ -26,6 +26,7 @@ import { handleBackgroundUpload } from "../util/upload/handlers/background-file-
 import { handleModelUpload } from "../util/upload/handlers/model/model-file-manager.js";
 import { handleLightingUpload } from "../util/upload/handlers/lighting-file-handler.js";
 import { handleTextureUpload } from "../util/upload/handlers/texture-file-handler.js";
+import { terminateAllWorkers } from "../util/workers/worker-manager.js";
 
 // Module state
 let isInitialized = false;
@@ -165,13 +166,13 @@ function verifyFileDrop() {
         
         // Use router navigation instead of direct window.location.href
         if (window.appRouter) {
-            window.appRouter.navigateToPage('asset_debugger', {
+            window.appRouter.navigateToPage('debugger-scene', {
                 hasFiles: true,
                 source: 'landing_page_verify'
             });
         } else {
             console.error('Router not available, falling back to direct navigation');
-            window.location.href = './scene/asset_debugger.html';
+            window.location.href = '../debugger-scene/debugger-scene.html';
         }
     } else {
         showExamplesModal();
@@ -189,13 +190,13 @@ function showExamplesModal() {
         
         // Use router navigation instead of direct window.location.href
         if (window.appRouter) {
-            window.appRouter.navigateToPage('asset_debugger', {
+            window.appRouter.navigateToPage('debugger-scene', {
                 selectedExample: exampleType,
                 source: 'examples_modal'
             });
         } else {
             console.error('Router not available, falling back to direct navigation');
-            window.location.href = './scene/asset_debugger.html';
+            window.location.href = '../debugger-scene/debugger-scene.js';
         }
     });
     

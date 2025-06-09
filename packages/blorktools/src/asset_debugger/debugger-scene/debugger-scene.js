@@ -1,10 +1,3 @@
-/**
- * Asset Debugger - UI Entry Point
- * 
- * This file is the main entry point for the Asset Debugger UI.
- * It initializes the application and sets up all necessary components.
- */
-
 // Import loadSettings and saveSettings from localstorage-util.js
 import { loadSettings, saveSettings } from '../util/data/localstorage-manager.js';
 // Import SettingsModal 
@@ -19,6 +12,7 @@ import { getState, printStateReport, hasFiles } from '../util/state/scene-state.
 import { initUiManager } from '../util/scene/ui-manager.js';
 import { hideLoadingSplash, showLoadingSplash, updateLoadingProgress } from '../loading-splash/loading-splash.js';
 import { setupDropzones } from '../util/upload/file-upload-manager.js';
+import { terminateAllWorkers } from '../util/workers/worker-manager.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
@@ -49,17 +43,17 @@ let loadingComplete = false;
 let isPageUnloading = false;
 
 /**
- * Main entry point for the Asset Debugger.
+ * Main entry point for the Debugger Scene.
  * Sets up the UI, loads components, and initializes the 3D scene.
  */
-export function setupAssetDebugger() {
+export function setupDebuggerScene() {
     showLoadingSplash("Setting up debugging environment");
     // Reset the state before initializing
     resetThreeJSState();
     
     getState();
-    printStateReport('Asset-Debugger');
-    console.debug('Asset Debugger UI: Initializing...');
+    printStateReport('debugger-scene');
+    console.debug('Debugger Scene UI: Initializing...');
     // Initialize UI components
     updateLoadingProgress("Initializing UI");
     initUiManager();
@@ -80,7 +74,7 @@ export function setupAssetDebugger() {
     setTimeout(ensureCollapsibleHeadersWork, 500);
     // Return a cleanup function that the router can call
     updateLoadingProgress("Finalizing startup");
-    return cleanupAssetDebugger;
+    return cleanupDebuggerScene;
 }
 
 /**
@@ -151,11 +145,11 @@ function resetThreeJSState() {
 }
 
 /**
- * Cleanup function for the asset debugger
+ * Cleanup function for the debugger scene
  * This is called by the router when navigating away
  */
-function cleanupAssetDebugger() {
-    console.log('Cleaning up Asset Debugger resources...');
+function cleanupDebuggerScene() {
+    console.log('Cleaning up Debugger Scene resources...');
     
     // Set unloading flag to abort any ongoing operations
     isPageUnloading = true;
@@ -184,11 +178,7 @@ function cleanupAssetDebugger() {
     
     // Force terminate any active workers
     try {
-        const workerManager = window.workerManager || window.appWorkerManager;
-        if (workerManager && typeof workerManager.terminateAllWorkers === 'function') {
-            workerManager.terminateAllWorkers();
-            console.log('Forcibly terminated all worker threads');
-        }
+        terminateAllWorkers();
     } catch (error) {
         console.warn('Could not terminate workers:', error);
     }
@@ -296,12 +286,12 @@ function cleanupAssetDebugger() {
                 if (bgPreviewCanvas) bgPreviewCanvas.style.opacity = '0.3';
                 if (hdrPreviewCanvas) hdrPreviewCanvas.style.opacity = '0.3';
                 
-                console.log('Asset Debugger cleanup complete');
+                console.log('Debugger Scene cleanup complete');
             }).catch(error => {
                 console.error('Error importing state module during cleanup:', error);
             });
         } catch (error) {
-            console.error('Error during Asset Debugger cleanup:', error);
+            console.error('Error during Debugger Scene cleanup:', error);
         }
     }, 0);
     
@@ -681,7 +671,7 @@ function processFilesFromState() {
                                                 // Also ensure the HDR radio option is visible
                                                 if (worldPanelModule.toggleOptionVisibility) {
                                                     worldPanelModule.toggleOptionVisibility('hdr-option', true);
-                                                    console.log('Explicitly setting HDR radio option visible from asset_debugger');
+                                                    console.log('Explicitly setting HDR radio option visible from debugger-scene');
                                                 }
                                             }
                                             return texture;
