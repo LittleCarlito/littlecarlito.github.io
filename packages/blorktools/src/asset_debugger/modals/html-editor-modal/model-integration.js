@@ -5,8 +5,8 @@
  * to support storing and retrieving HTML content in GLB files.
  */
 
-import { processGLBFile } from '../../landing-page/file-handler.js';
 import { getState, updateState } from '../../util/state/scene-state.js';
+import { processGLBFile } from '../../util/upload/handlers/model/glb-file-handler.js';
 
 // Current GLB buffer storage
 let currentGlbBuffer = null;

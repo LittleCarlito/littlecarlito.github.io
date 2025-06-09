@@ -18,7 +18,7 @@ import { initWorldPanel } from '../panels/world-panel/world-panel.js';
 import { getState, printStateReport, hasFiles } from '../util/state/scene-state.js';
 import { initUiManager } from '../util/scene/ui-manager.js';
 import { hideLoadingSplash, showLoadingSplash, updateLoadingProgress } from '../loading-splash/loading-splash.js';
-import { setupDropzones } from '../util/upload/file-upload-handler.js';
+import { setupDropzones } from '../util/upload/file-upload-manager.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;
@@ -769,18 +769,18 @@ function processFilesFromState() {
             // Handle texture files if they exist
             if ((stateModule.hasBaseColorFile() || stateModule.hasOrmFile() || stateModule.hasNormalFile()) && checkContinueProcessing()) {
                 promiseChain = promiseChain.then(() => {
-                    return import('../landing-page/file-handler.js')
-                        .then(fileHandler => {
+                    return import('../util/upload/handlers/texture-file-handler.js')
+                        .then(textureHandler => {
                             const promises = [];
                             
                             if (stateModule.hasBaseColorFile()) {
-                                promises.push(fileHandler.loadTextureFromFile(stateModule.getBaseColorFile(), 'baseColor'));
+                                promises.push(textureHandler.loadTextureFromFile(stateModule.getBaseColorFile(), 'baseColor'));
                             }
                             if (stateModule.hasOrmFile()) {
-                                promises.push(fileHandler.loadTextureFromFile(stateModule.getOrmFile(), 'orm'));
+                                promises.push(textureHandler.loadTextureFromFile(stateModule.getOrmFile(), 'orm'));
                             }
                             if (stateModule.hasNormalFile()) {
-                                promises.push(fileHandler.loadTextureFromFile(stateModule.getNormalFile(), 'normal'));
+                                promises.push(textureHandler.loadTextureFromFile(stateModule.getNormalFile(), 'normal'));
                             }
                             
                             return Promise.all(promises);
