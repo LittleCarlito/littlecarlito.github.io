@@ -1,4 +1,4 @@
-import { formatFileSize } from "../../../landing-page/file-handler";
+import { formatFileSize } from "../file-upload-manager";
 
 /**
  * Handle ZIP file upload

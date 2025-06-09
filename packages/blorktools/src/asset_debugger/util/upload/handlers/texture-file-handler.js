@@ -1,8 +1,9 @@
 import * as THREE from 'three';
-import { createClearButton, formatFileSize } from "../../../landing-page/file-handler";
 import { getState, updateState } from "../../state/scene-state";
 import { processTextureFile } from "../../workers/worker-manager";
 import { hidePreviewLoading, showPreviewLoading } from '../../../loading-splash/preview-loading-splash';
+import { formatFileSize } from '../file-upload-manager';
+import { createClearButton } from '../../../landing-page/landing-page';
 
 /**
  * Handle texture file upload

@@ -31,6 +31,11 @@ import { handleTextureUpload } from "../util/upload/handlers/texture-file-handle
 let isInitialized = false;
 let eventListeners = [];
 
+// Add event listener to terminate all workers when the page is unloaded
+window.addEventListener('beforeunload', () => {
+  terminateAllWorkers();
+});
+
 // Main initialization function
 export function initalizeLandingPage() {
     console.log('🌟 Initializing landing page...');
@@ -533,4 +538,80 @@ function cleanup() {
     isInitialized = false;
     
     console.log('Landing page cleanup complete');
+}
+
+/**
+ * Creates a clear button for a dropzone
+ * @param {HTMLElement} dropzone - The dropzone element
+ * @param {string} type - The type of asset ('basecolor', 'normal', 'orm', 'model', 'lighting', 'background')
+ * @param {string} originalTitle - The original title of the dropzone
+ * @returns {HTMLElement} The created clear button
+ */
+export function createClearButton(dropzone, type, originalTitle) {
+    const clearButton = document.createElement('button');
+    clearButton.className = 'clear-preview-button';
+    clearButton.innerHTML = '&times;';
+    clearButton.title = 'Clear file';
+    
+    clearButton.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent dropzone click event
+        
+        // Clear all relevant state for this type
+        clearStateForType(type);
+        
+        // Clear the dropzone
+        clearDropzone(dropzone, type, originalTitle);
+        
+        // Reattach the dropzone event handlers
+        setupDropzone(dropzone, type, document.getElementById(`${type}-info`));
+    });
+    
+    return clearButton;
+}
+
+/**
+ * Clears all relevant state for a given asset type
+ * @param {string} type - The type of asset ('basecolor', 'normal', 'orm', 'model', 'lighting', 'background')
+ */
+function clearStateForType(type) {
+    const state = getState();
+    
+    switch (type) {
+        case 'basecolor':
+        case 'normal':
+        case 'orm':
+            // Clear texture object and file
+            if (state.textureObjects && state.textureObjects[type]) {
+                const texture = state.textureObjects[type];
+                if (texture && typeof texture.dispose === 'function') {
+                    texture.dispose();
+                }
+            }
+            updateState('textureFiles', { ...state.textureFiles, [type]: null });
+            break;
+            
+        case 'model':
+            updateState({
+                modelFile: null,
+                useCustomModel: false
+            });
+            break;
+            
+        case 'lighting':
+            updateState({
+                lightingFile: null,
+                environmentTexture: null
+            });
+            break;
+            
+        case 'background':
+            updateState({
+                backgroundFile: null,
+                backgroundTexture: null
+            });
+            break;
+    }
+    
+    // Log the state after clearing
+    console.debug(`State after clearing ${type}:`, getState());
 }
