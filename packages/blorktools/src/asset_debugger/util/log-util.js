@@ -180,3 +180,18 @@ export function logAnimationAnalysisReport(renderType, data) {
         metrics
     });
 }
+
+/**
+ * Log errors specifically for preview context using generic logging
+ */
+export function logPreviewError(message, previewContent, existingErrorLog, statusCallback) {
+    logError(message, previewContent, {
+        logId: 'html-preview-error-log',
+        logClassName: 'preview-error-log',
+        statusCallback: statusCallback || showStatus,
+        entryOptions: {
+            entryClassName: 'error-entry',
+            timeClassName: 'error-time'
+        }
+    });
+}

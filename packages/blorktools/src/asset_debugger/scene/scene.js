@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { getState, updateState } from './state.js';
 import { updateRigAnimation } from '../util/rig/rig-manager.js';
 import { addLighting, setupEnvironmentLighting } from '../util/scene/lighting-util.js';
-import { createControls, updateControls, setControlsTarget } from '../util/scene/controls.js';
+import { createControls, updateControls, setControlsTarget } from '../util/scene/controls-util.js';
 
 /**
  * Initialize the Three.js scene, camera, renderer and controls

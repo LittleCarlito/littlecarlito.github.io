@@ -38,9 +38,16 @@ import { updateHtmlIcons } from '../../panels/mesh-panel/mesh-panel';
 // Import Three.js the same way as other files in the codebase
 import * as THREE from 'three';
 import { isPreviewActive, setLastTextureUpdateTime } from '../../util/state/animation-state';
-import { initalizePreview } from '../../util/animation/playback/animation-preview-util';
-import { cleanupThreeJsPreview, frameBuffer, previewRenderTarget } from '../../util/custom-animation/threejs-util.js';
-import { getHtmlSettingsForMesh, loadHtmlForMesh, loadSettingsForMesh, saveHtmlForMesh, saveSettingsForMesh } from '../../util/mesh-data-util.js';
+import { initalizePreview } from '../../util/preview/animation-preview-util';
+import { frameBuffer, previewRenderTarget } from '../../util/state/threejs-state.js';
+import { 
+    getHtmlSettingsForMesh, 
+    loadHtmlForMesh, 
+    loadSettingsForMesh, 
+    saveHtmlForMesh, 
+    saveSettingsForMesh 
+} from '../../util/mesh-data-util.js';
+import { cleanupThreeJsPreview } from '../../util/preview/threejs-preview-util';
 
 // Add variables for frame buffering at the top of the file with other variables
  let maxCaptureRate = 0.5;

@@ -11,8 +11,8 @@ import {
     reverseAnimationFrameId,
     animationStack,
     resetAnimationState
-} from '../../state/css3d-state';
-import { createMeshInfoPanel } from '../../../modals/html-editor-modal/mesh-info-panel-util';
+} from '../state/css3d-state';
+import { createMeshInfoPanel } from '../../modals/html-editor-modal/mesh-info-panel-util';
 import {     
     setAnimationCss3dRenderer,
     setAnimationCss3dScene,
@@ -20,11 +20,11 @@ import {
     setAnimationPreviewCamera,
     setPreviewRenderTarget,
     animationPreviewCamera
-} from '../../custom-animation/threejs-util';
-import { showStatus } from '../../../modals/html-editor-modal/html-editor-modal';
-import { playNextReverseAnimation } from './css3d-reversal-helper';
-import { setupBounceAnimationTracking } from './css3d-bounce-helper';
-import { isPreviewActive } from '../../state/animation-state';
+} from '../state/threejs-state';
+import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
+import { playNextReverseAnimation } from '../animation/playback/css3d-reversal-util';
+import { setupBounceAnimationTracking } from '../animation/playback/css3d-bounce-util';
+import { isPreviewActive } from '../state/animation-state';
 
 /**
  * Setup the CSS3D scene
@@ -200,7 +200,7 @@ export function setupCSS3DScene(container, iframe, CSS3DRenderer, CSS3DObject, c
                     element.contentDocument.close();
                     
                     // Get detected animation duration from pre-render (animationDuration is in milliseconds)
-                    import('../../state/animation-state').then(module => {
+                    import('../state/animation-state').then(module => {
                         const { animationDuration, isAnimationFinite } = module;
                         
                         // Get animation type from dropdown
@@ -478,4 +478,36 @@ function resetAndRestartAnimationCycle(iframe, html) {
     } catch (err) {
         console.error('Error restarting animation cycle:', err);
     }
+}
+
+export function cleanupCSS3D(targetElement = null) {
+   resetAnimationState();
+   
+   if (reverseAnimationFrameId) {
+       cancelAnimationFrame(reverseAnimationFrameId);
+       resetReverseAnimationFrameId();
+   }
+   
+   const iframe = targetElement || document.getElementById('css3d-panel-iframe');
+   if (iframe) {
+       if (iframe.restartTimer) {
+           clearInterval(iframe.restartTimer);
+           iframe.restartTimer = null;
+       }
+       
+       if (iframe._animationStartHandler && iframe.contentDocument) {
+           iframe.contentDocument.removeEventListener('animationstart', iframe._animationStartHandler);
+           iframe._animationStartHandler = null;
+       }
+       
+       if (iframe._transitionStartHandler && iframe.contentDocument) {
+           iframe.contentDocument.removeEventListener('transitionstart', iframe._transitionStartHandler);
+           iframe._transitionStartHandler = null;
+       }
+       
+       if (iframe.mutationObserver) {
+           iframe.mutationObserver.disconnect();
+           iframe.mutationObserver = null;
+       }
+   }
 }

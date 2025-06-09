@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CustomTextureSettings, showStatus } from '../../../modals/html-editor-modal/html-editor-modal';
+import { CustomTextureSettings, showStatus } from '../../modals/html-editor-modal/html-editor-modal';
 import { 
     resetPreRenderState, 
     setIsPreviewActive,
@@ -7,22 +7,21 @@ import {
     resetPlaybackTimingState,
     isPreviewAnimationPaused,
     isPreviewActive
-} from '../../state/animation-state';
-import { sanitizeHtml } from '../../string-serder';
+} from '../state/animation-state';
+import { sanitizeHtml } from '../string-serder';
 import { 
     animationPreviewCamera, 
     animationPreviewRenderer, 
     animationPreviewScene, 
-    cleanupThreeJsPreview, 
-    initThreeJsPreview, 
     previewPlane, 
     setPreviewRenderTarget 
-} from '../../custom-animation/threejs-util';
-import { runAnimationFrame } from './animation-playback-util';
-import { setupCSS3DScene } from './css3d-scene-helper';
-import { startImage2TexturePreRendering } from '../render/image2texture-prerender';
-import { startCss3dPreRendering } from '../render/css3d-prerender';
-import { logError } from '../../log-util';
+} from '../state/threejs-state';
+import { runAnimationFrame } from '../animation/playback/animation-playback-util';
+import { setupCSS3DScene } from '../scene/css3d-scene-util';
+import { startImage2TexturePreRendering } from '../animation/render/image2texture-prerender';
+import { startCss3dPreRendering } from '../animation/render/css3d-prerender';
+import { logError, logPreviewError } from '../log-util';
+import { cleanupThreeJsPreview, initThreeJsPreview } from './threejs-preview-util';
 
 let currentPreviewSettings = null;
 const targetFrameRate = 60;
@@ -248,20 +247,6 @@ export function initalizePreview(settings, previewContent, setModalData) {
     }
 }
 
-/**
- * Log errors specifically for preview context using generic logging
- */
-function logPreviewError(message, previewContent, existingErrorLog, statusCallback) {
-    logError(message, previewContent, {
-        logId: 'html-preview-error-log',
-        logClassName: 'preview-error-log',
-        statusCallback: statusCallback || showStatus,
-        entryOptions: {
-            entryClassName: 'error-entry',
-            timeClassName: 'error-time'
-        }
-    });
-}
 
 /**
  * Preview-specific animation loop wrapper

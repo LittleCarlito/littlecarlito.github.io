@@ -3,19 +3,19 @@ import {
     animationPreviewCamera,
     animationPreviewRenderer,
     animationPreviewScene,
-     onPreviewResize, 
-     previewPlane, 
-     setAnimationPreviewCamera, 
-     setAnimationPreviewRenderer, 
-     setAnimationPreviewScene, 
-     setPreviewPlane, 
-     setPreviewRenderTarget
-} from "../custom-animation/threejs-util";
+    previewPlane, 
+    setAnimationPreviewCamera, 
+    setAnimationPreviewRenderer, 
+    setAnimationPreviewScene, 
+    setPreviewPlane, 
+    setPreviewRenderTarget
+} from "../state/threejs-state";
 import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
 import { createMeshInfoPanel } from '../../modals/html-editor-modal/mesh-info-panel-util';
 import { createTextureFromIframe } from '../animation/render/iframe2texture-render';
 import { getState } from '../../scene/state';
-import { animatePreview } from '../animation/playback/animation-preview-util';
+import { animatePreview } from '../preview/animation-preview-util';
+import { setIsPreviewActive } from '../state/animation-state';
 
 /**
  * Set up the Three.js scene for HTML preview
@@ -369,9 +369,6 @@ export function setupThreeJsScene(container, iframe, currentMeshId, createInfoPa
             // Still try to start animation with fallback texture
             animatePreview();
         });
-        
-        // Handle window resize
-        window.addEventListener('resize', onPreviewResize);
     } catch (error) {
         console.error('Error setting up Three.js scene:', error);
         showStatus('Error in Three.js scene setup: ' + error.message, 'error');

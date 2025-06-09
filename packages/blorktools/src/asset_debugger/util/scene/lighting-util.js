@@ -185,7 +185,7 @@ export function setupEnvironmentLighting(file) {
             }
             
             // Ensure controls are properly set up for the current scene
-            import('./controls.js').then(controlsModule => {
+            import('./controls-util.js').then(controlsModule => {
                 console.log('Setting up camera and controls after environment lighting setup');
                 
                 if (state.camera && state.renderer) {

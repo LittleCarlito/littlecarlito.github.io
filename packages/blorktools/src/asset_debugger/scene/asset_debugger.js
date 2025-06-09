@@ -241,7 +241,7 @@ function cleanupAssetDebugger() {
                 if (state.controls) {
                     console.log('Disposing controls');
                     // Import and use the proper disposal function from controls module
-                    import('../util/scene/controls.js').then(controlsModule => {
+                    import('../util/scene/controls-util.js').then(controlsModule => {
                         if (controlsModule.disposeControls) {
                             controlsModule.disposeControls();
                         }
@@ -509,7 +509,7 @@ function initializeScene() {
                     setTimeout(() => {
                         
                         // Import and ensure camera controls are fully initialized
-                        import('../util/scene/controls.js')
+                        import('../util/scene/controls-util.js')
                             .then(controlsModule => {
                                 // Reset controls if we're loading files from landing page
                                 if (hasFiles()) {
