@@ -1,7 +1,8 @@
-import { createClearButton, formatFileSize, hidePreviewLoading, showPreviewLoading } from '../../../landing-page/file-handler';
+import { createClearButton, formatFileSize } from '../../../landing-page/file-handler';
 import { updateState } from '../../state/scene-state';
 import { processLightingFile } from '../../workers/worker-manager';
 import * as worldPanelModule from '../../../panels/world-panel/world-panel';
+import { hidePreviewLoading, showPreviewLoading } from '../../../loading-splash/preview-loading-splash';
 
 /**
  * Handle lighting file upload

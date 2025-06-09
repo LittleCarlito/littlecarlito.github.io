@@ -1,4 +1,5 @@
-import { createClearButton, formatFileSize, hidePreviewLoading, showPreviewLoading } from '../../../landing-page/file-handler';
+import { createClearButton, formatFileSize } from '../../../landing-page/file-handler';
+import { hidePreviewLoading, showPreviewLoading } from '../../../loading-splash/preview-loading-splash';
 import { updateState } from '../../state/scene-state';
 
 /**
