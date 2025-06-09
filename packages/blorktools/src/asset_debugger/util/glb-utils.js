@@ -21,41 +21,6 @@ export let previewControls = null;
 export let previewAnimationFrame = null;
 
 /**
- * Process a GLB model file using web workers
- * @param {File} file - The GLB file to process
- * @returns {Promise} A promise that resolves when processing is complete
- */
-export async function processGLBModel(file) {
-    // Basic file validation client-side before sending to worker
-    if (!file || !file.name.toLowerCase().endsWith('.glb')) {
-        throw new Error('Invalid GLB file');
-    }
-    
-    try {
-        // Process the file using the worker-manager
-        // This handles the file in a separate thread
-        const result = await processModelFile(file);
-        
-        if (result.status !== 'success') {
-            throw new Error(result.error || 'Unknown error processing GLB file');
-        }
-        
-        // Convert file to array buffer for further processing
-        const arrayBuffer = await file.arrayBuffer();
-        
-        return {
-            arrayBuffer,
-            fileName: file.name,
-            fileSize: file.size,
-            ...result // Include any additional metadata from worker
-        };
-    } catch (error) {
-        console.error('Error in processGLBModel:', error);
-        throw error;
-    }
-}
-
-/**
  * Associate binary buffer data with a mesh index in a GLB file
  * @param {ArrayBuffer} glbArrayBuffer - The GLB file as an ArrayBuffer
  * @param {number} meshIndex - The index of the mesh to associate data with
@@ -617,26 +582,6 @@ export function getBinaryBufferForMesh(glbArrayBuffer, meshIndex) {
             reject(new Error(`Error retrieving binary buffer: ${error.message}`));
         }
     });
-}
-
-/**
- * Check if a binary buffer appears to be a GLB structure
- * @param {ArrayBuffer} buffer - The buffer to check
- * @returns {boolean} True if the buffer appears to be a GLB structure
- */
-export function isGlbStructure(buffer) {
-    if (!buffer || buffer.byteLength < 12) {
-        return false;
-    }
-    
-    try {
-        const dataView = new DataView(buffer);
-        // Check for GLB magic bytes (glTF in ASCII)
-        const magic = dataView.getUint32(0, true);
-        return magic === 0x46546C67; // 'glTF' in ASCII
-    } catch (e) {
-        return false;
-    }
 }
 
 /**

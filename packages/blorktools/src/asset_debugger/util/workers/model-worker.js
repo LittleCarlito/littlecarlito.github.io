@@ -10,7 +10,7 @@
  * @param {File} file - The GLB file to process
  * @returns {Object} An object containing processing results
  */
-async function processGLBFile(file) {
+async function consumeGLBFile(file) {
   try {
     // Basic file validation
     if (!file || !file.name.toLowerCase().endsWith('.glb')) {
@@ -88,7 +88,7 @@ self.onmessage = async (e) => {
     const { file, id } = e.data;
     
     // Process the file
-    const result = await processGLBFile(file);
+    const result = await consumeGLBFile(file);
     
     // Add the worker ID to the result
     result.id = id;
