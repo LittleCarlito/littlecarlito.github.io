@@ -12,7 +12,7 @@ import {
     animationStack,
     resetAnimationState
 } from '../state/css3d-state';
-import { createMeshInfoPanel } from '../ui/mesh-preview-panel';
+import { createMeshInfoPanel } from '../ui/mesh-info-panel';
 import {     
     setAnimationCss3dRenderer,
     setAnimationCss3dScene,

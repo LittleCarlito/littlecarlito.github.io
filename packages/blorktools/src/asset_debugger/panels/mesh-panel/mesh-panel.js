@@ -8,16 +8,20 @@ import { getCurrentGlbBuffer, setCurrentGlbBuffer } from '../../util/scene/glb-s
 import { deserializeStringFromBinary, isValidHtml } from '../../util/data/string-serder.js';
 import { getBinaryBufferForMesh } from '../../util/data/glb-binary-buffer-handler.js';
 
+// Load mesh panel CSS
+const link = document.createElement('link');
+link.rel = 'stylesheet';
+link.href = '/asset_debugger/panels/mesh-panel/mesh-panel.css';
+document.head.appendChild(link);
+
 // Track meshes with binary content
 const meshesWithHtml = new Set();
-
 // Icon color constants
 const ICON_COLORS = {
     HAS_HTML: '#f8d73e', // Yellow color for meshes with binary content (Fallout yellow)
     VALID_HTML: '#4CAF50', // Green color for meshes with valid HTML content
     NO_HTML: '#8a8a8a'   // Default color for meshes without content
 };
-
 // Track initialization state
 let downloadButtonInitialized = false;
 let meshPanelInitialized = false;
@@ -353,14 +357,48 @@ export function createMeshVisibilityPanel() {
                 }
             });
             
+            // Create mesh info icon
+            const meshInfoIcon = document.createElement('span');
+            meshInfoIcon.className = 'mesh-info-icon';
+            meshInfoIcon.title = 'View mesh details';
+            meshInfoIcon.dataset.meshIndex = meshIndex;
+            meshInfoIcon.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14">
+                    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <line x1="12" y1="16" x2="12" y2="12" stroke="currentColor" stroke-width="2"/>
+                    <circle cx="12" cy="8" r="1" fill="currentColor"/>
+                </svg>
+            `;
+            meshInfoIcon.style.color = '#6c757d';
+            meshInfoIcon.style.cursor = 'pointer';
+            meshInfoIcon.style.marginLeft = '8px';
+            
+            // Add event listener to show mesh info panel
+            meshInfoIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                console.log('Mesh info icon clicked for mesh index:', meshIndex);
+                
+                // TODO: Open mesh info panel
+                // This will be implemented in the next step
+                alert(`Mesh info for "${getMeshDisplayName(mesh)}" (Index: ${meshIndex})`);
+            });
+            
+            // Create icons container
+            const iconsContainer = document.createElement('div');
+            iconsContainer.className = 'mesh-item-icons';
+            
+            // Add the HTML editor icon if the mesh name contains "display"
+            if (mesh.name && mesh.name.toLowerCase().includes('display')) {
+                iconsContainer.appendChild(htmlEditorIcon);
+            }
+            
+            // Always add the info icon
+            iconsContainer.appendChild(meshInfoIcon);
+            
             // Assemble mesh item
             meshDiv.appendChild(meshToggle);
             meshDiv.appendChild(meshNameSpan);
-
-            // Only add the HTML editor icon if the mesh name contains "display"
-            if (mesh.name && mesh.name.toLowerCase().includes('display')) {
-                meshDiv.appendChild(htmlEditorIcon);
-            }
+            meshDiv.appendChild(iconsContainer);
             
             return meshDiv;
         });
@@ -685,4 +723,4 @@ export default {
     updateGroupToggleState,
     toggleMeshCodeIcon,
     forceUpdateMeshHtmlState
-}; 
+};

@@ -20,12 +20,8 @@ let infoPanelPosition = { x: 10, y: 10 }; // Default position in top-left corner
 export function createMeshInfoPanel(container, meshId) {
     // Remove any existing info panel
     if (infoPanel) {
-        try {
-            if (infoPanel.parentNode) {
-                infoPanel.parentNode.removeChild(infoPanel);
-            }
-        } catch (e) {
-            console.log('Error removing existing info panel:', e);
+        if (infoPanel.parentNode) {
+            infoPanel.parentNode.removeChild(infoPanel);
         }
         infoPanel = null;
     }
@@ -35,7 +31,6 @@ export function createMeshInfoPanel(container, meshId) {
     const mesh = state.meshes ? state.meshes[meshId] : null;
     
     if (!mesh) {
-        console.warn(`No mesh data found for mesh ID ${meshId}`);
         return;
     }
     
@@ -104,6 +99,29 @@ export function createMeshInfoPanel(container, meshId) {
     // Basic mesh info
     info.push(`<strong>Name:</strong> ${mesh.name || 'Unnamed'}`);
     info.push(`<strong>ID:</strong> ${meshId}`);
+    
+    // Calculate dimensions from bounding box
+    let dimensions = null;
+    if (mesh.geometry) {
+        // Compute bounding box if not already computed
+        if (!mesh.geometry.boundingBox) {
+            mesh.geometry.computeBoundingBox();
+        }
+        
+        if (mesh.geometry.boundingBox) {
+            const box = mesh.geometry.boundingBox;
+            const width = box.max.x - box.min.x;
+            const height = box.max.y - box.min.y;
+            const depth = box.max.z - box.min.z;
+            
+            dimensions = { width, height, depth };
+            
+            info.push('<strong>Dimensions:</strong>');
+            info.push(`• Width (X): ${width.toFixed(2)}`);
+            info.push(`• Height (Y): ${height.toFixed(2)}`);
+            info.push(`• Depth (Z): ${depth.toFixed(2)}`);
+        }
+    }
     
     // Geometry details
     if (mesh.geometry) {

@@ -1,5 +1,5 @@
 import { showStatus } from "../../../modals/html-editor-modal/html-editor-modal";
-import { createMeshInfoPanel } from "../../ui/mesh-preview-panel";
+import { createMeshInfoPanel } from "../../ui/mesh-info-panel";
 import { updateMeshTexture } from "../playback/animation-playback-controller";
 import { 
     animationCaptureStartTime,
