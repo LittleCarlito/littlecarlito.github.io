@@ -4,10 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Asset Debugger - Blorktools</title>
-    <link rel="stylesheet" href="styles.css">
+    <!-- Refactor to main.css stylesheet usage -->
+    <link rel="stylesheet" href="common.css">
+    <link rel="stylesheet" href="loading-splash/loading-splash.css">
+    <link rel="stylesheet" href="header/header.css">
+    <link rel="stylesheet" href="landing-page/landing-page.css">
+    <link rel="stylesheet" href="debugger-scene/debugger-scene.css">
+    <link rel="stylesheet" href="axis-indicator/axis-indicator.css">
     <link rel="stylesheet" href="panels/world-panel/world-panel.css">
     <link rel="stylesheet" href="panels/asset-panel/asset-panel.css">
-    <link rel="stylesheet" href="loading-splash/loading-splash.css">
+    <link rel="stylesheet" href="panels/atlas-panel/atlas-panel.css">
+    <link rel="stylesheet" href="panels/rig-panel/rig-panel.css">
+    <link rel="stylesheet" href="panels/uv-panel/uv-panel.css">
+    <link rel="stylesheet" href="modals/settings-modal/settings-modal.css">
+    <link rel="stylesheet" href="modals/examples-modal/examples-modal.css">
 </head>
 <body>
 
@@ -33,7 +43,7 @@
         </div>
     </div>
 
-    <!-- Header container - will be populated by the header-loader.js script -->
+    <!-- Header container - will be populated by the header.js script -->
     <div id="header-container"></div>
 
     <div id="app">
@@ -45,7 +55,7 @@
 
     <!-- Load the header component -->
     <script type="module">
-        import { loadHeader } from './header/header-loader.js';
+        import { loadHeader } from './header/header.js';
         
         // Load the header when the DOM is ready
         document.addEventListener('DOMContentLoaded', () => {

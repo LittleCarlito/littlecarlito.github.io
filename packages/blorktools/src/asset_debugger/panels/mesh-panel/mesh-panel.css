@@ -58,13 +58,20 @@
     font-size: 0.85em;
 }
 
+.mesh-item:hover {
+    background-color: rgba(30, 30, 30, 0.8);
+}
+
 .mesh-name {
-    margin-left: 6px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 170px;
-    flex-grow: 1;
+   margin-left: 6px;
+   margin-right: 10px;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   max-width: 170px;
+   flex-grow: 1;
+   color: var(--text-color);
+   font-size: 14px;
 }
 
 /* HTML Editor Icon */
@@ -109,6 +116,11 @@
     display: flex;
     align-items: center;
     gap: 4px;
+}
+
+.mesh-toggle {
+    margin-right: 8px;
+    cursor: pointer;
 }
 
 /* No Sample Message */

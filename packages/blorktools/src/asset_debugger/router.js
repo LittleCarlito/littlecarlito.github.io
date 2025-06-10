@@ -220,7 +220,7 @@ class Router {
         const headerContainer = document.getElementById('header-container');
         if (headerContainer && headerContainer.innerHTML.trim() === '') {
             try {
-                const { loadHeader } = await import('./header/header-loader.js');
+                const { loadHeader } = await import('./header/header.js');
                 await loadHeader('header-container');
                 console.log('Header loaded by router');
             } catch (error) {

@@ -1,0 +1,103 @@
+.settings-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--panel-border);
+    margin-bottom: 15px;
+}
+
+.settings-tab-button {
+    background: transparent;
+    border: none;
+    color: var(--text-color);
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 14px;
+    border-bottom: 2px solid transparent;
+    outline: none;
+    transition: all 0.2s ease;
+    font-family: monospace;
+}
+
+.settings-tab-button.active {
+    color: var(--button-color);
+    border-bottom: 2px solid var(--button-color);
+    background-color: rgba(30, 136, 229, 0.1);
+}
+
+.settings-row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.settings-checkbox {
+    margin-left: 10px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--button-color);
+    flex: 0 0 18px;
+}
+
+.settings-color-picker {
+    margin-left: 10px;
+    width: 40px;
+    height: 25px;
+    padding: 0;
+    border: 1px solid var(--panel-border);
+    cursor: pointer;
+    background-color: transparent;
+    flex: 0 0 40px;
+}
+
+.reset-button {
+    background-color: var(--button-color);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s;
+    font-family: monospace;
+}
+
+.reset-button:hover {
+    background-color: #0d74c7;
+}
+
+.text-center {
+    text-align: center;
+    justify-content: center;
+}
+
+.text-center button {
+    width: 50%;
+}
+
+.settings-subheading {
+    font-size: 14px;
+    margin: 0 0 10px 0;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--panel-border);
+    width: 100%;
+    color: var(--primary-color);
+}
+
+/* Shared settings Tab Styles */
+.settings-tab-content {
+    display: none;
+}
+
+.settings-tab-content.active {
+    display: block;
+}
+
+.settings-option.full-width {
+    flex: 0 0 100%;
+    justify-content: flex-start;
+}
+
+.settings-option.full-width label {
+    width: 120px;
+}

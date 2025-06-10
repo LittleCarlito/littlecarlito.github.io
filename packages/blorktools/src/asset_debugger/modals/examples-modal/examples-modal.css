@@ -1,0 +1,41 @@
+/* Example Modal Styles */
+#load-example-modal .modal-container {
+    background-color: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text-color);
+    font-family: monospace;
+}
+
+#load-example-modal .modal-header {
+    border-bottom: 1px solid var(--panel-border);
+}
+
+#load-example-modal .modal-title {
+    color: var(--primary-color);
+}
+
+#load-example-modal .modal-close {
+    color: var(--text-color);
+}
+
+#rig-example-button {
+    background-color: var(--button-color);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-family: monospace;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 80%;
+    margin: 0 auto;
+    display: block;
+}
+
+#rig-example-button:hover {
+    background-color: #0d74c7;
+}
+
+#rig-example-button:active {
+    transform: scale(0.98);
+}

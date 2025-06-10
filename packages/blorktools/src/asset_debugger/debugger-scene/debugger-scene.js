@@ -8,7 +8,6 @@ import { initWorldPanel } from '../panels/world-panel/world-panel.js';
 import { getState, printStateReport, hasFiles } from '../util/state/scene-state.js';
 import { initUiManager } from '../util/ui/ui-manager.js';
 import { hideLoadingSplash, showLoadingSplash, updateLoadingProgress } from '../loading-splash/loading-splash.js';
-import { setupDropzones } from '../util/upload/file-upload-manager.js';
 import { terminateAllWorkers } from '../util/workers/worker-manager.js';
 import * as sceneController from '../util/scene/threejs-scene-controller.js';
 import * as cameraController from '../util/scene/camera-controller.js';

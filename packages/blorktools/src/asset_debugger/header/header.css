@@ -1,0 +1,73 @@
+/* Title area with debug controls */
+.title-area {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* Ensure right-side buttons are properly aligned */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-right: 0; /* Remove any potential margin */
+}
+
+/* Debug controls in the header */
+.debug-controls {
+    display: none; /* Hidden by default, shown when debugging starts */
+    align-items: center;
+    gap: 10px;
+}
+
+/* Style for the settings button in the header */
+.settings-button {
+    width: 40px;
+    height: 40px;
+    background-color: var(--secondary-color);
+    border: 1px solid var(--button-color);
+    color: var(--button-color);
+    cursor: pointer;
+    padding: 0;
+    margin-left: 10px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.settings-button svg path {
+    fill: var(--button-color);
+}
+
+.settings-button:hover {
+    background-color: rgba(30, 136, 229, 0.2);
+}
+
+/* Pin button styles */
+.pin-button {
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pin-button svg {
+    transform: rotate(-90deg); /* Default state - horizontal */
+    transition: transform 0.3s ease, fill 0.3s ease;
+}
+
+.pin-button.pinned svg {
+    transform: rotate(0deg); /* Pinned state - vertical */
+}
+
+.pin-button.pinned svg path {
+    fill: var(--button-color);
+}
+
+.pin-button:not(.pinned) svg path {
+    fill: none;
+    stroke: var(--button-color);
+    stroke-width: 1.5px;
+}

@@ -254,7 +254,7 @@ export function createModelPreview(modelFile) {
             
             // Show error message
             const errorMsg = document.createElement('div');
-            errorMsg.className = 'no-image-message visible';
+            errorMsg.className = 'no-image-message-container visible';
             errorMsg.textContent = 'Error loading model. Please try another file.';
             previewContainer.appendChild(errorMsg);
         }

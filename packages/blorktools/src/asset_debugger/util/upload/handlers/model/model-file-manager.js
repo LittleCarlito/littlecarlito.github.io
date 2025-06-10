@@ -97,7 +97,7 @@ export function handleModelUpload(file, infoElement, dropzone) {
             
             // Show error message in preview
             const errorMsg = document.createElement('div');
-            errorMsg.className = 'no-image-message visible';
+            errorMsg.className = 'no-image-message-container visible';
             errorMsg.textContent = 'Error loading model. Please try another file.';
             previewDiv.appendChild(errorMsg);
         });

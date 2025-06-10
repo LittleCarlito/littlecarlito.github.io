@@ -73,7 +73,7 @@ export function handleBackgroundUpload(file, infoElement, previewElement, dropzo
     
     // Create a message element for errors/status
     const messageDiv = document.createElement('div');
-    messageDiv.className = 'no-image-message hidden';
+    messageDiv.className = 'no-image-message-container hidden';
     
     // Add elements to the container
     containerDiv.appendChild(canvas);
