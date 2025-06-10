@@ -1,12 +1,5 @@
-/**
- * Model Integration for HTML Editor
- * 
- * This module integrates the HTML editor with model loading
- * to support storing and retrieving HTML content in GLB files.
- */
-
-import { getState, updateState } from '../../util/state/scene-state.js';
-import { processGLBFile } from '../../util/upload/handlers/model/glb-file-handler.js';
+import { getState, updateState } from '../state/scene-state.js';
+import { processGLBFile } from '../upload/handlers/model/glb-file-handler.js';
 
 // Current GLB buffer storage
 let currentGlbBuffer = null;

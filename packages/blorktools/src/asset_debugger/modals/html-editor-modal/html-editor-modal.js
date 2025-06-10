@@ -17,16 +17,16 @@ import {
     formatHtml as externalFormatHtml, 
     initHtmlFormatter,
     hasExternalFormatter 
-} from './html-formatter.js';
+} from '../../util/data/html-formatter.js';
 import {
     initHtmlLinter,
     lintHtmlContent
-} from './html-linter.js';
+} from '../../util/data/html-linter.js';
 import { 
     getCurrentGlbBuffer, 
     updateGlbFile,
     onGlbBufferUpdate
-} from './model-integration';
+} from '../../util/scene/glb-state-manager';
 import { 
     MESH_BINARY_EXTENSION, 
     MESH_INDEX_PROPERTY, 

@@ -31,7 +31,7 @@ export function loadAndSetupModel(loadingIndicator) {
             try {
                 Promise.all([
                     import('../data/mesh-html-manager.js'),
-                    import('../../modals/html-editor-modal/model-integration.js')
+                    import('./glb-state-manager.js')
                 ]).then(([meshDataUtil, modelIntegration]) => {
                     let bufferPromises = [];
                     
@@ -357,7 +357,7 @@ function prepareGlbBuffer() {
     if (state.useCustomModel && state.modelFile) {
         return Promise.all([
             import('../data/mesh-html-manager.js'),
-            import('../../modals/html-editor-modal/model-integration.js')
+            import('./glb-state-manager.js')
         ]).then(([meshDataUtil, modelIntegration]) => {
             if (modelIntegration.processModelFileForHtmlEditor) {
                 return modelIntegration.processModelFileForHtmlEditor(state.modelFile)
