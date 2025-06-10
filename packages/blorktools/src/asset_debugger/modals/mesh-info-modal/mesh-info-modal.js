@@ -9,18 +9,11 @@ import * as THREE from 'three';
 import { getState } from '../../util/state/scene-state.js';
 import { getHtmlSettingsForMesh } from '../../util/data/mesh-html-manager.js';
 
-// Flag to track if event listeners have been initialized
 let listenersInitialized = false;
 
-/**
- * Open the Mesh Info Modal for a specific mesh
- * @param {string} meshName - The name of the mesh
- * @param {number} meshId - The ID/index of the mesh
- */
 export async function openMeshInfoModal(meshName, meshId) {
     console.log(`openMeshInfoModal called for mesh: ${meshName} (ID: ${meshId})`);
     
-    // Log current DOM state
     const container = document.getElementById('mesh-info-modal-container');
     const modal = document.getElementById('mesh-info-modal');
     
@@ -49,19 +42,41 @@ export async function openMeshInfoModal(meshName, meshId) {
             contentEl: !!contentEl
         });
         
-        // Set mesh name in the modal title
         if (meshNameEl) meshNameEl.textContent = meshName;
         
-        // Store the mesh ID in the modal's dataset
         modal.dataset.meshId = meshId;
         
-        // Generate and display mesh info content
         const infoContent = generateMeshInfoContent(meshId);
         if (contentEl) contentEl.innerHTML = infoContent;
         
-        // Show the modal by adding the visible class
         modal.classList.add('visible');
         console.log('Mesh Info Modal opened successfully');
+        
+        try {
+            const htmlSettings = await getHtmlSettingsForMesh(meshId);
+            const placeholder = document.getElementById(`html-settings-placeholder-${meshId}`);
+            if (placeholder) {
+                let htmlSettingsContent = '';
+                if (htmlSettings && Object.keys(htmlSettings).length > 0) {
+                    htmlSettingsContent = `
+                        <div class="info-row"><span class="info-label">Render Mode:</span> <span class="info-value">${htmlSettings.previewMode || 'threejs'}</span></div>
+                        <div class="info-row"><span class="info-label">Playback Speed:</span> <span class="info-value">${htmlSettings.playbackSpeed || '1.0'}</span></div>
+                        <div class="info-row"><span class="info-label">Animation:</span> <span class="info-value">${htmlSettings.animation?.type || 'none'}</span></div>
+                        <div class="info-row"><span class="info-label">Show Borders:</span> <span class="info-value">${htmlSettings.display?.showBorders !== false ? 'Yes' : 'No'}</span></div>
+                        <div class="info-row"><span class="info-label">Display on Mesh:</span> <span class="info-value">${htmlSettings.display?.displayOnMesh === true ? 'Yes' : 'No'}</span></div>
+                    `;
+                } else {
+                    htmlSettingsContent = '<div class="info-row">No HTML settings configured</div>';
+                }
+                placeholder.innerHTML = htmlSettingsContent;
+            }
+        } catch (error) {
+            console.error('Error loading HTML settings:', error);
+            const placeholder = document.getElementById(`html-settings-placeholder-${meshId}`);
+            if (placeholder) {
+                placeholder.innerHTML = '<div class="info-row">Error loading HTML settings</div>';
+            }
+        }
         
     } catch (error) {
         console.error('Error opening Mesh Info Modal:', error);
@@ -69,13 +84,7 @@ export async function openMeshInfoModal(meshName, meshId) {
     }
 }
 
-/**
- * Generate HTML content for mesh information
- * @param {number} meshId - The ID of the mesh
- * @returns {string} HTML content for the mesh info
- */
 function generateMeshInfoContent(meshId) {
-    // Get mesh data from state
     const state = getState();
     const mesh = state.meshes ? state.meshes[meshId] : null;
     
@@ -85,7 +94,6 @@ function generateMeshInfoContent(meshId) {
     
     const sections = [];
     
-    // Basic mesh info section
     sections.push(`
         <div class="info-section">
             <strong>Basic Information</strong>
@@ -95,10 +103,8 @@ function generateMeshInfoContent(meshId) {
         </div>
     `);
     
-    // Dimensions section
     let dimensionsContent = '';
     if (mesh.geometry) {
-        // Compute bounding box if not already computed
         if (!mesh.geometry.boundingBox) {
             mesh.geometry.computeBoundingBox();
         }
@@ -128,7 +134,6 @@ function generateMeshInfoContent(meshId) {
         </div>
     `);
     
-    // Geometry section
     let geometryContent = '';
     if (mesh.geometry) {
         const vertexCount = mesh.geometry.attributes && mesh.geometry.attributes.position ? 
@@ -159,7 +164,6 @@ function generateMeshInfoContent(meshId) {
         </div>
     `);
     
-    // Material section
     let materialContent = '';
     if (mesh.material) {
         const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
@@ -176,7 +180,6 @@ function generateMeshInfoContent(meshId) {
             materialContent += `<div class="info-row"><span class="info-label">Double Sided:</span> <span class="info-value">${material.side === THREE.DoubleSide ? 'Yes' : 'No'}</span></div>`;
             materialContent += `<div class="info-row"><span class="info-label">Transparent:</span> <span class="info-value">${material.transparent ? 'Yes' : 'No'}</span></div>`;
             
-            // Color if available
             if (material.color) {
                 const colorHex = '#' + material.color.getHexString();
                 materialContent += `<div class="info-row"><span class="info-label">Color:</span> <span class="color-swatch" style="background-color:${colorHex}"></span><span class="info-value">${colorHex}</span></div>`;
@@ -195,7 +198,6 @@ function generateMeshInfoContent(meshId) {
         </div>
     `);
     
-    // Transform section
     const transformContent = `
         <div class="info-row">
             <span class="info-label">Position:</span> 
@@ -224,30 +226,15 @@ function generateMeshInfoContent(meshId) {
         </div>
     `);
     
-    // HTML Settings section
-    const htmlSettings = getHtmlSettingsForMesh(meshId);
-    let htmlSettingsContent = '';
-    if (htmlSettings) {
-        htmlSettingsContent = `
-            <div class="html-settings-info">
-                <div class="info-row"><span class="info-label">Render Mode:</span> <span class="info-value">${htmlSettings.previewMode || 'threejs'}</span></div>
-                <div class="info-row"><span class="info-label">Playback Speed:</span> <span class="info-value">${htmlSettings.playbackSpeed || '1.0'}</span></div>
-                <div class="info-row"><span class="info-label">Animation:</span> <span class="info-value">${htmlSettings.animation?.type || 'play'}</span></div>
-                <div class="info-row"><span class="info-label">Show Borders:</span> <span class="info-value">${htmlSettings.display?.showBorders !== false ? 'Yes' : 'No'}</span></div>
-            </div>
-        `;
-    } else {
-        htmlSettingsContent = '<div class="info-row">No HTML settings configured</div>';
-    }
-    
     sections.push(`
         <div class="info-section">
             <strong>HTML Settings</strong>
-            ${htmlSettingsContent}
+            <div id="html-settings-placeholder-${meshId}" class="html-settings-info">
+                <div class="info-row">Loading...</div>
+            </div>
         </div>
     `);
     
-    // Custom data section
     let customDataContent = '';
     if (mesh.userData && Object.keys(mesh.userData).length > 0) {
         const userDataKeys = Object.keys(mesh.userData).filter(key => key !== 'htmlSettings');
@@ -275,18 +262,13 @@ function generateMeshInfoContent(meshId) {
     return sections.join('');
 }
 
-/**
- * Initialize the Mesh Info Modal
- */
 export function initMeshInfoModal() {
     console.log('Initializing Mesh Info Modal');
     
-    // Get modal elements
     const modal = document.getElementById('mesh-info-modal');
     const closeBtn = document.getElementById('mesh-info-close');
     const okBtn = document.getElementById('mesh-info-ok');
     
-    // Make the modal available globally
     window.openMeshInfoModal = openMeshInfoModal;
     console.log('Registered global function: window.openMeshInfoModal =', 
                 typeof window.openMeshInfoModal === 'function' ? 'Function successfully registered' : 'Failed to register function');
@@ -296,41 +278,30 @@ export function initMeshInfoModal() {
         return;
     }
 
-    // Only register event listeners once
     if (listenersInitialized) {
         console.log('Mesh Info Modal event listeners already initialized, skipping');
         return;
     }
 
-    // Close modal events
     closeBtn.addEventListener('click', closeModal);
     okBtn.addEventListener('click', closeModal);
     
-    // Close modal when clicking outside (on the overlay)
     modal.addEventListener('click', function(e) {
-        // Check if the click was directly on the modal (overlay) and not on its children
         if (e.target === modal) {
             closeModal();
         }
     });
     
-    // Set flag to indicate listeners have been initialized
     listenersInitialized = true;
     console.log('Mesh Info Modal event listeners initialized successfully');
 }
 
-/**
- * Close the Mesh Info Modal
- */
 function closeModal() {
     const modal = document.getElementById('mesh-info-modal');
     modal.classList.remove('visible');
     console.log('Mesh Info Modal closed');
 }
 
-/**
- * Reset initialization state - called during SPA cleanup
- */
 export function resetInitialization() {
     listenersInitialized = false;
     console.log('Mesh Info Modal initialization flag reset');
