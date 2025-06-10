@@ -638,7 +638,28 @@ export function initHtmlEditorModal() {
     
     // Apply button
     applyBtn.addEventListener('click', async () => {
-        console.debug("BAZINGA; There isn't anything tied to this yet");
+        const modal = document.getElementById('html-editor-modal');
+        const textarea = document.getElementById('html-editor-textarea');
+        const meshId = parseInt(modal.dataset.meshId);
+        // Validate mesh ID
+        if (isNaN(meshId)) {
+            showStatus('Error: No mesh ID found', 'error');
+            return;
+        }
+        const htmlContent = textarea.value;
+        try {
+            showStatus('Saving HTML content and settings...', 'info');
+            // Save both HTML content and current form settings to GLB
+            await saveHtmlForMesh(meshId, htmlContent);
+            // Update UI to reflect changes
+            updateHtmlIcons();
+            showStatus('HTML content and settings saved successfully!', 'success');
+            // Close modal after successful save
+            closeModal();
+        } catch (error) {
+            console.error('Error saving HTML content:', error);
+            showStatus(`Error saving: ${error.message}`, 'error');
+        }
     });
     
     // Make textarea tab-friendly

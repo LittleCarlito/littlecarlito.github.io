@@ -1,3 +1,5 @@
+import { BINARY_DATA_PROPERTY, MESH_BINARY_EXTENSION, MESH_INDEX_PROPERTY } from "../state/glb-preview-state";
+
 /**
  * Associate binary buffer data with a mesh index in a GLB file
  * @param {ArrayBuffer} glbArrayBuffer - The GLB file as an ArrayBuffer
