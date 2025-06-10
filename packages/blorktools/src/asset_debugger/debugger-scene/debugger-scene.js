@@ -123,100 +123,91 @@ function resetThreeJSState() {
 }
 
 function cleanupDebuggerScene() {
-    isPageUnloading = true;
-    
-    // Reset HTML editor initialization flag
-    if (htmlEditorModule.resetInitialization) {
-        htmlEditorModule.resetInitialization();
-    }
-    
-    // Hide UI elements immediately
-    const debugControls = document.querySelector('.debug-controls');
-    if (debugControls) {
-        debugControls.style.display = 'none';
-    }
-    
-    // Force terminate any active workers
-    terminateAllWorkers();
-    
-    // Schedule non-critical cleanup asynchronously
-    setTimeout(() => {
-        // Clean up World Panel event listeners
-        if (worldPanel.cleanupWorldPanel) {
-            worldPanel.cleanupWorldPanel();
-        }
-        
-        // Clear all file state
-        if (stateModule.clearAllFiles) {
-            stateModule.clearAllFiles(true);
-        }
-        
-        const state = stateModule.getState();
-        
-        // Stop animation loop
-        if (state.animating && sceneController.stopAnimation) {
-            sceneController.stopAnimation();
-        }
-        
-        // Dispose ThreeJS resources
-        if (state.renderer) {
-            state.renderer.dispose();
-            stateModule.updateState('renderer', null);
-        }
-        
-        // Dispose of controls
-        if (state.controls) {
-            if (cameraController.disposeControls) {
-                cameraController.disposeControls();
-            }
-            state.controls.dispose();
-            stateModule.updateState('controls', null);
-        }
-        
-        // Clean up scene
-        if (state.scene) {
-            while(state.scene.children && state.scene.children.length > 0) {
-                const obj = state.scene.children[0];
-                if (obj.geometry) obj.geometry.dispose();
-                if (obj.material) {
-                    if (Array.isArray(obj.material)) {
-                        obj.material.forEach(mat => mat.dispose());
-                    } else {
-                        obj.material.dispose();
-                    }
-                }
-                state.scene.remove(obj);
-            }
-            stateModule.updateState('scene', null);
-        }
-        
-        // Clean up canvas elements
-        const canvasElements = document.querySelectorAll('canvas[data-animation-id]');
-        canvasElements.forEach(canvas => {
-            if (typeof canvas.cleanup === 'function') {
-                canvas.cleanup();
-            }
-            
-            const animId = canvas.getAttribute('data-animation-id');
-            if (animId) {
-                cancelAnimationFrame(parseInt(animId, 10));
-            }
-        });
-        
-        // Reset UI state
-        const noneRadioBtn = document.querySelector('input[name="bg-option"][value="none"]');
-        if (noneRadioBtn) {
-            noneRadioBtn.checked = true;
-        }
-        
-        const bgPreviewCanvas = document.getElementById('bg-preview-canvas');
-        const hdrPreviewCanvas = document.getElementById('hdr-preview-canvas');
-        
-        if (bgPreviewCanvas) bgPreviewCanvas.style.opacity = '0.3';
-        if (hdrPreviewCanvas) hdrPreviewCanvas.style.opacity = '0.3';
-    }, 0);
-    
-    return null;
+   isPageUnloading = true;
+   
+   if (htmlEditorModule.resetInitialization) {
+       htmlEditorModule.resetInitialization();
+   }
+   
+   const debugControls = document.querySelector('.debug-controls');
+   if (debugControls) {
+       debugControls.style.display = 'none';
+   }
+   
+   terminateAllWorkers();
+   
+   setTimeout(() => {
+       if (worldPanel.cleanupWorldPanel) {
+           worldPanel.cleanupWorldPanel();
+       }
+       
+       if (stateModule.clearAllFiles) {
+           stateModule.clearAllFiles(true);
+       }
+       
+       const state = stateModule.getState();
+       
+       if (state.animating && sceneController.stopAnimation) {
+           sceneController.stopAnimation();
+       }
+       
+       if (state.renderer) {
+           state.renderer.dispose();
+           stateModule.updateState('renderer', null);
+       }
+       
+       const controls = state.controls;
+       if (controls) {
+           if (cameraController.disposeControls) {
+               cameraController.disposeControls();
+           }
+           if (controls.dispose) {
+               controls.dispose();
+           }
+           stateModule.updateState('controls', null);
+       }
+       
+       if (state.scene) {
+           while(state.scene.children && state.scene.children.length > 0) {
+               const obj = state.scene.children[0];
+               if (obj.geometry) obj.geometry.dispose();
+               if (obj.material) {
+                   if (Array.isArray(obj.material)) {
+                       obj.material.forEach(mat => mat.dispose());
+                   } else {
+                       obj.material.dispose();
+                   }
+               }
+               state.scene.remove(obj);
+           }
+           stateModule.updateState('scene', null);
+       }
+       
+       const canvasElements = document.querySelectorAll('canvas[data-animation-id]');
+       canvasElements.forEach(canvas => {
+           if (typeof canvas.cleanup === 'function') {
+               canvas.cleanup();
+           }
+           
+           const animId = canvas.getAttribute('data-animation-id');
+           if (animId) {
+               cancelAnimationFrame(parseInt(animId, 10));
+           }
+       });
+       
+       const noneRadioBtn = document.querySelector('input[name="bg-option"][value="none"]');
+       if (noneRadioBtn) {
+           noneRadioBtn.checked = true;
+       }
+       
+       const bgPreviewCanvas = document.getElementById('bg-preview-canvas');
+       const hdrPreviewCanvas = document.getElementById('hdr-preview-canvas');
+       
+       if (bgPreviewCanvas) bgPreviewCanvas.style.opacity = '0.3';
+       if (hdrPreviewCanvas) hdrPreviewCanvas.style.opacity = '0.3';
+   }, 0);
+   
+   return null;
 }
 
 function loadComponentHtml() {
