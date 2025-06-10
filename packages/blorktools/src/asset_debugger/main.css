@@ -10,4 +10,5 @@
 @import url('panels/rig-panel/rig-panel.css');
 @import url('panels/uv-panel/uv-panel.css');
 @import url('modals/settings-modal/settings-modal.css');
+@import url('modals/mesh-info-modal/mesh-info.modal.css');
 @import url('modals/examples-modal/examples-modal.css');

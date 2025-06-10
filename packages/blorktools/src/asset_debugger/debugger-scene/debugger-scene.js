@@ -19,6 +19,7 @@ import * as textureHandler from '../util/upload/handlers/texture-file-handler.js
 import * as worldPanel from '../panels/world-panel/world-panel.js';
 import * as assetPanel from '../panels/asset-panel/asset-panel.js';
 import * as htmlEditorModule from '../modals/html-editor-modal/html-editor-modal.js';
+import * as meshInfoModule from '../modals/mesh-info-modal/mesh-info-modal.js'
 import * as stateModule from '../util/state/scene-state.js';
 
 // Debug flags
@@ -30,6 +31,7 @@ const componentsLoaded = {
     assetPanel: false,
     settingsModal: false,
     htmlEditor: false,
+    meshInfo:false,
     scene: false
 };
 
@@ -282,11 +284,60 @@ function loadComponentHtml() {
             }
         });
 
+    const meshInfoPromise = fetch('./modals/mesh-info-modal/mesh-info-modal.html')
+        .then(response => {
+            console.log('Mesh info modal HTML fetch response:', response.status, response.ok);
+            return response.text();
+        })
+        .then(html => {
+            console.log('Mesh info modal HTML received, length:', html.length);
+            
+            const container = document.getElementById('mesh-info-modal-container');
+            console.log('Mesh info modal container found:', !!container);
+            
+            if (container) {
+                container.innerHTML = html;
+                console.log('Mesh info modal HTML inserted into container');
+                
+                const modalElement = document.getElementById('mesh-info-modal');
+                console.log('Mesh info modal element now exists:', !!modalElement);
+                
+                if (modalElement) {
+                    modalElement.style.display = 'none';
+                    console.log('Mesh info modal display set to none');
+                    
+                    if (meshInfoModule.resetInitialization) {
+                        meshInfoModule.resetInitialization();
+                        console.log('Mesh info modal initialization reset');
+                    }
+                    
+                    meshInfoModule.initMeshInfoModal();
+                    console.log('Mesh info modal initialized');
+                    
+                    componentsLoaded.meshInfo = true;
+                    console.log('Mesh info modal component marked as loaded');
+                } else {
+                    console.error('Mesh info modal element not found after HTML insertion');
+                    throw new Error('Mesh info modal element not found');
+                }
+            } else {
+                console.error('Mesh info modal container not found');
+                throw new Error('Mesh info modal container not found');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading mesh info modal:', error);
+            // Don't fail the entire promise chain
+            componentsLoaded.meshInfo = false;
+        });
+
     Promise.all([
         worldPanelPromise,
         assetPanelPromise,
+        settingsModalPromise,
         axisIndicatorPromise,
-        htmlEditorPromise
+        htmlEditorPromise,
+        meshInfoPromise
     ])
     .then(() => {
         resourcesLoaded.componentsLoaded = true;

@@ -7,6 +7,7 @@ import { getState, updateState } from '../../util/state/scene-state.js';
 import { getCurrentGlbBuffer, setCurrentGlbBuffer } from '../../util/scene/glb-state-manager.js';
 import { deserializeStringFromBinary, isValidHtml } from '../../util/data/string-serder.js';
 import { getBinaryBufferForMesh } from '../../util/data/glb-binary-buffer-handler.js';
+import { openMeshInfoModal } from '../../modals/mesh-info-modal/mesh-info-modal.js';
 
 // Load mesh panel CSS
 const link = document.createElement('link');
@@ -149,6 +150,7 @@ export function createMeshVisibilityPanel() {
     // Register utility functions globally
     window.removeMeshHtmlFlag = removeMeshHtmlFlag;
     window.updateHtmlIcons = updateHtmlIcons;
+    window.openMeshInfoModal = openMeshInfoModal;
     
     // Get the state to check for mesh data
     const state = getState();
@@ -377,10 +379,21 @@ export function createMeshVisibilityPanel() {
             meshInfoIcon.addEventListener('click', (e) => {
                 e.stopPropagation();
                 console.log('Mesh info icon clicked for mesh index:', meshIndex);
-                
-                // TODO: Open mesh info panel
-                // This will be implemented in the next step
-                alert(`Mesh info for "${getMeshDisplayName(mesh)}" (Index: ${meshIndex})`);
+                try {
+                    const meshName = state.meshes[meshIndex].name || 'Unnamed mesh';
+                    console.log(`Opening mesh info modal for mesh: ${meshName} (index: ${meshIndex})`);
+                    // Check if the function exists before calling it
+                    if (typeof window.openMeshInfoModal === 'function') {
+                        // Call the mesh info modal
+                        window.openMeshInfoModal(meshName, meshIndex);
+                    } else {
+                        console.error('Mesh Info Modal function not found. Modal may not be initialized yet.');
+                        alert('Mesh Info Modal not ready. Please try again in a moment.');
+                    }
+                } catch (error) {
+                    console.error('Error opening mesh info modal:', error);
+                    alert('Error opening mesh info modal. See console for details.');
+                }
             });
             
             // Create icons container

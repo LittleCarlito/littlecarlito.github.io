@@ -131,73 +131,11 @@ class Router {
     // Extract content from HTML based on file type
     extractContent(html, url) {
         if (!html.includes('<!DOCTYPE html>')) {
-            console.log(`Content is not a full HTML document, returning as-is`);
             return html;
         }
 
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
-        
-        console.log(`Extracting content from ${url}`);
-        
-        // Special handling for landing page
-        if (url.includes('landing-page.html')) {
-            console.log('Processing landing page HTML');
-            return this.extractBodyContent(doc);
-        }
-        
-        // Special handling for asset debugger
-        if (url.includes('debugger-scene.html')) {
-            console.log('Processing debugger sceneHTML');
-            
-            // For debugger-scene.html, we need to extract the .container element
-            // AND the modal containers that are separate siblings
-            const container = doc.querySelector('.container');
-            const settingsModalContainer = doc.querySelector('#settings-modal-container');
-            const htmlEditorModalContainer = doc.querySelector('#html-editor-modal-container');
-            
-            // Count found elements for debugging
-            const foundElements = [
-                container ? 'container' : null,
-                settingsModalContainer ? 'settings-modal-container' : null,
-                htmlEditorModalContainer ? 'html-editor-modal-container' : null
-            ].filter(Boolean);
-            
-            console.log(`Found elements in debugger-scene.html: ${foundElements.join(', ')}`);
-            
-            if (container) {
-                // Create a wrapper for all our content
-                let content = container.outerHTML;
-                
-                // Add modal containers if they exist
-                if (settingsModalContainer) {
-                    content += settingsModalContainer.outerHTML;
-                } else {
-                    content += '<div id="settings-modal-container"></div>';
-                    console.log('Added missing settings-modal-container');
-                }
-                
-                if (htmlEditorModalContainer) {
-                    content += htmlEditorModalContainer.outerHTML;
-                } else {
-                    content += '<div id="html-editor-modal-container"></div>';
-                    console.log('Added missing html-editor-modal-container');
-                }
-                
-                return content;
-            }
-            
-            // Fallback to standard body content extraction
-            console.log('Container element not found, falling back to body extraction');
-            return this.extractBodyContent(doc);
-        }
-        
-        // For all other pages, fail explicitly if we don't know how to handle them
-        throw new Error(`Don't know how to extract content from ${url}. Add explicit handling for this file type.`);
-    }
-
-    // Helper to extract body content while removing unwanted elements
-    extractBodyContent(doc) {
         const body = doc.body.cloneNode(true);
         
         // Remove elements that shouldn't be duplicated
@@ -276,4 +214,3 @@ router
 
 // Make router globally available
 window.appRouter = router;
-
