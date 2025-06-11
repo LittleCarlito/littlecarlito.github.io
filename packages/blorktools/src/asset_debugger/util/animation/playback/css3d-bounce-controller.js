@@ -1,4 +1,4 @@
-import { classifyAnimation, classifyTransition } from "../../classifier/animation-classifier";
+import { classifyAnimation, classifyTransition } from "../../data/animation-classifier";
 import { 
     animationProperties,
     animationStack,

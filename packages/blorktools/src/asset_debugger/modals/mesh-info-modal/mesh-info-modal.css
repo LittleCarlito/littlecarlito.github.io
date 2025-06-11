@@ -110,3 +110,61 @@
     border-radius: 4px;
     margin: 5px 0;
 }
+
+/* Modal footer with debug button */
+.modal-footer {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+/* Debug button styling */
+.modal-btn-debug {
+    background-color: #ff6b35;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.modal-btn-debug:hover {
+    background-color: #e55a2b;
+    transform: translateY(-1px);
+}
+
+.modal-btn-debug:active {
+    transform: translateY(0);
+}
+
+.modal-btn-debug:disabled {
+    background-color: #666;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Debug button when active */
+.modal-btn-debug.debug-active {
+    background-color: #28a745;
+    animation: pulse-debug 2s ease-in-out infinite;
+}
+
+.modal-btn-debug.debug-active:hover {
+    background-color: #218838;
+}
+
+/* Pulse animation for active debug state */
+@keyframes pulse-debug {
+    0% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(40, 167, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+    }
+}

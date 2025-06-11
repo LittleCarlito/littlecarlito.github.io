@@ -24,7 +24,7 @@ import {
     setPreRenderingInProgress 
 } from "../../state/animation-state";
 import { logAnimationAnalysisReport } from "../../state/log-util";
-import { injectUnifiedAnimationDetectionScript } from "../../classifier/animation-classifier";
+import { injectUnifiedAnimationDetectionScript } from "../../data/animation-classifier";
 
 /**
  * Start pre-rendering for CSS3D content

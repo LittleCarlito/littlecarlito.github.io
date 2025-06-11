@@ -49,6 +49,9 @@ export async function openMeshInfoModal(meshName, meshId) {
         const infoContent = generateMeshInfoContent(meshId);
         if (contentEl) contentEl.innerHTML = infoContent;
         
+        // Update debug button state based on mesh
+        updateDebugButtonState(meshId);
+        
         modal.classList.add('visible');
         console.log('Mesh Info Modal opened successfully');
         
@@ -82,6 +85,159 @@ export async function openMeshInfoModal(meshName, meshId) {
         console.error('Error opening Mesh Info Modal:', error);
         alert('Failed to open Mesh Info Modal. See console for details.');
     }
+}
+
+function updateDebugButtonState(meshId) {
+    const debugBtn = document.getElementById('mesh-info-debug-texture');
+    if (!debugBtn) return;
+    
+    const state = getState();
+    const mesh = state.meshes ? state.meshes[meshId] : null;
+    
+    if (!mesh) {
+        debugBtn.textContent = 'Enable Debug Texture';
+        debugBtn.disabled = true;
+        return;
+    }
+    
+    debugBtn.disabled = false;
+    
+    // Check if mesh has debug texture applied
+    const hasDebugTexture = mesh.userData && mesh.userData.hasDebugTexture;
+    
+    if (hasDebugTexture) {
+        debugBtn.textContent = 'Disable Debug Texture';
+        debugBtn.classList.add('debug-active');
+    } else {
+        debugBtn.textContent = 'Enable Debug Texture';
+        debugBtn.classList.remove('debug-active');
+    }
+}
+
+function handleDebugTextureToggle() {
+    const modal = document.getElementById('mesh-info-modal');
+    const meshId = parseInt(modal.dataset.meshId);
+    
+    if (isNaN(meshId)) {
+        console.error('Invalid mesh ID');
+        return;
+    }
+    
+    const state = getState();
+    const mesh = state.meshes ? state.meshes[meshId] : null;
+    
+    if (!mesh) {
+        console.error(`Mesh not found at index ${meshId}`);
+        return;
+    }
+    
+    const hasDebugTexture = mesh.userData && mesh.userData.hasDebugTexture;
+    
+    if (hasDebugTexture) {
+        // Disable debug texture - restore original material
+        disableDebugTexture(meshId);
+    } else {
+        // Enable debug texture - apply bright colored texture
+        enableDebugTexture(meshId);
+    }
+    
+    // Update button state
+    updateDebugButtonState(meshId);
+}
+
+function enableDebugTexture(meshId) {
+    const state = getState();
+    const mesh = state.meshes ? state.meshes[meshId] : null;
+    
+    if (!mesh || !mesh.material) {
+        console.error('Cannot enable debug texture: mesh or material not found');
+        return;
+    }
+    
+    // Store original material if not already stored
+    if (!mesh.userData.originalMaterial) {
+        if (Array.isArray(mesh.material)) {
+            mesh.userData.originalMaterial = mesh.material.map(mat => mat.clone());
+        } else {
+            mesh.userData.originalMaterial = mesh.material.clone();
+        }
+    }
+    
+    // Create a bright debug texture
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ff0000'; // Bright red
+    ctx.fillRect(0, 0, 512, 512);
+    
+    // Add some visual pattern to make it obvious it's a debug texture
+    ctx.fillStyle = '#ffff00'; // Yellow stripes
+    for (let i = 0; i < 512; i += 64) {
+        ctx.fillRect(i, 0, 32, 512);
+    }
+    
+    const debugTexture = new THREE.CanvasTexture(canvas);
+    debugTexture.encoding = THREE.sRGBEncoding;
+    debugTexture.wrapS = THREE.RepeatWrapping;
+    debugTexture.wrapT = THREE.RepeatWrapping;
+    debugTexture.needsUpdate = true;
+    
+    // Apply debug texture to material(s)
+    if (Array.isArray(mesh.material)) {
+        mesh.material.forEach(material => {
+            material.map = debugTexture;
+            material.color = new THREE.Color(0xffffff);
+            material.needsUpdate = true;
+        });
+    } else {
+        mesh.material.map = debugTexture;
+        mesh.material.color = new THREE.Color(0xffffff);
+        mesh.material.needsUpdate = true;
+    }
+    
+    // Mark mesh as having debug texture
+    mesh.userData.hasDebugTexture = true;
+    
+    console.log(`Debug texture enabled for mesh ${meshId}`);
+}
+
+function disableDebugTexture(meshId) {
+    const state = getState();
+    const mesh = state.meshes ? state.meshes[meshId] : null;
+    
+    if (!mesh) {
+        console.error('Cannot disable debug texture: mesh not found');
+        return;
+    }
+    
+    // Restore original material if available
+    if (mesh.userData.originalMaterial) {
+        if (Array.isArray(mesh.userData.originalMaterial)) {
+            mesh.material = mesh.userData.originalMaterial.map(mat => mat.clone());
+        } else {
+            mesh.material = mesh.userData.originalMaterial.clone();
+        }
+    } else {
+        // Fallback: reset to basic material
+        if (Array.isArray(mesh.material)) {
+            mesh.material.forEach(material => {
+                material.map = null;
+                material.color = new THREE.Color(0xcccccc);
+                material.needsUpdate = true;
+            });
+        } else {
+            mesh.material.map = null;
+            mesh.material.color = new THREE.Color(0xcccccc);
+            mesh.material.needsUpdate = true;
+        }
+    }
+    
+    // Remove debug texture flag
+    mesh.userData.hasDebugTexture = false;
+    
+    console.log(`Debug texture disabled for mesh ${meshId}`);
 }
 
 function generateMeshInfoContent(meshId) {
@@ -268,6 +424,7 @@ export function initMeshInfoModal() {
     const modal = document.getElementById('mesh-info-modal');
     const closeBtn = document.getElementById('mesh-info-close');
     const okBtn = document.getElementById('mesh-info-ok');
+    const debugBtn = document.getElementById('mesh-info-debug-texture');
     
     window.openMeshInfoModal = openMeshInfoModal;
     console.log('Registered global function: window.openMeshInfoModal =', 
@@ -285,6 +442,10 @@ export function initMeshInfoModal() {
 
     closeBtn.addEventListener('click', closeModal);
     okBtn.addEventListener('click', closeModal);
+    
+    if (debugBtn) {
+        debugBtn.addEventListener('click', handleDebugTextureToggle);
+    }
     
     modal.addEventListener('click', function(e) {
         if (e.target === modal) {
