@@ -1,4 +1,3 @@
-// Import all dependencies at the top
 import * as THREE from 'three';
 import { loadSettings, saveSettings } from '../util/data/localstorage-manager.js';
 import { SettingsModal } from '../modals/settings-modal/settings-modal.js';
@@ -10,6 +9,7 @@ import { getState, printStateReport, hasFiles } from '../util/state/scene-state.
 import { initUiManager } from '../util/ui/ui-manager.js';
 import { hideLoadingSplash, showLoadingSplash, updateLoadingProgress } from '../loading-splash/loading-splash.js';
 import { terminateAllWorkers } from '../util/workers/worker-manager.js';
+import { CSS3DDebugController } from '../util/scene/css3d-debug-controller.js';
 import * as sceneController from '../util/scene/threejs-scene-controller.js';
 import * as cameraController from '../util/scene/camera-controller.js';
 import * as rigController from '../util/scene/rig/rig-controller.js';
@@ -22,155 +22,11 @@ import * as assetPanel from '../panels/asset-panel/asset-panel.js';
 import * as htmlEditorModule from '../modals/html-editor-modal/html-editor-modal.js';
 import * as meshInfoModule from '../modals/mesh-info-modal/mesh-info-modal.js'
 import * as stateModule from '../util/state/scene-state.js';
-import { CSS3DRenderer, CSS3DObject } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 
-// Debug flags
 const DEBUG_LIGHTING = false;
 
-// Debug CSS3D variables
-let debugCSS3DRenderer = null;
-let debugCSS3DScene = null;
-let debugCSS3DCamera = null;
-let debugCSS3DFrame = null;
-let debugAnimationId = null;
+let css3dDebugController = null;
 
-// Debug CSS3D HTML content
-const DEBUG_CSS3D_HTML = `<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            background: linear-gradient(45deg, #1a1a2e, #16213e);
-            font-family: 'Courier New', monospace;
-            color: #00ff88;
-            overflow: hidden;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-        .debug-container { text-align: center; position: relative; }
-        .debug-title {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            text-shadow: 0 0 10px #00ff88;
-            animation: pulse 2s ease-in-out infinite;
-        }
-        .debug-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 60px);
-            grid-gap: 10px;
-            margin: 20px 0;
-        }
-        .debug-cube {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(45deg, #00ff88, #00cc66);
-            border: 2px solid #ffffff;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 14px;
-            color: #000;
-            animation: rotate 3s linear infinite;
-            transform-origin: center;
-        }
-        .debug-cube:nth-child(1) { animation-delay: 0s; }
-        .debug-cube:nth-child(2) { animation-delay: 0.3s; }
-        .debug-cube:nth-child(3) { animation-delay: 0.6s; }
-        .debug-cube:nth-child(4) { animation-delay: 0.9s; }
-        .debug-cube:nth-child(5) { animation-delay: 1.2s; }
-        .debug-cube:nth-child(6) { animation-delay: 1.5s; }
-        .debug-cube:nth-child(7) { animation-delay: 1.8s; }
-        .debug-cube:nth-child(8) { animation-delay: 2.1s; }
-        .debug-cube:nth-child(9) { animation-delay: 2.4s; }
-        .debug-stats {
-            margin-top: 20px;
-            font-size: 12px;
-            opacity: 0.8;
-        }
-        .debug-counter {
-            display: inline-block;
-            min-width: 30px;
-            background: rgba(0, 255, 136, 0.2);
-            padding: 2px 6px;
-            border-radius: 4px;
-            animation: count 1s linear infinite;
-        }
-        .debug-wave {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 4px;
-            background: linear-gradient(90deg, #00ff88, #00cc66, #00ff88);
-            animation: wave 2s ease-in-out infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.7; transform: scale(1.05); }
-        }
-        @keyframes rotate {
-            0% { transform: rotate(0deg) scale(1); }
-            25% { transform: rotate(90deg) scale(1.1); }
-            50% { transform: rotate(180deg) scale(1); }
-            75% { transform: rotate(270deg) scale(0.9); }
-            100% { transform: rotate(360deg) scale(1); }
-        }
-        @keyframes count {
-            0% { background: rgba(0, 255, 136, 0.2); }
-            50% { background: rgba(0, 255, 136, 0.5); }
-            100% { background: rgba(0, 255, 136, 0.2); }
-        }
-        @keyframes wave {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-    </style>
-</head>
-<body>
-    <div class="debug-container">
-        <div class="debug-title">DEBUG CSS3D</div>
-        <div class="debug-grid">
-            <div class="debug-cube">1</div>
-            <div class="debug-cube">2</div>
-            <div class="debug-cube">3</div>
-            <div class="debug-cube">4</div>
-            <div class="debug-cube">5</div>
-            <div class="debug-cube">6</div>
-            <div class="debug-cube">7</div>
-            <div class="debug-cube">8</div>
-            <div class="debug-cube">9</div>
-        </div>
-        <div class="debug-stats">
-            FRAME: <span class="debug-counter" id="frameCounter">0</span> | 
-            TIME: <span class="debug-counter" id="timeCounter">00:00</span>
-        </div>
-        <div class="debug-wave"></div>
-    </div>
-    <script>
-        let frameCount = 0;
-        let startTime = Date.now();
-        function updateCounters() {
-            frameCount++;
-            const elapsed = Math.floor((Date.now() - startTime) / 1000);
-            const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
-            const seconds = (elapsed % 60).toString().padStart(2, '0');
-            document.getElementById('frameCounter').textContent = frameCount;
-            document.getElementById('timeCounter').textContent = \`\${minutes}:\${seconds}\`;
-        }
-        setInterval(updateCounters, 100);
-    </script>
-</body>
-</html>`;
-
-// Component loading state tracker
 const componentsLoaded = {
     worldPanel: false,
     assetPanel: false,
@@ -180,7 +36,6 @@ const componentsLoaded = {
     scene: false
 };
 
-// Resource loading state tracker
 const resourcesLoaded = {
     componentsLoaded: false,
     sceneInitialized: false,
@@ -190,94 +45,8 @@ const resourcesLoaded = {
     controlsReady: false
 };
 
-// Track if loading is complete
 let loadingComplete = false;
-
-// Flag to indicate that page is being unloaded
 let isPageUnloading = false;
-
-function initDebugCSS3DFrame() {
-    const viewport = document.getElementById('viewport');
-    if (!viewport) return;
-
-    try {
-        debugCSS3DScene = new THREE.Scene();
-        
-        debugCSS3DCamera = new THREE.PerspectiveCamera(50, 1, 1, 5000);
-        debugCSS3DCamera.position.set(0, 0, 500);
-
-        debugCSS3DRenderer = new CSS3DRenderer();
-        debugCSS3DRenderer.setSize(300, 200);
-        debugCSS3DRenderer.domElement.style.position = 'absolute';
-        debugCSS3DRenderer.domElement.style.top = '80px';
-        debugCSS3DRenderer.domElement.style.left = '20px';
-        debugCSS3DRenderer.domElement.style.zIndex = '3000';
-        debugCSS3DRenderer.domElement.style.border = '2px solid #00ff88';
-        debugCSS3DRenderer.domElement.style.borderRadius = '8px';
-        debugCSS3DRenderer.domElement.style.boxShadow = '0 0 20px rgba(0, 255, 136, 0.3)';
-        debugCSS3DRenderer.domElement.style.pointerEvents = 'none';
-
-        const iframe = document.createElement('iframe');
-        iframe.style.width = '300px';
-        iframe.style.height = '200px';
-        iframe.style.border = 'none';
-        iframe.style.borderRadius = '6px';
-        iframe.style.overflow = 'hidden';
-
-        debugCSS3DFrame = new CSS3DObject(iframe);
-        debugCSS3DFrame.position.set(0, 0, 0);
-        debugCSS3DScene.add(debugCSS3DFrame);
-
-        viewport.appendChild(debugCSS3DRenderer.domElement);
-
-        setTimeout(() => {
-            if (iframe.contentDocument) {
-                iframe.contentDocument.open();
-                iframe.contentDocument.write(DEBUG_CSS3D_HTML);
-                iframe.contentDocument.close();
-            }
-        }, 100);
-
-        animateDebugCSS3D();
-        console.log('Debug CSS3D frame initialized');
-    } catch (error) {
-        console.error('Error initializing debug CSS3D frame:', error);
-    }
-}
-
-function animateDebugCSS3D() {
-    if (!debugCSS3DRenderer || !debugCSS3DScene || !debugCSS3DCamera) {
-        return;
-    }
-
-    debugAnimationId = requestAnimationFrame(animateDebugCSS3D);
-
-    if (debugCSS3DFrame) {
-        debugCSS3DFrame.rotation.z += 0.001;
-    }
-
-    debugCSS3DRenderer.render(debugCSS3DScene, debugCSS3DCamera);
-}
-
-function cleanupDebugCSS3DFrame() {
-    if (debugAnimationId) {
-        cancelAnimationFrame(debugAnimationId);
-        debugAnimationId = null;
-    }
-
-    if (debugCSS3DRenderer && debugCSS3DRenderer.domElement) {
-        const parent = debugCSS3DRenderer.domElement.parentNode;
-        if (parent) {
-            parent.removeChild(debugCSS3DRenderer.domElement);
-        }
-        debugCSS3DRenderer = null;
-    }
-
-    debugCSS3DScene = null;
-    debugCSS3DCamera = null;
-    debugCSS3DFrame = null;
-    console.log('Debug CSS3D frame cleaned up');
-}
 
 export function setupDebuggerScene() {
     showLoadingSplash("Setting up debugging environment");
@@ -308,27 +77,33 @@ export function setupDebuggerScene() {
     return cleanupDebuggerScene;
 }
 
+function initDebugCSS3DFrame() {
+    const viewport = document.getElementById('viewport');
+    if (!viewport) {
+        return;
+    }
+
+    css3dDebugController = new CSS3DDebugController();
+    css3dDebugController.init(viewport);
+}
+
 function resetThreeJSState() {
     const state = stateModule.getState();
     
-    // Clear ThreeJS objects
     if (state.scene) {
         while(state.scene.children && state.scene.children.length > 0) { 
             state.scene.remove(state.scene.children[0]); 
         }
     }
     
-    // Dispose renderer
     if (state.renderer) {
         state.renderer.dispose();
     }
     
-    // Dispose controls
     if (state.controls) {
         state.controls.dispose();
     }
     
-    // Reset critical state values
     stateModule.updateState('scene', null);
     stateModule.updateState('camera', null);
     stateModule.updateState('renderer', null);
@@ -336,7 +111,6 @@ function resetThreeJSState() {
     stateModule.updateState('cube', null);
     stateModule.updateState('animating', false);
     
-    // Reset background option via DOM
     setTimeout(() => {
         const noneRadioBtn = document.querySelector('input[name="bg-option"][value="none"]');
         if (noneRadioBtn) {
@@ -353,7 +127,11 @@ function resetThreeJSState() {
 
 function cleanupDebuggerScene() {
    isPageUnloading = true;
-   cleanupDebugCSS3DFrame();
+   
+   if (css3dDebugController) {
+       css3dDebugController.cleanup();
+       css3dDebugController = null;
+   }
    
    if (htmlEditorModule.resetInitialization) {
        htmlEditorModule.resetInitialization();
@@ -548,7 +326,6 @@ function loadComponentHtml() {
         })
         .catch(error => {
             console.error('Error loading mesh info modal:', error);
-            // Don't fail the entire promise chain
             componentsLoaded.meshInfo = false;
         });
 
@@ -657,7 +434,6 @@ function processFilesFromState() {
         return true;
     };
 
-    // Process lighting first
     if (stateModule.hasLightingFile() && checkContinueProcessing()) {
         const lightingFile = stateModule.getLightingFile();
         promiseChain = promiseChain.then(() => {
@@ -701,7 +477,6 @@ function processFilesFromState() {
         checkAllResourcesLoaded();
     }
 
-    // Handle background file
     if (stateModule.hasBackgroundFile() && checkContinueProcessing()) {
         const backgroundFile = stateModule.getBackgroundFile();
         promiseChain = promiseChain.then(() => {
@@ -729,7 +504,6 @@ function processFilesFromState() {
         checkAllResourcesLoaded();
     }
 
-    // Handle model file
     if (stateModule.hasModelFile() && checkContinueProcessing()) {
         promiseChain = promiseChain.then(() => {
             return modelHandler.loadDebugModel();
@@ -747,7 +521,6 @@ function processFilesFromState() {
         checkAllResourcesLoaded();
     }
 
-    // Handle texture files
     if ((stateModule.hasBaseColorFile() || stateModule.hasOrmFile() || stateModule.hasNormalFile()) && checkContinueProcessing()) {
         promiseChain = promiseChain.then(() => {
             const promises = [];
@@ -766,7 +539,6 @@ function processFilesFromState() {
         });
     }
 
-    // Initialize UI panels after all resources are loaded
     promiseChain = promiseChain.then(() => {
         if (worldPanel.initWorldPanel) {
             worldPanel.initWorldPanel(false);
