@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getState, updateState } from '../state/scene-state.js';
-import { createMaterial } from '../asset/pbr-material-factory.js';
+import { createMaterial } from '../animation/render/pbr-material-factory.js';
 import { fitCameraToObject } from '../../util/scene/threejs-scene-controller.js';
 import { createMeshVisibilityPanel } from '../../panels/mesh-panel/mesh-panel.js';
 import { updateAtlasVisualization } from '../../panels/atlas-panel/atlas-panel.js';
@@ -31,7 +31,7 @@ export function loadAndSetupModel(loadingIndicator) {
             try {
                 Promise.all([
                     import('../data/mesh-html-manager.js'),
-                    import('../asset/glb-state-manager.js')
+                    import('../state/glb-state-manager.js')
                 ]).then(([meshDataUtil, modelIntegration]) => {
                     let bufferPromises = [];
                     
@@ -357,7 +357,7 @@ function prepareGlbBuffer() {
     if (state.useCustomModel && state.modelFile) {
         return Promise.all([
             import('../data/mesh-html-manager.js'),
-            import('../asset/glb-state-manager.js')
+            import('../state/glb-state-manager.js')
         ]).then(([meshDataUtil, modelIntegration]) => {
             if (modelIntegration.processModelFileForHtmlEditor) {
                 return modelIntegration.processModelFileForHtmlEditor(state.modelFile)
