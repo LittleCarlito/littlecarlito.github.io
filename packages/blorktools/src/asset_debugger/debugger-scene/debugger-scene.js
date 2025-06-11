@@ -2,7 +2,7 @@
 import { loadSettings, saveSettings } from '../util/data/localstorage-manager.js';
 import { SettingsModal } from '../modals/settings-modal/settings-modal.js';
 import { initAssetPanel } from '../panels/asset-panel/asset-panel.js';
-import { initModelIntegration } from '../util/scene/glb-state-manager.js';
+import { initModelIntegration } from '../util/asset/glb-state-manager.js';
 import { initHtmlEditorModal } from '../modals/html-editor-modal/html-editor-modal.js';
 import { initWorldPanel } from '../panels/world-panel/world-panel.js';
 import { getState, printStateReport, hasFiles } from '../util/state/scene-state.js';
@@ -11,10 +11,10 @@ import { hideLoadingSplash, showLoadingSplash, updateLoadingProgress } from '../
 import { terminateAllWorkers } from '../util/workers/worker-manager.js';
 import * as sceneController from '../util/scene/threejs-scene-controller.js';
 import * as cameraController from '../util/scene/camera-controller.js';
-import * as rigController from '../util/scene/rig/rig-controller.js';
+import * as rigController from '../util/asset/rig/rig-controller.js';
 import * as lightingManager from '../util/scene/lighting-manager.js';
 import * as backgroundManager from '../util/scene/background-manager.js';
-import * as modelHandler from '../util/scene/threejs-model-manager.js';
+import * as modelHandler from '../util/asset/threejs-model-manager.js';
 import * as textureHandler from '../util/upload/handlers/texture-file-handler.js';
 import * as worldPanel from '../panels/world-panel/world-panel.js';
 import * as assetPanel from '../panels/asset-panel/asset-panel.js';

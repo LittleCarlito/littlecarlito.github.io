@@ -1,6 +1,6 @@
 import { getState } from "../state/scene-state";
 import { deserializeStringFromBinary, serializeStringWithSettingsToBinary } from "./string-serder";
-import { getCurrentGlbBuffer, updateGlbFile } from "../scene/glb-state-manager";
+import { getCurrentGlbBuffer, updateGlbFile } from "../asset/glb-state-manager";
 import { defaultSettings, getSettingsFromForm } from "../../modals/html-editor-modal/html-editor-modal";
 import { associateBinaryBufferWithMesh, getBinaryBufferForMesh } from "./glb-binary-buffer-handler";
 

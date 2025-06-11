@@ -12,7 +12,7 @@ import { SettingsModal } from '../modals/settings-modal/settings-modal.js';
 // Import Asset Panel
 import { initAssetPanel } from '../panels/asset-panel/asset-panel.js';
 // Import Model Integration for HTML Editor
-import { initModelIntegration } from '../util/scene/glb-state-manager.js';
+import { initModelIntegration } from '../util/asset/glb-state-manager.js';
 import { initHtmlEditorModal } from '../modals/html-editor-modal/html-editor-modal.js';
 import { initWorldPanel } from '../panels/world-panel/world-panel.js';
 import { getState, printStateReport, hasFiles } from './state.js';

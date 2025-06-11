@@ -26,7 +26,7 @@ import {
     getCurrentGlbBuffer, 
     updateGlbFile,
     onGlbBufferUpdate
-} from '../../util/scene/glb-state-manager';
+} from '../../util/asset/glb-state-manager';
 import { 
     MESH_BINARY_EXTENSION, 
     MESH_INDEX_PROPERTY, 
