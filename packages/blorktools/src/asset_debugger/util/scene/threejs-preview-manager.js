@@ -18,7 +18,7 @@ import {
     resetThreeJsState, 
     setPendingTextureUpdate 
 } from "../state/threejs-state";
-import { previewAnimationId, resetLastAnimationFrameTime, resetPreviewAnimationId } from "../upload/animation-preview-controller";
+import { previewAnimationId, resetLastAnimationFrameTime, resetPreviewAnimationId } from "../animation/playback/animation-preview-controller"
 
 /**
  * Clean up Three.js preview resources using the generic cleanup utility

@@ -14,7 +14,7 @@ import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
 import { createMeshInfoPanel } from '../ui/mesh-info-panel';
 import { createTextureFromIframe } from '../animation/render/iframe2texture-render-controller';
 import { getState } from '../state/scene-state';
-import { animatePreview } from '../upload/animation-preview-controller';
+import { animatePreview } from '../animation/playback/animation-preview-controller';
 import { setIsPreviewActive } from '../state/animation-state';
 
 /**

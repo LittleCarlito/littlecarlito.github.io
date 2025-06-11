@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CustomTextureSettings, showStatus } from '../../modals/html-editor-modal/html-editor-modal';
+import { CustomTextureSettings, showStatus } from '../../../modals/html-editor-modal/html-editor-modal';
 import { 
     resetPreRenderState, 
     setIsPreviewActive,
@@ -7,21 +7,21 @@ import {
     resetPlaybackTimingState,
     isPreviewAnimationPaused,
     isPreviewActive
-} from '../state/animation-state';
-import { sanitizeHtml } from '../data/string-serder';
+} from '../../state/animation-state';
+import { sanitizeHtml } from '../../data/string-serder';
 import { 
     animationPreviewCamera, 
     animationPreviewRenderer, 
     animationPreviewScene, 
     previewPlane, 
     setPreviewRenderTarget 
-} from '../state/threejs-state';
-import { runAnimationFrame } from '../animation/playback/animation-playback-controller';
-import { setupCSS3DScene } from '../scene/css3d-scene-controller';
-import { startImage2TexturePreRendering } from '../animation/render/image2texture-prerender-controller';
-import { startCss3dPreRendering } from '../animation/render/css3d-prerender-controller';
-import { logError, logPreviewError } from '../state/log-util';
-import { cleanupThreeJsPreview, initThreeJsPreview } from '../scene/threejs-preview-manager';
+} from '../../state/threejs-state';
+import { runAnimationFrame } from '../../animation/playback/animation-playback-controller';
+import { setupCSS3DScene } from '../../scene/css3d-scene-controller';
+import { startImage2TexturePreRendering } from '../../animation/render/image2texture-prerender-controller';
+import { startCss3dPreRendering } from '../../animation/render/css3d-prerender-controller';
+import { logError, logPreviewError } from '../../state/log-util';
+import { cleanupThreeJsPreview, initThreeJsPreview } from '../../scene/threejs-preview-manager';
 
 let currentPreviewSettings = null;
 const targetFrameRate = 60;
