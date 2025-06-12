@@ -21,7 +21,7 @@ import {
     setPreRenderingInProgress, 
 } from "../../state/animation-state";
 import { showStatus } from '../../../modals/html-editor-modal/html-editor-modal';
-import { createMeshInfoPanel } from '../../../panels/mesh-info-panel';
+import { createMeshInfoPanel } from '../../../widgets/mesh-info-widget';
 import { logAnimationAnalysisReport } from '../../state/log-util';
 import { startPlayback, updateMeshTexture } from '../playback/animation-playback-controller';
 import { createTextureFromIframe } from './iframe2texture-render-controller';

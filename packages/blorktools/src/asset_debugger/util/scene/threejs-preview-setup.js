@@ -11,7 +11,7 @@ import {
     setPreviewRenderTarget
 } from "../state/threejs-state";
 import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
-import { createMeshInfoPanel } from '../../panels/mesh-info-panel';
+import { createMeshInfoPanel } from '../../widgets/mesh-info-widget';
 import { createTextureFromIframe } from '../animation/render/iframe2texture-render-controller';
 import { getState } from '../state/scene-state';
 import { animatePreview } from '../animation/playback/animation-preview-controller';

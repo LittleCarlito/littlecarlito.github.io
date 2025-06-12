@@ -1,4 +1,4 @@
-import { infoPanel, resetInfoPanel } from "../../panels/mesh-info-panel";
+import { infoPanel, resetInfoPanel } from "../../widgets/mesh-info-widget";
 import { logPreviewError } from "../state/log-util";
 import { cleanupCSS3D } from "./css3d-scene-controller";
 import { cleanupThreeJsScene, setupThreeJsScene } from "./threejs-preview-setup";
