@@ -15,18 +15,18 @@ import {
     printStateReport 
 } from "../util/state/scene-state.js";
 import { loadSettings } from "../util/data/localstorage-manager.js";
-import { setupDropzones } from "../util/upload/file-upload-manager.js";
 import { 
     handleAutoLoad, 
     loadLightingIntoDropzone, 
     loadModelIntoDropzone, 
     processZipContents 
-} from "../util/upload/zip-handler.js";
-import { handleBackgroundUpload } from "../util/upload/handlers/background-file-handler.js";
-import { handleModelUpload } from "../util/upload/handlers/model/model-file-manager.js";
-import { handleLightingUpload } from "../util/upload/handlers/lighting-file-handler.js";
-import { handleTextureUpload } from "../util/upload/handlers/texture-file-handler.js";
+} from "../util/data/upload/zip-handler.js";
+import { handleBackgroundUpload } from "../util/data/upload/handlers/background-file-handler.js";
+import { handleModelUpload } from "../util/data/upload/handlers/model/model-file-manager.js";
+import { handleLightingUpload } from "../util/data/upload/handlers/lighting-file-handler.js";
+import { handleTextureUpload } from "../util/data/upload/handlers/texture-file-handler.js";
 import { terminateAllWorkers } from "../util/workers/worker-manager.js";
+import { setupDropzones } from "../util/data/upload/file-upload-manager.js";
 
 // Module state
 let isInitialized = false;

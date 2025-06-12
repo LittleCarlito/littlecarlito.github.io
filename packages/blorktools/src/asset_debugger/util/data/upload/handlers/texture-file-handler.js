@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { getState, updateState } from "../../state/scene-state";
-import { processTextureFile } from "../../workers/worker-manager";
-import { hidePreviewLoading, showPreviewLoading } from '../../../loading-splash/preview-loading-splash';
+import { getState, updateState } from "../../../state/scene-state";
+import { processTextureFile } from "../../../workers/worker-manager";
+import { hidePreviewLoading, showPreviewLoading } from '../../../../loading-splash/preview-loading-splash';
 import { formatFileSize } from '../file-upload-manager';
-import { createClearButton } from '../../../landing-page/landing-page';
+import { createClearButton } from '../../../../landing-page/landing-page';
 
 /**
  * Handle texture file upload

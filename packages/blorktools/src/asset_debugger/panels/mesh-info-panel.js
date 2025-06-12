@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { getState } from "../state/scene-state";
-import { getHtmlSettingsForMesh } from '../data/mesh-html-manager';
+import { getState } from "../util/state/scene-state";
+import { getHtmlSettingsForMesh } from '../util/data/mesh-html-manager';
 
 // Info panel state variables
 export let infoPanel = null;

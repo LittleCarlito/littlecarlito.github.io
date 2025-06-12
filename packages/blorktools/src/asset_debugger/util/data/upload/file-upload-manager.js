@@ -1,4 +1,4 @@
-import { getState, updateState } from "../state/scene-state";
+import { getState, updateState } from "../../state/scene-state";
 import { handleZipUpload } from "./handlers/zip-file-handler";
 import { handleLightingUpload } from "./handlers/lighting-file-handler";
 import { handleModelUpload } from "./handlers/model/model-file-manager";

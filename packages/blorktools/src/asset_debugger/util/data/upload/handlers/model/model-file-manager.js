@@ -1,6 +1,6 @@
-import { createClearButton } from "../../../../landing-page/landing-page";
-import { hidePreviewLoading, showPreviewLoading } from "../../../../loading-splash/preview-loading-splash";
-import { updateState } from "../../../state/scene-state";
+import { createClearButton } from "../../../../../landing-page/landing-page";
+import { hidePreviewLoading, showPreviewLoading } from "../../../../../loading-splash/preview-loading-splash";
+import { updateState } from "../../../../state/scene-state";
 import { formatFileSize } from "../../file-upload-manager";
 import { createGLBPreview } from "../../glb-preview-controller";
 import { processGLBFile } from "./glb-file-handler";

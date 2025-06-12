@@ -1,4 +1,4 @@
-import { processModelFile } from "../../../workers/worker-manager";
+import { processModelFile } from "../../../../workers/worker-manager";
 
 /**
  * Process a GLB model file using web workers

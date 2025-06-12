@@ -1,5 +1,5 @@
 import { getState, updateState } from '../state/scene-state.js';
-import { processGLBFile } from '../upload/handlers/model/glb-file-handler.js';
+import { processGLBFile } from '../data/upload/handlers/model/glb-file-handler.js';
 import { getCurrentGlbBuffer, setCurrentGlbBuffer as setManagerBuffer } from './glb-manager.js';
 
 let bufferUpdateListeners = [];
