@@ -20,7 +20,7 @@ import {
     loadLightingIntoDropzone, 
     loadModelIntoDropzone, 
     processZipContents 
-} from "../util/data/upload/zip-handler.js";
+} from "../util/data/upload/handlers/zip-handler.js";
 import { handleBackgroundUpload } from "../util/data/upload/handlers/background-file-handler.js";
 import { handleModelUpload } from "../util/data/upload/handlers/model/model-file-manager.js";
 import { handleLightingUpload } from "../util/data/upload/handlers/lighting-file-handler.js";
