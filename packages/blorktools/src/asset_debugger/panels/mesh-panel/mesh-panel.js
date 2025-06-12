@@ -4,10 +4,11 @@
  * This module handles mesh visibility panel UI and interaction.
  */
 import { getState, updateState } from '../../util/state/scene-state.js';
-import { getCurrentGlbBuffer, setCurrentGlbBuffer } from '../../util/state/glb-state-manager.js';
 import { deserializeStringFromBinary, isValidHtml } from '../../util/data/string-serder.js';
-import { getBinaryBufferForMesh } from '../../util/data/glb-binary-buffer-handler.js';
 import { openMeshInfoModal } from '../../modals/mesh-info-modal/mesh-info-modal.js';
+import { getBinaryBufferForMesh } from '../../util/data/glb-serder.js';
+import { getCurrentGlbBuffer } from '../../util/scene/glb-manager.js';
+import { downloadUpdatedGlb } from '../../util/scene/glb-controller.js';
 
 // Load mesh panel CSS
 const link = document.createElement('link');
@@ -465,61 +466,6 @@ function initDownloadButton() {
     // Mark as initialized
     downloadButtonInitialized = true;
     console.log('Download button event listener initialized successfully');
-}
-
-/**
- * Download the updated GLB file
- */
-async function downloadUpdatedGlb() {
-    const glbBuffer = getCurrentGlbBuffer();
-    if (!glbBuffer) {
-        alert('No GLB file loaded to download.');
-        return;
-    }
-    
-    // Get state for filename
-    const state = getState();
-    let fileName = 'model_' + getCurrentTimestamp() + '.glb';
-    
-    // Use original filename if available
-    if (state.currentGlb && state.currentGlb.fileName) {
-        // Add timestamp to the filename
-        const originalName = state.currentGlb.fileName;
-        const nameParts = originalName.split('.');
-        if (nameParts.length > 1) {
-            // Insert the timestamp before the file extension
-            const extension = nameParts.pop();
-            fileName = nameParts.join('.') + '_' + getCurrentTimestamp() + '.' + extension;
-        } else {
-            fileName = originalName + '_' + getCurrentTimestamp() + '.glb';
-        }
-    }
-    
-    // Create a blob from the array buffer
-    const blob = new Blob([glbBuffer], { type: 'model/gltf-binary' });
-    
-    // Create a URL for the blob
-    const url = URL.createObjectURL(blob);
-    
-    // Create a temporary link to trigger the download
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    link.style.display = 'none';
-    
-    // Add the link to the document
-    document.body.appendChild(link);
-    
-    // Trigger the download
-    link.click();
-    
-    // Clean up
-    setTimeout(() => {
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    }, 100);
-    
-    console.log(`Downloaded GLB as ${fileName}`);
 }
 
 /**

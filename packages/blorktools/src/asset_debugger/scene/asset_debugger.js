@@ -12,13 +12,13 @@ import { SettingsModal } from '../modals/settings-modal/settings-modal.js';
 // Import Asset Panel
 import { initAssetPanel } from '../panels/asset-panel/asset-panel.js';
 // Import Model Integration for HTML Editor
-import { initModelIntegration } from '../util/state/glb-state-manager.js';
 import { initHtmlEditorModal } from '../modals/html-editor-modal/html-editor-modal.js';
 import { initWorldPanel } from '../panels/world-panel/world-panel.js';
 import { getState, printStateReport, hasFiles } from './state.js';
 import { initUiManager } from '../util/ui-manager.js';
 import { hideLoadingSplash, showLoadingSplash, updateLoadingProgress } from '../loading-splash/loading-splash.js';
 import { setupDropzones } from '../util/dropzone/dropzone-util.js';
+import { initModelIntegration } from '../util/scene/glb-controller.js';
 
 // Debug flags
 const DEBUG_LIGHTING = false;

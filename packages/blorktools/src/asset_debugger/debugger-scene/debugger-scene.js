@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { loadSettings, saveSettings } from '../util/data/localstorage-manager.js';
 import { SettingsModal } from '../modals/settings-modal/settings-modal.js';
 import { initAssetPanel } from '../panels/asset-panel/asset-panel.js';
-import { initModelIntegration } from '../util/state/glb-state-manager.js';
 import { initHtmlEditorModal } from '../modals/html-editor-modal/html-editor-modal.js';
 import { initWorldPanel } from '../panels/world-panel/world-panel.js';
 import { getState, printStateReport, hasFiles } from '../util/state/scene-state.js';
@@ -22,6 +21,7 @@ import * as assetPanel from '../panels/asset-panel/asset-panel.js';
 import * as htmlEditorModule from '../modals/html-editor-modal/html-editor-modal.js';
 import * as meshInfoModule from '../modals/mesh-info-modal/mesh-info-modal.js'
 import * as stateModule from '../util/state/scene-state.js';
+import { initModelIntegration } from '../util/scene/glb-controller.js';
 
 const DEBUG_LIGHTING = false;
 

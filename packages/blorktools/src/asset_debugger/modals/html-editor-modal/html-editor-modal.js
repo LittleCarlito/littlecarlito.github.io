@@ -4,29 +4,14 @@
  * This module handles the functionality of the embedded HTML editor.
  * It allows users to add custom HTML code to a mesh.
  */
-
-import { getState, updateState } from '../../util/state/scene-state';
-import { 
-    deserializeStringFromBinary, 
-    serializeStringToBinary,
-    serializeStringWithSettingsToBinary,
-    isValidHtml,
-    sanitizeHtml
-} from '../../util/data/string-serder.js';
 import { 
     formatHtml as externalFormatHtml, 
-    initHtmlFormatter,
-    hasExternalFormatter 
+    initHtmlFormatter 
 } from '../../util/data/html-formatter.js';
 import {
     initHtmlLinter,
     lintHtmlContent
 } from '../../util/data/html-linter.js';
-import { 
-    getCurrentGlbBuffer, 
-    updateGlbFile,
-    onGlbBufferUpdate
-} from '../../util/state/glb-state-manager';
 import { 
     MESH_BINARY_EXTENSION, 
     MESH_INDEX_PROPERTY, 
@@ -37,7 +22,7 @@ import { updateHtmlIcons } from '../../panels/mesh-panel/mesh-panel';
 import * as THREE from 'three';
 import { isPreviewActive, setLastTextureUpdateTime } from '../../util/state/animation-state';
 import { initalizePreview } from '../../util/animation/playback/animation-preview-controller';
-import { frameBuffer, previewRenderTarget } from '../../util/state/threejs-state.js';
+import { previewRenderTarget } from '../../util/state/threejs-state.js';
 import { 
     getHtmlSettingsForMesh, 
     loadHtmlForMesh, 

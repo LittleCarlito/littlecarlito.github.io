@@ -12,6 +12,9 @@ import { fitCameraToObject } from '../../util/scene/threejs-scene-controller.js'
 import { createMeshVisibilityPanel } from '../../panels/mesh-panel/mesh-panel.js';
 import { updateAtlasVisualization } from '../../panels/atlas-panel/atlas-panel.js';
 import { updateUvPanel } from '../../panels/uv-panel/uv-panel.js';
+import { updateRigPanel } from '../../panels/rig-panel/rig-panel.js';
+import { getCurrentGlbBuffer, setCurrentGlbBuffer } from './glb-manager.js';
+import { processModelFileForHtmlEditor } from './glb-controller.js';
 
 /**
  * Load and setup a custom model from file
@@ -29,40 +32,35 @@ export function loadAndSetupModel(loadingIndicator) {
             const modelData = event.target.result;
             
             try {
-                Promise.all([
-                    import('../data/mesh-html-manager.js'),
-                    import('../state/glb-state-manager.js')
-                ]).then(([meshDataUtil, modelIntegration]) => {
-                    let bufferPromises = [];
-                    
-                    if (typeof meshDataUtil.setCurrentGlbBuffer === 'function') {
-                        meshDataUtil.setCurrentGlbBuffer(modelData);
-                    }
-                    
-                    if (modelIntegration.processModelFileForHtmlEditor && state.modelFile) {
-                        bufferPromises.push(modelIntegration.processModelFileForHtmlEditor(state.modelFile));
-                    }
-                    
-                    if (!state.currentGlb) {
-                        updateState('currentGlb', {
-                            arrayBuffer: modelData,
-                            fileName: state.modelFile?.name || 'model.glb',
-                            fileSize: state.modelFile?.size || modelData.byteLength
-                        });
-                    } else {
-                        state.currentGlb.arrayBuffer = modelData;
-                    }
-                    
-                    return Promise.all(bufferPromises).then(() => {
-                        const buffer = state.currentGlb?.arrayBuffer || 
-                                      (modelIntegration.getCurrentGlbBuffer && modelIntegration.getCurrentGlbBuffer());
-                        
-                        if (!buffer) {
-                            console.warn('GLB buffer was not set during processing.');
-                        }
-                        
-                        return buffer;
+                let bufferPromises = [];
+                
+                if (typeof setCurrentGlbBuffer === 'function') {
+                    setCurrentGlbBuffer(modelData);
+                }
+                
+                if (processModelFileForHtmlEditor && state.modelFile) {
+                    bufferPromises.push(processModelFileForHtmlEditor(state.modelFile));
+                }
+                
+                if (!state.currentGlb) {
+                    updateState('currentGlb', {
+                        arrayBuffer: modelData,
+                        fileName: state.modelFile?.name || 'model.glb',
+                        fileSize: state.modelFile?.size || modelData.byteLength
                     });
+                } else {
+                    state.currentGlb.arrayBuffer = modelData;
+                }
+                
+                Promise.all(bufferPromises).then(() => {
+                    const buffer = state.currentGlb?.arrayBuffer || 
+                                  (getCurrentGlbBuffer && getCurrentGlbBuffer());
+                    
+                    if (!buffer) {
+                        console.warn('GLB buffer was not set during processing.');
+                    }
+                    
+                    return buffer;
                 }).then((buffer) => {
                     loader.parse(modelData, '', (gltf) => {
                         try {
@@ -167,13 +165,9 @@ function processLoadedModel(gltf) {
             updateUvPanel();
         }
         
-        import('../../panels/rig-panel/rig-panel.js').then(module => {
-            if (module.updateRigPanel) {
-                module.updateRigPanel();
-            }
-        }).catch(err => {
-            console.error('Error importing rig-panel.js:', err);
-        });
+        if (updateRigPanel) {
+            updateRigPanel();
+        }
         
     } catch (processError) {
         alert('Error processing model: ' + processError.message);
@@ -355,27 +349,20 @@ function prepareGlbBuffer() {
     const state = getState();
     
     if (state.useCustomModel && state.modelFile) {
-        return Promise.all([
-            import('../data/mesh-html-manager.js'),
-            import('../state/glb-state-manager.js')
-        ]).then(([meshDataUtil, modelIntegration]) => {
-            if (modelIntegration.processModelFileForHtmlEditor) {
-                return modelIntegration.processModelFileForHtmlEditor(state.modelFile)
-                    .then(() => {
-                        const updatedState = getState();
-                        const buffer = updatedState.currentGlb?.arrayBuffer || modelIntegration.getCurrentGlbBuffer();
-                        
-                        if (!buffer) {
-                            console.warn('GLB buffer was not set during pre-processing.');
-                        }
-                        
-                        return buffer;
-                    });
-            }
-            return Promise.resolve(null);
-        }).catch(error => {
-            return Promise.resolve(null);
-        });
+        if (processModelFileForHtmlEditor) {
+            return processModelFileForHtmlEditor(state.modelFile)
+                .then(() => {
+                    const updatedState = getState();
+                    const buffer = updatedState.currentGlb?.arrayBuffer || getCurrentGlbBuffer();
+                    
+                    if (!buffer) {
+                        console.warn('GLB buffer was not set during pre-processing.');
+                    }
+                    
+                    return buffer;
+                });
+        }
+        return Promise.resolve(null);
     }
     
     return Promise.resolve(null);
