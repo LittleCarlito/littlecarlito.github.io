@@ -5,7 +5,6 @@
  * It implements the same bone/rig/control parsing as the Rig Debugger.
  */
 import * as THREE from 'three';
-import { getState } from '../../util/state/scene-state.js';
 import { 
     analyzeGltfModel, 
     deduplicateItems, 
@@ -15,15 +14,15 @@ import {
     addControlHandleToFurthestBone,
     parseJointConstraints,
     applyJointConstraints
-} from '../../util/scene/rig/rig-factory.js';
-import { setIsDragging, getIsDragging, checkHandleHover } from '../../util/scene/rig/rig-mouse-handler.js';
+} from '../../../util/scene/rig/rig-factory.js';
+import { setIsDragging, getIsDragging, checkHandleHover } from '../../../util/scene/rig/rig-mouse-handler.js';
 import { 
     rigDetails,
     updateRigDetails,
     rigOptions,
     updateRigVisualization,
     resetRig
- } from '../../util/scene/rig/rig-controller.js';
+ } from '../../../util/scene/rig/rig-controller.js';
  import {
     bones,
     lockedBones,
@@ -36,8 +35,9 @@ import {
     boneMaterial,
     toggleBoneLock,
     updateAllBoneMatrices
- } from '../../util/scene/rig/bone-kinematics.js';
- import { saveSettings, loadSettings } from '../../util/data/localstorage-manager.js';
+ } from '../../../util/scene/rig/bone-kinematics.js';
+ import { saveSettings, loadSettings } from '../../../util/data/localstorage-manager.js';
+import { getState } from '../../../util/state/scene-state.js';
 
 // Tooltip related variables
 let tooltipElement = null;

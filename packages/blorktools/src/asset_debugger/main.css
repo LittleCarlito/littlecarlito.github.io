@@ -6,9 +6,9 @@
 @import url('axis-indicator/axis-indicator.css');
 @import url('panels/world-panel/world-panel.css');
 @import url('panels/asset-panel/asset-panel.css');
-@import url('panels/atlas-panel/atlas-panel.css');
-@import url('panels/rig-panel/rig-panel.css');
-@import url('panels/uv-panel/uv-panel.css');
+@import url('panels/asset-panel/atlas-heading/atlas-heading.css');
+@import url('panels/asset-panel/rig-heading/rig-heading.css');
+@import url('panels/asset-panel/uv-heading/uv-heading.css');
 @import url('modals/settings-modal/settings-modal.css');
 @import url('modals/mesh-info-modal/mesh-info-modal.css');
 @import url('modals/examples-modal/examples-modal.css');

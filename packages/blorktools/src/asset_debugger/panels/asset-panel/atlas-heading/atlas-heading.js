@@ -3,7 +3,8 @@
  * 
  * This module handles texture atlas visualization in the UI.
  */
-import { getState, updateState } from "../../util/state/scene-state.js";
+
+import { getState, updateState } from '../../../util/state/scene-state.js';
 
 // Track initialization state
 let isInitialized = false;
@@ -19,9 +20,9 @@ export function initAtlasPanel() {
     
     isInitialized = true;
     
-    // Initialize the panel once the atlas-panel-container is found and has content
+    // Initialize the panel once the atlas-heading-container is found and has content
     const initCheck = setInterval(() => {
-        const container = document.getElementById('atlas-panel-container');
+        const container = document.getElementById('atlas-heading-container');
         if (container && container.children.length > 0) {
             clearInterval(initCheck);
             setupAtlasPanelEvents();
@@ -74,57 +75,53 @@ function setupAtlasPanelEvents() {
  */
 export function updateAtlasVisualization() {
     // Get state to retrieve texture objects
-    import('../../util/state/scene-state.js').then(stateModule => {
-        const state = stateModule.getState();
-        
-        // Check if we have texture objects
-        if (!state.textureObjects) {
-            console.warn('No texture objects available for atlas visualization');
-            // Show no texture state for the canvas
-            const atlasCanvas = document.getElementById('atlas-canvas');
-            if (atlasCanvas) {
-                showNoTextureState(atlasCanvas);
-            }
-            return;
-        }
-        
-        // Get the current atlas textures
-        const baseColorTexture = state.textureObjects.baseColor;
-        const ormTexture = state.textureObjects.orm;
-        const normalTexture = state.textureObjects.normal;
-        
-        // Get the current texture type from state
-        const currentTextureType = state.currentTextureType || 'baseColor';
-        
-        // Get the active texture based on current texture type
-        let activeTexture = null;
-        if (currentTextureType === 'baseColor') {
-            activeTexture = baseColorTexture;
-        } else if (currentTextureType === 'orm') {
-            activeTexture = ormTexture;
-        } else if (currentTextureType === 'normal') {
-            activeTexture = normalTexture;
-        }
-        
-        // Get the atlas canvas
+    const state = getState();
+    
+    // Check if we have texture objects
+    if (!state.textureObjects) {
+        console.warn('No texture objects available for atlas visualization');
+        // Show no texture state for the canvas
         const atlasCanvas = document.getElementById('atlas-canvas');
-        if (!atlasCanvas) {
-            console.warn('Atlas canvas not found');
-            return;
-        }
-        
-        // Get current UV region from state or use default
-        const currentRegion = state.currentUvRegion || { min: [0, 0], max: [1, 1] };
-        
-        // Show the active texture or no texture state
-        if (activeTexture) {
-            updateCanvasWithTexture(activeTexture, currentRegion);
-        } else {
+        if (atlasCanvas) {
             showNoTextureState(atlasCanvas);
         }
-    }).catch(error => {
-        console.error('Error updating atlas visualization:', error);
-    });
+        return;
+    }
+    
+    // Get the current atlas textures
+    const baseColorTexture = state.textureObjects.baseColor;
+    const ormTexture = state.textureObjects.orm;
+    const normalTexture = state.textureObjects.normal;
+    
+    // Get the current texture type from state
+    const currentTextureType = state.currentTextureType || 'baseColor';
+    
+    // Get the active texture based on current texture type
+    let activeTexture = null;
+    if (currentTextureType === 'baseColor') {
+        activeTexture = baseColorTexture;
+    } else if (currentTextureType === 'orm') {
+        activeTexture = ormTexture;
+    } else if (currentTextureType === 'normal') {
+        activeTexture = normalTexture;
+    }
+    
+    // Get the atlas canvas
+    const atlasCanvas = document.getElementById('atlas-canvas');
+    if (!atlasCanvas) {
+        console.warn('Atlas canvas not found');
+        return;
+    }
+    
+    // Get current UV region from state or use default
+    const currentRegion = state.currentUvRegion || { min: [0, 0], max: [1, 1] };
+    
+    // Show the active texture or no texture state
+    if (activeTexture) {
+        updateCanvasWithTexture(activeTexture, currentRegion);
+    } else {
+        showNoTextureState(atlasCanvas);
+    }
 }
 
 /**

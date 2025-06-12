@@ -3,8 +3,8 @@
  * 
  * This module handles UV mapping visualization and controls.
  */
-import { getState, updateState } from '../../util/state/scene-state.js';
-import { updateUvRegion } from '../atlas-panel/atlas-panel.js';
+import { getState, updateState } from '../../../util/state/scene-state.js';
+import { updateUvRegion } from '../atlas-heading/atlas-heading.js';
 
 // DOM elements
 let uvInfoContainer = null;

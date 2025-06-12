@@ -9,12 +9,12 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getState, updateState } from '../state/scene-state.js';
 import { createMaterial } from '../animation/render/pbr-material-factory.js';
 import { fitCameraToObject } from '../../util/scene/threejs-scene-controller.js';
-import { createMeshVisibilityPanel } from '../../panels/mesh-panel/mesh-panel.js';
-import { updateAtlasVisualization } from '../../panels/atlas-panel/atlas-panel.js';
-import { updateUvPanel } from '../../panels/uv-panel/uv-panel.js';
-import { updateRigPanel } from '../../panels/rig-panel/rig-panel.js';
+import { updateUvPanel } from '../../panels/asset-panel/uv-heading/uv-heading.js';
 import { getCurrentGlbBuffer, setCurrentGlbBuffer } from './glb-manager.js';
 import { processModelFileForHtmlEditor } from './glb-controller.js';
+import { createMeshVisibilityPanel } from '../../panels/asset-panel/mesh-heading/mesh-heading.js';
+import { updateAtlasVisualization } from '../../panels/asset-panel/atlas-heading/atlas-heading.js';
+import { updateRigPanel } from '../../panels/asset-panel/rig-heading/rig-heading.js';
 
 /**
  * Load and setup a custom model from file

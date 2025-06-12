@@ -2,7 +2,7 @@
  * Asset Debugger - Rig Factory
  * 
  * This module provides rig creation and initialization functionality.
- * Code moved from rig-panel.js to create a separate factory module.
+ * Code moved from rig-heading.js to create a separate factory module.
  */
 import * as THREE from 'three';
 import { getState } from '../../state/scene-state';

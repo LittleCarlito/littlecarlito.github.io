@@ -17,7 +17,6 @@ import {
     MESH_INDEX_PROPERTY, 
     BINARY_DATA_PROPERTY 
 } from '../../util/state/glb-preview-state.js';
-import { updateHtmlIcons } from '../../panels/mesh-panel/mesh-panel';
 // Import Three.js the same way as other files in the codebase
 import * as THREE from 'three';
 import { isPreviewActive, setLastTextureUpdateTime } from '../../util/state/animation-state';
@@ -31,6 +30,7 @@ import {
     saveSettingsForMesh 
 } from '../../util/data/mesh-html-manager.js';
 import { cleanupThreeJsPreview } from '../../util/scene/threejs-preview-manager';
+import { updateHtmlIcons } from '../../panels/asset-panel/mesh-heading/mesh-heading.js';
 
 // Add variables for frame buffering at the top of the file with other variables
  let maxCaptureRate = 0.5;

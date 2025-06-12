@@ -14,7 +14,7 @@ import {
     clearFurthestBoneHandle
 } from './bone-kinematics';
 import { createJointLabels, createBoneLabels } from './rig-factory';
-import { refreshJointsData } from '../../../panels/rig-panel/rig-panel';
+import { refreshJointsData } from '../../../panels/asset-panel/rig-heading/rig-heading';
 
 export let rigDetails = null;
 export const labelGroups = new Map(); // Map to store different types of label groups (joint, bone)

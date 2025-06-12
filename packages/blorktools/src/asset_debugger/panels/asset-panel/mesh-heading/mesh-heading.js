@@ -3,17 +3,17 @@
  * 
  * This module handles mesh visibility panel UI and interaction.
  */
-import { getState, updateState } from '../../util/state/scene-state.js';
-import { deserializeStringFromBinary, isValidHtml } from '../../util/data/string-serder.js';
-import { openMeshInfoModal } from '../../modals/mesh-info-modal/mesh-info-modal.js';
-import { getBinaryBufferForMesh } from '../../util/data/glb-serder.js';
-import { getCurrentGlbBuffer } from '../../util/scene/glb-manager.js';
-import { downloadUpdatedGlb } from '../../util/scene/glb-controller.js';
+import { deserializeStringFromBinary, isValidHtml } from '../../../util/data/string-serder.js';
+import { openMeshInfoModal } from '../../../modals/mesh-info-modal/mesh-info-modal.js';
+import { getBinaryBufferForMesh } from '../../../util/data/glb-serder.js';
+import { getCurrentGlbBuffer } from '../../../util/scene/glb-manager.js';
+import { downloadUpdatedGlb } from '../../../util/scene/glb-controller.js';
+import { getState, updateState } from '../../../util/state/scene-state.js';
 
 // Load mesh panel CSS
 const link = document.createElement('link');
 link.rel = 'stylesheet';
-link.href = '/asset_debugger/panels/mesh-panel/mesh-panel.css';
+link.href = '/asset_debugger/panels/asset-panel/mesh-heading/mesh-heading.css';
 document.head.appendChild(link);
 
 // Track meshes with binary content
