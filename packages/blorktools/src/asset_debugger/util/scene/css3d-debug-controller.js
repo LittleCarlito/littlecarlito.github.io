@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CSS3DRenderer, CSS3DObject } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
+import { getState } from '../state/scene-state.js';
 
 const DEBUG_CSS3D_HTML = `<!DOCTYPE html>
 <html>
@@ -121,6 +122,87 @@ export class CSS3DDebugController {
         this.frame = null;
         this.animationId = null;
         this.isInitialized = false;
+        this.displayMesh = null;
+        this.frameWidth = 300;
+        this.frameHeight = 200;
+        this.visibilityCheckInterval = null;
+        this.lastVisibleState = true;
+    }
+
+    findDisplayMesh() {
+        const state = getState();
+        if (!state.scene) {
+            return null;
+        }
+        
+        let foundMesh = null;
+        
+        state.scene.traverse((object) => {
+            if (!foundMesh && object.isMesh && object.name && object.name.toLowerCase().includes('display_')) {
+                foundMesh = object;
+            }
+        });
+        
+        return foundMesh;
+    }
+
+    calculateDisplayMeshDimensions(mesh) {
+        if (!mesh || !mesh.geometry) {
+            return { width: 300, height: 200 };
+        }
+        
+        const boundingBox = new THREE.Box3().setFromObject(mesh);
+        const size = boundingBox.getSize(new THREE.Vector3());
+        
+        const worldScale = mesh.getWorldScale(new THREE.Vector3());
+        const actualWidth = size.x * worldScale.x;
+        const actualHeight = size.y * worldScale.y;
+        
+        const scaleFactor = 100;
+        const frameWidth = Math.max(200, Math.min(600, actualWidth * scaleFactor));
+        const frameHeight = Math.max(150, Math.min(400, actualHeight * scaleFactor));
+        
+        return { width: frameWidth, height: frameHeight };
+    }
+
+    calculateDisplayMeshPosition(mesh) {
+        if (!mesh) {
+            return { x: 20, y: 80 };
+        }
+        
+        const boundingBox = new THREE.Box3().setFromObject(mesh);
+        const center = boundingBox.getCenter(new THREE.Vector3());
+        
+        const state = getState();
+        if (!state.camera) {
+            return { x: 20, y: 80 };
+        }
+        
+        const vector = center.clone();
+        vector.project(state.camera);
+        
+        const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
+        
+        const clampedX = Math.max(20, Math.min(window.innerWidth - this.frameWidth - 20, x - this.frameWidth / 2));
+        const clampedY = Math.max(80, Math.min(window.innerHeight - this.frameHeight - 20, y - this.frameHeight / 2));
+        
+        return { x: clampedX, y: clampedY };
+    }
+
+    shouldInitialize() {
+        const state = getState();
+        if (!state.scene) {
+            return false;
+        }
+        
+        const hasGlbLoaded = state.glbFile || state.modelFile;
+        if (!hasGlbLoaded) {
+            return false;
+        }
+        
+        const displayMesh = this.findDisplayMesh();
+        return !!displayMesh;
     }
 
     init(parentElement) {
@@ -133,19 +215,36 @@ export class CSS3DDebugController {
             return;
         }
 
+        if (!this.shouldInitialize()) {
+            console.log('CSS3DDebugController: No GLB with display mesh found, skipping initialization');
+            return;
+        }
+
         try {
+            this.displayMesh = this.findDisplayMesh();
+            if (!this.displayMesh) {
+                console.log('CSS3DDebugController: No display mesh found');
+                return;
+            }
+
+            const dimensions = this.calculateDisplayMeshDimensions(this.displayMesh);
+            this.frameWidth = dimensions.width;
+            this.frameHeight = dimensions.height;
+
+            const position = this.calculateDisplayMeshPosition(this.displayMesh);
+
             this.scene = new THREE.Scene();
             
-            this.camera = new THREE.PerspectiveCamera(50, 300/200, 1, 5000);
+            this.camera = new THREE.PerspectiveCamera(50, this.frameWidth/this.frameHeight, 1, 5000);
             this.camera.position.set(0, 0, 200);
 
             this.renderer = new CSS3DRenderer();
-            this.renderer.setSize(300, 200);
+            this.renderer.setSize(this.frameWidth, this.frameHeight);
             this.renderer.domElement.style.position = 'absolute';
-            this.renderer.domElement.style.top = '80px';
-            this.renderer.domElement.style.left = '20px';
-            this.renderer.domElement.style.width = '300px';
-            this.renderer.domElement.style.height = '200px';
+            this.renderer.domElement.style.top = `${position.y}px`;
+            this.renderer.domElement.style.left = `${position.x}px`;
+            this.renderer.domElement.style.width = `${this.frameWidth}px`;
+            this.renderer.domElement.style.height = `${this.frameHeight}px`;
             this.renderer.domElement.style.zIndex = '3000';
             this.renderer.domElement.style.border = '2px solid #00ff88';
             this.renderer.domElement.style.borderRadius = '8px';
@@ -153,8 +252,8 @@ export class CSS3DDebugController {
             this.renderer.domElement.style.pointerEvents = 'none';
 
             const iframe = document.createElement('iframe');
-            iframe.style.width = '300px';
-            iframe.style.height = '200px';
+            iframe.style.width = `${this.frameWidth}px`;
+            iframe.style.height = `${this.frameHeight}px`;
             iframe.style.border = 'none';
             iframe.style.borderRadius = '6px';
             iframe.style.overflow = 'hidden';
@@ -175,11 +274,36 @@ export class CSS3DDebugController {
             }, 100);
 
             this.startAnimation();
+            this.startVisibilityMonitoring();
             this.isInitialized = true;
-            console.log('CSS3DDebugController initialized');
+            console.log(`CSS3DDebugController initialized with dimensions ${this.frameWidth}x${this.frameHeight} for display mesh: ${this.displayMesh.name}`);
         } catch (error) {
             console.error('Error initializing CSS3DDebugController:', error);
         }
+    }
+
+    startVisibilityMonitoring() {
+        if (this.visibilityCheckInterval) {
+            clearInterval(this.visibilityCheckInterval);
+        }
+
+        this.visibilityCheckInterval = setInterval(() => {
+            if (!this.displayMesh || !this.renderer) {
+                return;
+            }
+
+            const isVisible = this.displayMesh.visible;
+            
+            if (isVisible !== this.lastVisibleState) {
+                this.lastVisibleState = isVisible;
+                
+                if (this.renderer.domElement) {
+                    this.renderer.domElement.style.display = isVisible ? 'block' : 'none';
+                }
+                
+                console.log(`CSS3D debug frame ${isVisible ? 'shown' : 'hidden'} - display mesh visibility changed`);
+            }
+        }, 100);
     }
 
     startAnimation() {
@@ -196,6 +320,11 @@ export class CSS3DDebugController {
     }
 
     cleanup() {
+        if (this.visibilityCheckInterval) {
+            clearInterval(this.visibilityCheckInterval);
+            this.visibilityCheckInterval = null;
+        }
+
         if (this.animationId) {
             cancelAnimationFrame(this.animationId);
             this.animationId = null;
@@ -212,11 +341,23 @@ export class CSS3DDebugController {
         this.scene = null;
         this.camera = null;
         this.frame = null;
+        this.displayMesh = null;
+        this.lastVisibleState = true;
         this.isInitialized = false;
         console.log('CSS3DDebugController cleaned up');
     }
 
     isActive() {
         return this.isInitialized;
+    }
+
+    updatePosition() {
+        if (!this.isInitialized || !this.displayMesh || !this.renderer) {
+            return;
+        }
+
+        const position = this.calculateDisplayMeshPosition(this.displayMesh);
+        this.renderer.domElement.style.top = `${position.y}px`;
+        this.renderer.domElement.style.left = `${position.x}px`;
     }
 }

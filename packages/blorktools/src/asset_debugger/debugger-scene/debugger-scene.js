@@ -71,7 +71,6 @@ export function setupDebuggerScene() {
     }
     
     setTimeout(ensureCollapsibleHeadersWork, 500);
-    setTimeout(initDebugCSS3DFrame, 1000);
     
     updateLoadingProgress("Finalizing startup");
     return cleanupDebuggerScene;
@@ -511,6 +510,10 @@ function processFilesFromState() {
         .then(() => {
             resourcesLoaded.modelLoaded = true;
             checkAllResourcesLoaded();
+            
+            setTimeout(() => {
+                initDebugCSS3DFrame();
+            }, 1000);
         })
         .catch(error => {
             resourcesLoaded.modelLoaded = true;
