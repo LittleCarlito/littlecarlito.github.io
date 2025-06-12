@@ -127,6 +127,9 @@ export class CSS3DDebugController {
         this.frameHeight = 200;
         this.visibilityCheckInterval = null;
         this.lastVisibleState = true;
+        this.meshCenter = new THREE.Vector3();
+        this.meshNormal = new THREE.Vector3(0, 0, 1);
+        this.offsetDistance = 0.1;
     }
 
     findDisplayMesh() {
@@ -165,13 +168,41 @@ export class CSS3DDebugController {
         return { width: frameWidth, height: frameHeight };
     }
 
+    calculateMeshCenterAndNormal(mesh) {
+        if (!mesh || !mesh.geometry) {
+            return {
+                center: new THREE.Vector3(0, 0, 0),
+                normal: new THREE.Vector3(0, 0, 1)
+            };
+        }
+
+        const geometry = mesh.geometry;
+        geometry.computeBoundingBox();
+        
+        const center = new THREE.Vector3();
+        geometry.boundingBox.getCenter(center);
+        mesh.localToWorld(center);
+
+        let normal = new THREE.Vector3(0, 0, 1);
+        if (geometry.attributes.normal) {
+            const normalAttribute = geometry.attributes.normal;
+            if (normalAttribute.count > 0) {
+                normal.fromBufferAttribute(normalAttribute, 0);
+                normal.transformDirection(mesh.matrixWorld);
+                normal.normalize();
+            }
+        }
+
+        return { center, normal };
+    }
+
     calculateDisplayMeshPosition(mesh) {
         if (!mesh) {
             return { x: 20, y: 80 };
         }
         
-        const boundingBox = new THREE.Box3().setFromObject(mesh);
-        const center = boundingBox.getCenter(new THREE.Vector3());
+        const meshData = this.calculateMeshCenterAndNormal(mesh);
+        const center = meshData.center;
         
         const state = getState();
         if (!state.camera) {
@@ -231,6 +262,10 @@ export class CSS3DDebugController {
             this.frameWidth = dimensions.width;
             this.frameHeight = dimensions.height;
 
+            const meshData = this.calculateMeshCenterAndNormal(this.displayMesh);
+            this.meshCenter.copy(meshData.center);
+            this.meshNormal.copy(meshData.normal);
+
             const position = this.calculateDisplayMeshPosition(this.displayMesh);
 
             this.scene = new THREE.Scene();
@@ -259,7 +294,14 @@ export class CSS3DDebugController {
             iframe.style.overflow = 'hidden';
 
             this.frame = new CSS3DObject(iframe);
-            this.frame.position.set(0, 0, 0);
+            
+            const offsetPosition = this.meshCenter.clone();
+            offsetPosition.add(this.meshNormal.clone().multiplyScalar(this.offsetDistance));
+            this.frame.position.copy(offsetPosition);
+            
+            this.frame.rotation.copy(this.displayMesh.rotation);
+            this.frame.quaternion.copy(this.displayMesh.quaternion);
+            
             this.frame.scale.set(1, 1, 1);
             this.scene.add(this.frame);
 
@@ -280,6 +322,28 @@ export class CSS3DDebugController {
         } catch (error) {
             console.error('Error initializing CSS3DDebugController:', error);
         }
+    }
+
+    updateMeshPosition() {
+        if (!this.frame || !this.displayMesh) {
+            return;
+        }
+
+        const meshData = this.calculateMeshCenterAndNormal(this.displayMesh);
+        this.meshCenter.copy(meshData.center);
+        this.meshNormal.copy(meshData.normal);
+
+        const offsetPosition = this.meshCenter.clone();
+        offsetPosition.add(this.meshNormal.clone().multiplyScalar(this.offsetDistance));
+
+        this.frame.position.copy(offsetPosition);
+        
+        this.frame.rotation.copy(this.displayMesh.rotation);
+        this.frame.quaternion.copy(this.displayMesh.quaternion);
+
+        const position = this.calculateDisplayMeshPosition(this.displayMesh);
+        this.renderer.domElement.style.top = `${position.y}px`;
+        this.renderer.domElement.style.left = `${position.x}px`;
     }
 
     startVisibilityMonitoring() {
@@ -303,7 +367,11 @@ export class CSS3DDebugController {
                 
                 console.log(`CSS3D debug frame ${isVisible ? 'shown' : 'hidden'} - display mesh visibility changed`);
             }
-        }, 100);
+
+            if (isVisible) {
+                this.updateMeshPosition();
+            }
+        }, 16);
     }
 
     startAnimation() {
@@ -313,6 +381,11 @@ export class CSS3DDebugController {
 
         const animate = () => {
             this.animationId = requestAnimationFrame(animate);
+            
+            if (this.displayMesh && this.displayMesh.visible) {
+                this.updateMeshPosition();
+            }
+            
             this.renderer.render(this.scene, this.camera);
         };
 
@@ -356,8 +429,6 @@ export class CSS3DDebugController {
             return;
         }
 
-        const position = this.calculateDisplayMeshPosition(this.displayMesh);
-        this.renderer.domElement.style.top = `${position.y}px`;
-        this.renderer.domElement.style.left = `${position.x}px`;
+        this.updateMeshPosition();
     }
 }
