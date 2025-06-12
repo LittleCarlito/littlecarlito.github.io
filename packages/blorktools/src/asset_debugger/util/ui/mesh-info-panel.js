@@ -96,11 +96,13 @@ export function createMeshInfoPanel(container, meshId) {
     // Gather mesh information
     const info = [];
     
-    // Basic mesh info
-    info.push(`<strong>Name:</strong> ${mesh.name || 'Unnamed'}`);
-    info.push(`<strong>ID:</strong> ${meshId}`);
+    // Basic Information
+    info.push('<strong>Basic Information</strong>');
+    info.push(`Name: ${mesh.name || 'Unnamed'}`);
+    info.push(`ID: ${meshId}`);
+    info.push(`Visible: ${mesh.visible ? 'Yes' : 'No'}`);
     
-    // Calculate dimensions from bounding box
+    // Dimensions
     let dimensions = null;
     if (mesh.geometry) {
         // Compute bounding box if not already computed
@@ -116,21 +118,24 @@ export function createMeshInfoPanel(container, meshId) {
             
             dimensions = { width, height, depth };
             
-            info.push('<strong>Dimensions:</strong>');
-            info.push(`• Width (X): ${width.toFixed(2)}`);
-            info.push(`• Height (Y): ${height.toFixed(2)}`);
-            info.push(`• Depth (Z): ${depth.toFixed(2)}`);
+            info.push('<strong>Dimensions</strong>');
+            info.push(`Width (X): ${width.toFixed(3)}`);
+            info.push(`Height (Y): ${height.toFixed(3)}`);
+            info.push(`Depth (Z): ${depth.toFixed(3)}`);
         }
     }
     
     // Geometry details
     if (mesh.geometry) {
-        info.push('<strong>Geometry:</strong>');
+        info.push('<strong>Geometry</strong>');
+        
+        // Geometry type
+        info.push(`Type: ${mesh.geometry.type || 'Unknown'}`);
         
         // Vertices count
         const vertexCount = mesh.geometry.attributes && mesh.geometry.attributes.position ? 
             mesh.geometry.attributes.position.count : 'Unknown';
-        info.push(`• Vertices: ${vertexCount}`);
+        info.push(`Vertices: ${vertexCount}`);
         
         // Faces count (triangles)
         let faceCount = 'Unknown';
@@ -139,69 +144,46 @@ export function createMeshInfoPanel(container, meshId) {
         } else if (mesh.geometry.attributes && mesh.geometry.attributes.position) {
             faceCount = Math.floor(mesh.geometry.attributes.position.count / 3);
         }
-        info.push(`• Faces: ${faceCount}`);
-        
-        // Geometry type
-        info.push(`• Type: ${mesh.geometry.type || 'Unknown'}`);
+        info.push(`Faces: ${faceCount}`);
     }
     
     // Material details
     if (mesh.material) {
-        info.push('<strong>Material:</strong>');
+        info.push('<strong>Material</strong>');
         
         // Handle multiple materials
         const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         
-        info.push(`• Count: ${materials.length}`);
+        info.push(`Count: ${materials.length}`);
         
-        // Material properties
-        materials.forEach((material, index) => {
-            if (materials.length > 1) {
-                info.push(`• Material ${index + 1}:`);
-            }
-            
-            info.push(`  • Type: ${material.type || 'Unknown'}`);
-            info.push(`  • Double Sided: ${material.side === THREE.DoubleSide ? 'Yes' : 'No'}`);
-            info.push(`  • Transparent: ${material.transparent ? 'Yes' : 'No'}`);
-            
-            // Color if available
-            if (material.color) {
-                const colorHex = '#' + material.color.getHexString();
-                info.push(`  • Color: <span style="color:${colorHex}">■</span> ${colorHex}`);
-            }
-        });
+        // Material properties (just show first material if multiple)
+        const material = materials[0];
+        info.push(`Type: ${material.type || 'Unknown'}`);
+        info.push(`Double Sided: ${material.side === THREE.DoubleSide ? 'Yes' : 'No'}`);
+        info.push(`Transparent: ${material.transparent ? 'Yes' : 'No'}`);
+        
+        // Color if available
+        if (material.color) {
+            const colorHex = '#' + material.color.getHexString();
+            info.push(`Color: <span style="color:${colorHex}">■</span> ${colorHex}`);
+        }
     }
     
     // Transform information
-    info.push('<strong>Transform:</strong>');
-    info.push(`• Position: X:${mesh.position.x.toFixed(2)}, Y:${mesh.position.y.toFixed(2)}, Z:${mesh.position.z.toFixed(2)}`);
-    info.push(`• Rotation: X:${(mesh.rotation.x * 180 / Math.PI).toFixed(2)}°, Y:${(mesh.rotation.y * 180 / Math.PI).toFixed(2)}°, Z:${(mesh.rotation.z * 180 / Math.PI).toFixed(2)}°`);
-    info.push(`• Scale: X:${mesh.scale.x.toFixed(2)}, Y:${mesh.scale.y.toFixed(2)}, Z:${mesh.scale.z.toFixed(2)}`);
+    info.push('<strong>Transform</strong>');
+    info.push(`Position: X:${mesh.position.x.toFixed(3)}, Y:${mesh.position.y.toFixed(3)}, Z:${mesh.position.z.toFixed(3)}`);
+    info.push(`Rotation: X:${(mesh.rotation.x * 180 / Math.PI).toFixed(1)}°, Y:${(mesh.rotation.y * 180 / Math.PI).toFixed(1)}°, Z:${(mesh.rotation.z * 180 / Math.PI).toFixed(1)}°`);
+    info.push(`Scale: X:${mesh.scale.x.toFixed(3)}, Y:${mesh.scale.y.toFixed(3)}, Z:${mesh.scale.z.toFixed(3)}`);
     
     // HTML settings
     const htmlSettings = getHtmlSettingsForMesh(meshId);
     if (htmlSettings) {
-        info.push('<strong>HTML Settings:</strong>');
-        info.push(`• Render Mode: ${htmlSettings.previewMode || 'threejs'}`);
-        info.push(`• Playback Speed: ${htmlSettings.playbackSpeed || '1.0'}`);
-        info.push(`• Animation: ${htmlSettings.animation?.type || 'play'}`);
-    }
-    
-    // Add any custom user data
-    if (mesh.userData && Object.keys(mesh.userData).length > 0) {
-        info.push('<strong>Custom Data:</strong>');
-        
-        // Filter out htmlSettings which we already displayed
-        const userDataKeys = Object.keys(mesh.userData).filter(key => key !== 'htmlSettings');
-        
-        if (userDataKeys.length > 0) {
-            userDataKeys.forEach(key => {
-                const value = mesh.userData[key];
-                info.push(`• ${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}`);
-            });
-        } else {
-            info.push('• No custom data');
-        }
+        info.push('<strong>HTML Settings</strong>');
+        info.push(`Render Mode: ${htmlSettings.previewMode || 'threejs'}`);
+        info.push(`Playback Speed: ${htmlSettings.playbackSpeed || '1'}`);
+        info.push(`Animation: ${htmlSettings.animation?.type || 'play'}`);
+        info.push(`Show Borders: ${htmlSettings.showBorders !== false ? 'Yes' : 'No'}`);
+        info.push(`Display on Mesh: ${htmlSettings.displayOnMesh === true ? 'Yes' : 'No'}`);
     }
     
     // Add content to the panel

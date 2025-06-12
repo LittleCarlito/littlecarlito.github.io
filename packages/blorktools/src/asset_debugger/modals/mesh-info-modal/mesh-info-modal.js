@@ -391,29 +391,6 @@ function generateMeshInfoContent(meshId) {
         </div>
     `);
     
-    let customDataContent = '';
-    if (mesh.userData && Object.keys(mesh.userData).length > 0) {
-        const userDataKeys = Object.keys(mesh.userData).filter(key => key !== 'htmlSettings');
-        
-        if (userDataKeys.length > 0) {
-            customDataContent = userDataKeys.map(key => {
-                const value = mesh.userData[key];
-                const displayValue = typeof value === 'object' ? JSON.stringify(value) : value;
-                return `<div class="info-row"><span class="info-label">${key}:</span> <span class="info-value">${displayValue}</span></div>`;
-            }).join('');
-        } else {
-            customDataContent = '<div class="info-row">No custom data</div>';
-        }
-    } else {
-        customDataContent = '<div class="info-row">No custom data</div>';
-    }
-    
-    sections.push(`
-        <div class="info-section">
-            <strong>Custom Data</strong>
-            ${customDataContent}
-        </div>
-    `);
     
     return sections.join('');
 }
