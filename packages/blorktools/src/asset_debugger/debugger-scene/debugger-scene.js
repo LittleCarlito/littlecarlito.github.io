@@ -76,14 +76,12 @@ export function setupDebuggerScene() {
     return cleanupDebuggerScene;
 }
 
-function initDebugCSS3DFrame() {
-    const viewport = document.getElementById('viewport');
-    if (!viewport) {
-        return;
-    }
+export function getCSS3DDebugController() {
+    return css3dDebugController;
+}
 
-    css3dDebugController = new CSS3DDebugController();
-    css3dDebugController.init(viewport);
+export function setCSS3DDebugController(controller) {
+    css3dDebugController = controller;
 }
 
 function resetThreeJSState() {
@@ -510,10 +508,6 @@ function processFilesFromState() {
         .then(() => {
             resourcesLoaded.modelLoaded = true;
             checkAllResourcesLoaded();
-            
-            setTimeout(() => {
-                initDebugCSS3DFrame();
-            }, 1000);
         })
         .catch(error => {
             resourcesLoaded.modelLoaded = true;

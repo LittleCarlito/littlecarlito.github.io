@@ -111,7 +111,7 @@
     margin: 5px 0;
 }
 
-/* Modal footer with debug button */
+/* Modal footer with debug buttons */
 .modal-footer {
     display: flex;
     gap: 10px;
@@ -119,7 +119,44 @@
     align-items: center;
 }
 
-/* Debug button styling */
+/* CSS3D Debug button styling */
+.modal-btn-css3d {
+    background-color: #6f42c1;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.modal-btn-css3d:hover {
+    background-color: #5a359a;
+    transform: translateY(-1px);
+}
+
+.modal-btn-css3d:active {
+    transform: translateY(0);
+}
+
+.modal-btn-css3d:disabled {
+    background-color: #666;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* CSS3D button when active */
+.modal-btn-css3d.debug-active {
+    background-color: #20c997;
+    animation: pulse-css3d 2s ease-in-out infinite;
+}
+
+.modal-btn-css3d.debug-active:hover {
+    background-color: #1ba085;
+}
+
+/* Debug texture button styling */
 .modal-btn-debug {
     background-color: #ff6b35;
     color: white;
@@ -156,7 +193,19 @@
     background-color: #218838;
 }
 
-/* Pulse animation for active debug state */
+/* Pulse animations */
+@keyframes pulse-css3d {
+    0% {
+        box-shadow: 0 0 0 0 rgba(32, 201, 151, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(32, 201, 151, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(32, 201, 151, 0);
+    }
+}
+
 @keyframes pulse-debug {
     0% {
         box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);

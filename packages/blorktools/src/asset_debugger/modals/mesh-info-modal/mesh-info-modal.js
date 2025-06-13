@@ -8,8 +8,10 @@
 import * as THREE from 'three';
 import { getState } from '../../util/state/scene-state.js';
 import { getHtmlSettingsForMesh } from '../../util/data/mesh-html-manager.js';
+import { CSS3DDebugController } from '../../util/scene/css3d-debug-controller.js';
 
 let listenersInitialized = false;
+let css3dDebugController = null;
 
 export async function openMeshInfoModal(meshName, meshId) {
     console.log(`openMeshInfoModal called for mesh: ${meshName} (ID: ${meshId})`);
@@ -49,8 +51,7 @@ export async function openMeshInfoModal(meshName, meshId) {
         const infoContent = generateMeshInfoContent(meshId);
         if (contentEl) contentEl.innerHTML = infoContent;
         
-        // Update debug button state based on mesh
-        updateDebugButtonState(meshId);
+        updateDebugButtonStates(meshId);
         
         modal.classList.add('visible');
         console.log('Mesh Info Modal opened successfully');
@@ -87,7 +88,12 @@ export async function openMeshInfoModal(meshName, meshId) {
     }
 }
 
-function updateDebugButtonState(meshId) {
+function updateDebugButtonStates(meshId) {
+    updateDebugTextureButtonState(meshId);
+    updateCSS3DDebugButtonState(meshId);
+}
+
+function updateDebugTextureButtonState(meshId) {
     const debugBtn = document.getElementById('mesh-info-debug-texture');
     if (!debugBtn) return;
     
@@ -102,7 +108,6 @@ function updateDebugButtonState(meshId) {
     
     debugBtn.disabled = false;
     
-    // Check if mesh has debug texture applied
     const hasDebugTexture = mesh.userData && mesh.userData.hasDebugTexture;
     
     if (hasDebugTexture) {
@@ -111,6 +116,42 @@ function updateDebugButtonState(meshId) {
     } else {
         debugBtn.textContent = 'Enable Debug Texture';
         debugBtn.classList.remove('debug-active');
+    }
+}
+
+function updateCSS3DDebugButtonState(meshId) {
+    const css3dBtn = document.getElementById('mesh-info-css3d-debug');
+    if (!css3dBtn) return;
+    
+    const state = getState();
+    const mesh = state.meshes ? state.meshes[meshId] : null;
+    
+    if (!mesh) {
+        css3dBtn.textContent = 'Enable CSS3D Debug';
+        css3dBtn.disabled = true;
+        return;
+    }
+    
+    const isDisplayMesh = mesh.name && mesh.name.toLowerCase().includes('display');
+    
+    if (!isDisplayMesh) {
+        css3dBtn.textContent = 'Enable CSS3D Debug';
+        css3dBtn.disabled = true;
+        css3dBtn.title = 'CSS3D Debug only available for display meshes';
+        return;
+    }
+    
+    css3dBtn.disabled = false;
+    css3dBtn.title = 'Toggle CSS3D Debug Frame';
+    
+    const hasCSS3DDebug = css3dDebugController && css3dDebugController.isActive();
+    
+    if (hasCSS3DDebug) {
+        css3dBtn.textContent = 'Disable CSS3D Debug';
+        css3dBtn.classList.add('debug-active');
+    } else {
+        css3dBtn.textContent = 'Enable CSS3D Debug';
+        css3dBtn.classList.remove('debug-active');
     }
 }
 
@@ -134,15 +175,78 @@ function handleDebugTextureToggle() {
     const hasDebugTexture = mesh.userData && mesh.userData.hasDebugTexture;
     
     if (hasDebugTexture) {
-        // Disable debug texture - restore original material
         disableDebugTexture(meshId);
     } else {
-        // Enable debug texture - apply bright colored texture
         enableDebugTexture(meshId);
     }
     
-    // Update button state
-    updateDebugButtonState(meshId);
+    updateDebugTextureButtonState(meshId);
+}
+
+function handleCSS3DDebugToggle() {
+    const modal = document.getElementById('mesh-info-modal');
+    const meshId = parseInt(modal.dataset.meshId);
+    
+    if (isNaN(meshId)) {
+        console.error('Invalid mesh ID');
+        return;
+    }
+    
+    const state = getState();
+    const mesh = state.meshes ? state.meshes[meshId] : null;
+    
+    if (!mesh) {
+        console.error(`Mesh not found at index ${meshId}`);
+        return;
+    }
+    
+    const isDisplayMesh = mesh.name && mesh.name.toLowerCase().includes('display');
+    
+    if (!isDisplayMesh) {
+        console.error('CSS3D Debug is only available for display meshes');
+        return;
+    }
+    
+    const isActive = css3dDebugController && css3dDebugController.isActive();
+    
+    if (isActive) {
+        disableCSS3DDebug();
+    } else {
+        enableCSS3DDebug();
+    }
+    
+    updateCSS3DDebugButtonState(meshId);
+}
+
+function enableCSS3DDebug() {
+    try {
+        if (!css3dDebugController) {
+            css3dDebugController = new CSS3DDebugController();
+        }
+        
+        if (css3dDebugController.isActive()) {
+            console.log('CSS3D Debug already active');
+            return;
+        }
+        
+        const mainContainer = document.getElementById('main-container') || document.body;
+        css3dDebugController.init(mainContainer);
+        
+        console.log('CSS3D Debug enabled');
+    } catch (error) {
+        console.error('Error enabling CSS3D Debug:', error);
+    }
+}
+
+function disableCSS3DDebug() {
+    try {
+        if (css3dDebugController && css3dDebugController.isActive()) {
+            css3dDebugController.cleanup();
+            console.log('CSS3D Debug disabled');
+        }
+    } catch (error) {
+        console.error('Error disabling CSS3D Debug:', error);
+    }
 }
 
 function enableDebugTexture(meshId) {
@@ -154,7 +258,6 @@ function enableDebugTexture(meshId) {
         return;
     }
     
-    // Store original material if not already stored
     if (!mesh.userData.originalMaterial) {
         if (Array.isArray(mesh.material)) {
             mesh.userData.originalMaterial = mesh.material.map(mat => mat.clone());
@@ -163,17 +266,15 @@ function enableDebugTexture(meshId) {
         }
     }
     
-    // Create a bright debug texture
     const canvas = document.createElement('canvas');
     canvas.width = 512;
     canvas.height = 512;
     
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ff0000'; // Bright red
+    ctx.fillStyle = '#ff0000';
     ctx.fillRect(0, 0, 512, 512);
     
-    // Add some visual pattern to make it obvious it's a debug texture
-    ctx.fillStyle = '#ffff00'; // Yellow stripes
+    ctx.fillStyle = '#ffff00';
     for (let i = 0; i < 512; i += 64) {
         ctx.fillRect(i, 0, 32, 512);
     }
@@ -184,7 +285,6 @@ function enableDebugTexture(meshId) {
     debugTexture.wrapT = THREE.RepeatWrapping;
     debugTexture.needsUpdate = true;
     
-    // Apply debug texture to material(s)
     if (Array.isArray(mesh.material)) {
         mesh.material.forEach(material => {
             material.map = debugTexture;
@@ -197,7 +297,6 @@ function enableDebugTexture(meshId) {
         mesh.material.needsUpdate = true;
     }
     
-    // Mark mesh as having debug texture
     mesh.userData.hasDebugTexture = true;
     
     console.log(`Debug texture enabled for mesh ${meshId}`);
@@ -212,7 +311,6 @@ function disableDebugTexture(meshId) {
         return;
     }
     
-    // Restore original material if available
     if (mesh.userData.originalMaterial) {
         if (Array.isArray(mesh.userData.originalMaterial)) {
             mesh.material = mesh.userData.originalMaterial.map(mat => mat.clone());
@@ -220,7 +318,6 @@ function disableDebugTexture(meshId) {
             mesh.material = mesh.userData.originalMaterial.clone();
         }
     } else {
-        // Fallback: reset to basic material
         if (Array.isArray(mesh.material)) {
             mesh.material.forEach(material => {
                 material.map = null;
@@ -234,7 +331,6 @@ function disableDebugTexture(meshId) {
         }
     }
     
-    // Remove debug texture flag
     mesh.userData.hasDebugTexture = false;
     
     console.log(`Debug texture disabled for mesh ${meshId}`);
@@ -402,6 +498,7 @@ export function initMeshInfoModal() {
     const closeBtn = document.getElementById('mesh-info-close');
     const okBtn = document.getElementById('mesh-info-ok');
     const debugBtn = document.getElementById('mesh-info-debug-texture');
+    const css3dBtn = document.getElementById('mesh-info-css3d-debug');
     
     window.openMeshInfoModal = openMeshInfoModal;
     console.log('Registered global function: window.openMeshInfoModal =', 
@@ -422,6 +519,10 @@ export function initMeshInfoModal() {
     
     if (debugBtn) {
         debugBtn.addEventListener('click', handleDebugTextureToggle);
+    }
+    
+    if (css3dBtn) {
+        css3dBtn.addEventListener('click', handleCSS3DDebugToggle);
     }
     
     modal.addEventListener('click', function(e) {
