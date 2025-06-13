@@ -123,96 +123,121 @@ function resetThreeJSState() {
 }
 
 function cleanupDebuggerScene() {
-   isPageUnloading = true;
-   
-   if (css3dDebugController) {
-       css3dDebugController.cleanup();
-       css3dDebugController = null;
-   }
-   
-   if (htmlEditorModule.resetInitialization) {
-       htmlEditorModule.resetInitialization();
-   }
-   
-   const debugControls = document.querySelector('.debug-controls');
-   if (debugControls) {
-       debugControls.style.display = 'none';
-   }
-   
-   terminateAllWorkers();
-   
-   setTimeout(() => {
-       if (worldPanel.cleanupWorldPanel) {
-           worldPanel.cleanupWorldPanel();
-       }
-       
-       if (stateModule.clearAllFiles) {
-           stateModule.clearAllFiles(true);
-       }
-       
-       const state = stateModule.getState();
-       
-       if (state.animating && sceneController.stopAnimation) {
-           sceneController.stopAnimation();
-       }
-       
-       if (state.renderer) {
-           state.renderer.dispose();
-           stateModule.updateState('renderer', null);
-       }
-       
-       const controls = state.controls;
-       if (controls) {
-           if (cameraController.disposeControls) {
-               cameraController.disposeControls();
-           }
-           if (controls.dispose) {
-               controls.dispose();
-           }
-           stateModule.updateState('controls', null);
-       }
-       
-       if (state.scene) {
-           while(state.scene.children && state.scene.children.length > 0) {
-               const obj = state.scene.children[0];
-               if (obj.geometry) obj.geometry.dispose();
-               if (obj.material) {
-                   if (Array.isArray(obj.material)) {
-                       obj.material.forEach(mat => mat.dispose());
-                   } else {
-                       obj.material.dispose();
-                   }
-               }
-               state.scene.remove(obj);
-           }
-           stateModule.updateState('scene', null);
-       }
-       
-       const canvasElements = document.querySelectorAll('canvas[data-animation-id]');
-       canvasElements.forEach(canvas => {
-           if (typeof canvas.cleanup === 'function') {
-               canvas.cleanup();
-           }
-           
-           const animId = canvas.getAttribute('data-animation-id');
-           if (animId) {
-               cancelAnimationFrame(parseInt(animId, 10));
-           }
-       });
-       
-       const noneRadioBtn = document.querySelector('input[name="bg-option"][value="none"]');
-       if (noneRadioBtn) {
-           noneRadioBtn.checked = true;
-       }
-       
-       const bgPreviewCanvas = document.getElementById('bg-preview-canvas');
-       const hdrPreviewCanvas = document.getElementById('hdr-preview-canvas');
-       
-       if (bgPreviewCanvas) bgPreviewCanvas.style.opacity = '0.3';
-       if (hdrPreviewCanvas) hdrPreviewCanvas.style.opacity = '0.3';
-   }, 0);
-   
-   return null;
+    isPageUnloading = true;
+    
+    cleanupCSS3DComponents();
+    
+    if (htmlEditorModule.resetInitialization) {
+        htmlEditorModule.resetInitialization();
+    }
+    
+    const debugControls = document.querySelector('.debug-controls');
+    if (debugControls) {
+        debugControls.style.display = 'none';
+    }
+    
+    terminateAllWorkers();
+    
+    setTimeout(() => {
+        if (worldPanel.cleanupWorldPanel) {
+            worldPanel.cleanupWorldPanel();
+        }
+        
+        if (stateModule.clearAllFiles) {
+            stateModule.clearAllFiles(true);
+        }
+        
+        const state = stateModule.getState();
+        
+        if (state.animating && sceneController.stopAnimation) {
+            sceneController.stopAnimation();
+        }
+        
+        if (state.renderer) {
+            state.renderer.dispose();
+            stateModule.updateState('renderer', null);
+        }
+        
+        const controls = state.controls;
+        if (controls) {
+            if (cameraController.disposeControls) {
+                cameraController.disposeControls();
+            }
+            if (controls.dispose) {
+                controls.dispose();
+            }
+            stateModule.updateState('controls', null);
+        }
+        
+        if (state.scene) {
+            while(state.scene.children && state.scene.children.length > 0) {
+                const obj = state.scene.children[0];
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) {
+                    if (Array.isArray(obj.material)) {
+                        obj.material.forEach(mat => mat.dispose());
+                    } else {
+                        obj.material.dispose();
+                    }
+                }
+                state.scene.remove(obj);
+            }
+            stateModule.updateState('scene', null);
+        }
+        
+        const canvasElements = document.querySelectorAll('canvas[data-animation-id]');
+        canvasElements.forEach(canvas => {
+            if (typeof canvas.cleanup === 'function') {
+                canvas.cleanup();
+            }
+            
+            const animId = canvas.getAttribute('data-animation-id');
+            if (animId) {
+                cancelAnimationFrame(parseInt(animId, 10));
+            }
+        });
+        
+        const noneRadioBtn = document.querySelector('input[name="bg-option"][value="none"]');
+        if (noneRadioBtn) {
+            noneRadioBtn.checked = true;
+        }
+        
+        const bgPreviewCanvas = document.getElementById('bg-preview-canvas');
+        const hdrPreviewCanvas = document.getElementById('hdr-preview-canvas');
+        
+        if (bgPreviewCanvas) bgPreviewCanvas.style.opacity = '0.3';
+        if (hdrPreviewCanvas) hdrPreviewCanvas.style.opacity = '0.3';
+    }, 0);
+    
+    return null;
+}
+
+function cleanupCSS3DComponents() {
+    if (css3dDebugController) {
+        css3dDebugController.cleanup();
+        css3dDebugController = null;
+    }
+    
+    const css3dElements = document.querySelectorAll('[style*="position: absolute"][style*="z-index: 1000"]');
+    css3dElements.forEach(element => {
+        if (element.parentNode) {
+            element.parentNode.removeChild(element);
+        }
+    });
+    
+    const css3dIframes = document.querySelectorAll('iframe[style*="border: 2px solid #00ff88"]');
+    css3dIframes.forEach(iframe => {
+        if (iframe.parentNode) {
+            iframe.parentNode.removeChild(iframe);
+        }
+    });
+    
+    const css3dRenderers = document.querySelectorAll('div[style*="position: absolute"][style*="pointer-events: none"]');
+    css3dRenderers.forEach(renderer => {
+        if (renderer.parentNode && renderer.style.zIndex === '1000') {
+            renderer.parentNode.removeChild(renderer);
+        }
+    });
 }
 
 function loadComponentHtml() {
@@ -281,48 +306,33 @@ function loadComponentHtml() {
         });
 
     const meshInfoPromise = fetch('./modals/mesh-info-modal/mesh-info-modal.html')
-        .then(response => {
-            console.log('Mesh info modal HTML fetch response:', response.status, response.ok);
-            return response.text();
-        })
+        .then(response => response.text())
         .then(html => {
-            console.log('Mesh info modal HTML received, length:', html.length);
-            
             const container = document.getElementById('mesh-info-modal-container');
-            console.log('Mesh info modal container found:', !!container);
             
             if (container) {
                 container.innerHTML = html;
-                console.log('Mesh info modal HTML inserted into container');
                 
                 const modalElement = document.getElementById('mesh-info-modal');
-                console.log('Mesh info modal element now exists:', !!modalElement);
                 
                 if (modalElement) {
                     modalElement.style.display = 'none';
-                    console.log('Mesh info modal display set to none');
                     
                     if (meshInfoModule.resetInitialization) {
                         meshInfoModule.resetInitialization();
-                        console.log('Mesh info modal initialization reset');
                     }
                     
                     meshInfoModule.initMeshInfoModal();
-                    console.log('Mesh info modal initialized');
                     
                     componentsLoaded.meshInfo = true;
-                    console.log('Mesh info modal component marked as loaded');
                 } else {
-                    console.error('Mesh info modal element not found after HTML insertion');
                     throw new Error('Mesh info modal element not found');
                 }
             } else {
-                console.error('Mesh info modal container not found');
                 throw new Error('Mesh info modal container not found');
             }
         })
         .catch(error => {
-            console.error('Error loading mesh info modal:', error);
             componentsLoaded.meshInfo = false;
         });
 

@@ -89,6 +89,20 @@ export function initAssetPanel() {
     // Initialize the download button (now always visible)
     initDownloadButton();
     
+    // Set up a listener for state changes to update button visibility
+    // This could be enhanced with a proper state change listener system
+    const originalUpdateState = window.updateState;
+    if (originalUpdateState) {
+        window.updateState = function(...args) {
+            const result = originalUpdateState.apply(this, args);
+            // Check if modelFile was updated
+            if (args[0] === 'modelFile' || (typeof args[0] === 'object' && 'modelFile' in args[0])) {
+                setTimeout(updateDownloadButtonVisibility, 0); // Async to ensure state is updated
+            }
+            return result;
+        };
+    }
+    
     controlsInitialized = true;
 }
 
@@ -118,4 +132,30 @@ function initDownloadButton() {
     
     downloadButtonInitialized = true;
     console.log('Download button event listener initialized successfully');
+    
+    // Update button visibility based on current state
+    updateDownloadButtonVisibility();
+}
+
+/**
+ * Update download button visibility based on whether there's a model loaded
+ */
+function updateDownloadButtonVisibility() {
+    const downloadSection = document.querySelector('.asset-download-section');
+    const state = getState();
+    
+    if (!downloadSection) return;
+    
+    // Show button only if there's a model file loaded
+    const hasModel = state.modelFile !== null;
+    downloadSection.style.display = hasModel ? 'block' : 'none';
+    
+    console.log(`Download button ${hasModel ? 'shown' : 'hidden'} - hasModel: ${hasModel}`);
+}
+
+/**
+ * Public function to update download button visibility (called from other modules)
+ */
+export function refreshDownloadButtonVisibility() {
+    updateDownloadButtonVisibility();
 }
