@@ -67,33 +67,36 @@ export function loadAndSetupModel(loadingIndicator) {
                             processLoadedModel(gltf);
                             resolve();
                         } catch (processError) {
+                            console.error('Error processing model:', processError);
                             reject(processError);
                         }
                     }, undefined, function(error) {
-                        alert('Error loading model. Please make sure it is a valid glTF/GLB file.');
+                        console.error('Error loading model. Please make sure it is a valid glTF/GLB file:', error);
                         reject(error);
                     });
                 }).catch(error => {
+                    console.warn('Buffer processing failed, attempting direct load:', error);
                     loader.parse(modelData, '', (gltf) => {
                         try {
                             processLoadedModel(gltf);
                             resolve();
                         } catch (processError) {
+                            console.error('Error processing model:', processError);
                             reject(processError);
                         }
                     }, undefined, function(error) {
-                        alert('Error loading model. Please make sure it is a valid glTF/GLB file.');
+                        console.error('Error loading model. Please make sure it is a valid glTF/GLB file:', error);
                         reject(error);
                     });
                 });
             } catch (parseError) {
-                alert('Error parsing model data: ' + parseError.message);
+                console.error('Error parsing model data:', parseError);
                 reject(parseError);
             }
         };
         
         reader.onerror = function(error) {
-            alert('Error reading model file: ' + error);
+            console.error('Error reading model file:', error);
             reject(error);
         };
         
@@ -166,11 +169,16 @@ function processLoadedModel(gltf) {
         }
         
         if (updateRigPanel) {
-            updateRigPanel();
+            try {
+                updateRigPanel();
+            } catch (rigError) {
+                console.error('Error updating rig panel:', rigError);
+            }
         }
         
     } catch (processError) {
-        alert('Error processing model: ' + processError.message);
+        console.error('Error processing model:', processError);
+        throw processError;
     }
 }
 
@@ -309,12 +317,14 @@ export function loadDebugModel() {
                             resolve();
                         })
                         .catch((error) => {
+                            console.error('Model loading failed:', error);
                             if (loadingIndicator) loadingIndicator.style.display = 'none';
                             reject(error);
                         });
                 } else if (attempts >= maxAttempts) {
                     clearInterval(checkInterval);
                     const error = new Error('Scene initialization timeout');
+                    console.error('Scene initialization timeout after', maxAttempts, 'attempts');
                     if (loadingIndicator) loadingIndicator.style.display = 'none';
                     reject(error);
                 }
@@ -326,6 +336,7 @@ export function loadDebugModel() {
                     resolve();
                 })
                 .catch((error) => {
+                    console.error('Model loading failed:', error);
                     if (loadingIndicator) loadingIndicator.style.display = 'none';
                     reject(error);
                 });
@@ -383,9 +394,11 @@ function loadModelBasedOnState() {
                         examplesModule.loadExample('wireframe-cube')
                             .then(resolve)
                             .catch(error => {
+                                console.warn('Failed to load rig example:', error);
                                 resolve();
                             });
                     }).catch(error => {
+                        console.warn('Failed to import examples module:', error);
                         resolve();
                     });
                 } else {
@@ -401,6 +414,7 @@ function loadModelBasedOnState() {
                     createLightingTestCube();
                     resolve();
                 } catch (error) {
+                    console.error('Failed to create lighting test cube:', error);
                     reject(error);
                 }
             } else if (state.textureObjects.baseColor || 
@@ -410,12 +424,14 @@ function loadModelBasedOnState() {
                     createCube();
                     resolve();
                 } catch (error) {
+                    console.error('Failed to create cube:', error);
                     reject(error);
                 }
             } else {
                 resolve();
             }
         } catch (error) {
+            console.error('Error in loadModelBasedOnState:', error);
             reject(error);
         }
     });

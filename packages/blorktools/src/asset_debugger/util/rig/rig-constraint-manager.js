@@ -1,7 +1,9 @@
 import { jointPreviousValues } from "../../panels/asset-panel/rig-heading/rig-heading";
-import { findBoneByName } from "./bone-kinematics";
+import { findBoneByName, updateAllBoneMatrices } from "./bone-kinematics";
 import { rigDetails } from "./rig-controller";
 import { applyJointConstraints } from "./rig-factory";
+import { storeBoneCurrentState, updateConstraintSettingsState, updatePreviousValues } from "./rig-state-manager";
+import { disableApplyButton } from "./rig-ui-component-factory";
 
 /**
  * Create a none constraint (removes constraint)
@@ -226,4 +228,26 @@ export function processBoneConstraint(select, boneCurrentState) {
     if (constraint) {
         applyConstraintToBone(bone, constraint, currentState, boneName);
     }
+}
+
+/**
+ * Handle the Apply Constraints button click
+ * @param {HTMLElement} button - The Apply Constraints button element
+ */
+export function handleApplyConstraints(button) {
+    console.log('Applying bone constraint changes...');
+    
+    const constraintSelects = document.querySelectorAll('select[data-bone-constraint]');
+    const boneCurrentState = storeBoneCurrentState();
+    
+    constraintSelects.forEach(select => {
+        processBoneConstraint(select, boneCurrentState);
+    });
+    
+    updateAllBoneMatrices(true);
+    updatePreviousValues(constraintSelects);
+    updateConstraintSettingsState();
+    disableApplyButton(button);
+    
+    console.log('Bone constraints applied successfully');
 }
