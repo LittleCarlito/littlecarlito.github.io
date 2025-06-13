@@ -260,7 +260,7 @@ function loadComponentHtml() {
     const settingsModalPromise = fetch('./modals/settings-modal/settings-modal.html')
         .then(response => response.text())
         .then(html => {
-            const container = document.querySelector('settings-modal-container');
+            const container = document.getElementById('settings-modal-container');
             if (container) {
                 container.innerHTML = html;
                 setTimeout(() => new SettingsModal(), 0);
