@@ -14,7 +14,6 @@ import {
     clearFurthestBoneHandle
 } from './bone-kinematics';
 import { createJointLabels, createBoneLabels } from './rig-factory';
-import { refreshJointsData } from '../../panels/asset-panel/rig-heading/rig-heading';
 
 export let rigDetails = null;
 export const labelGroups = new Map(); // Map to store different types of label groups (joint, bone)
@@ -450,6 +449,62 @@ export function clearRigVisualization(scene) {
     if (furthestBoneHandle) {
         scene.remove(furthestBoneHandle);
         clearFurthestBoneHandle();
+    }
+}
+
+/**
+ * Refresh the joints data based on current bone visualizations
+ */
+function refreshJointsData() {
+    // Clear existing joints data
+    if (rigDetails && rigDetails.joints) {
+        rigDetails.joints = [];
+        
+        // Collect joint data from all bone visualizations
+        if (boneVisualsGroup) {
+            boneVisualsGroup.traverse(object => {
+                if (object.userData && object.userData.isVisualBone) {
+                    // Get the parent and child bones
+                    const parentBone = object.userData.parentBone;
+                    const childBone = object.userData.childBone;
+                    
+                    if (parentBone && childBone) {
+                        // Regular joint between parent and child
+                        const jointName = `Joint_${parentBone.name}_to_${childBone.name}`;
+                        
+                        // Create joint data (without constraint type)
+                        const jointData = {
+                            name: jointName,
+                            parentBone: parentBone.name,
+                            childBone: childBone.name,
+                            position: [object.position.x, object.position.y, object.position.z],
+                            count: 1
+                        };
+                        
+                        rigDetails.joints.push(jointData);
+                    } else if (object.userData.rootBone) {
+                        // Root joint
+                        const rootBone = object.userData.rootBone;
+                        const jointName = `Root_Joint_${rootBone.name}`;
+                        
+                        // Create joint data (without constraint type)
+                        const jointData = {
+                            name: jointName,
+                            parentBone: "Scene Root",
+                            childBone: rootBone.name,
+                            position: [object.position.x, object.position.y, object.position.z],
+                            count: 1,
+                            isRoot: true
+                        };
+                        
+                        rigDetails.joints.push(jointData);
+                    }
+                }
+            });
+        }
+        
+        // Deduplicate the joints data
+        rigDetails.joints = deduplicateItems(rigDetails.joints);
     }
 }
 
