@@ -7,7 +7,6 @@ import { deserializeStringFromBinary, isValidHtml } from '../../../util/data/str
 import { openMeshInfoModal } from '../../../modals/mesh-info-modal/mesh-info-modal.js';
 import { getBinaryBufferForMesh } from '../../../util/data/glb-serder.js';
 import { getCurrentGlbBuffer } from '../../../util/scene/glb-manager.js';
-import { downloadUpdatedGlb } from '../../../util/scene/glb-controller.js';
 import { getState, updateState } from '../../../util/state/scene-state.js';
 
 // Load mesh panel CSS
@@ -24,9 +23,6 @@ const ICON_COLORS = {
     VALID_HTML: '#4CAF50', // Green color for meshes with valid HTML content
     NO_HTML: '#8a8a8a'   // Default color for meshes without content
 };
-// Track initialization state
-let downloadButtonInitialized = false;
-let meshPanelInitialized = false;
 
 /**
  * Toggle the binary content icon appearance for a specific mesh
@@ -38,22 +34,18 @@ let meshPanelInitialized = false;
 export function toggleMeshCodeIcon(meshIndex, hasHtml, forceUpdate = false) {
     console.log(`Toggling mesh code icon for mesh ${meshIndex} to ${hasHtml ? 'has content' : 'no content'}`);
     
-    // Update tracking set
     if (hasHtml) {
         meshesWithHtml.add(meshIndex);
     } else {
         meshesWithHtml.delete(meshIndex);
     }
     
-    // If forcing update, temporarily store this state to prevent automatic rechecking
     if (forceUpdate) {
-        // Use a data attribute on the document to store forced states temporarily
         if (!window._forcedHtmlStates) {
             window._forcedHtmlStates = {};
         }
         window._forcedHtmlStates[meshIndex] = hasHtml;
         
-        // Clear this forced state after a short delay
         setTimeout(() => {
             if (window._forcedHtmlStates) {
                 delete window._forcedHtmlStates[meshIndex];
@@ -61,12 +53,10 @@ export function toggleMeshCodeIcon(meshIndex, hasHtml, forceUpdate = false) {
         }, 500);
     }
     
-    // Find all icons for this mesh index
     const icons = document.querySelectorAll(`.mesh-html-editor-icon[data-mesh-index="${meshIndex}"]`);
     
     if (icons.length === 0) {
         console.log(`No icons found for mesh index ${meshIndex}, trying broader search`);
-        // Try broader search - get all icons and look for the right one
         const allIcons = document.querySelectorAll('.mesh-html-editor-icon');
         
         allIcons.forEach((icon) => {
@@ -76,7 +66,6 @@ export function toggleMeshCodeIcon(meshIndex, hasHtml, forceUpdate = false) {
             }
         });
     } else {
-        // Update all found icons
         icons.forEach(icon => {
             updateIconAppearance(icon, hasHtml);
         });
@@ -91,48 +80,38 @@ export function toggleMeshCodeIcon(meshIndex, hasHtml, forceUpdate = false) {
  * @returns {Promise<boolean>} Promise that resolves to true if the mesh has any binary content
  */
 async function checkMeshHasHtmlContent(meshIndex) {
-    // Check if there's a forced state for this mesh
     if (window._forcedHtmlStates && meshIndex in window._forcedHtmlStates) {
         console.log(`Using forced HTML state for mesh ${meshIndex}: ${window._forcedHtmlStates[meshIndex]}`);
         return window._forcedHtmlStates[meshIndex];
     }
 
-    // First check our cache
     if (meshesWithHtml.has(meshIndex)) {
-        // Double check that it's still valid by getting the actual content
         const glbBuffer = getCurrentGlbBuffer();
         if (glbBuffer) {
             try {
                 const binaryBuffer = await getBinaryBufferForMesh(glbBuffer, meshIndex);
-                // Consider valid if buffer exists and has content
                 if (!binaryBuffer || binaryBuffer.byteLength === 0) {
-                    // Remove from cache if no longer valid
                     meshesWithHtml.delete(meshIndex);
                     return false;
                 }
                 return true;
             } catch (e) {
-                // Remove from cache if error
                 meshesWithHtml.delete(meshIndex);
                 return false;
             }
         }
-        return true; // Keep the cached value if we can't check
+        return true;
     }
     
-    // Get the current GLB buffer
     const glbBuffer = getCurrentGlbBuffer();
     if (!glbBuffer) {
         return false;
     }
     
     try {
-        // Try to get binary buffer for this mesh
         const binaryBuffer = await getBinaryBufferForMesh(glbBuffer, meshIndex);
         
-        // If buffer found and has data, it has content
         if (binaryBuffer && binaryBuffer.byteLength > 0) {
-            // Cache the result
             meshesWithHtml.add(meshIndex);
             return true;
         }
@@ -148,146 +127,108 @@ async function checkMeshHasHtmlContent(meshIndex) {
  * Create the mesh visibility panel in the UI
  */
 export function createMeshVisibilityPanel() {
-    // Register utility functions globally
     window.removeMeshHtmlFlag = removeMeshHtmlFlag;
     window.updateHtmlIcons = updateHtmlIcons;
     window.openMeshInfoModal = openMeshInfoModal;
     
-    // Get the state to check for mesh data
     const state = getState();
     const hasMeshes = state.meshes && state.meshes.length > 0;
     
-    // Update button container visibility
-    const buttonContainer = document.querySelector('.button-container');
-    const downloadBtn = document.getElementById('download-asset-btn');
-    if (buttonContainer && downloadBtn) {
-        buttonContainer.dataset.hasMeshes = hasMeshes.toString();
-        downloadBtn.style.display = hasMeshes ? 'inline-block' : 'none';
-    }
-    
-    // If no meshes, return early
     if (!hasMeshes) {
         return;
     }
     
-    // Organize meshes into groups based on name prefixes
     groupMeshesByName();
     
-    // Get the container element
     const meshGroupsContainer = document.getElementById('mesh-groups');
     if (!meshGroupsContainer) return;
     
-    // Clear previous content
     meshGroupsContainer.innerHTML = '';
     
-    // Create elements for each mesh group
     for (const groupName in state.meshGroups) {
         const groupMeshes = state.meshGroups[groupName];
         
-        // Create group container
         const groupDiv = document.createElement('div');
         groupDiv.className = 'mesh-group';
         
-        // Create group header
         const headerDiv = document.createElement('div');
         headerDiv.className = 'mesh-group-header';
         headerDiv.style.display = 'flex';
         headerDiv.style.alignItems = 'center';
         headerDiv.style.justifyContent = 'space-between';
         headerDiv.style.width = '100%';
-        headerDiv.style.cursor = 'pointer'; // Make the header appear clickable
+        headerDiv.style.cursor = 'pointer';
         
-        // Create left part of header (checkbox + name + count)
         const headerLeftDiv = document.createElement('div');
         headerLeftDiv.style.display = 'flex';
         headerLeftDiv.style.alignItems = 'center';
         
-        // Create group toggle checkbox
         const groupToggle = document.createElement('input');
         groupToggle.type = 'checkbox';
         groupToggle.className = 'mesh-group-toggle';
         groupToggle.checked = true;
         groupToggle.dataset.group = groupName;
         
-        // Add event listener for group toggle
         groupToggle.addEventListener('change', (e) => {
             const isVisible = e.target.checked;
             toggleMeshGroupVisibility(groupName, isVisible);
             
-            // Update individual mesh checkboxes
             const meshToggles = groupDiv.querySelectorAll('.mesh-toggle');
             meshToggles.forEach(toggle => {
                 toggle.checked = isVisible;
             });
         });
         
-        // Prevent checkbox click from triggering the header click
         groupToggle.addEventListener('click', (e) => {
             e.stopPropagation();
         });
         
-        // Create group name element
         const groupNameSpan = document.createElement('span');
         groupNameSpan.className = 'mesh-group-name';
         groupNameSpan.textContent = groupName + ' ';
         
-        // Create group count element and put it right after the name
         const groupCountSpan = document.createElement('span');
         groupCountSpan.className = 'mesh-group-count';
         groupCountSpan.textContent = `(${groupMeshes.length})`;
         
-        // Create collapse/expand button
         const collapseBtn = document.createElement('span');
         collapseBtn.className = 'mesh-group-collapse';
-        collapseBtn.textContent = '+';  // Start with + (collapsed)
+        collapseBtn.textContent = '+';
         collapseBtn.style.cursor = 'pointer';
-        collapseBtn.style.marginLeft = 'auto'; // Push to right side
+        collapseBtn.style.marginLeft = 'auto';
         
-        // Function to toggle collapse/expand state
         const toggleCollapse = () => {
             const meshItemsDiv = groupDiv.querySelector('.mesh-items');
             const isCollapsed = meshItemsDiv.style.display === 'none';
             
-            // Toggle visibility
             meshItemsDiv.style.display = isCollapsed ? 'block' : 'none';
-            
-            // Update icon
             collapseBtn.textContent = isCollapsed ? '-' : '+';
         };
         
-        // Add event listener for collapse/expand to the entire header
         headerDiv.addEventListener('click', toggleCollapse);
         
-        // Add event listener for collapse/expand to the button
         collapseBtn.addEventListener('click', (e) => {
-            // Prevent the event from bubbling to the header
             e.stopPropagation();
             toggleCollapse();
         });
         
-        // Assemble header left part
         headerLeftDiv.appendChild(groupToggle);
         headerLeftDiv.appendChild(groupNameSpan);
         headerLeftDiv.appendChild(groupCountSpan);
         
-        // Assemble header
         headerDiv.appendChild(headerLeftDiv);
         headerDiv.appendChild(collapseBtn);
         
-        // Create container for mesh items
         const meshItemsDiv = document.createElement('div');
         meshItemsDiv.className = 'mesh-items';
-        // Start collapsed
         meshItemsDiv.style.display = 'none';
         
-        // Create elements for each mesh in the group
         const meshPromises = groupMeshes.map(async (mesh, index) => {
             const meshDiv = document.createElement('div');
             meshDiv.className = 'mesh-item';
             meshDiv.style.display = 'flex';
             meshDiv.style.alignItems = 'center';
             
-            // Create mesh toggle checkbox
             const meshToggle = document.createElement('input');
             meshToggle.type = 'checkbox';
             meshToggle.className = 'mesh-toggle';
@@ -295,27 +236,22 @@ export function createMeshVisibilityPanel() {
             const meshIndex = state.meshes.indexOf(mesh);
             meshToggle.dataset.meshIndex = meshIndex;
             
-            // Add event listener for mesh toggle
             meshToggle.addEventListener('change', (e) => {
                 const isVisible = e.target.checked;
                 const meshIndex = parseInt(e.target.dataset.meshIndex);
                 
                 if (!isNaN(meshIndex) && meshIndex >= 0 && meshIndex < state.meshes.length) {
                     state.meshes[meshIndex].visible = isVisible;
-                    
-                    // Update group checkbox if needed
                     updateGroupToggleState(groupName);
                 }
             });
             
-            // Create mesh name element
             const meshNameSpan = document.createElement('span');
             meshNameSpan.className = 'mesh-name';
             meshNameSpan.textContent = getMeshDisplayName(mesh);
             meshNameSpan.title = mesh.name || "Unnamed mesh";
             meshNameSpan.style.flexGrow = '1';
             
-            // Create HTML editor icon
             const htmlEditorIcon = document.createElement('span');
             htmlEditorIcon.className = 'mesh-html-editor-icon';
             htmlEditorIcon.title = 'Edit HTML';
@@ -326,18 +262,12 @@ export function createMeshVisibilityPanel() {
                 </svg>
             `;
             
-            // Check if mesh has HTML content
             const hasHtml = await checkMeshHasHtmlContent(meshIndex);
-            
-            // Add a data attribute to the icon indicating if it has HTML content
             htmlEditorIcon.dataset.hasHtml = hasHtml;
-            
-            // Style the icon based on HTML content status
             updateIconAppearance(htmlEditorIcon, hasHtml);
             
-            // Add event listener to open HTML editor modal
             htmlEditorIcon.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent propagation to parent elements
+                e.stopPropagation();
                 console.log('HTML editor icon clicked');
                 
                 try {
@@ -346,9 +276,7 @@ export function createMeshVisibilityPanel() {
                     
                     console.log(`Opening HTML editor for mesh: ${meshName} (index: ${meshIndex})`);
                     
-                    // Check if the function exists before calling it
                     if (typeof window.openEmbeddedHtmlEditor === 'function') {
-                        // Call the embedded HTML editor modal
                         window.openEmbeddedHtmlEditor(meshName, meshIndex);
                     } else {
                         console.error('HTML Editor function not found. Modal may not be initialized yet.');
@@ -360,7 +288,6 @@ export function createMeshVisibilityPanel() {
                 }
             });
             
-            // Create mesh info icon
             const meshInfoIcon = document.createElement('span');
             meshInfoIcon.className = 'mesh-info-icon';
             meshInfoIcon.title = 'View mesh details';
@@ -376,16 +303,13 @@ export function createMeshVisibilityPanel() {
             meshInfoIcon.style.cursor = 'pointer';
             meshInfoIcon.style.marginLeft = '8px';
             
-            // Add event listener to show mesh info panel
             meshInfoIcon.addEventListener('click', (e) => {
                 e.stopPropagation();
                 console.log('Mesh info icon clicked for mesh index:', meshIndex);
                 try {
                     const meshName = state.meshes[meshIndex].name || 'Unnamed mesh';
                     console.log(`Opening mesh info modal for mesh: ${meshName} (index: ${meshIndex})`);
-                    // Check if the function exists before calling it
                     if (typeof window.openMeshInfoModal === 'function') {
-                        // Call the mesh info modal
                         window.openMeshInfoModal(meshName, meshIndex);
                     } else {
                         console.error('Mesh Info Modal function not found. Modal may not be initialized yet.');
@@ -397,19 +321,15 @@ export function createMeshVisibilityPanel() {
                 }
             });
             
-            // Create icons container
             const iconsContainer = document.createElement('div');
             iconsContainer.className = 'mesh-item-icons';
             
-            // Add the HTML editor icon if the mesh name contains "display"
             if (mesh.name && mesh.name.toLowerCase().includes('display')) {
                 iconsContainer.appendChild(htmlEditorIcon);
             }
             
-            // Always add the info icon
             iconsContainer.appendChild(meshInfoIcon);
             
-            // Assemble mesh item
             meshDiv.appendChild(meshToggle);
             meshDiv.appendChild(meshNameSpan);
             meshDiv.appendChild(iconsContainer);
@@ -417,71 +337,17 @@ export function createMeshVisibilityPanel() {
             return meshDiv;
         });
         
-        // Wait for all mesh promises to resolve
         Promise.all(meshPromises).then(meshDivs => {
-            // Add all mesh divs to the mesh items container
             meshDivs.forEach(div => {
                 meshItemsDiv.appendChild(div);
             });
             
-            // Add group header and mesh items to group container
             groupDiv.appendChild(headerDiv);
             groupDiv.appendChild(meshItemsDiv);
             
-            // Add group container to mesh groups container
             meshGroupsContainer.appendChild(groupDiv);
         });
     }
-    
-    // Initialize the download button only once
-    if (!meshPanelInitialized) {
-        initDownloadButton();
-        meshPanelInitialized = true;
-        console.log('Mesh panel initialized');
-    }
-}
-
-/**
- * Initialize the download button
- */
-function initDownloadButton() {
-    const downloadBtn = document.getElementById('download-asset-btn');
-    if (!downloadBtn) return;
-    
-    // Only register event listener once
-    if (downloadButtonInitialized) {
-        console.log('Download button already initialized, skipping');
-        return;
-    }
-    
-    downloadBtn.addEventListener('click', async () => {
-        try {
-            await downloadUpdatedGlb();
-        } catch (error) {
-            console.error('Error downloading GLB:', error);
-            alert('Error downloading GLB: ' + error.message);
-        }
-    });
-    
-    // Mark as initialized
-    downloadButtonInitialized = true;
-    console.log('Download button event listener initialized successfully');
-}
-
-/**
- * Get a formatted timestamp string for filenames
- * @returns {string} Formatted timestamp (YYYYMMDD_HHMMSS)
- */
-function getCurrentTimestamp() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    
-    return `${year}${month}${day}_${hours}${minutes}${seconds}`;
 }
 
 /**
@@ -489,7 +355,6 @@ function getCurrentTimestamp() {
  * This should be called after saving binary data
  */
 export function updateHtmlIcons() {
-    // Update all content editor icons to reflect their current state
     document.querySelectorAll('.mesh-html-editor-icon').forEach(async (icon) => {
         const meshIndex = parseInt(icon.dataset.meshIndex);
         if (!isNaN(meshIndex)) {
@@ -527,8 +392,6 @@ function groupMeshesByName() {
 function getGroupName(mesh) {
     const name = mesh.name || 'Unnamed';
     
-    // Common patterns to detect groups by prefixes
-    // Example patterns: "Body_part", "Head_1", "Head_2" etc.
     const patterns = [
         /^([^_]+)_.*$/,  // Anything before first underscore
         /^([^.]+)\..*$/, // Anything before first period
@@ -542,12 +405,10 @@ function getGroupName(mesh) {
         }
     }
     
-    // If no pattern matches or no name, use default group
     if (name === 'Unnamed' || name === 'Cube') {
         return 'Default';
     }
     
-    // If nothing matches, use first 4 characters as group
     return name.substring(0, 4);
 }
 
@@ -584,11 +445,9 @@ export function updateGroupToggleState(groupName) {
     
     if (!groupToggle || !state.meshGroups[groupName]) return;
     
-    // Check if all meshes in the group are visible
     const allVisible = state.meshGroups[groupName].every(mesh => mesh.visible);
     const anyVisible = state.meshGroups[groupName].some(mesh => mesh.visible);
     
-    // Set the indeterminate state if some but not all are visible
     if (anyVisible && !allVisible) {
         groupToggle.indeterminate = true;
     } else {
@@ -604,11 +463,8 @@ export function updateGroupToggleState(groupName) {
 export function removeMeshHtmlFlag(meshIndex) {
     console.log(`Removing binary content flag for mesh index ${meshIndex}`);
     
-    // Use the new toggle function to update the icon state to 'no content'
-    // Force the update to prevent inconsistent state
     toggleMeshCodeIcon(meshIndex, false, true);
     
-    // Force refresh of cache
     checkMeshHasHtmlContent(meshIndex).then(() => {
         console.log(`Re-checked mesh binary content status for mesh ${meshIndex}`);
     });
@@ -620,23 +476,17 @@ export function removeMeshHtmlFlag(meshIndex) {
  * @param {boolean} hasHtml - Whether the mesh has content
  */
 function updateIconAppearance(icon, hasHtml) {
-    // Update all visual properties
     icon.dataset.hasHtml = hasHtml ? 'true' : 'false';
     
     if (hasHtml) {
         icon.classList.add('has-html');
         
-        // Check if the binary content is valid HTML
         const meshIndex = parseInt(icon.dataset.meshIndex);
         
-        // Asynchronously check if content is valid HTML
-        // We'll set the default color first, then update if it's valid HTML
         icon.style.color = ICON_COLORS.HAS_HTML;
         icon.title = 'Edit content (has content)';
         
-        // Only proceed if we have a valid mesh index
         if (!isNaN(meshIndex)) {
-            // Use an immediately invoked async function to handle the promise
             (async () => {
                 try {
                     const glbBuffer = getCurrentGlbBuffer();
@@ -646,7 +496,6 @@ function updateIconAppearance(icon, hasHtml) {
                             const result = deserializeStringFromBinary(binaryBuffer);
                             const content = result.content;
                             if (isValidHtml(content)) {
-                                // It's valid HTML - set icon to green
                                 icon.style.color = ICON_COLORS.VALID_HTML;
                                 icon.title = 'Edit content (valid HTML)';
                             }

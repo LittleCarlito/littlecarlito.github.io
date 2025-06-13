@@ -8,18 +8,19 @@ import { createMeshVisibilityPanel } from './mesh-heading/mesh-heading';
 import { initAtlasPanel, updateAtlasVisualization } from './atlas-heading/atlas-heading';
 import { initUvPanel, updateUvPanel } from './uv-heading/uv-heading.js';
 import { updateRigPanel } from './rig-heading/rig-heading';
+import { downloadUpdatedGlb } from '../../util/scene/glb-controller.js';
 
 // Track initialization state
 let controlsInitialized = false;
 let atlasInitialized = false;
 let uvInitialized = false;
 let rigInitialized = false;
+let downloadButtonInitialized = false;
 
 /**
  * Initialize the Asset panel and cache DOM elements
  */
 export function initAssetPanel() {
-    // Only initialize if not already done
     if (controlsInitialized) {
         console.log('Asset Panel already initialized, skipping');
         return;
@@ -27,7 +28,6 @@ export function initAssetPanel() {
     
     console.debug('Initializing Asset Panel...');
     
-    // Look for asset-tab or asset-tab-container
     const assetPanel = document.getElementById('asset-tab') || document.getElementById('asset-tab-container');
     
     if (!assetPanel) {
@@ -49,7 +49,6 @@ export function initAssetPanel() {
                     content.style.display = 'block';
                     indicator.textContent = '[-]';
                     
-                    // Initialize panel content based on which section is expanded
                     const headerText = this.querySelector('.metadata-header').textContent;
                     
                     if (headerText === 'Mesh') {
@@ -87,6 +86,36 @@ export function initAssetPanel() {
         });
     }
     
-    // Mark as initialized
+    // Initialize the download button (now always visible)
+    initDownloadButton();
+    
     controlsInitialized = true;
+}
+
+/**
+ * Initialize the download button
+ */
+function initDownloadButton() {
+    const downloadBtn = document.getElementById('download-asset-btn');
+    if (!downloadBtn) {
+        console.error('Download button not found');
+        return;
+    }
+    
+    if (downloadButtonInitialized) {
+        console.log('Download button already initialized, skipping');
+        return;
+    }
+    
+    downloadBtn.addEventListener('click', async () => {
+        try {
+            await downloadUpdatedGlb();
+        } catch (error) {
+            console.error('Error downloading GLB:', error);
+            alert('Error downloading GLB: ' + error.message);
+        }
+    });
+    
+    downloadButtonInitialized = true;
+    console.log('Download button event listener initialized successfully');
 }
