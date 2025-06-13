@@ -1722,12 +1722,14 @@ function saveRigOptionToLocalStorage(optionName, value) {
 
 // Cleanup tooltips when page unloads
 window.addEventListener('beforeunload', () => {
-    // Clear all tooltip timers
-    tooltipTimers.forEach(timerId => clearTimeout(timerId));
-    tooltipTimers.clear();
+    // Clear all tooltip timers if they exist
+    if (typeof tooltipTimers !== 'undefined' && tooltipTimers) {
+        tooltipTimers.forEach(timerId => clearTimeout(timerId));
+        tooltipTimers.clear();
+    }
     
     // Remove tooltip element if it exists
-    if (tooltipElement && tooltipElement.parentNode) {
+    if (typeof tooltipElement !== 'undefined' && tooltipElement && tooltipElement.parentNode) {
         tooltipElement.parentNode.removeChild(tooltipElement);
     }
 });
