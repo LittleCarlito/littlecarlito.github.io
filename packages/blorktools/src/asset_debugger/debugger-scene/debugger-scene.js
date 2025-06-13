@@ -11,7 +11,7 @@ import { terminateAllWorkers } from '../util/workers/worker-manager.js';
 import { CSS3DDebugController } from '../util/scene/css3d-debug-controller.js';
 import * as sceneController from '../util/scene/threejs-scene-controller.js';
 import * as cameraController from '../util/scene/camera-controller.js';
-import * as rigController from '../util/scene/rig/rig-controller.js';
+import * as rigController from '../util/rig/rig-controller.js';
 import * as lightingManager from '../util/scene/lighting-manager.js';
 import * as backgroundManager from '../util/scene/background-manager.js';
 import * as modelHandler from '../util/scene/threejs-model-manager.js';

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { rigOptions } from './rig-controller';
 import { getIsDragging } from './rig-mouse-handler';
-import { getState } from '../../state/scene-state';
+import { getState } from '../state/scene-state';
 
 // These variables need to be exported so they're available to both modules
 export let bones = [];

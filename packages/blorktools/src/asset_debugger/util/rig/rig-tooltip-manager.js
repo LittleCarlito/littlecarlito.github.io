@@ -2,6 +2,8 @@
 let tooltipElement = null;
 let tooltipTimers = new Map();
 const TOOLTIP_DELAY = 1500; // 1.5 seconds delay
+// Track the currently hovered element
+let hoveredElement = null;
 
 // Initialize tooltip when the module loads
 document.addEventListener('DOMContentLoaded', () => {

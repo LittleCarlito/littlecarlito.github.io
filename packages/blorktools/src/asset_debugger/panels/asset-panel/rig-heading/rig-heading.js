@@ -14,15 +14,15 @@ import {
     addControlHandleToFurthestBone,
     parseJointConstraints,
     applyJointConstraints
-} from '../../../util/scene/rig/rig-factory.js';
-import { setIsDragging, getIsDragging, checkHandleHover } from '../../../util/scene/rig/rig-mouse-handler.js';
+} from '../../../util/rig/rig-factory.js';
+import { setIsDragging, getIsDragging, checkHandleHover } from '../../../util/rig/rig-mouse-handler.js';
 import { 
     rigDetails,
     updateRigDetails,
     rigOptions,
     updateRigVisualization,
     resetRig
- } from '../../../util/scene/rig/rig-controller.js';
+ } from '../../../util/rig/rig-controller.js';
  import {
     bones,
     lockedBones,
@@ -35,10 +35,10 @@ import {
     boneMaterial,
     toggleBoneLock,
     updateAllBoneMatrices
- } from '../../../util/scene/rig/bone-kinematics.js';
+ } from '../../../util/rig/bone-kinematics.js';
  import { saveSettings, loadSettings } from '../../../util/data/localstorage-manager.js';
 import { getState } from '../../../util/state/scene-state.js';
-import { hideTooltip, setupTruncationTooltips } from '../../../util/scene/rig/rig-tooltip-manager.js';
+import { hideTooltip, setupTruncationTooltips } from '../../../util/rig/rig-tooltip-manager.js';
 
 // Reusable objects for position and rotation operations
 let worldPos = new THREE.Vector3();
@@ -54,9 +54,6 @@ let jointSettingsDebug = true;
 // Add global state tracking for joint settings
 let allJointsInPreviousState = true;
 let jointPreviousValues = new Map(); // Map of joint name to previous value
-
-// Track the currently hovered element
-let hoveredElement = null;
 
 /**
  * Create the rig details content
