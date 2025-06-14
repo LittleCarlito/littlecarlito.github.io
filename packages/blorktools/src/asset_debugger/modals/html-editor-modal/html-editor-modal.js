@@ -222,6 +222,10 @@ export async function openEmbeddedHtmlEditor(meshName, meshId) {
             if (displayOnMeshCheckbox && settings.display) {
                 displayOnMeshCheckbox.checked = settings.display.displayOnMesh || false;
             }
+
+            if(rigControlNodeCheckbox && settings.display) {
+                rigControlNodeCheckbox.checked = settings.display.rigControlNode || false;
+            }
             
             // Apply long-exposure-mode class if needed
             if (renderTypeSelect && renderTypeSelect.value === 'longExposure' && dropdownsContainer) {
@@ -271,6 +275,7 @@ export function getSettingsFromForm() {
     const animationType = document.getElementById('html-animation-type').value;
     const showWireframeCheckbox = document.getElementById('show-wireframe');
     const displayOnMeshCheckbox = document.getElementById('display-on-mesh');
+    const rigControlNodeCheckbox = document.getElementById('rig-control-node');
     
     return {
         previewMode: document.getElementById('html-render-type').value || defaultSettings.previewMode,
@@ -280,7 +285,8 @@ export function getSettingsFromForm() {
         },
         display: {
             showBorders: showWireframeCheckbox ? showWireframeCheckbox.checked : true,
-            displayOnMesh: displayOnMeshCheckbox ? displayOnMeshCheckbox.checked : false
+            displayOnMesh: displayOnMeshCheckbox ? displayOnMeshCheckbox.checked : false,
+            rigControlNode: rigControlNodeCheckbox ? rigControlNodeCheckbox.checked : false
         }
     };
 }
@@ -460,6 +466,14 @@ export function initHtmlEditorModal() {
     if (displayOnMeshCheckbox) {
         displayOnMeshCheckbox.addEventListener('change', () => {
             showStatus(`Display on mesh ${displayOnMeshCheckbox.checked ? 'enabled' : 'disabled'}`, 'info');
+        });
+    }
+
+    // Rig Control Node checkbox
+    const rigControlNodeCheckbox = document.getElementById('rig-control-node');
+    if (rigControlNodeCheckbox) {
+        rigControlNodeCheckbox.addEventListener('change', () => {
+            showStatus(`Rig control node ${rigControlNodeCheckbox.checked ? 'enabled' : 'disabled'}`, 'info');
         });
     }
     

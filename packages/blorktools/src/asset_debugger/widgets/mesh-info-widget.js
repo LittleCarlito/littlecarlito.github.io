@@ -184,6 +184,7 @@ export function createMeshInfoPanel(container, meshId) {
         info.push(`Animation: ${htmlSettings.animation?.type || 'play'}`);
         info.push(`Show Borders: ${htmlSettings.showBorders !== false ? 'Yes' : 'No'}`);
         info.push(`Display on Mesh: ${htmlSettings.displayOnMesh === true ? 'Yes' : 'No'}`);
+        info.push(`Rig Control Node: ${htmlSettings.rigControlNode === true ? 'Yes' : 'No'}`);
     }
     
     // Add content to the panel

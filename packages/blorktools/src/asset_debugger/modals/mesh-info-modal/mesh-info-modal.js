@@ -68,6 +68,7 @@ export async function openMeshInfoModal(meshName, meshId) {
                         <div class="info-row"><span class="info-label">Animation:</span> <span class="info-value">${htmlSettings.animation?.type || 'none'}</span></div>
                         <div class="info-row"><span class="info-label">Show Borders:</span> <span class="info-value">${htmlSettings.display?.showBorders !== false ? 'Yes' : 'No'}</span></div>
                         <div class="info-row"><span class="info-label">Display on Mesh:</span> <span class="info-value">${htmlSettings.display?.displayOnMesh === true ? 'Yes' : 'No'}</span></div>
+                        <div class="info-row"><span class="info-label">Rig Control Node:</span> <span class="info-value">${htmlSettings.display?.rigControlNode === true ? 'Yes' : 'No'}</span></div>
                     `;
                 } else {
                     htmlSettingsContent = '<div class="info-row">No HTML settings configured</div>';
