@@ -127,7 +127,8 @@ export class CSS3DDebugController {
         this.frameHeight = 200;
         this.visibilityCheckInterval = null;
         this.lastVisibleState = true;
-        this.offsetDistance = 0.001; // Minimal offset to prevent z-fighting
+        this.offsetDistance = 0.001;
+        this.dragStateCheckInterval = null;
     }
 
     findDisplayMesh() {
@@ -159,15 +160,12 @@ export class CSS3DDebugController {
             throw new Error('Display mesh has no position attribute');
         }
         
-        // Get bounding box in local space first
         geometry.computeBoundingBox();
         const localSize = geometry.boundingBox.getSize(new THREE.Vector3());
         
-        // Transform to world space
         const worldScale = mesh.getWorldScale(new THREE.Vector3());
         const worldSize = localSize.clone().multiply(worldScale);
         
-        // Find the two largest dimensions (the face dimensions)
         const dimensions = [
             { size: worldSize.x, axis: 'x' },
             { size: worldSize.y, axis: 'y' },
@@ -178,12 +176,11 @@ export class CSS3DDebugController {
             throw new Error('Could not determine rectangular face dimensions from display mesh');
         }
         
-        // The two largest dimensions represent the face
         const faceWidth = dimensions[0].size;
         const faceHeight = dimensions[1].size;
         
         return { 
-            width: Math.max(50, faceWidth * 1000), // Convert to CSS pixels
+            width: Math.max(50, faceWidth * 1000),
             height: Math.max(50, faceHeight * 1000),
             realWidth: faceWidth,
             realHeight: faceHeight
@@ -206,17 +203,14 @@ export class CSS3DDebugController {
         geometry.boundingBox.getCenter(center);
         mesh.localToWorld(center);
 
-        // Get the mesh's world matrix to properly orient the frame
         const meshMatrix = mesh.matrixWorld.clone();
         
-        // Extract position, rotation, and scale from the world matrix
         const position = new THREE.Vector3();
         const quaternion = new THREE.Quaternion();
         const scale = new THREE.Vector3();
         
         meshMatrix.decompose(position, quaternion, scale);
         
-        // Calculate surface normal and offset position
         let normal = new THREE.Vector3(0, 0, 1);
         if (geometry.attributes.normal) {
             const normalAttribute = geometry.attributes.normal;
@@ -298,6 +292,7 @@ export class CSS3DDebugController {
             iframe.style.borderRadius = '8px';
             iframe.style.boxShadow = '0 0 20px rgba(0, 255, 136, 0.3)';
             iframe.style.overflow = 'hidden';
+            iframe.style.pointerEvents = 'auto';
 
             this.frame = new CSS3DObject(iframe);
             
@@ -306,11 +301,8 @@ export class CSS3DDebugController {
             this.frame.rotation.copy(transform.rotation);
             this.frame.quaternion.copy(transform.quaternion);
             
-            // Calculate proper scale to match mesh dimensions
             const meshDimensions = this.calculateDisplayMeshDimensions(this.displayMesh);
             
-            // CSS3D objects need very small scale values
-            // The iframe is sized in pixels, we need to scale it down to world units
             const scaleX = meshDimensions.realWidth / this.frameWidth;
             const scaleY = meshDimensions.realHeight / this.frameHeight;
             
@@ -329,6 +321,7 @@ export class CSS3DDebugController {
 
             this.startAnimation();
             this.startVisibilityMonitoring();
+            this.startDragStateMonitoring();
             this.isInitialized = true;
         } catch (error) {
             console.error('Error initializing CSS3DDebugController:', error);
@@ -372,6 +365,35 @@ export class CSS3DDebugController {
         }, 16);
     }
 
+    startDragStateMonitoring() {
+        if (this.dragStateCheckInterval) {
+            clearInterval(this.dragStateCheckInterval);
+        }
+
+        this.dragStateCheckInterval = setInterval(() => {
+            if (!this.frame || !this.frame.element) {
+                return;
+            }
+
+            try {
+                const mouseHandlerModule = import('../rig/rig-mouse-handler.js');
+                mouseHandlerModule.then(module => {
+                    const isDragging = module.getIsDragging();
+                    
+                    if (isDragging) {
+                        this.frame.element.style.pointerEvents = 'none';
+                    } else {
+                        this.frame.element.style.pointerEvents = 'auto';
+                    }
+                }).catch(() => {
+                    // Module not available or error importing, keep default behavior
+                });
+            } catch (error) {
+                // Import failed, keep default behavior
+            }
+        }, 16);
+    }
+
     startAnimation() {
         if (!this.renderer || !this.scene) {
             return;
@@ -402,6 +424,11 @@ export class CSS3DDebugController {
         if (this.visibilityCheckInterval) {
             clearInterval(this.visibilityCheckInterval);
             this.visibilityCheckInterval = null;
+        }
+
+        if (this.dragStateCheckInterval) {
+            clearInterval(this.dragStateCheckInterval);
+            this.dragStateCheckInterval = null;
         }
 
         if (this.animationId) {
