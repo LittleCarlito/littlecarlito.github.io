@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { rigOptions, getJointLabelGroup, getBoneLabelGroup } from './rig-controller';
+import { rigOptions, getLabelGroup } from './rig-controller';
 import { primaryRigHandle, restoreLockedBoneRotations, updateBoneVisuals, moveBonesForTarget } from './bone-kinematics';
 import { getState } from '../state/scene-state';
 
@@ -111,7 +111,7 @@ function getAllLabels() {
     const labels = [];
     
     // Add joint labels if they exist
-    const jointLabelGroup = getJointLabelGroup();
+    const jointLabelGroup = getLabelGroup('joint');
     if (jointLabelGroup) {
         jointLabelGroup.children.forEach(label => {
             if (label.userData && (label.userData.isJointLabel || label.userData.isBoneLabel)) {
@@ -121,7 +121,7 @@ function getAllLabels() {
     }
     
     // Add bone labels if they exist
-    const boneLabelGroup = getBoneLabelGroup();
+    const boneLabelGroup = getLabelGroup('bone');
     if (boneLabelGroup) {
         boneLabelGroup.children.forEach(label => {
             if (label.userData && label.userData.isBoneLabel) {

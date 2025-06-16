@@ -572,45 +572,6 @@ export function clearLabels(type, scene) {
     }
 }
 
-// Legacy function names for backward compatibility
-export function clearJointLabels(scene) {
-    clearLabels('joint', scene);
-}
-
-export function clearBoneLabels(scene) {
-    clearLabels('bone', scene);
-}
-
-/**
- * Legacy function for backward compatibility
- * This was the original function before the joint/bone distinction was added.
- * In legacy code it was simply called 'labels' without distinguishing between types.
- * @param {string} name - The name for the joint label group
- * @param {Object} scene - The Three.js scene
- */
-export function setLabelGroupLegacy(name, scene) {
-    setLabelGroup('joint', name, scene);
-}
-
-/**
- * Set the joint label group
- * This is a more descriptive version of setLabelGroupLegacy
- * @param {string} name - The name of the joint label group
- * @param {Object} scene - The Three.js scene
- */
-export function setJointLabelsGroup(name, scene) {
-    setLabelGroup('joint', name, scene);
-}
-
-/**
- * Set the bone label group
- * @param {string} name - The name of the bone label group
- * @param {Object} scene - The Three.js scene
- */
-export function setBoneLabelsGroup(name, scene) {
-    setLabelGroup('bone', name, scene);
-}
-
 /**
  * Show labels of a specific type
  * @param {string} type - The type of labels to show ('joint' or 'bone')
@@ -642,31 +603,6 @@ export function hideLabels(type) {
     }
 }
 
-export function showJointLabels() {
-    showLabels('joint');
-}
-
-export function hideJointLabels() {
-    hideLabels('joint');
-}
-
-// Keep the old function names for backward compatibility
-export function showRigLabels() {
-    showJointLabels();
-}
-
-export function hideRigLabels() {
-    hideJointLabels();
-}
-
-export function showBoneLabels() {
-    showLabels('bone');
-}
-
-export function hideBoneLabels() {
-    hideLabels('bone');
-}
-
 /**
  * Get a specific label group
  * @param {string} type - The type of label group to retrieve ('joint' or 'bone')
@@ -674,20 +610,4 @@ export function hideBoneLabels() {
  */
 export function getLabelGroup(type) {
     return labelGroups.get(type);
-}
-
-/**
- * Get the joint label group (for backward compatibility)
- * @returns {Object} The joint label group or null if not found
- */
-export function getJointLabelGroup() {
-    return getLabelGroup('joint');
-}
-
-/**
- * Get the bone label group (for backward compatibility)
- * @returns {Object} The bone label group or null if not found
- */
-export function getBoneLabelGroup() {
-    return getLabelGroup('bone');
 }

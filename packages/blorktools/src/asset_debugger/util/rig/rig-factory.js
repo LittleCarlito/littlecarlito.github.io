@@ -12,15 +12,7 @@ import {
     rigDetails, 
     updateRigDetails,
     rigOptions,
-    clearJointLabels,
-    clearBoneLabels,
-    updateLabelPosition,
-    setJointLabelsGroup,
-    setBoneLabelsGroup,
-    hideJointLabels,
-    hideBoneLabels,
-    getJointLabelGroup,
-    getBoneLabelGroup
+    updateLabelPosition
  } from './rig-controller.js'
  import { 
     bones,

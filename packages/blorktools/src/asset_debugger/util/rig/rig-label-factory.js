@@ -1,14 +1,10 @@
 import * as THREE from 'three';
 import { 
-    clearBoneLabels, 
-    clearJointLabels, 
-    getBoneLabelGroup, 
-    getJointLabelGroup, 
-    hideBoneLabels, 
-    hideJointLabels, 
+    clearLabels, 
+    getLabelGroup, 
+    hideLabels, 
     rigOptions, 
-    setBoneLabelsGroup, 
-    setJointLabelsGroup, 
+    setLabelGroup, 
     updateLabelPosition 
 } from "./rig-controller";
 import { boneVisualsGroup } from './bone-kinematics';
@@ -21,10 +17,10 @@ export function createJointLabels(scene) {
     console.log('Creating joint labels...');
     
     // Remove any existing labels first
-    clearJointLabels(scene);
+    clearLabels('joint', scene);
     
     // Create a group to hold all labels
-    setJointLabelsGroup("JointLabels", scene);
+    setLabelGroup('joint', "JointLabels", scene);
     
     // Keep track of the labels created
     const labelCount = {total: 0, added: 0};
@@ -69,7 +65,7 @@ export function createJointLabels(scene) {
                 // Create a label for this joint
                 const label = createSimpleLabel(boneName, object, scene);
                 if (label) {
-                    const jointLabelGroup = getJointLabelGroup();
+                    const jointLabelGroup = getLabelGroup('joint');
                     if (jointLabelGroup) {
                         jointLabelGroup.add(label);
                         labelCount.added++;
@@ -94,10 +90,10 @@ export function createBoneLabels(scene) {
     console.log('Creating bone labels...');
     
     // Remove any existing bone labels
-    clearBoneLabels(scene);
+    clearLabels('bone', scene);
     
     // Create a group to hold all bone labels
-    setBoneLabelsGroup("BoneLabels", scene);
+    setLabelGroup('bone', "BoneLabels", scene);
     
     // Keep track of the labels created
     const labelCount = {total: 0, added: 0};
@@ -136,7 +132,7 @@ export function createBoneLabels(scene) {
             // Create a label for this bone
             const label = createSimpleLabel(boneName, boneGroup, scene, true); // Pass true to indicate it's a bone label
             if (label) {
-                const boneLabelGroup = getBoneLabelGroup();
+                const boneLabelGroup = getLabelGroup('bone');
                 if (boneLabelGroup) {
                     boneLabelGroup.add(label);
                     labelCount.added++;
@@ -181,7 +177,7 @@ export function createLabels(scene) {
     
     // Check if joint labels should be visible based on option
     if (!rigOptions.showJointLabels) {
-        hideJointLabels();
+        hideLabels('joint');
     }
     
     // Create bone labels
@@ -190,7 +186,7 @@ export function createLabels(scene) {
     
     // Check if bone labels should be visible based on option
     if (!rigOptions.showBoneLabels) {
-        hideBoneLabels();
+        hideLabels('bone');
     }
 }
 
