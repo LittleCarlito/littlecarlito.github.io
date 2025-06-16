@@ -17,7 +17,7 @@ import {
     setPreviewRenderTarget 
 } from '../../state/threejs-state';
 import { runAnimationFrame } from '../../animation/playback/animation-playback-controller';
-import { setupCSS3DScene } from '../../scene/css3d-scene-controller';
+import { setupCSS3DScene } from '../../scene/css3d-scene-manager';
 import { startImage2TexturePreRendering } from '../../animation/render/image2texture-prerender-controller';
 import { startCss3dPreRendering } from '../../animation/render/css3d-prerender-controller';
 import { logError, logPreviewError } from '../../state/log-util';

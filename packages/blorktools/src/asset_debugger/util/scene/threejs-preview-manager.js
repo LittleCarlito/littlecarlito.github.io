@@ -1,6 +1,6 @@
 import { infoPanel, resetInfoPanel } from "../../widgets/mesh-info-widget";
 import { logPreviewError } from "../state/log-util";
-import { cleanupCSS3D } from "./css3d-scene-controller";
+import { cleanupCSS3D } from "./css3d-scene-manager";
 import { cleanupThreeJsScene, setupThreeJsScene } from "./threejs-preview-setup";
 import { setIsPreviewActive, setIsPreviewAnimationPaused, setLastTextureUpdateTime } from "../state/animation-state";
 import { reverseAnimationFrameId } from "../state/css3d-state";

@@ -25,6 +25,7 @@ import { showStatus } from '../../modals/html-editor-modal/html-editor-modal';
 import { playNextReverseAnimation } from '../animation/playback/css3d-reversal-controller';
 import { setupBounceAnimationTracking } from '../animation/playback/css3d-bounce-controller';
 import { isPreviewActive } from '../state/animation-state';
+import { calculateMeshTransform } from './css3d-frame-factory';
 
 /**
  * Setup the CSS3D scene
@@ -510,4 +511,19 @@ export function cleanupCSS3D(targetElement = null) {
            iframe.mutationObserver = null;
        }
    }
+}
+
+export function addFrameToScene(frame, scene, mesh, frameConfig) {
+    const { realWidth, realHeight, frameWidth, frameHeight, offsetDistance = 0.001 } = frameConfig;
+    
+    const transform = calculateMeshTransform(mesh, offsetDistance);
+    frame.position.copy(transform.position);
+    frame.rotation.copy(transform.rotation);
+    frame.quaternion.copy(transform.quaternion);
+    
+    const scaleX = realWidth / frameWidth;
+    const scaleY = realHeight / frameHeight;
+    frame.scale.set(scaleX, scaleY, 1);
+    
+    scene.add(frame);
 }

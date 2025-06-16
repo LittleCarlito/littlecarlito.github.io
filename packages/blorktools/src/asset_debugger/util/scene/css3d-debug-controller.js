@@ -1,6 +1,8 @@
 import * as THREE from 'three';
-import { CSS3DRenderer, CSS3DObject } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
+import { CSS3DRenderer } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 import { getState } from '../state/scene-state.js';
+import { calculateMeshTransform, createCSS3DFrame } from './css3d-frame-factory.js';
+import { addFrameToScene } from './css3d-scene-manager.js';
 
 const DEBUG_CSS3D_HTML = `<!DOCTYPE html>
 <html>
@@ -187,50 +189,6 @@ export class CSS3DDebugController {
         };
     }
 
-    calculateMeshTransform(mesh) {
-        if (!mesh || !mesh.geometry) {
-            return {
-                position: new THREE.Vector3(0, 0, 0),
-                rotation: new THREE.Euler(0, 0, 0),
-                quaternion: new THREE.Quaternion()
-            };
-        }
-
-        const geometry = mesh.geometry;
-        geometry.computeBoundingBox();
-        
-        const center = new THREE.Vector3();
-        geometry.boundingBox.getCenter(center);
-        mesh.localToWorld(center);
-
-        const meshMatrix = mesh.matrixWorld.clone();
-        
-        const position = new THREE.Vector3();
-        const quaternion = new THREE.Quaternion();
-        const scale = new THREE.Vector3();
-        
-        meshMatrix.decompose(position, quaternion, scale);
-        
-        let normal = new THREE.Vector3(0, 0, 1);
-        if (geometry.attributes.normal) {
-            const normalAttribute = geometry.attributes.normal;
-            if (normalAttribute.count > 0) {
-                normal.fromBufferAttribute(normalAttribute, 0);
-                normal.transformDirection(meshMatrix);
-                normal.normalize();
-            }
-        }
-
-        const offsetPosition = center.clone();
-        offsetPosition.add(normal.clone().multiplyScalar(this.offsetDistance));
-
-        return {
-            position: offsetPosition,
-            rotation: new THREE.Euler().setFromQuaternion(quaternion),
-            quaternion: quaternion
-        };
-    }
-
     shouldInitialize() {
         const state = getState();
         if (!state.scene) {
@@ -285,39 +243,23 @@ export class CSS3DDebugController {
             this.renderer.domElement.style.zIndex = '1000';
             this.renderer.domElement.style.pointerEvents = 'none';
 
-            const iframe = document.createElement('iframe');
-            iframe.style.width = `${this.frameWidth}px`;
-            iframe.style.height = `${this.frameHeight}px`;
-            iframe.style.border = '2px solid #00ff88';
-            iframe.style.borderRadius = '8px';
-            iframe.style.boxShadow = '0 0 20px rgba(0, 255, 136, 0.3)';
-            iframe.style.overflow = 'hidden';
-            iframe.style.pointerEvents = 'auto';
+            this.frame = createCSS3DFrame({
+                width: this.frameWidth,
+                height: this.frameHeight,
+                htmlContent: DEBUG_CSS3D_HTML,
+                borderColor: '#00ff88',
+                boxShadow: '0 0 20px rgba(0, 255, 136, 0.3)'
+            });
 
-            this.frame = new CSS3DObject(iframe);
-            
-            const transform = this.calculateMeshTransform(this.displayMesh);
-            this.frame.position.copy(transform.position);
-            this.frame.rotation.copy(transform.rotation);
-            this.frame.quaternion.copy(transform.quaternion);
-            
-            const meshDimensions = this.calculateDisplayMeshDimensions(this.displayMesh);
-            
-            const scaleX = meshDimensions.realWidth / this.frameWidth;
-            const scaleY = meshDimensions.realHeight / this.frameHeight;
-            
-            this.frame.scale.set(scaleX, scaleY, 1);
-            this.scene.add(this.frame);
+            addFrameToScene(this.frame, this.scene, this.displayMesh, {
+                realWidth: dimensions.realWidth,
+                realHeight: dimensions.realHeight,
+                frameWidth: this.frameWidth,
+                frameHeight: this.frameHeight,
+                offsetDistance: this.offsetDistance
+            });
 
             parentElement.appendChild(this.renderer.domElement);
-
-            setTimeout(() => {
-                if (iframe.contentDocument) {
-                    iframe.contentDocument.open();
-                    iframe.contentDocument.write(DEBUG_CSS3D_HTML);
-                    iframe.contentDocument.close();
-                }
-            }, 100);
 
             this.startAnimation();
             this.startVisibilityMonitoring();
@@ -333,7 +275,7 @@ export class CSS3DDebugController {
             return;
         }
 
-        const transform = this.calculateMeshTransform(this.displayMesh);
+        const transform = calculateMeshTransform(this.displayMesh, this.offsetDistance);
         this.frame.position.copy(transform.position);
         this.frame.rotation.copy(transform.rotation);
         this.frame.quaternion.copy(transform.quaternion);
@@ -386,10 +328,8 @@ export class CSS3DDebugController {
                         this.frame.element.style.pointerEvents = 'auto';
                     }
                 }).catch(() => {
-                    // Module not available or error importing, keep default behavior
                 });
             } catch (error) {
-                // Import failed, keep default behavior
             }
         }, 16);
     }
