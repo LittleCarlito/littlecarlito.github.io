@@ -43,199 +43,6 @@ import { addControlHandleToFurthestBone, applyJointConstraints } from './rig-con
 import { parseJointConstraints } from '../data/glb-classifier';
 
 /**
- * Create a bone joint with consistent styling and properties
- * @param {String} jointType - Type of joint ('regular', 'root')
- * @param {Object} boneData - Object containing bone references
- * @param {Number} radius - Radius size for the joint
- * @param {Object} options - Additional options for joint customization
- * @returns {Object} - The created joint mesh
- */
-export function createBoneJoint(jointType, boneData, radius, options = {}) {
-    console.log(`Creating ${jointType} joint`);
-    
-    // Create joint based on joint type
-    let geometry, material, joint, jointColor, opacity;
-    
-    // Set default radius if not provided
-    radius = radius || 1.0;
-    
-    // Prepare for a top-of-bone or bottom-of-bone joint
-    switch (jointType) {
-        case 'top':
-            // For top of bone (connects to child bone)
-            jointColor = options.jointColor || rigOptions.jointColor;
-            geometry = new THREE.SphereGeometry(radius, 16, 16);
-            opacity = 0.8;
-            break;
-        case 'bottom':
-            // For bottom of bone (connects to parent bone)
-            jointColor = options.jointColor || rigOptions.jointColor;
-            geometry = new THREE.SphereGeometry(radius, 16, 16);
-            opacity = 0.8;
-            break;
-        case 'root':
-            // Root bone puck
-            jointColor = 0xFF0000; // Red for root
-            geometry = new THREE.CylinderGeometry(radius * 1.2, radius * 1.2, radius * 0.5, 32);
-            opacity = 0.9;
-            break;
-        default:
-            // Default to a sphere
-            jointColor = options.jointColor || rigOptions.jointColor;
-            geometry = new THREE.SphereGeometry(radius, 16, 16);
-            opacity = 0.8;
-    }
-    
-    // Create the material - make sure it matches our bone material settings
-    material = new THREE.MeshBasicMaterial({
-        color: jointColor,
-        side: THREE.DoubleSide,
-        wireframe: options.wireframe || rigOptions.wireframe,
-        transparent: true,
-        opacity: opacity
-    });
-    
-    // Create the mesh
-    joint = new THREE.Mesh(geometry, material);
-    joint.userData.bonePart = 'cap';
-    joint.userData.jointType = jointType;
-    
-    // For top/bottom joints, add bone reference
-    if (boneData) {
-        if (jointType === 'top') {
-            joint.userData.childBone = boneData.childBone;
-        } else if (jointType === 'bottom') {
-            joint.userData.parentBone = boneData.parentBone;
-        } else if (jointType === 'root') {
-            joint.userData.rootBone = boneData.parentBone;
-        }
-    }
-    
-    return joint;
-}
-
-/**
- * Create a bone mesh with joints
- * @param {Object} parent - Parent THREE.Group to add the bone to
- * @param {Number} radiusTop - Top radius of the bone
- * @param {Number} radiusBottom - Bottom radius of the bone
- * @param {Number} height - Height of the bone
- * @param {Material} capMaterial - Material for bone caps
- * @param {Material} sideMaterial - Material for bone sides
- * @param {Material} alternateSideMaterial - Material for alternate sides
- */
-export function createBoneMesh(parent, radiusTop, radiusBottom, height, capMaterial, sideMaterial, alternateSideMaterial) {
-    // First create a cylinder with 8 segments
-    const cylinderGeometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, 8, 1, false);
-    
-    // Create all sides in one group
-    const sidesGroup = new THREE.Group();
-    sidesGroup.position.y = height / 2;
-    parent.add(sidesGroup);
-    
-    // Split the cylinder into 8 segments for alternating colors
-    for (let i = 0; i < 8; i++) {
-        // Create a segment
-        const segmentGeometry = new THREE.CylinderGeometry(
-            radiusTop, radiusBottom, height, 1, 1, false,
-            (Math.PI * 2 * i) / 8,
-            Math.PI * 2 / 8
-        );
-        
-        // Use alternating materials based on segment index
-        const material = (i % 2 === 0) ? sideMaterial.clone() : alternateSideMaterial.clone();
-        
-        // Create the segment mesh
-        const segment = new THREE.Mesh(segmentGeometry, material);
-        segment.userData.bonePart = 'side';
-        segment.userData.sideType = (i % 2 === 0) ? 'primary' : 'secondary';
-        segment.userData.segmentIndex = i;
-        
-        sidesGroup.add(segment);
-    }
-    
-    // Check if this is a root bone - either through parent/child data or name
-    let isRootBone = false;
-    
-    // Check for root in parent data
-    if (parent.userData.childBone && parent.userData.childBone.name.toLowerCase().includes('root')) {
-        isRootBone = true;
-    }
-    
-    // Check for root in parent data (parent bone)
-    if (parent.userData.parentBone && parent.userData.parentBone.name.toLowerCase().includes('root')) {
-        isRootBone = true;
-    }
-    
-    // Create top joint
-    const jointType = isRootBone ? 'root' : 'regular';
-    
-    // Create top joint using the new consolidated function
-    const topJoint = createBoneJoint(
-        jointType,
-        parent.userData,
-        radiusTop,
-        {
-            position: new THREE.Vector3(0, height, 0),
-            isTop: true
-        }
-    );
-    parent.add(topJoint);
-    
-    // Create bottom joint using the new consolidated function
-    const bottomJoint = createBoneJoint(
-        jointType,
-        parent.userData,
-        radiusBottom,
-        {
-            position: new THREE.Vector3(0, 0, 0),
-            isTop: false
-        }
-    );
-    parent.add(bottomJoint);
-}
-
-/**
- * Create a function to update bone visuals based on bone movement
- * @param {Object} boneGroup - The visual bone group to update
- * @returns {Function} Update function for the bone
- */
-export function createBoneUpdateFunction(boneGroup) {
-    return () => {
-        if (boneGroup.userData.parentBone && boneGroup.userData.childBone) {
-            const parentPos = new THREE.Vector3();
-            const childPos = new THREE.Vector3();
-            
-            boneGroup.userData.parentBone.getWorldPosition(parentPos);
-            boneGroup.userData.childBone.getWorldPosition(childPos);
-            
-            // Update position and orientation
-            boneGroup.position.copy(parentPos);
-            
-            // Make the bone look at the child
-            const direction = new THREE.Vector3().subVectors(childPos, parentPos);
-            if (direction.lengthSq() > 0.001) {
-                boneGroup.lookAt(childPos);
-                boneGroup.rotateX(Math.PI/2);
-                
-                // Update scale to match new length
-                const distance = parentPos.distanceTo(childPos);
-                
-                // Update the children
-                const children = boneGroup.children;
-                for (let i = 0; i < children.length; i++) {
-                    if (children[i].userData.bonePart === 'side') {
-                        children[i].scale.y = distance / children[i].geometry.parameters.height;
-                    } else if (children[i].userData.bonePart === 'cap' && children[i].position.y > 0) {
-                        children[i].position.y = distance;
-                    }
-                }
-            }
-        }
-    };
-}
-
-/**
  * Create a rig system with visualization, controls and interactions
  * @param {Object} model - The model to create a rig for
  * @param {Object} scene - The Three.js scene
@@ -634,4 +441,197 @@ export function createRig(model, scene) {
     } else {
         console.log('No joint constraints found in model');
     }
+}
+
+/**
+ * Create a bone joint with consistent styling and properties
+ * @param {String} jointType - Type of joint ('regular', 'root')
+ * @param {Object} boneData - Object containing bone references
+ * @param {Number} radius - Radius size for the joint
+ * @param {Object} options - Additional options for joint customization
+ * @returns {Object} - The created joint mesh
+ */
+function createBoneJoint(jointType, boneData, radius, options = {}) {
+    console.log(`Creating ${jointType} joint`);
+    
+    // Create joint based on joint type
+    let geometry, material, joint, jointColor, opacity;
+    
+    // Set default radius if not provided
+    radius = radius || 1.0;
+    
+    // Prepare for a top-of-bone or bottom-of-bone joint
+    switch (jointType) {
+        case 'top':
+            // For top of bone (connects to child bone)
+            jointColor = options.jointColor || rigOptions.jointColor;
+            geometry = new THREE.SphereGeometry(radius, 16, 16);
+            opacity = 0.8;
+            break;
+        case 'bottom':
+            // For bottom of bone (connects to parent bone)
+            jointColor = options.jointColor || rigOptions.jointColor;
+            geometry = new THREE.SphereGeometry(radius, 16, 16);
+            opacity = 0.8;
+            break;
+        case 'root':
+            // Root bone puck
+            jointColor = 0xFF0000; // Red for root
+            geometry = new THREE.CylinderGeometry(radius * 1.2, radius * 1.2, radius * 0.5, 32);
+            opacity = 0.9;
+            break;
+        default:
+            // Default to a sphere
+            jointColor = options.jointColor || rigOptions.jointColor;
+            geometry = new THREE.SphereGeometry(radius, 16, 16);
+            opacity = 0.8;
+    }
+    
+    // Create the material - make sure it matches our bone material settings
+    material = new THREE.MeshBasicMaterial({
+        color: jointColor,
+        side: THREE.DoubleSide,
+        wireframe: options.wireframe || rigOptions.wireframe,
+        transparent: true,
+        opacity: opacity
+    });
+    
+    // Create the mesh
+    joint = new THREE.Mesh(geometry, material);
+    joint.userData.bonePart = 'cap';
+    joint.userData.jointType = jointType;
+    
+    // For top/bottom joints, add bone reference
+    if (boneData) {
+        if (jointType === 'top') {
+            joint.userData.childBone = boneData.childBone;
+        } else if (jointType === 'bottom') {
+            joint.userData.parentBone = boneData.parentBone;
+        } else if (jointType === 'root') {
+            joint.userData.rootBone = boneData.parentBone;
+        }
+    }
+    
+    return joint;
+}
+
+/**
+ * Create a bone mesh with joints
+ * @param {Object} parent - Parent THREE.Group to add the bone to
+ * @param {Number} radiusTop - Top radius of the bone
+ * @param {Number} radiusBottom - Bottom radius of the bone
+ * @param {Number} height - Height of the bone
+ * @param {Material} capMaterial - Material for bone caps
+ * @param {Material} sideMaterial - Material for bone sides
+ * @param {Material} alternateSideMaterial - Material for alternate sides
+ */
+function createBoneMesh(parent, radiusTop, radiusBottom, height, capMaterial, sideMaterial, alternateSideMaterial) {
+    // First create a cylinder with 8 segments
+    const cylinderGeometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, 8, 1, false);
+    
+    // Create all sides in one group
+    const sidesGroup = new THREE.Group();
+    sidesGroup.position.y = height / 2;
+    parent.add(sidesGroup);
+    
+    // Split the cylinder into 8 segments for alternating colors
+    for (let i = 0; i < 8; i++) {
+        // Create a segment
+        const segmentGeometry = new THREE.CylinderGeometry(
+            radiusTop, radiusBottom, height, 1, 1, false,
+            (Math.PI * 2 * i) / 8,
+            Math.PI * 2 / 8
+        );
+        
+        // Use alternating materials based on segment index
+        const material = (i % 2 === 0) ? sideMaterial.clone() : alternateSideMaterial.clone();
+        
+        // Create the segment mesh
+        const segment = new THREE.Mesh(segmentGeometry, material);
+        segment.userData.bonePart = 'side';
+        segment.userData.sideType = (i % 2 === 0) ? 'primary' : 'secondary';
+        segment.userData.segmentIndex = i;
+        
+        sidesGroup.add(segment);
+    }
+    
+    // Check if this is a root bone - either through parent/child data or name
+    let isRootBone = false;
+    
+    // Check for root in parent data
+    if (parent.userData.childBone && parent.userData.childBone.name.toLowerCase().includes('root')) {
+        isRootBone = true;
+    }
+    
+    // Check for root in parent data (parent bone)
+    if (parent.userData.parentBone && parent.userData.parentBone.name.toLowerCase().includes('root')) {
+        isRootBone = true;
+    }
+    
+    // Create top joint
+    const jointType = isRootBone ? 'root' : 'regular';
+    
+    // Create top joint using the new consolidated function
+    const topJoint = createBoneJoint(
+        jointType,
+        parent.userData,
+        radiusTop,
+        {
+            position: new THREE.Vector3(0, height, 0),
+            isTop: true
+        }
+    );
+    parent.add(topJoint);
+    
+    // Create bottom joint using the new consolidated function
+    const bottomJoint = createBoneJoint(
+        jointType,
+        parent.userData,
+        radiusBottom,
+        {
+            position: new THREE.Vector3(0, 0, 0),
+            isTop: false
+        }
+    );
+    parent.add(bottomJoint);
+}
+
+/**
+ * Create a function to update bone visuals based on bone movement
+ * @param {Object} boneGroup - The visual bone group to update
+ * @returns {Function} Update function for the bone
+ */
+function createBoneUpdateFunction(boneGroup) {
+    return () => {
+        if (boneGroup.userData.parentBone && boneGroup.userData.childBone) {
+            const parentPos = new THREE.Vector3();
+            const childPos = new THREE.Vector3();
+            
+            boneGroup.userData.parentBone.getWorldPosition(parentPos);
+            boneGroup.userData.childBone.getWorldPosition(childPos);
+            
+            // Update position and orientation
+            boneGroup.position.copy(parentPos);
+            
+            // Make the bone look at the child
+            const direction = new THREE.Vector3().subVectors(childPos, parentPos);
+            if (direction.lengthSq() > 0.001) {
+                boneGroup.lookAt(childPos);
+                boneGroup.rotateX(Math.PI/2);
+                
+                // Update scale to match new length
+                const distance = parentPos.distanceTo(childPos);
+                
+                // Update the children
+                const children = boneGroup.children;
+                for (let i = 0; i < children.length; i++) {
+                    if (children[i].userData.bonePart === 'side') {
+                        children[i].scale.y = distance / children[i].geometry.parameters.height;
+                    } else if (children[i].userData.bonePart === 'cap' && children[i].position.y > 0) {
+                        children[i].position.y = distance;
+                    }
+                }
+            }
+        }
+    };
 }
