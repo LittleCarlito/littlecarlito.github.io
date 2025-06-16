@@ -9,7 +9,6 @@ export let boneVisualsGroup = null;
 export let boneMaterial = null;
 export let boneJointMaterial = null;
 export let boneSideMaterial = null;
-export let primaryRigHandle = null;
 
 // IK settings
 const IK_CHAIN_LENGTH = 3;
@@ -60,28 +59,6 @@ export function setBoneSideMaterial(material) {
  */
 export function setBoneJointMaterial(material) {
     boneJointMaterial = material;
-}
-
-/**
- * Set the furthest bone handle
- * @param {Object} handle - The handle to set
- */
-export function setupBoneControlHandle(handle, name, scene, incomingBone) {
-    primaryRigHandle = handle;
-    primaryRigHandle.name = name;
-    scene.add(primaryRigHandle);
-    const bonePos = new THREE.Vector3();
-    incomingBone.getWorldPosition(bonePos);
-    primaryRigHandle.position.copy(bonePos);
-    primaryRigHandle.userData.controlledBone = incomingBone;
-    primaryRigHandle.userData.isControlHandle = true;
-    primaryRigHandle.userData.updatePosition = () => {
-        if (primaryRigHandle.userData.controlledBone && !getIsDragging()) {
-            const controlledBonePos = new THREE.Vector3();
-            primaryRigHandle.userData.controlledBone.getWorldPosition(controlledBonePos);
-            primaryRigHandle.position.copy(controlledBonePos);
-        }
-    };
 }
 
 /**
@@ -423,11 +400,4 @@ function updateBoneChainMatrices(boneChain) {
  */
 export function clearBoneVisualsGroup() {
     boneVisualsGroup = null;
-}
-
-/**
- * Clear the furthest bone handle reference
- */
-export function clearPrimaryRigHandle() {
-    primaryRigHandle = null;
 }

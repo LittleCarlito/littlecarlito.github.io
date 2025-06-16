@@ -6,15 +6,14 @@ import {
     boneMaterial,
     lockedBones,
     boneSideMaterial, 
-    primaryRigHandle, 
     boneVisualsGroup,
     updateAllBoneMatrices,
     restoreLockedBoneRotations,
-    clearBoneVisualsGroup,
-    clearPrimaryRigHandle
+    clearBoneVisualsGroup
 } from './bone-kinematics';
 import { createBoneLabels, createJointLabels } from './rig-label-factory';
 import { deduplicateItemsByName } from '../data/duplicate-handler';
+import { clearPrimaryRigHandle, primaryRigHandle } from './rig-handle-factory';
 
 export let rigDetails = null;
 export const labelGroups = new Map(); // Map to store different types of label groups (joint, bone)

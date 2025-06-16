@@ -20,7 +20,6 @@ import {
     boneMaterial,
     boneSideMaterial,
     boneVisualsGroup, 
-    primaryRigHandle,
     findFarthestBone,
     setBoneMaterial,
     setBoneSideMaterial,
@@ -30,8 +29,9 @@ import {
   } from './bone-kinematics.js';
 import { createAxisIndicator } from '../../axis-indicator/axis-indicator';
 import { createLabels } from './rig-label-factory';
-import { addControlHandleToBone, applyJointConstraints } from './rig-constraint-manager';
+import { applyJointConstraints } from './rig-constraint-manager';
 import { parseJointConstraints } from '../data/glb-classifier';
+import { addControlHandleToObject, primaryRigHandle } from './rig-handle-factory';
 
 /**
  * Create a rig system with visualization, controls and interactions
@@ -352,7 +352,7 @@ export function createRig(model, scene) {
     // Find the furthest bone from the root and add a control handle
     const furthestBone = findFarthestBone();
     if (furthestBone) {
-        addControlHandleToBone(furthestBone, scene, modelScale);
+        addControlHandleToObject(furthestBone, scene, modelScale);
     }
     
     // Create labels for joints and bones

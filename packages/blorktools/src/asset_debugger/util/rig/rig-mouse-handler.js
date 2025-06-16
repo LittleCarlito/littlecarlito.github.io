@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { rigOptions, getLabelGroup } from './rig-controller';
-import { primaryRigHandle, restoreLockedBoneRotations, updateBoneVisuals, moveBonesForTarget } from './bone-kinematics';
+import { restoreLockedBoneRotations, updateBoneVisuals, moveBonesForTarget } from './bone-kinematics';
 import { getState } from '../state/scene-state';
+import { primaryRigHandle } from './rig-handle-factory';
 
 // Raycaster for mouse interaction
 let raycaster = new THREE.Raycaster();

@@ -14,13 +14,14 @@ import {
  } from '../../../util/rig/rig-controller.js';
 import { createRig } from '../../../util/rig/rig-factory.js';
 import { setIsDragging, getIsDragging, checkHandleHover } from '../../../util/rig/rig-mouse-handler.js';
-import { bones, findAssociatedBone, primaryRigHandle } from '../../../util/rig/bone-kinematics.js';
+import { bones, findAssociatedBone } from '../../../util/rig/bone-kinematics.js';
 import { saveSettings, loadSettings } from '../../../util/data/localstorage-manager.js';
 import { getState } from '../../../util/state/scene-state.js';
 import { hideTooltip, setupTruncationTooltips } from '../../../util/rig/rig-tooltip-manager.js';
 import { addBoneConstraintControls, disableApplyButton } from '../../../util/rig/rig-ui-factory.js';
 import { handleApplyConstraints } from '../../../util/rig/rig-constraint-manager.js';
 import { analyzeGltfModel } from '../../../util/data/glb-classifier.js';
+import { primaryRigHandle } from '../../../util/rig/rig-handle-factory.js';
 
 
 

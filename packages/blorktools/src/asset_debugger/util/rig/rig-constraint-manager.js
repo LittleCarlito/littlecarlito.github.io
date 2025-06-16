@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { jointPreviousValues } from "../../panels/asset-panel/rig-heading/rig-heading";
-import { findBoneByName, setupBoneControlHandle, updateAllBoneMatrices } from "./bone-kinematics";
+import { findBoneByName, updateAllBoneMatrices } from "./bone-kinematics";
 import { rigDetails, rigOptions } from "./rig-controller";
 import { storeBoneCurrentState, updateConstraintSettingsState, updatePreviousValues } from "./rig-state-manager";
 import { disableApplyButton } from "./rig-ui-factory";
@@ -616,22 +616,3 @@ function enforceJointConstraints(bone) {
     }
 }
 
-/**
- * Add a control handle to the furthest bone
- * @param {Object} bone - The bone to add the handle to
- * @param {Object} scene - The Three.js scene
- * @param {Number} modelScale - Scale factor for the handle size
- */
-export function addControlHandleToBone(bone, scene, modelScale) {
-    const handleSize = modelScale * 2.6; // Double the size (from 1.3 to 2.6)
-    const geometry = new THREE.SphereGeometry(handleSize, 16, 16);
-    const material = new THREE.MeshBasicMaterial({
-        color: rigOptions.normalColor, // Use color from rigOptions
-        transparent: true,
-        opacity: 0.7,
-        wireframe: false
-    });
-    // Set the furthest bone handle
-    setupBoneControlHandle(new THREE.Mesh(geometry, material), "PrimaryRigHandle", scene, bone);
-    console.log('Added control handle to furthest bone:', bone.name);
-}
