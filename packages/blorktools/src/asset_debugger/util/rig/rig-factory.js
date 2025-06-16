@@ -28,9 +28,8 @@ import {
     boneMaterial,
     boneSideMaterial,
     boneVisualsGroup, 
-    furthestBoneHandle,
+    primaryRigHandle,
     findFarthestBone,
-    setFurthestBoneHandle,
     setBoneMaterial,
     setBoneSideMaterial,
     setBoneJointMaterial,
@@ -39,7 +38,7 @@ import {
   } from './bone-kinematics.js';
 import { createAxisIndicator } from '../../axis-indicator/axis-indicator';
 import { createLabels } from './rig-label-factory';
-import { addControlHandleToFurthestBone, applyJointConstraints } from './rig-constraint-manager';
+import { addControlHandleToBone, applyJointConstraints } from './rig-constraint-manager';
 import { parseJointConstraints } from '../data/glb-classifier';
 
 /**
@@ -361,7 +360,7 @@ export function createRig(model, scene) {
     // Find the furthest bone from the root and add a control handle
     const furthestBone = findFarthestBone();
     if (furthestBone) {
-        addControlHandleToFurthestBone(furthestBone, scene, modelScale);
+        addControlHandleToBone(furthestBone, scene, modelScale);
     }
     
     // Create labels for joints and bones
@@ -408,10 +407,10 @@ export function createRig(model, scene) {
             }
         });
         
-        if (furthestBoneHandle && furthestBoneHandle.material) {
-            furthestBoneHandle.renderOrder = 1030;
-            furthestBoneHandle.material.depthTest = false;
-            furthestBoneHandle.material.needsUpdate = true;
+        if (primaryRigHandle && primaryRigHandle.material) {
+            primaryRigHandle.renderOrder = 1030;
+            primaryRigHandle.material.depthTest = false;
+            primaryRigHandle.material.needsUpdate = true;
         }
     }
     

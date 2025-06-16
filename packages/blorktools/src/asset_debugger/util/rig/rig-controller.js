@@ -6,12 +6,12 @@ import {
     boneMaterial,
     lockedBones,
     boneSideMaterial, 
-    furthestBoneHandle, 
+    primaryRigHandle, 
     boneVisualsGroup,
     updateAllBoneMatrices,
     restoreLockedBoneRotations,
     clearBoneVisualsGroup,
-    clearFurthestBoneHandle
+    clearPrimaryRigHandle
 } from './bone-kinematics';
 import { createBoneLabels, createJointLabels } from './rig-label-factory';
 import { deduplicateItemsByName } from '../data/duplicate-handler';
@@ -78,8 +78,8 @@ export function updateRigVisualization() {
         boneVisualsGroup.visible = rigOptions.displayRig;
     }
     
-    if (furthestBoneHandle) {
-        furthestBoneHandle.visible = rigOptions.displayRig;
+    if (primaryRigHandle) {
+        primaryRigHandle.visible = rigOptions.displayRig;
     }
     
     // Update joint labels visibility using the dedicated functions
@@ -248,11 +248,11 @@ export function updateRigVisualization() {
                 }
             });
             
-            if (furthestBoneHandle && furthestBoneHandle.material) {
+            if (primaryRigHandle && primaryRigHandle.material) {
                 // Control handle gets highest renderOrder
-                furthestBoneHandle.renderOrder = 1030;
-                furthestBoneHandle.material.depthTest = false;
-                furthestBoneHandle.material.needsUpdate = true;
+                primaryRigHandle.renderOrder = 1030;
+                primaryRigHandle.material.depthTest = false;
+                primaryRigHandle.material.needsUpdate = true;
             }
         } else {
             console.log('Resetting Force Z index for rig');
@@ -286,11 +286,11 @@ export function updateRigVisualization() {
                 }
             });
             
-            if (furthestBoneHandle && furthestBoneHandle.material) {
+            if (primaryRigHandle && primaryRigHandle.material) {
                 // Control handle should still be above everything else
-                furthestBoneHandle.renderOrder = 20;
-                furthestBoneHandle.material.depthTest = true;
-                furthestBoneHandle.material.needsUpdate = true;
+                primaryRigHandle.renderOrder = 20;
+                primaryRigHandle.material.depthTest = true;
+                primaryRigHandle.material.needsUpdate = true;
             }
         }
     }
@@ -328,8 +328,8 @@ export function resetRig() {
     updateAllBoneMatrices();
     
     // If there's a furthest bone handle, update its position
-    if (furthestBoneHandle && furthestBoneHandle.userData.updatePosition) {
-        furthestBoneHandle.userData.updatePosition();
+    if (primaryRigHandle && primaryRigHandle.userData.updatePosition) {
+        primaryRigHandle.userData.updatePosition();
     }
     
     console.log('Rig reset complete');
@@ -381,8 +381,8 @@ export function updateRigAnimation() {
     // But keep force Z settings applied regardless of visibility
     if (!rigOptions.displayRig) {
         // When displayRig is off, hide visuals but maintain ForceZ settings
-        if (furthestBoneHandle) {
-            furthestBoneHandle.visible = false;
+        if (primaryRigHandle) {
+            primaryRigHandle.visible = false;
         }
         if (boneVisualsGroup) {
             boneVisualsGroup.visible = false;
@@ -409,11 +409,11 @@ export function updateRigAnimation() {
     }
     
     // Update furthest bone handle
-    if (furthestBoneHandle) {
-        furthestBoneHandle.visible = true;
-        if (furthestBoneHandle.userData.updatePosition && !getIsDragging()) {
+    if (primaryRigHandle) {
+        primaryRigHandle.visible = true;
+        if (primaryRigHandle.userData.updatePosition && !getIsDragging()) {
             // Only update handle position when not dragging
-            furthestBoneHandle.userData.updatePosition();
+            primaryRigHandle.userData.updatePosition();
         }
     }
     
@@ -447,9 +447,9 @@ export function clearRigVisualization(scene) {
         scene.remove(boneVisualsGroup);
         clearBoneVisualsGroup();
     }
-    if (furthestBoneHandle) {
-        scene.remove(furthestBoneHandle);
-        clearFurthestBoneHandle();
+    if (primaryRigHandle) {
+        scene.remove(primaryRigHandle);
+        clearPrimaryRigHandle();
     }
 }
 

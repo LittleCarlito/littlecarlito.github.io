@@ -14,7 +14,7 @@ import {
  } from '../../../util/rig/rig-controller.js';
 import { createRig } from '../../../util/rig/rig-factory.js';
 import { setIsDragging, getIsDragging, checkHandleHover } from '../../../util/rig/rig-mouse-handler.js';
-import { bones, findAssociatedBone, furthestBoneHandle } from '../../../util/rig/bone-kinematics.js';
+import { bones, findAssociatedBone, primaryRigHandle } from '../../../util/rig/bone-kinematics.js';
 import { saveSettings, loadSettings } from '../../../util/data/localstorage-manager.js';
 import { getState } from '../../../util/state/scene-state.js';
 import { hideTooltip, setupTruncationTooltips } from '../../../util/rig/rig-tooltip-manager.js';
@@ -164,10 +164,10 @@ function addControlBoneAssociations(itemElem, item, details) {
     }
     
     const state = getState();
-    if (state.model && furthestBoneHandle && furthestBoneHandle.userData.controlledBone) {
+    if (state.model && primaryRigHandle && primaryRigHandle.userData.controlledBone) {
         const controlElem = document.createElement('div');
-        controlElem.textContent = `Connected: ${furthestBoneHandle.userData.controlledBone.name}`;
-        controlElem.dataset.rawName = furthestBoneHandle.userData.controlledBone.name;
+        controlElem.textContent = `Connected: ${primaryRigHandle.userData.controlledBone.name}`;
+        controlElem.dataset.rawName = primaryRigHandle.userData.controlledBone.name;
         controlElem.className = 'rig-connected-bone';
         itemElem.appendChild(controlElem);
     }

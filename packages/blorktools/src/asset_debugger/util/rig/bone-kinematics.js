@@ -9,7 +9,7 @@ export let boneVisualsGroup = null;
 export let boneMaterial = null;
 export let boneJointMaterial = null;
 export let boneSideMaterial = null;
-export let furthestBoneHandle = null;
+export let primaryRigHandle = null;
 
 // IK settings
 const IK_CHAIN_LENGTH = 3;
@@ -66,20 +66,20 @@ export function setBoneJointMaterial(material) {
  * Set the furthest bone handle
  * @param {Object} handle - The handle to set
  */
-export function setFurthestBoneHandle(handle, name, scene, incomingBone) {
-    furthestBoneHandle = handle;
-    furthestBoneHandle.name = name;
-    scene.add(furthestBoneHandle);
+export function setupBoneControlHandle(handle, name, scene, incomingBone) {
+    primaryRigHandle = handle;
+    primaryRigHandle.name = name;
+    scene.add(primaryRigHandle);
     const bonePos = new THREE.Vector3();
     incomingBone.getWorldPosition(bonePos);
-    furthestBoneHandle.position.copy(bonePos);
-    furthestBoneHandle.userData.controlledBone = incomingBone;
-    furthestBoneHandle.userData.isControlHandle = true;
-    furthestBoneHandle.userData.updatePosition = () => {
-        if (furthestBoneHandle.userData.controlledBone && !getIsDragging()) {
+    primaryRigHandle.position.copy(bonePos);
+    primaryRigHandle.userData.controlledBone = incomingBone;
+    primaryRigHandle.userData.isControlHandle = true;
+    primaryRigHandle.userData.updatePosition = () => {
+        if (primaryRigHandle.userData.controlledBone && !getIsDragging()) {
             const controlledBonePos = new THREE.Vector3();
-            furthestBoneHandle.userData.controlledBone.getWorldPosition(controlledBonePos);
-            furthestBoneHandle.position.copy(controlledBonePos);
+            primaryRigHandle.userData.controlledBone.getWorldPosition(controlledBonePos);
+            primaryRigHandle.position.copy(controlledBonePos);
         }
     };
 }
@@ -428,6 +428,6 @@ export function clearBoneVisualsGroup() {
 /**
  * Clear the furthest bone handle reference
  */
-export function clearFurthestBoneHandle() {
-    furthestBoneHandle = null;
+export function clearPrimaryRigHandle() {
+    primaryRigHandle = null;
 }

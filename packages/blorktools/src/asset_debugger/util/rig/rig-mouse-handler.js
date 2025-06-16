@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { rigOptions, getJointLabelGroup, getBoneLabelGroup } from './rig-controller';
-import { furthestBoneHandle, restoreLockedBoneRotations, updateBoneVisuals, moveBonesForTarget } from './bone-kinematics';
+import { primaryRigHandle, restoreLockedBoneRotations, updateBoneVisuals, moveBonesForTarget } from './bone-kinematics';
 import { getState } from '../state/scene-state';
 
 // Raycaster for mouse interaction
@@ -52,10 +52,10 @@ export function setupMouseListeners(scene) {
         
         // Since we're removing label header click handling, just check for control handle clicks
         raycaster.setFromCamera(mouse, state.camera);
-        const intersects = raycaster.intersectObject(furthestBoneHandle);
+        const intersects = raycaster.intersectObject(primaryRigHandle);
         if (intersects.length > 0) {
-            console.log('Starting drag on handle:', furthestBoneHandle.name);
-            startDrag(intersects[0], furthestBoneHandle);
+            console.log('Starting drag on handle:', primaryRigHandle.name);
+            startDrag(intersects[0], primaryRigHandle);
             event.preventDefault();
         }
     });
@@ -155,15 +155,15 @@ export function checkHandleHover() {
     let hoverDetected = false;
     
     // First check the furthest bone handle
-    if (furthestBoneHandle) {
-        const handleIntersects = raycaster.intersectObject(furthestBoneHandle);
+    if (primaryRigHandle) {
+        const handleIntersects = raycaster.intersectObject(primaryRigHandle);
         
         if (handleIntersects.length > 0) {
             // We hit the handle
             hoverDetected = true;
             
             // Set or update hover state
-            if (hoveredHandle !== furthestBoneHandle) {
+            if (hoveredHandle !== primaryRigHandle) {
                 // Reset any previously hovered label header
                 if (hoveredLabelHeader) {
                     hoveredLabelHeader.material.opacity = 0.8; // Default opacity
@@ -172,7 +172,7 @@ export function checkHandleHover() {
                 }
                 
                 // Set the handle as hovered
-                hoveredHandle = furthestBoneHandle;
+                hoveredHandle = primaryRigHandle;
                 hoveredHandle.material.color.setHex(rigOptions.hoverColor);
                 hoveredHandle.material.needsUpdate = true;
             }
@@ -183,7 +183,7 @@ export function checkHandleHover() {
                 controls.enabled = false;
             }
         } 
-        else if (hoveredHandle === furthestBoneHandle) {
+        else if (hoveredHandle === primaryRigHandle) {
             // We had the handle hovered but no longer
             hoveredHandle.material.color.setHex(rigOptions.normalColor);
             hoveredHandle.material.needsUpdate = true;
@@ -293,7 +293,7 @@ function handleDrag() {
         // Move handle to new position
         dragTarget.position.copy(planeIntersection);
         // Apply IK if this is the furthest bone handle
-        if (dragTarget === furthestBoneHandle && dragTarget.userData.controlledBone) {
+        if (dragTarget === primaryRigHandle && dragTarget.userData.controlledBone) {
             const controlledBone = dragTarget.userData.controlledBone;
             // Even if the controlled bone is locked, we still want to move other bones in the chain
             // This is different from before - we don't check if the target bone is locked here
