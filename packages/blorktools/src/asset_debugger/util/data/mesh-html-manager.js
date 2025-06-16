@@ -1,7 +1,7 @@
 import { getState } from "../state/scene-state";
 import { deserializeStringFromBinary, serializeStringWithSettingsToBinary } from "./string-serder";
 import { defaultSettings, getSettingsFromForm } from "../../modals/html-editor-modal/html-editor-modal";
-import { associateBinaryBufferWithMesh, getBinaryBufferForMesh } from "./glb-serder";
+import { associateBinaryBufferWithMesh, getBinaryBufferForMesh } from "./glb-buffer-manager";
 import { getCurrentGlbBuffer } from "../scene/glb-manager";
 import { updateGlbFile } from "../scene/glb-controller";
 
@@ -149,7 +149,6 @@ export async function loadHtmlForMesh(meshId, forceReload = false) {
         const binaryBuffer = await getBinaryBufferForMesh(glbBuffer, meshId);
         
         if (!binaryBuffer) {
-            console.log(`No binary data found for mesh ID ${meshId}`);
             return '';
         }
         

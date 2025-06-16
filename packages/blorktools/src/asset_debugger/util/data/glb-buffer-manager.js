@@ -49,14 +49,12 @@ export function getBinaryBufferForMesh(glbArrayBuffer, meshIndex) {
             const gltf = parseJSONChunk(glbArrayBuffer, chunkInfo);
             
             if (!hasExtension(gltf, MESH_BINARY_EXTENSION)) {
-                console.log(`No binary extension found for mesh ${meshIndex}`);
                 resolve(null);
                 return;
             }
             
             const associations = gltf.extensions[MESH_BINARY_EXTENSION].meshBinaryAssociations;
             if (!associations || !Array.isArray(associations)) {
-                console.log(`No binary associations found for mesh ${meshIndex}`);
                 resolve(null);
                 return;
             }
@@ -64,7 +62,6 @@ export function getBinaryBufferForMesh(glbArrayBuffer, meshIndex) {
             const association = associations.find(assoc => assoc[MESH_INDEX_PROPERTY] === meshIndex);
             
             if (!association) {
-                console.log(`No binary association found for mesh ${meshIndex}`);
                 resolve(null);
                 return;
             }

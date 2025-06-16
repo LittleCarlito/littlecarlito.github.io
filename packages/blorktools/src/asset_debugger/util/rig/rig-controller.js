@@ -13,7 +13,8 @@ import {
     clearBoneVisualsGroup,
     clearFurthestBoneHandle
 } from './bone-kinematics';
-import { createJointLabels, createBoneLabels } from './rig-factory';
+import { createBoneLabels, createJointLabels } from './rig-label-factory';
+import { deduplicateItemsByName } from '../data/duplicate-handler';
 
 export let rigDetails = null;
 export const labelGroups = new Map(); // Map to store different types of label groups (joint, bone)
@@ -504,7 +505,7 @@ function refreshJointsData() {
         }
         
         // Deduplicate the joints data
-        rigDetails.joints = deduplicateItems(rigDetails.joints);
+        rigDetails.joints = deduplicateItemsByName(rigDetails.joints);
     }
 }
 

@@ -807,14 +807,12 @@ async function verifyExtensionExists(glbBuffer, meshId) {
         
         // Check if our extension exists
         if (!gltf.extensions || !gltf.extensions[MESH_BINARY_EXTENSION]) {
-            console.log(`No binary extension found in GLB for mesh ${meshId}`);
             return false;
         }
         
         // Find the association for this mesh index
         const associations = gltf.extensions[MESH_BINARY_EXTENSION].meshBinaryAssociations;
         if (!associations || !Array.isArray(associations)) {
-            console.log('No binary associations found');
             return false;
         }
         
@@ -833,8 +831,6 @@ async function verifyExtensionExists(glbBuffer, meshId) {
             }
             
             console.log(`Found binary extension for mesh ${meshId} -> buffer ${bufferIndex}`);
-        } else {
-            console.log(`No binary association found for mesh ${meshId}`);
         }
         
         return found;

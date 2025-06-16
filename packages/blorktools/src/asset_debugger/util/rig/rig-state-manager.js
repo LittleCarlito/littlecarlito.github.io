@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { bones } from './bone-kinematics';
 import { jointPreviousValues } from '../../panels/asset-panel/rig-heading/rig-heading';
-import { disableApplyButton, enableApplyButton } from './rig-ui-component-factory';
+import { disableApplyButton, enableApplyButton } from './rig-ui-factory';
 
 // Add debug flag
 export let jointSettingsDebug = true;
