@@ -1,25 +1,16 @@
-/**
- * Asset Debugger - Asset Panel Module
- * 
- * This module handles sample sections and their collapsible functionality.
- */
 import { getState } from '../../util/state/scene-state';
 import { createMeshVisibilityPanel } from './mesh-heading/mesh-heading';
 import { initAtlasPanel, updateAtlasVisualization } from './atlas-heading/atlas-heading';
 import { initUvPanel, updateUvPanel } from './uv-heading/uv-heading.js';
 import { updateRigPanel } from './rig-heading/rig-heading';
-import { downloadUpdatedGlb } from '../../util/scene/glb-controller.js';
+import { downloadUpdatedGlb, onGlbBufferUpdate } from '../../util/scene/glb-controller.js';
 
-// Track initialization state
 let controlsInitialized = false;
 let atlasInitialized = false;
 let uvInitialized = false;
 let rigInitialized = false;
 let downloadButtonInitialized = false;
 
-/**
- * Initialize the Asset panel and cache DOM elements
- */
 export function initAssetPanel() {
     if (controlsInitialized) {
         console.log('Asset Panel already initialized, skipping');
@@ -37,7 +28,6 @@ export function initAssetPanel() {
     
     console.debug('Asset panel found, initializing...');
     
-    // Initialize collapsible functionality
     const collapsibleHeaders = document.querySelectorAll('.asset-section .collapsible-header');
     if (collapsibleHeaders) {
         collapsibleHeaders.forEach(header => {
@@ -86,29 +76,13 @@ export function initAssetPanel() {
         });
     }
     
-    // Initialize the download button (now always visible)
     initDownloadButton();
-    
-    // Set up a listener for state changes to update button visibility
-    // This could be enhanced with a proper state change listener system
-    const originalUpdateState = window.updateState;
-    if (originalUpdateState) {
-        window.updateState = function(...args) {
-            const result = originalUpdateState.apply(this, args);
-            // Check if modelFile was updated
-            if (args[0] === 'modelFile' || (typeof args[0] === 'object' && 'modelFile' in args[0])) {
-                setTimeout(updateDownloadButtonVisibility, 0); // Async to ensure state is updated
-            }
-            return result;
-        };
-    }
+    setupBufferListener();
+    updateDownloadButtonVisibility();
     
     controlsInitialized = true;
 }
 
-/**
- * Initialize the download button
- */
 function initDownloadButton() {
     const downloadBtn = document.getElementById('download-asset-btn');
     if (!downloadBtn) {
@@ -132,30 +106,31 @@ function initDownloadButton() {
     
     downloadButtonInitialized = true;
     console.log('Download button event listener initialized successfully');
-    
-    // Update button visibility based on current state
-    updateDownloadButtonVisibility();
 }
 
-/**
- * Update download button visibility based on whether there's a model loaded
- */
+function setupBufferListener() {
+    onGlbBufferUpdate(() => {
+        updateDownloadButtonVisibility();
+    });
+    
+    window.addEventListener('glb-buffer-changed', () => {
+        updateDownloadButtonVisibility();
+    });
+}
+
 function updateDownloadButtonVisibility() {
     const downloadSection = document.querySelector('.asset-download-section');
     const state = getState();
     
     if (!downloadSection) return;
     
-    // Show button only if there's a model file loaded
     const hasModel = state.modelFile !== null;
+    
     downloadSection.style.display = hasModel ? 'block' : 'none';
     
     console.log(`Download button ${hasModel ? 'shown' : 'hidden'} - hasModel: ${hasModel}`);
 }
 
-/**
- * Public function to update download button visibility (called from other modules)
- */
 export function refreshDownloadButtonVisibility() {
     updateDownloadButtonVisibility();
 }
