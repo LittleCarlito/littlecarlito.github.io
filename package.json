@@ -51,6 +51,7 @@
     "lerna:changed": "lerna changed",
     "lerna:diff": "lerna diff",
     "publish:packages": "lerna publish from-package --yes --no-private",
+    "quality": "node scripts/quality-check.js",
     "npm:init-scope": "node -e \"console.log('Attempting to verify npm scope access...'); try { require('child_process').execSync('npm access list packages', {stdio: 'inherit'}); } catch(e) { console.log('No packages found or no access yet, but authentication successful'); }\""
   },
   "dependencies": {
