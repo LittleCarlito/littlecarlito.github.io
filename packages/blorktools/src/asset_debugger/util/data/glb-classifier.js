@@ -279,3 +279,12 @@ export function parseJointConstraints(node) {
     // No constraints found
     return null;
 }
+
+// TODO Create a function for determining if a glb has a display mesh
+
+// TODO Create a function for getting the mesh index of the display mesh
+
+// TODO Create a function that calls the two above and then uses that info to get the binary buffer for the display mesh
+//          Then checks to see if Rig Control Node is true in the buffer
+//          If it is calls new method to make the display mesh a control node
+//              Stub it out for now that will be next task

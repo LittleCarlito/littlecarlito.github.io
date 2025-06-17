@@ -136,7 +136,7 @@
             "children": [],
             "position": {
                 "x": 0,
-                "y": -10.2,
+                "y": -10.8,
                 "z": 0
             },
             "rotation": {
@@ -235,7 +235,7 @@
         "base_url": "",
         "auto_throttle": true,
         "greeting_data": {
-            "display": true,
+            "display": false,
             "modal_path": "pages/under_construction.html"
         },
         "background": {
@@ -299,7 +299,7 @@
             }
         },
         "default_camera": {
-            "position": {"x": 0, "y": 5, "z": 10},
+            "position": {"x": 0, "y": 0, "z": 16},
             "target": {"x": 0, "y": 0, "z": 0},
             "fov": 75,
             "near": 0.1,
