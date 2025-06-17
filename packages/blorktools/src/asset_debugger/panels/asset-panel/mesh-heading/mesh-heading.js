@@ -6,7 +6,7 @@
 import { deserializeStringFromBinary, isValidHtml } from '../../../util/data/string-serder.js';
 import { openMeshInfoModal } from '../../../modals/mesh-info-modal/mesh-info-modal.js';
 import { getBinaryBufferForMesh } from '../../../util/data/glb-buffer-manager.js';
-import { getCurrentGlbBuffer } from '../../../util/scene/glb-manager.js';
+import { getCurrentGlbBuffer } from '../../../util/scene/glb-controller.js';
 import { getState, updateState } from '../../../util/state/scene-state.js';
 import { checkMeshHasHtmlContent } from '../../../util/data/mesh-html-manager.js';
 
