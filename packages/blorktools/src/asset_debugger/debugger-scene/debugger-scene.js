@@ -15,7 +15,7 @@ import * as rigController from '../util/rig/rig-controller.js';
 import * as lightingManager from '../util/scene/lighting-manager.js';
 import * as backgroundManager from '../util/scene/background-manager.js';
 import * as modelHandler from '../util/scene/threejs-model-manager.js';
-import * as textureHandler from '../util/data/upload/handlers/texture-file-handler.js';
+import * as textureHandler from '../util/data/upload/texture-file-handler.js';
 import * as worldPanel from '../panels/world-panel/world-panel.js';
 import * as assetPanel from '../panels/asset-panel/asset-panel.js';
 import * as htmlEditorModule from '../modals/html-editor-modal/html-editor-modal.js';

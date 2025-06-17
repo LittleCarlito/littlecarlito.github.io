@@ -1,6 +1,6 @@
+import { processGLBFile } from '../data/upload/glb-file-handler.js';
 import { getState, updateState } from '../state/scene-state.js';
-import { processGLBFile } from '../data/upload/handlers/model/glb-file-handler.js';
-import { getCurrentGlbBuffer, setCurrentGlbBuffer as setManagerBuffer } from './glb-manager.js';
+import { getCurrentGlbBuffer, setCurrentGlbBuffer } from './glb-manager.js';
 
 let bufferUpdateListeners = [];
 let initialized = false;
@@ -55,7 +55,7 @@ export async function processModelFileForHtmlEditor(file) {
             fileSize: result.fileSize
         });
         
-        setManagerBuffer(clonedBuffer);
+        setCurrentGlbBuffer(clonedBuffer);
         
         console.log('Model processed for HTML editor integration:', result.fileName);
         return clonedBuffer;
@@ -79,7 +79,7 @@ export function onGlbBufferUpdate(callback) {
 }
 
 function notifyBufferUpdate(glbBuffer) {
-    setManagerBuffer(glbBuffer);
+    setCurrentGlbBuffer(glbBuffer);
     
     for (const listener of bufferUpdateListeners) {
         try {

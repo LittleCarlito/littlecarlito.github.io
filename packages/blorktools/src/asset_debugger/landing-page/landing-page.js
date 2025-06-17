@@ -15,18 +15,12 @@ import {
     printStateReport 
 } from "../util/state/scene-state.js";
 import { loadSettings } from "../util/data/localstorage-manager.js";
-import { 
-    handleAutoLoad, 
-    loadLightingIntoDropzone, 
-    loadModelIntoDropzone, 
-    processZipContents 
-} from "../util/data/upload/handlers/zip-handler.js";
-import { handleBackgroundUpload } from "../util/data/upload/handlers/background-file-handler.js";
-import { handleModelUpload } from "../util/data/upload/handlers/model/model-file-manager.js";
-import { handleLightingUpload } from "../util/data/upload/handlers/lighting-file-handler.js";
-import { handleTextureUpload } from "../util/data/upload/handlers/texture-file-handler.js";
+import { handleTextureUpload } from "../util/data/upload/texture-file-handler.js";
 import { terminateAllWorkers } from "../util/workers/worker-manager.js";
 import { setupDropzones } from "../util/data/upload/file-upload-manager.js";
+import { handleAutoLoad, processZipContents } from "../util/data/upload/zip-handler.js";
+import { handleLightingUpload } from "../util/data/upload/lighting-file-handler.js";
+import { handleModelUpload } from "../util/data/upload/model-file-manager.js";
 
 // Module state
 let isInitialized = false;
@@ -38,7 +32,7 @@ window.addEventListener('beforeunload', () => {
 });
 
 // Main initialization function
-export function initalizeLandingPage() {
+export async function initalizeLandingPage() {
     console.log('🌟 Initializing landing page...');
     
     // Prevent double initialization
@@ -51,9 +45,8 @@ export function initalizeLandingPage() {
     if (!validateRequiredElements()) {
         console.warn('⏳ Required DOM elements not found, waiting for them...');
         // Use MutationObserver to wait for elements to be added
-        return waitForElements().then(() => {
-            return initializeLandingPageInternal();
-        });
+        await waitForElements();
+        return initializeLandingPageInternal();
     }
     
     return Promise.resolve(initializeLandingPageInternal());
