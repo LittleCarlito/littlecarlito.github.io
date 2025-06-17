@@ -8,6 +8,7 @@ import { openMeshInfoModal } from '../../../modals/mesh-info-modal/mesh-info-mod
 import { getBinaryBufferForMesh } from '../../../util/data/glb-buffer-manager.js';
 import { getCurrentGlbBuffer } from '../../../util/scene/glb-manager.js';
 import { getState, updateState } from '../../../util/state/scene-state.js';
+import { checkMeshHasHtmlContent } from '../../../util/data/mesh-html-manager.js';
 
 // Load mesh panel CSS
 const link = document.createElement('link');
@@ -16,7 +17,7 @@ link.href = '/asset_debugger/panels/asset-panel/mesh-heading/mesh-heading.css';
 document.head.appendChild(link);
 
 // Track meshes with binary content
-const meshesWithHtml = new Set();
+export const meshesWithHtml = new Set();
 // Icon color constants
 const ICON_COLORS = {
     HAS_HTML: '#f8d73e', // Yellow color for meshes with binary content (Fallout yellow)
@@ -72,55 +73,6 @@ export function toggleMeshCodeIcon(meshIndex, hasHtml, forceUpdate = false) {
     }
     
     return true;
-}
-
-/**
- * Check if a mesh has binary content
- * @param {number} meshIndex - The index of the mesh to check
- * @returns {Promise<boolean>} Promise that resolves to true if the mesh has any binary content
- */
-async function checkMeshHasHtmlContent(meshIndex) {
-    if (window._forcedHtmlStates && meshIndex in window._forcedHtmlStates) {
-        console.log(`Using forced HTML state for mesh ${meshIndex}: ${window._forcedHtmlStates[meshIndex]}`);
-        return window._forcedHtmlStates[meshIndex];
-    }
-
-    if (meshesWithHtml.has(meshIndex)) {
-        const glbBuffer = getCurrentGlbBuffer();
-        if (glbBuffer) {
-            try {
-                const binaryBuffer = await getBinaryBufferForMesh(glbBuffer, meshIndex);
-                if (!binaryBuffer || binaryBuffer.byteLength === 0) {
-                    meshesWithHtml.delete(meshIndex);
-                    return false;
-                }
-                return true;
-            } catch (e) {
-                meshesWithHtml.delete(meshIndex);
-                return false;
-            }
-        }
-        return true;
-    }
-    
-    const glbBuffer = getCurrentGlbBuffer();
-    if (!glbBuffer) {
-        return false;
-    }
-    
-    try {
-        const binaryBuffer = await getBinaryBufferForMesh(glbBuffer, meshIndex);
-        
-        if (binaryBuffer && binaryBuffer.byteLength > 0) {
-            meshesWithHtml.add(meshIndex);
-            return true;
-        }
-        
-        return false;
-    } catch (error) {
-        console.error('Error checking if mesh has binary content:', error);
-        return false;
-    }
 }
 
 /**

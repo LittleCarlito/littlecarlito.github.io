@@ -4,6 +4,7 @@ import { defaultSettings, getSettingsFromForm } from "../../modals/html-editor-m
 import { associateBinaryBufferWithMesh, getBinaryBufferForMesh } from "./glb-buffer-manager";
 import { getCurrentGlbBuffer } from "../scene/glb-manager";
 import { updateGlbFile } from "../scene/glb-controller";
+import { meshesWithHtml } from "../../panels/asset-panel/mesh-heading/mesh-heading";
 
 const meshHtmlContent = new Map();
 const meshHtmlSettings = new Map();
@@ -262,4 +263,34 @@ export async function saveHtmlForMesh(meshId, content) {
 export function clearMeshHtmlSettings(meshId) {
     meshHtmlSettings.delete(meshId);
     console.log(`Cleared cached HTML settings for mesh ID ${meshId}`);
+}
+
+/**
+ * Check if a mesh has binary content
+ * @param {number} meshIndex - The index of the mesh to check
+ * @returns {Promise<boolean>} Promise that resolves to true if the mesh has any binary content
+ */
+export async function checkMeshHasHtmlContent(meshIndex) {
+    if (window._forcedHtmlStates && meshIndex in window._forcedHtmlStates) {
+        console.log(`Using forced HTML state for mesh ${meshIndex}: ${window._forcedHtmlStates[meshIndex]}`);
+        return window._forcedHtmlStates[meshIndex];
+    }
+    
+    const glbBuffer = getCurrentGlbBuffer();
+    if (!glbBuffer) {
+        return false;
+    }
+    
+    try {
+        const binaryBuffer = await getBinaryBufferForMesh(glbBuffer, meshIndex);
+        
+        if (binaryBuffer && binaryBuffer.byteLength > 0) {
+            return true;
+        }
+        
+        return false;
+    } catch (error) {
+        console.error('Error checking if mesh has binary content:', error);
+        return false;
+    }
 }
