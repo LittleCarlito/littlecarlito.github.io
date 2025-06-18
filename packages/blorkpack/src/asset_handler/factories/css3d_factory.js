@@ -19,7 +19,7 @@ export class CSS3DFactory {
         this.mainCamera = sceneCamera;
         
         const dimensions = this.calculateMeshDimensions(incomingMesh);
-        const frame = await this.createCSS3DFrame(300, 200, filePath);
+        const frame = await this.createCSS3DFrame(500, 400, filePath);
         
         const frameTracker = {
             mesh: incomingMesh,
@@ -58,6 +58,10 @@ export class CSS3DFactory {
         iframe.style.width = `${width}px`;
         iframe.style.height = `${height}px`;
         iframe.style.border = 'none';
+        iframe.style.borderRadius = '5px';
+        iframe.style.backgroundColor = 'white';
+        iframe.style.overflow = 'hidden';
+        iframe.style.boxSizing = 'border-box';
 
         const css3dObject = new CSS3DObject(iframe);
 
@@ -85,11 +89,12 @@ export class CSS3DFactory {
             }
             
             const htmlContent = await response.text();
+            const wrappedContent = this.wrapContent(htmlContent);
             
             setTimeout(() => {
                 if (iframe.contentDocument) {
                     iframe.contentDocument.open();
-                    iframe.contentDocument.write(htmlContent);
+                    iframe.contentDocument.write(wrappedContent);
                     iframe.contentDocument.close();
                 }
             }, 100);
@@ -103,6 +108,53 @@ export class CSS3DFactory {
                 }
             }, 100);
         }
+    }
+
+    wrapContent(content) {
+        return `<!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        html, body {
+                            margin: 0;
+                            padding: 0;
+                            width: 100%;
+                            height: 100%;
+                            overflow: hidden;
+                            box-sizing: border-box;
+                        }
+                        body {
+                            background-color: white;
+                            color: #333;
+                            font-family: Arial, sans-serif;
+                            padding: 10px;
+                            display: flex;
+                            flex-direction: column;
+                        }
+                        .content {
+                            flex: 1;
+                            overflow: hidden;
+                            padding: 5px;
+                            position: relative;
+                            width: calc(100% - 10px);
+                        }
+                        
+                        /* Ensure content doesn't overflow */
+                        .content > * {
+                            max-width: 100%;
+                            box-sizing: border-box;
+                        }
+                        
+                        /* Override any styles that might cause horizontal scrollbars */
+                        .content div, .content p, .content span, .content img {
+                            max-width: 100%;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="content">${content}</div>
+                </body>
+                </html>`;
     }
 
     getErrorHTML(filePath, errorMessage) {
@@ -193,25 +245,41 @@ export class CSS3DFactory {
             };
         }
 
-        const geometry = mesh.geometry;
-        geometry.computeBoundingBox();
-        const center = new THREE.Vector3();
-        geometry.boundingBox.getCenter(center);
+        // Use cached geometry calculations when possible
+        if (!mesh.userData.geometryCache) {
+            const geometry = mesh.geometry;
+            geometry.computeBoundingBox();
+            const center = new THREE.Vector3();
+            geometry.boundingBox.getCenter(center);
+            
+            mesh.userData.geometryCache = {
+                center: center.clone(),
+                boundingBox: geometry.boundingBox.clone()
+            };
+        }
+
+        const center = mesh.userData.geometryCache.center.clone();
         mesh.localToWorld(center);
 
-        const meshMatrix = mesh.matrixWorld.clone();
+        // Use decomposed matrix components directly for better performance
+        const meshMatrix = mesh.matrixWorld;
         const position = new THREE.Vector3();
         const quaternion = new THREE.Quaternion();
         const scale = new THREE.Vector3();
         meshMatrix.decompose(position, quaternion, scale);
 
-        let normal = new THREE.Vector3(0, 0, 1);
-        if (geometry.attributes.normal) {
-            const normalAttribute = geometry.attributes.normal;
-            if (normalAttribute.count > 0) {
-                normal.fromBufferAttribute(normalAttribute, 0);
-                normal.transformDirection(meshMatrix);
-                normal.normalize();
+        // Simplified normal calculation - use cached if available
+        let normal = mesh.userData.cachedNormal;
+        if (!normal) {
+            normal = new THREE.Vector3(0, 0, 1);
+            if (mesh.geometry.attributes.normal) {
+                const normalAttribute = mesh.geometry.attributes.normal;
+                if (normalAttribute.count > 0) {
+                    normal.fromBufferAttribute(normalAttribute, 0);
+                    normal.transformDirection(meshMatrix);
+                    normal.normalize();
+                    mesh.userData.cachedNormal = normal.clone();
+                }
             }
         }
 
@@ -229,26 +297,79 @@ export class CSS3DFactory {
     updateFrameTransform(frameTracker) {
         if (!frameTracker.frame || !frameTracker.mesh) return;
 
-        const transform = this.calculateMeshTransform(frameTracker.mesh, frameTracker.assetType);
-        frameTracker.frame.position.copy(transform.position);
-        frameTracker.frame.quaternion.copy(transform.quaternion);
+        // Cache frequently accessed properties
+        const mesh = frameTracker.mesh;
+        const frame = frameTracker.frame;
         
-        const dimensions = this.calculateMeshDimensions(frameTracker.mesh);
-        const scaleX = dimensions.realWidth / 300;
-        const scaleY = dimensions.realHeight / 200;
-        frameTracker.frame.scale.set(scaleX, scaleY, 1);
+        // Only recalculate if mesh matrix has changed
+        if (!mesh.userData.lastMatrixVersion || mesh.userData.lastMatrixVersion !== mesh.matrixWorld.elements.join(',')) {
+            const transform = this.calculateMeshTransform(mesh, frameTracker.assetType);
+            frame.position.copy(transform.position);
+            frame.quaternion.copy(transform.quaternion);
+            
+            const dimensions = this.calculateMeshDimensions(mesh);
+            const scaleX = dimensions.realWidth / 500;
+            const scaleY = dimensions.realHeight / 400;
+            frame.scale.set(scaleX, scaleY, 1);
+            
+            // Cache the matrix version to avoid unnecessary recalculations
+            mesh.userData.lastMatrixVersion = mesh.matrixWorld.elements.join(',');
+        }
+    }
+
+    updateFrameTransformImmediate(frameTracker) {
+        if (!frameTracker.frame || !frameTracker.mesh) return;
+
+        const mesh = frameTracker.mesh;
+        const frame = frameTracker.frame;
+        
+        // Store previous position for velocity calculation
+        if (!mesh.userData.previousPosition) {
+            mesh.userData.previousPosition = new THREE.Vector3();
+            mesh.userData.velocity = new THREE.Vector3();
+        }
+
+        // Calculate current transform
+        const transform = this.calculateMeshTransform(mesh, frameTracker.assetType);
+        
+        // Calculate velocity for prediction
+        const currentPos = transform.position;
+        const prevPos = mesh.userData.previousPosition;
+        mesh.userData.velocity.subVectors(currentPos, prevPos);
+        
+        // Apply predictive positioning (small lookahead)
+        const predictedPosition = currentPos.clone().add(mesh.userData.velocity.clone().multiplyScalar(0.016));
+        
+        // Apply transforms immediately
+        frame.position.copy(predictedPosition);
+        frame.quaternion.copy(transform.quaternion);
+        
+        // Update scaling
+        const dimensions = this.calculateMeshDimensions(mesh);
+        const scaleX = dimensions.realWidth / 500;
+        const scaleY = dimensions.realHeight / 400;
+        frame.scale.set(scaleX, scaleY, 1);
+        
+        // Store current state for next frame
+        mesh.userData.previousPosition.copy(currentPos);
     }
 
     startAnimationLoop() {
         const animate = () => {
             this.animationId = requestAnimationFrame(animate);
             
+            // Update transforms every single frame for seamless tracking
             for (const frameTracker of this.frames) {
-                if (frameTracker.visible && frameTracker.mesh.visible) {
+                if (frameTracker.mesh && frameTracker.frame) {
+                    // Force update by clearing cache first
+                    if (frameTracker.mesh.userData) {
+                        delete frameTracker.mesh.userData.lastMatrixVersion;
+                    }
                     this.updateFrameTransform(frameTracker);
                 }
             }
 
+            // Render immediately after updates
             if (this.css3dRenderer && this.css3dScene && this.mainCamera) {
                 this.css3dRenderer.render(this.css3dScene, this.mainCamera);
             }
