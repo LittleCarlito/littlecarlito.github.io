@@ -6,6 +6,7 @@ import {
 	AssetStorage, 
 	AssetHandler,
 	MaterialFactory,
+	CSS3DFactory,
 	CustomTypeManager, 
 	BLORKPACK_FLAGS 
 }  from '@littlecarlito/blorkpack';
@@ -20,6 +21,7 @@ export class TextContainer {
 	focused_text_name = "";
 	particles = [];
 	asset_handler;
+	css3d_factory;
 	// Get a reference to the CustomTypeManager's types and configs
 	#ASSET_TYPE = CustomTypeManager.getTypes();
 	#ASSET_CONFIGS = CustomTypeManager.getConfigs();
@@ -31,6 +33,7 @@ export class TextContainer {
 		this.camera = incoming_camera;
 		this.text_box_container = new THREE.Object3D();
 		this.material_factory = new MaterialFactory();
+		this.css3d_factory = new CSS3DFactory();
 		// Need to pass parent and null for world since this is UI without physics
 		this.asset_handler = AssetHandler.get_instance(this.parent, null);
 		// Create text displays
@@ -115,8 +118,12 @@ export class TextContainer {
 			// Handle materials
 			asset.traverse((child) => {
 				if (child.isMesh) {
+					// Add debug css3d frame
+					if (child.name.startsWith('display_')){
+						this.css3d_factory.createFrame(child, this.camera, document.body, asset_type, options.contentPath);
+					}
 					// Hide collision mesh
-					if (child.name.startsWith('col_')) {
+					else if (child.name.startsWith('col_')) {
 						child.visible = false;
 						return;
 					}
@@ -278,7 +285,8 @@ export class TextContainer {
 					await create_asset_background(text_box, this.#ASSET_TYPE.TABLET, {
 						horizontalStretch: 1.1,
 						verticalStretch: 0.6,
-						rotation: new THREE.Euler(-Math.PI / 2, 0, Math.PI, 'XYZ')
+						rotation: new THREE.Euler(-Math.PI / 2, 0, Math.PI, 'XYZ'),
+						contentPath: '/pages/contact.html'
 					});
 				})();
 				// Create iframe but NO background
@@ -318,7 +326,8 @@ export class TextContainer {
 						positionOffsetX: 2.85,
 						positionOffsetY: -9.27,
 						positionOffsetZ: 0,
-						rotation: new THREE.Euler(Math.PI, Math.PI, Math.PI, 'XYZ')
+						rotation: new THREE.Euler(Math.PI, Math.PI, Math.PI, 'XYZ'),
+						contentPath: '/pages/work.html'
 					});
 					// Now the monitor model should be created, so capture its scale
 					setTimeout(() => {
