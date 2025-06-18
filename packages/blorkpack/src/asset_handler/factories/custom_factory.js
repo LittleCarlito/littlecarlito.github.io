@@ -4,7 +4,7 @@ import CustomTypeManager from "../../custom_type_manager.js";
 import { AssetStorage } from "../../asset_storage.js";
 import { BLORKPACK_FLAGS } from "../../blorkpack_flags.js";
 import { CollisionFactory } from "./collision_factory.js";
-import { apply_material } from "./material_factory.js";
+import { MaterialFactory } from "./material_factory.js";
 
 /**
  * Factory class responsible for spawning custom assets in the scene.
@@ -53,6 +53,7 @@ export class CustomFactory {
 		this.#assetTypes = CustomTypeManager.getTypes();
 		this.#assetConfigs = CustomTypeManager.getConfigs();
 		this.shuffleColors();
+		this.material_factory = new MaterialFactory();
 		CustomFactory.#instance = this;
 		CustomFactory.#disposed = false;
 	}
@@ -210,7 +211,7 @@ export class CustomFactory {
 				}
 			});
 
-			apply_material(model);
+			this.material_factory.applyPbrMaterial(model);
 
 			if (displayMeshes.length > 0) {
 				model.userData.displayMeshes = displayMeshes;

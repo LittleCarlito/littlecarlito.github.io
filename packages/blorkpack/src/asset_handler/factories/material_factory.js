@@ -4,143 +4,137 @@ const ORM_PATH = "/images/atlas_ORM.jpg";
 const NORMAL_PATH = "/images/atlas_Normal.jpg";
 const BASE_COLOR_PATH = "/images/atlas_Basecolor.png";
 
-export async function apply_material(incomingAsset) {
-    // Handle Three.js Object3D/Group directly (most common case from your caller)
-    if (!incomingAsset) {
-        throw new Error('Invalid GLB asset - asset is null/undefined');
+export class MaterialFactory {
+
+    async applyPbrMaterial(incomingAsset) {
+        return this.#applyAtlasMaterial(incomingAsset, 'pbr');
     }
-    
-    // Since your caller passes the model directly (Three.js Object3D/Group),
-    // we can use it directly as the scene
-    const scene = incomingAsset;
 
-    // Load all atlas textures
-    const textureLoader = new THREE.TextureLoader();
-    
-    const [baseColorTexture, normalTexture, ormTexture] = await Promise.all([
-        loadTexture(textureLoader, BASE_COLOR_PATH, 'baseColor'),
-        loadTexture(textureLoader, NORMAL_PATH, 'normal'),
-        loadTexture(textureLoader, ORM_PATH, 'orm')
-    ]);
+    async applyUnlitMaterial(incomingAsset) {
+        return this.#applyAtlasMaterial(incomingAsset, 'unlit');
+    }
 
-    // Store textures for material creation
-    const textureObjects = {
-        baseColor: baseColorTexture,
-        normal: normalTexture,
-        orm: ormTexture
-    };
-
-    // Extract meshes and apply atlas materials
-    const meshes = [];
-    scene.traverse(node => {
-        if (node.isMesh) {
-            // Store original material for UV transformation preservation
-            const originalMaterial = node.material;
-            
-            // Create new atlas-based material
-            const atlasMaterial = createAtlasMaterial(textureObjects);
-            
-            // Preserve original UV transformations if they exist
-            if (originalMaterial && originalMaterial.map && atlasMaterial.map) {
-                atlasMaterial.map.offset.copy(originalMaterial.map.offset);
-                atlasMaterial.map.repeat.copy(originalMaterial.map.repeat);
-                atlasMaterial.map.rotation = originalMaterial.map.rotation;
-            }
-
-            // Ensure UV2 exists for ORM textures (Three.js requirement for AO maps)
-            if (ormTexture && !node.geometry.attributes.uv2 && node.geometry.attributes.uv) {
-                node.geometry.attributes.uv2 = node.geometry.attributes.uv;
-            }
-
-            // Apply the new material
-            node.material = atlasMaterial;
-            meshes.push(node);
-            node.userData.meshId = meshes.length - 1;
+    async #applyAtlasMaterial(incomingAsset, materialType) {
+        if (!incomingAsset) {
+            throw new Error('Invalid GLB asset - asset is null/undefined');
         }
-    });
 
-    return {
-        asset: scene, // Return the modified scene directly
-        meshes: meshes,
-        textureObjects: textureObjects
-    };
-}
+        const scene = incomingAsset;
+        const textureLoader = new THREE.TextureLoader();
+        
+        const [baseColorTexture, normalTexture, ormTexture] = await Promise.all([
+            this.#loadTexture(textureLoader, BASE_COLOR_PATH, 'baseColor'),
+            this.#loadTexture(textureLoader, NORMAL_PATH, 'normal'),
+            this.#loadTexture(textureLoader, ORM_PATH, 'orm')
+        ]);
 
-/**
- * Load texture with proper configuration based on type
- * @param {THREE.TextureLoader} loader - The texture loader
- * @param {string} path - Path to texture file
- * @param {string} textureType - Type of texture ('baseColor', 'normal', 'orm')
- * @returns {Promise<THREE.Texture>} Configured texture
- */
-async function loadTexture(loader, path, textureType) {
-    return new Promise((resolve, reject) => {
-        loader.load(
-            path,
-            (texture) => {
-                // Set encoding based on texture type
-                if (textureType === 'baseColor') {
-                    texture.encoding = THREE.sRGBEncoding; // Gamma-corrected for color
-                } else {
-                    texture.encoding = THREE.LinearEncoding; // Linear for normal/ORM
+        const textureObjects = {
+            baseColor: baseColorTexture,
+            normal: normalTexture,
+            orm: ormTexture
+        };
+
+        const meshes = [];
+        scene.traverse(node => {
+            if (node.isMesh) {
+                if (node.name.startsWith('col_')) {
+                    node.visible = false;
+                    return;
                 }
-                
-                // Configure for GLB compatibility
-                texture.wrapS = THREE.RepeatWrapping;
-                texture.wrapT = THREE.RepeatWrapping;
-                texture.flipY = false; // Critical: Don't flip Y for GLB compatibility
-                
-                resolve(texture);
-            },
-            undefined,
-            (error) => {
-                console.error(`Failed to load texture ${path}:`, error);
-                reject(error);
-            }
-        );
-    });
-}
 
-/**
- * Create PBR material with atlas textures
- * @param {Object} textureObjects - Object containing loaded textures
- * @returns {THREE.MeshStandardMaterial} Configured PBR material
- */
-function createAtlasMaterial(textureObjects) {
-    const materialConfig = {
-        side: THREE.DoubleSide // Double-sided rendering
-    };
-    
-    // Base Color Channel (UV1)
-    if (textureObjects.baseColor) {
-        materialConfig.map = textureObjects.baseColor;
-        materialConfig.color = 0xffffff; // White multiplier for proper atlas colors
-    } else {
-        materialConfig.color = 0xcccccc; // Light gray fallback
+                const originalMaterial = node.material;
+                const atlasMaterial = this.#createAtlasMaterial(textureObjects, materialType);
+                
+                if (originalMaterial && originalMaterial.map && atlasMaterial.map) {
+                    atlasMaterial.map.offset.copy(originalMaterial.map.offset);
+                    atlasMaterial.map.repeat.copy(originalMaterial.map.repeat);
+                    atlasMaterial.map.rotation = originalMaterial.map.rotation;
+                }
+
+                if (materialType === 'pbr' && ormTexture && !node.geometry.attributes.uv2 && node.geometry.attributes.uv) {
+                    node.geometry.attributes.uv2 = node.geometry.attributes.uv;
+                }
+
+                node.material = atlasMaterial;
+                meshes.push(node);
+                node.userData.meshId = meshes.length - 1;
+            }
+        });
+
+        return {
+            asset: scene,
+            meshes: meshes,
+            textureObjects: textureObjects
+        };
     }
-    
-    // Normal Map Channel (UV1)
-    if (textureObjects.normal) {
-        materialConfig.normalMap = textureObjects.normal;
-        materialConfig.normalScale = new THREE.Vector2(1, 1);
+
+    async #loadTexture(loader, path, textureType) {
+        return new Promise((resolve, reject) => {
+            loader.load(
+                path,
+                (texture) => {
+                    if (textureType === 'baseColor') {
+                        texture.encoding = THREE.sRGBEncoding;
+                    } else {
+                        texture.encoding = THREE.LinearEncoding;
+                    }
+                    
+                    texture.wrapS = THREE.RepeatWrapping;
+                    texture.wrapT = THREE.RepeatWrapping;
+                    texture.flipY = false;
+                    
+                    resolve(texture);
+                },
+                undefined,
+                (error) => {
+                    console.error(`Failed to load texture ${path}:`, error);
+                    reject(error);
+                }
+            );
+        });
     }
-    
-    // ORM Atlas Channel (UV2)
-    if (textureObjects.orm) {
-        materialConfig.aoMap = textureObjects.orm;        // Red channel
-        materialConfig.roughnessMap = textureObjects.orm; // Green channel
-        materialConfig.metalnessMap = textureObjects.orm; // Blue channel
-        materialConfig.roughness = 1.0;  // Full range utilization
-        materialConfig.metalness = 1.0;  // Full range utilization
-    } else {
-        // Fallback values when no ORM texture
-        materialConfig.roughness = 0.7;
-        materialConfig.metalness = 0.2;
+
+    #createAtlasMaterial(textureObjects, materialType) {
+        const baseConfig = {
+            side: THREE.DoubleSide
+        };
+
+        if (textureObjects.baseColor) {
+            baseConfig.map = textureObjects.baseColor;
+            baseConfig.color = 0xffffff;
+        } else {
+            baseConfig.color = 0xcccccc;
+        }
+
+        if (textureObjects.normal) {
+            baseConfig.normalMap = textureObjects.normal;
+            baseConfig.normalScale = new THREE.Vector2(1, 1);
+        }
+
+        if (materialType === 'pbr') {
+            if (textureObjects.orm) {
+                baseConfig.aoMap = textureObjects.orm;
+                baseConfig.roughnessMap = textureObjects.orm;
+                baseConfig.metalnessMap = textureObjects.orm;
+                baseConfig.roughness = 1.0;
+                baseConfig.metalness = 1.0;
+            } else {
+                baseConfig.roughness = 0.7;
+                baseConfig.metalness = 0.2;
+            }
+            
+            baseConfig.transparent = false;
+            baseConfig.alphaTest = 0;
+            
+            return new THREE.MeshStandardMaterial(baseConfig);
+        } else if (materialType === 'unlit') {
+            baseConfig.transparent = true;
+            baseConfig.depthTest = false;
+            baseConfig.renderOrder = 999;
+            
+            return new THREE.MeshBasicMaterial(baseConfig);
+        }
+
+        throw new Error(`Unknown material type: ${materialType}`);
     }
-    
-    // Disable transparency
-    materialConfig.transparent = false;
-    materialConfig.alphaTest = 0;
-    
-    return new THREE.MeshStandardMaterial(materialConfig);
 }

@@ -13,8 +13,6 @@ export class BackgroundContainer {
 	camera;
 	world;
 	object_container;
-	primary_instruction_sign = null;
-	secondary_instruction_sign = null;
 	dynamic_bodies = [];
 	asset_manifest = new Set();
 	loading_complete = false;

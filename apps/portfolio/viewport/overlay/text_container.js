@@ -2,7 +2,14 @@ import { clamp } from 'three/src/math/MathUtils.js';
 import { TextFrame, IFRAME } from './text_frame';
 import { get_screen_size, get_associated_position, NORTH, SOUTH, EAST, WEST, CATEGORIES, extract_type, PAN_SPEED, TYPES, VALID_DIRECTIONS } from './overlay_common';
 import { Easing, FLAGS, THREE, Tween } from '../../common';
-import { AssetStorage, AssetHandler, CustomTypeManager, BLORKPACK_FLAGS }  from '@littlecarlito/blorkpack';
+import { 
+	AssetStorage, 
+	AssetHandler,
+	MaterialFactory,
+	CustomTypeManager, 
+	BLORKPACK_FLAGS 
+}  from '@littlecarlito/blorkpack';
+
 /**
  *
  */
@@ -23,6 +30,7 @@ export class TextContainer {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
 		this.text_box_container = new THREE.Object3D();
+		this.material_factory = new MaterialFactory();
 		// Need to pass parent and null for world since this is UI without physics
 		this.asset_handler = AssetHandler.get_instance(this.parent, null);
 		// Create text displays
@@ -136,6 +144,7 @@ export class TextContainer {
 				}
 			});
 			// Add asset to the box
+			this.material_factory.applyUnlitMaterial(asset);
 			incoming_box.add(asset);
 			return asset;
 		};
@@ -202,6 +211,7 @@ export class TextContainer {
 								});
 							}
 						});
+						this.material_factory.applyUnlitMaterial(top_diploma);
 						text_box.add(top_diploma);
 					});
 					// Load assets first
@@ -249,7 +259,10 @@ export class TextContainer {
 								});
 							}
 						});
+
+						this.material_factory.applyUnlitMaterial(bot_diploma);
 						text_box.add(bot_diploma);
+
 					});
 				})();
 				if(BLORKPACK_FLAGS.ASSET_LOGS) {
