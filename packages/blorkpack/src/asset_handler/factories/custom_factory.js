@@ -3,8 +3,8 @@ import { AssetUtils } from "../../index.js";
 import CustomTypeManager from "../../custom_type_manager.js";
 import { AssetStorage } from "../../asset_storage.js";
 import { BLORKPACK_FLAGS } from "../../blorkpack_flags.js";
-import { IdGenerator } from "../common/id_generator.js";
 import { CollisionFactory } from "./collision_factory.js";
+import { apply_material } from "./material_factory.js";
 
 /**
  * Factory class responsible for spawning custom assets in the scene.
@@ -210,7 +210,7 @@ export class CustomFactory {
 				}
 			});
 
-			this.applyRandomColorToAsset(model);
+			apply_material(model);
 
 			if (displayMeshes.length > 0) {
 				model.userData.displayMeshes = displayMeshes;

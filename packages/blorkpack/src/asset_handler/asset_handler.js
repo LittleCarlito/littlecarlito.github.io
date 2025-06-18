@@ -6,14 +6,11 @@ import {
 	SystemAssetType, 
 	SystemFactory, 
 	CustomFactory, 
-	IdGenerator,
-	create_spotlight_debug_mesh,
-	update_debug_meshes,
-	forceSpotlightDebugUpdate
+	IdGenerator
 } from "./index.js";
 import { CollisionFactory } from "./factories/collision_factory.js";
 import { DebugFactory } from "./factories/debug_factory.js";
-import { MaterialFactory } from "./factories/material_factory.js";
+
 /**
  * Class responsible for spawning and managing 3D assets in the scene.
  * Handles both static and dynamic (physics-enabled) assets.

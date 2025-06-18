@@ -273,7 +273,7 @@ export class BackgroundContainer {
 					const mouseResult = await asset_loader.spawn_asset(
 						ASSET_TYPE.MOUSE,
 						mousePosition,
-						new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2 + Math.PI / 4),
+						new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2 + Math.PI / 4),
 						{ enablePhysics: false }
 					);
 					if (!mouseResult) {
