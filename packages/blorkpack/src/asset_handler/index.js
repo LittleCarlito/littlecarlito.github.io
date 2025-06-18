@@ -2,6 +2,7 @@ export { AssetHandler } from './asset_handler.js';
 export { SystemFactory } from './factories/system_factory.js';
 export { CustomFactory } from './factories/custom_factory.js';
 export { MaterialFactory } from './factories/material_factory.js';
+export { CSS3DFactory } from './factories/css3d_factory.js';
 export { DebugFactory } from './factories/debug_factory.js';
 export { SystemAssetType } from './common/system_asset_types.js';
 export { IdGenerator } from './common/id_generator.js';

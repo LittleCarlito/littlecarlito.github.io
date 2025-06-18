@@ -282,7 +282,7 @@ export class TextContainer {
 					});
 				})();
 				// Create iframe but NO background
-				create_text_frame(category, text_box);
+				// create_text_frame(category, text_box);
 				break;
 			case CATEGORIES.ABOUT.value:
 				// About doesn't want any background asset or box
@@ -290,26 +290,26 @@ export class TextContainer {
 				break;
 			case CATEGORIES.WORK.value:
 				// Use monitor as background with iframe
-				let workFrame; // Declare outside async function to access later
+				// let workFrame; // Declare outside async function to access later
 				// Create text frame first to ensure it exists before we try to reference it
-				create_text_frame(category, text_box);
-				workFrame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${category.value}`);
-				// Custom width and height adjustments for work iframe
-				const workWidthFactor = 1.2;  // Increase width by 50%
-				const workHeightFactor = 1.0; // Default height (can be adjusted)
-				// Apply custom sizing to the work iframe
-				if (workFrame) {
-					const adjustedWidth = this.container_width * workWidthFactor;
-					const adjustedHeight = this.container_height * workHeightFactor;
-					workFrame.update_size(adjustedWidth, adjustedHeight);
-					// Store adjustment factors for use during resize
-					workFrame.widthFactor = workWidthFactor;
-					workFrame.heightFactor = workHeightFactor;
-					// Store the original dimensions and container width for comparison during resize
-					workFrame.original_width = adjustedWidth;
-					workFrame.original_height = adjustedHeight;
-					workFrame.initial_container_width = this.container_width;
-				}
+				// create_text_frame(category, text_box);
+				// workFrame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${category.value}`);
+				// // Custom width and height adjustments for work iframe
+				// const workWidthFactor = 1.2;  // Increase width by 50%
+				// const workHeightFactor = 1.0; // Default height (can be adjusted)
+				// // Apply custom sizing to the work iframe
+				// if (workFrame) {
+				// 	const adjustedWidth = this.container_width * workWidthFactor;
+				// 	const adjustedHeight = this.container_height * workHeightFactor;
+				// 	workFrame.update_size(adjustedWidth, adjustedHeight);
+				// 	// Store adjustment factors for use during resize
+				// 	workFrame.widthFactor = workWidthFactor;
+				// 	workFrame.heightFactor = workHeightFactor;
+				// 	// Store the original dimensions and container width for comparison during resize
+				// 	workFrame.original_width = adjustedWidth;
+				// 	workFrame.original_height = adjustedHeight;
+				// 	workFrame.initial_container_width = this.container_width;
+				// }
 				// Create monitor asset background after setting up the iframe
 				(async () => {
 					await create_asset_background(text_box, this.#ASSET_TYPE.MONITOR, {
@@ -326,14 +326,14 @@ export class TextContainer {
 						const monitorModels = text_box.children.filter(child => child.name?.includes('monitor'));
 						if (monitorModels.length > 0 && monitorModels[0].children.length > 0) {
 							const monitorModel = monitorModels[0].children[0];
-							if (workFrame) {
-								workFrame.originalMonitorScale = {
-									x: monitorModel.scale.x,
-									y: monitorModel.scale.y,
-									z: monitorModel.scale.z
-								};
-								workFrame.originalMonitorRatio = monitorModel.scale.x / monitorModel.scale.y;
-							}
+							// if (workFrame) {
+							// 	workFrame.originalMonitorScale = {
+							// 		x: monitorModel.scale.x,
+							// 		y: monitorModel.scale.y,
+							// 		z: monitorModel.scale.z
+							// 	};
+							// 	workFrame.originalMonitorRatio = monitorModel.scale.x / monitorModel.scale.y;
+							// }
 						}
 					}, 100); // Small delay to ensure monitor is fully loaded
 				})();
