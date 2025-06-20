@@ -238,6 +238,7 @@ export class CSS3DFactory {
             box-sizing: border-box;
             word-wrap: break-word;
             overflow-wrap: break-word;
+            scroll-behavior: smooth;
         }
         
         .content-wrapper > * {
@@ -303,6 +304,10 @@ export class CSS3DFactory {
     <script>
         (function() {
             let contentStabilized = false;
+            let lastContentHeight = 0;
+            let autoScrollEnabled = true;
+            let userScrolled = false;
+            let scrollTimeout = null;
             
             const contentWrapper = document.getElementById('contentWrapper');
             const scrollDelay = document.getElementById('scrollDelay');
@@ -318,8 +323,77 @@ export class CSS3DFactory {
                 }, 300);
             }
             
+            function checkContentHeight() {
+                const currentHeight = contentWrapper.scrollHeight;
+                if (currentHeight > lastContentHeight) {
+                    const scrollPosition = contentWrapper.scrollTop + contentWrapper.clientHeight;
+                    const wasNearBottom = scrollPosition >= lastContentHeight - 100;
+                    const heightDiff = currentHeight - lastContentHeight;
+                    
+                    // Always auto-scroll for small incremental changes (like terminal output)
+                    // or when user was near bottom
+                    const shouldAutoScroll = heightDiff < 200 || wasNearBottom || lastContentHeight === 0;
+                    
+                    if (shouldAutoScroll) {
+                        setTimeout(() => {
+                            contentWrapper.scrollTop = currentHeight - contentWrapper.clientHeight;
+                            // Reset user scroll state for terminal-like behavior
+                            if (heightDiff < 200) {
+                                userScrolled = false;
+                                autoScrollEnabled = true;
+                            }
+                        }, 30);
+                    }
+                }
+                lastContentHeight = currentHeight;
+            }
+            
+            function handleUserScroll() {
+                if (!contentStabilized) return;
+                
+                clearTimeout(scrollTimeout);
+                const scrollPosition = contentWrapper.scrollTop + contentWrapper.clientHeight;
+                const isAtBottom = scrollPosition >= contentWrapper.scrollHeight - 30;
+                
+                if (isAtBottom) {
+                    userScrolled = false;
+                    autoScrollEnabled = true;
+                } else {
+                    const scrollDistance = Math.abs(contentWrapper.scrollTop - (contentWrapper.scrollHeight - contentWrapper.clientHeight));
+                    // Only disable auto-scroll if user scrolls significantly up
+                    if (scrollDistance > 100) {
+                        userScrolled = true;
+                        autoScrollEnabled = false;
+                    }
+                }
+                
+                scrollTimeout = setTimeout(() => {
+                    const currentScrollPosition = contentWrapper.scrollTop + contentWrapper.clientHeight;
+                    const currentIsAtBottom = currentScrollPosition >= contentWrapper.scrollHeight - 30;
+                    if (currentIsAtBottom) {
+                        userScrolled = false;
+                        autoScrollEnabled = true;
+                    }
+                }, 1500);
+            }
+            
+            contentWrapper.addEventListener('scroll', handleUserScroll);
+            
+            const observer = new MutationObserver(checkContentHeight);
+            observer.observe(contentWrapper, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                characterData: true
+            });
+            
+            setInterval(checkContentHeight, 100);
+            
             setTimeout(() => {
                 enableScrolling();
+                checkContentHeight();
+                userScrolled = false;
+                autoScrollEnabled = true;
             }, 1000);
         })();
     </script>
