@@ -4,107 +4,59 @@
     <style>
         body {
             margin: 0;
-            padding: 0;
+            padding: 20px;
             background-color: black;
-            height: 100vh;
             font-family: 'Courier New', monospace;
             color: #00ff00;
+            line-height: 1.2;
         }
 
         .terminal-text {
-            position: relative;
             white-space: pre-wrap;
             opacity: 0;
-            margin: 20px;
-            max-width: 95vw;
-            line-height: 1.5;
+            margin: 2px 0;
         }
 
-        .terminal-text.revealed {
+        .terminal-text.visible {
             opacity: 1;
         }
 
-        .terminal-text.typing {
-            opacity: 1;
-            animation: typing-reveal var(--typing-duration) steps(var(--text-length));
+        h1.terminal-text {
+            font-size: 1em;
+            font-weight: bold;
+            margin: 5px 0 2px 0;
         }
 
-        .cursor {
-            position: absolute;
-            left: 20px;
-        }
-
-        .cursor.blink {
-            animation: blink 0.75s step-end infinite;
-        }
-
-        @keyframes blink {
-            from, to { opacity: 1; }
-            50% { opacity: 0; }
-        }
-
-        @keyframes typing-reveal {
-            from { clip-path: inset(0 100% 0 0); }
-            to { clip-path: inset(0 0 0 0); }
+        h2.terminal-text {
+            font-size: 1em;
+            font-weight: bold;
+            margin: 8px 0 2px 0;
         }
 
         h3.terminal-text {
-            color: #00cc00;  /* Slightly different shade of green */
-            margin-top: 5px;
-            margin-bottom: 5px;
-            font-size: 1.1em;
-        }
-
-        .cursor-line {
-            position: absolute;
-            left: 20px;
-            color: #00ff00;
-            animation: blink 0.75s step-end infinite;
-            z-index: 1000;
-            transition: top 0.1s ease-out;
-        }
-
-        .typing {
-            position: relative;
-        }
-
-        .cursor {
-            animation: blink 0.75s step-end infinite;
-        }
-
-        .typing {
-            animation: none;  /* No blinking during typing */
-        }
-
-        .cursor {
-            animation: blink 0.75s step-end infinite;
-            margin-top: 0.5em;
-        }
-
-        .typing-cursor {
-            opacity: 1;  /* Always visible during typing */
+            color: #00cc00;
+            font-size: 1em;
+            font-weight: bold;
+            margin: 2px 0;
         }
 
         .command-line {
-            margin-top: 0.5em;
-            margin-left: 20px;
+            margin-top: 10px;
             color: #00ff00;
             display: flex;
             align-items: baseline;
         }
 
-        .bash-prompt {
-            white-space: pre;  /* Preserve spaces */
+        .command-prompt {
+            color: #00aa00;
         }
 
-        .command-text {
-            white-space: pre;  /* Preserve spaces */
-            margin-left: 0;  /* Remove any default margins */
+        .command-input {
+            color: #00ff00;
         }
 
-        .command-cursor {
+        .cursor {
             animation: blink 0.75s step-end infinite;
-            margin-left: 1px;
         }
 
         @keyframes blink {
@@ -148,68 +100,57 @@
         <p class="terminal-text">• Revolutionized healthcare mailing system reducing client onboarding from 6 weeks to 5 days</p>
         <p class="terminal-text">• Managed sensitive healthcare data for 10M+ patients with perfect compliance record</p>
     </div>
-    <script type="module">       
-        const CHARS_PER_SECOND = 200;
-        const textElements = document.querySelectorAll('.terminal-text');
-        let animationInProgress = false;
-        let shouldStopAnimation = false;
-        let hasCompletedOnce = false;
+
+    <script>
+        const CHARS_PER_SECOND = 150;
         const CURSOR = '█';
-        let commandInput = '';
+        let sessionIP = '';
         
-        // Generate a random private IP address
-        const randomIP = `172.${Math.floor(Math.random() * 16 + 16)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
-        const BASH_PROMPT = `visitor@ip-${randomIP}:~$ `;
+        function generateRandomIP() {
+            return `172.${Math.floor(Math.random() * 16 + 16)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
+        }
 
-        async function animateText(element) {
+        function typeText(element, text) {
             return new Promise(resolve => {
-                if (!element.textContent.trim() || shouldStopAnimation) {
-                    element.classList.add('revealed');
-                    resolve();
-                    return;
-                }
-
-                const text = element.textContent;
-                element.style.opacity = '1';
+                element.classList.add('visible');
                 element.textContent = '';
                 
-                let currentChar = 0;
+                let i = 0;
                 const interval = setInterval(() => {
-                    if (shouldStopAnimation) {
-                        clearInterval(interval);
+                    if (i < text.length) {
+                        element.textContent = text.substring(0, i + 1) + CURSOR;
+                        i++;
+                    } else {
                         element.textContent = text;
-                        resolve();
-                        return;
-                    }
-
-                    currentChar++;
-                    element.textContent = text.substring(0, currentChar) + CURSOR;
-                    
-                    if (currentChar >= text.length) {
                         clearInterval(interval);
-                        element.textContent = text; // Remove animation cursor
                         setTimeout(resolve, 100);
                     }
                 }, 1000 / CHARS_PER_SECOND);
-
-                element.dataset.animationTimer = interval;
             });
         }
 
-        function createCommandLine(preserveCommand = false) {
+        let commandInput = '';
+
+        function createCommandLine() {
             const commandLine = document.createElement('div');
             commandLine.className = 'command-line';
             
+            if (!sessionIP) {
+                sessionIP = generateRandomIP();
+            }
+            
+            const prompt = `visitor@ip-${sessionIP}:~$ `;
+            
             const promptSpan = document.createElement('span');
-            promptSpan.className = 'bash-prompt';
-            promptSpan.textContent = BASH_PROMPT;
+            promptSpan.className = 'command-prompt';
+            promptSpan.textContent = prompt;
             
             const inputSpan = document.createElement('span');
-            inputSpan.className = 'command-text';
-            inputSpan.textContent = preserveCommand ? commandInput : '';
+            inputSpan.className = 'command-input';
+            inputSpan.textContent = commandInput;
             
             const cursorSpan = document.createElement('span');
-            cursorSpan.className = 'command-cursor';
+            cursorSpan.className = 'cursor';
             cursorSpan.textContent = CURSOR;
             
             commandLine.appendChild(promptSpan);
@@ -217,160 +158,47 @@
             commandLine.appendChild(cursorSpan);
             
             document.getElementById('content').appendChild(commandLine);
-            return commandLine;
         }
 
         function handleKeyPress(e) {
-            // Prevent browser shortcuts and default behaviors
-            if (e.key === '/' || 
-                e.key === "'" ||
-                (e.ctrlKey && e.key === 'f') ||
-                (e.ctrlKey && e.key === 'g') ||
-                (e.ctrlKey && e.key === 'k') ||
-                (e.ctrlKey && e.key === 'l') ||
-                (e.ctrlKey && e.key === 'p') ||
-                (e.ctrlKey && e.key === 's')) {
-                e.preventDefault();
-            }
-
-            const currentCommandLine = document.querySelector('.command-line:last-child');
-            if (!currentCommandLine) return;
+            const commandLine = document.querySelector('.command-line:last-child');
+            if (!commandLine) return;
+            
+            const inputSpan = commandLine.querySelector('.command-input');
+            if (!inputSpan) return;
             
             if (e.key === 'Enter') {
-                // Store the current command
-                const enteredCommand = commandInput;
-                
-                // Create a new div for the completed command
-                const completedLine = document.createElement('div');
-                completedLine.className = 'command-line';
-                
-                // Add the prompt and command text
-                const promptSpan = document.createElement('span');
-                promptSpan.className = 'bash-prompt';
-                promptSpan.textContent = BASH_PROMPT;
-                
-                const textSpan = document.createElement('span');
-                textSpan.className = 'command-text';
-                textSpan.textContent = enteredCommand;
-                
-                completedLine.appendChild(promptSpan);
-                completedLine.appendChild(textSpan);
-                
-                // Replace the current line with the completed one
-                currentCommandLine.replaceWith(completedLine);
-                
-                // Create new command line and reset input
+                const cursorSpan = commandLine.querySelector('.cursor');
+                if (cursorSpan) {
+                    cursorSpan.remove();
+                }
                 commandInput = '';
-                createCommandLine(false);
+                createCommandLine();
             } else if (e.key === 'Backspace') {
                 e.preventDefault();
                 commandInput = commandInput.slice(0, -1);
+                inputSpan.textContent = commandInput;
             } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                e.preventDefault();
                 commandInput += e.key;
+                inputSpan.textContent = commandInput;
             }
-            
-            // Update active command line display
-            const commandText = currentCommandLine.querySelector('.command-text');
-            if (commandText) {
-                commandText.textContent = commandInput;
-            }
-
-            window.scrollTo(0, document.body.scrollHeight);
         }
 
-        function stopAllAnimations() {
-            shouldStopAnimation = true;
-            animationInProgress = false;
-            textElements.forEach(el => {
-                if (el.dataset.animationTimer) {
-                    clearInterval(Number(el.dataset.animationTimer));
-                    delete el.dataset.animationTimer;
-                }
-                el.style.opacity = '1';
-                el.classList.add('revealed');
-                el.textContent = el.textContent.replace(CURSOR, '');
-            });
+        async function startAnimation() {
+            sessionIP = generateRandomIP();
+            const textElements = document.querySelectorAll('.terminal-text');
+            const originalTexts = Array.from(textElements).map(el => el.textContent);
             
-            // Ensure the current command line has a cursor
-            const currentCommandLine = document.querySelector('.command-line:last-child');
-            if (currentCommandLine) {
-                // Make sure there's only one cursor
-                const existingCursor = currentCommandLine.querySelector('.command-cursor');
-                if (existingCursor) {
-                    existingCursor.remove();
-                }
-                
-                // Add the cursor
-                const cursorSpan = document.createElement('span');
-                cursorSpan.className = 'command-cursor';
-                cursorSpan.textContent = CURSOR;
-                currentCommandLine.appendChild(cursorSpan);
-            } else {
-                createCommandLine();
+            for (let i = 0; i < textElements.length; i++) {
+                await typeText(textElements[i], originalTexts[i]);
             }
-            hasCompletedOnce = true;
+            
+            createCommandLine();
         }
 
-        window.trigger_frame_animation = async function() {
-            if (hasCompletedOnce) {
-                stopAllAnimations();
-                return;
-            }
-
-            if (animationInProgress) {
-                stopAllAnimations();
-                return;
-            }
-
-            const existingCommandLine = document.querySelector('.command-line');
-            if (existingCommandLine) {
-                existingCommandLine.remove();
-            }
-
-            animationInProgress = true;
-            shouldStopAnimation = false;
-
-            try {
-                for (const element of textElements) {
-                    if (shouldStopAnimation) break;
-                    await animateText(element);
-                }
-                hasCompletedOnce = true;
-            } finally {
-                if (!shouldStopAnimation) {
-                    createCommandLine();
-                }
-            }
-        };
-
-        // Add both keydown and keypress listeners for better control
         document.addEventListener('keydown', handleKeyPress);
-        document.addEventListener('keypress', (e) => {
-            if (document.querySelector('.command-line')) {
-                e.preventDefault(); // Prevent double input
-            }
-        });
-
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                stopAllAnimations();
-            } else {
-                // Find the current command line
-                const currentCommandLine = document.querySelector('.command-line:last-child');
-                if (currentCommandLine) {
-                    // Add cursor to existing line if it doesn't have one
-                    if (!currentCommandLine.querySelector('.command-cursor')) {
-                        const cursorSpan = document.createElement('span');
-                        cursorSpan.className = 'command-cursor';
-                        cursorSpan.textContent = CURSOR;
-                        currentCommandLine.appendChild(cursorSpan);
-                    }
-                } else {
-                    // Only create a new line if there isn't one
-                    createCommandLine();
-                }
-            }
-        });
+        window.addEventListener('load', startAnimation);
     </script>
 </body>
 </html>
