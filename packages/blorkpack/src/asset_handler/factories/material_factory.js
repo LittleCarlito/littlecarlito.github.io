@@ -14,6 +14,44 @@ export class MaterialFactory {
         return this.#applyAtlasMaterial(incomingAsset, 'unlit');
     }
 
+    async createMaterialFromAtlas(atlasConfig) {
+        if (!atlasConfig) {
+            throw new Error('Atlas configuration is required');
+        }
+
+        const textureLoader = new THREE.TextureLoader();
+        
+        const texturePromises = [];
+        
+        if (atlasConfig.baseColor) {
+            texturePromises.push(this.#loadTexture(textureLoader, atlasConfig.baseColor, 'baseColor'));
+        } else {
+            texturePromises.push(Promise.resolve(null));
+        }
+        
+        if (atlasConfig.normal) {
+            texturePromises.push(this.#loadTexture(textureLoader, atlasConfig.normal, 'normal'));
+        } else {
+            texturePromises.push(Promise.resolve(null));
+        }
+        
+        if (atlasConfig.orm) {
+            texturePromises.push(this.#loadTexture(textureLoader, atlasConfig.orm, 'orm'));
+        } else {
+            texturePromises.push(Promise.resolve(null));
+        }
+
+        const [baseColorTexture, normalTexture, ormTexture] = await Promise.all(texturePromises);
+
+        const textureObjects = {
+            baseColor: baseColorTexture,
+            normal: normalTexture,
+            orm: ormTexture
+        };
+
+        return this.#createAtlasMaterial(textureObjects, 'pbr');
+    }
+
     async #applyAtlasMaterial(incomingAsset, materialType) {
         if (!incomingAsset) {
             throw new Error('Invalid GLB asset - asset is null/undefined');
@@ -87,7 +125,6 @@ export class MaterialFactory {
                 },
                 undefined,
                 (error) => {
-                    console.error(`Failed to load texture ${path}:`, error);
                     reject(error);
                 }
             );
