@@ -519,6 +519,16 @@ export class TextContainer {
 					}
 				}
 
+				console.log(`TextContainer: Checking for CSS3D frame to reset for category: ${category}`);
+				const css3dFrame = this.css3d_frames.get(this.getCss3dAssetType(category));
+				
+				if (css3dFrame) {
+					console.log(`TextContainer: Found CSS3D frame for ${category}, calling reset()`);
+					css3dFrame.reset();
+				} else {
+					console.log(`TextContainer: No CSS3D frame found to reset for category: ${category}`);
+				}
+
 				if (move_direction == "") {
 					existing_focus_box.position.x = get_associated_position(WEST, this.camera);
 				} else {

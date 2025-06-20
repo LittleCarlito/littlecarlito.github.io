@@ -29,7 +29,8 @@ export class CSS3DFactory {
             filePath: filePath,
             isPlaying: false,
             pendingContent: null,
-            play: () => this.playFrame(frameTracker)
+            play: () => this.playFrame(frameTracker),
+            reset: () => this.resetFrame(frameTracker)
         };
         
         this.css3dScene.add(frame);
@@ -58,6 +59,10 @@ export class CSS3DFactory {
         
         if (frameTracker.pendingContent) {
             console.log(`CSS3DFactory: Loading pending content for: ${frameTracker.assetType}`);
+            
+            // Clear iframe before loading pending content
+            iframe.src = 'about:blank';
+            
             setTimeout(() => {
                 if (iframe.contentDocument) {
                     iframe.contentDocument.open();
@@ -65,12 +70,16 @@ export class CSS3DFactory {
                     iframe.contentDocument.close();
                     console.log(`CSS3DFactory: Content loaded for: ${frameTracker.assetType}`);
                 }
-            }, 100);
+            }, 150);
         } else if (frameTracker.filePath) {
             console.log(`CSS3DFactory: Loading external content for: ${frameTracker.assetType} from: ${frameTracker.filePath}`);
             this.loadExternalContentDeferred(iframe, frameTracker.filePath, frameTracker.assetType);
         } else {
             console.log(`CSS3DFactory: Loading debug content for: ${frameTracker.assetType}`);
+            
+            // Clear iframe before loading debug content
+            iframe.src = 'about:blank';
+            
             setTimeout(() => {
                 if (iframe.contentDocument) {
                     iframe.contentDocument.open();
@@ -78,8 +87,36 @@ export class CSS3DFactory {
                     iframe.contentDocument.close();
                     console.log(`CSS3DFactory: Debug content loaded for: ${frameTracker.assetType}`);
                 }
-            }, 100);
+            }, 150);
         }
+    }
+
+    resetFrame(frameTracker) {
+        if (!frameTracker.isPlaying) {
+            console.log(`CSS3DFactory: Frame already reset for asset: ${frameTracker.assetType}`);
+            return;
+        }
+
+        console.log(`CSS3DFactory: Resetting frame for asset: ${frameTracker.assetType}, file: ${frameTracker.filePath}`);
+        frameTracker.isPlaying = false;
+        frameTracker.pendingContent = null;
+
+        const iframe = frameTracker.frame.element;
+        
+        console.log(`CSS3DFactory: Clearing iframe content for: ${frameTracker.assetType}`);
+        
+        // Properly clear the iframe by setting src to about:blank first
+        iframe.src = 'about:blank';
+        
+        setTimeout(() => {
+            // Wait for the iframe to clear, then load the loading screen
+            if (iframe.contentDocument) {
+                iframe.contentDocument.open();
+                iframe.contentDocument.write(this.getLoadingHTML());
+                iframe.contentDocument.close();
+                console.log(`CSS3DFactory: Reset complete for: ${frameTracker.assetType}`);
+            }
+        }, 150); // Slightly longer delay to ensure clearing is complete
     }
 
     initializeCSS3D(parentElement) {
@@ -136,16 +173,24 @@ export class CSS3DFactory {
             
             console.log(`CSS3DFactory: Content fetched successfully for: ${assetType}, rendering now`);
             
+            // Clear the iframe first to prevent JavaScript conflicts
+            iframe.src = 'about:blank';
+            
             setTimeout(() => {
+                // Wait for iframe to clear, then load new content
                 if (iframe.contentDocument) {
                     iframe.contentDocument.open();
                     iframe.contentDocument.write(wrappedContent);
                     iframe.contentDocument.close();
                     console.log(`CSS3DFactory: External content rendered for: ${assetType}`);
                 }
-            }, 100);
+            }, 150); // Longer delay to ensure iframe is properly cleared
         } catch (error) {
             console.error(`CSS3DFactory: Error loading external content from ${filePath} for asset ${assetType}:`, error);
+            
+            // Clear iframe before loading error content
+            iframe.src = 'about:blank';
+            
             setTimeout(() => {
                 if (iframe.contentDocument) {
                     iframe.contentDocument.open();
@@ -153,7 +198,7 @@ export class CSS3DFactory {
                     iframe.contentDocument.close();
                     console.log(`CSS3DFactory: Error content rendered for: ${assetType}`);
                 }
-            }, 100);
+            }, 150);
         }
     }
 
