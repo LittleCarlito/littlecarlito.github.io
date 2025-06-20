@@ -26,7 +26,10 @@ export class CSS3DFactory {
             frame: frame,
             visible: true,
             assetType: assetType,
-            filePath: filePath
+            filePath: filePath,
+            isPlaying: false,
+            pendingContent: null,
+            play: () => this.playFrame(frameTracker)
         };
         
         this.css3dScene.add(frame);
@@ -37,7 +40,46 @@ export class CSS3DFactory {
             this.startAnimationLoop();
         }
         
+        console.log(`CSS3DFactory: Created frame for asset type: ${assetType}, file: ${filePath}, playing: ${frameTracker.isPlaying}`);
+        
         return frameTracker;
+    }
+
+    playFrame(frameTracker) {
+        if (frameTracker.isPlaying) {
+            console.log(`CSS3DFactory: Frame already playing for asset: ${frameTracker.assetType}`);
+            return;
+        }
+
+        console.log(`CSS3DFactory: Playing frame for asset: ${frameTracker.assetType}, file: ${frameTracker.filePath}`);
+        frameTracker.isPlaying = true;
+
+        const iframe = frameTracker.frame.element;
+        
+        if (frameTracker.pendingContent) {
+            console.log(`CSS3DFactory: Loading pending content for: ${frameTracker.assetType}`);
+            setTimeout(() => {
+                if (iframe.contentDocument) {
+                    iframe.contentDocument.open();
+                    iframe.contentDocument.write(frameTracker.pendingContent);
+                    iframe.contentDocument.close();
+                    console.log(`CSS3DFactory: Content loaded for: ${frameTracker.assetType}`);
+                }
+            }, 100);
+        } else if (frameTracker.filePath) {
+            console.log(`CSS3DFactory: Loading external content for: ${frameTracker.assetType} from: ${frameTracker.filePath}`);
+            this.loadExternalContentDeferred(iframe, frameTracker.filePath, frameTracker.assetType);
+        } else {
+            console.log(`CSS3DFactory: Loading debug content for: ${frameTracker.assetType}`);
+            setTimeout(() => {
+                if (iframe.contentDocument) {
+                    iframe.contentDocument.open();
+                    iframe.contentDocument.write(this.getDebugHTML());
+                    iframe.contentDocument.close();
+                    console.log(`CSS3DFactory: Debug content loaded for: ${frameTracker.assetType}`);
+                }
+            }, 100);
+        }
     }
 
     initializeCSS3D(parentElement) {
@@ -51,6 +93,7 @@ export class CSS3DFactory {
         this.css3dRenderer.domElement.style.pointerEvents = 'none';
         parentElement.appendChild(this.css3dRenderer.domElement);
         this.isInitialized = true;
+        console.log('CSS3DFactory: Initialized CSS3D renderer');
     }
 
     async createCSS3DFrame(width, height, filePath = null) {
@@ -65,23 +108,23 @@ export class CSS3DFactory {
 
         const css3dObject = new CSS3DObject(iframe);
 
-        if (filePath) {
-            await this.loadExternalContent(iframe, filePath);
-        } else {
-            setTimeout(() => {
-                if (iframe.contentDocument) {
-                    iframe.contentDocument.open();
-                    iframe.contentDocument.write(this.getDebugHTML());
-                    iframe.contentDocument.close();
-                }
-            }, 100);
-        }
+        console.log(`CSS3DFactory: Created iframe placeholder for: ${filePath || 'debug content'}`);
+        
+        setTimeout(() => {
+            if (iframe.contentDocument) {
+                iframe.contentDocument.open();
+                iframe.contentDocument.write(this.getLoadingHTML());
+                iframe.contentDocument.close();
+                console.log(`CSS3DFactory: Loading screen set for: ${filePath || 'debug content'}`);
+            }
+        }, 100);
 
         return css3dObject;
     }
 
-    async loadExternalContent(iframe, filePath) {
+    async loadExternalContentDeferred(iframe, filePath, assetType) {
         try {
+            console.log(`CSS3DFactory: Fetching content from: ${filePath} for asset: ${assetType}`);
             const response = await fetch(filePath);
             
             if (!response.ok) {
@@ -91,23 +134,92 @@ export class CSS3DFactory {
             const htmlContent = await response.text();
             const wrappedContent = this.wrapContent(htmlContent);
             
+            console.log(`CSS3DFactory: Content fetched successfully for: ${assetType}, rendering now`);
+            
             setTimeout(() => {
                 if (iframe.contentDocument) {
                     iframe.contentDocument.open();
                     iframe.contentDocument.write(wrappedContent);
                     iframe.contentDocument.close();
+                    console.log(`CSS3DFactory: External content rendered for: ${assetType}`);
                 }
             }, 100);
         } catch (error) {
-            console.error(`Error loading external content from ${filePath}:`, error);
+            console.error(`CSS3DFactory: Error loading external content from ${filePath} for asset ${assetType}:`, error);
             setTimeout(() => {
                 if (iframe.contentDocument) {
                     iframe.contentDocument.open();
                     iframe.contentDocument.write(this.getErrorHTML(filePath, error.message));
                     iframe.contentDocument.close();
+                    console.log(`CSS3DFactory: Error content rendered for: ${assetType}`);
                 }
             }, 100);
         }
+    }
+
+    getLoadingHTML() {
+        return `<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #222;
+            font-family: 'Courier New', monospace;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .loading-container {
+            text-align: center;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #444;
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        .loading-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        .loading-info {
+            font-size: 10px;
+            color: #ccc;
+            line-height: 1.4;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-container">
+        <div class="loading-spinner"></div>
+        <div class="loading-title">CSS3D FRAME</div>
+        <div class="loading-info">Waiting for play signal...</div>
+    </div>
+</body>
+</html>`;
     }
 
     wrapContent(content) {
@@ -139,13 +251,11 @@ export class CSS3DFactory {
                             width: calc(100% - 10px);
                         }
                         
-                        /* Ensure content doesn't overflow */
                         .content > * {
                             max-width: 100%;
                             box-sizing: border-box;
                         }
                         
-                        /* Override any styles that might cause horizontal scrollbars */
                         .content div, .content p, .content span, .content img {
                             max-width: 100%;
                         }
@@ -245,7 +355,6 @@ export class CSS3DFactory {
             };
         }
 
-        // Use cached geometry calculations when possible
         if (!mesh.userData.geometryCache) {
             const geometry = mesh.geometry;
             geometry.computeBoundingBox();
@@ -261,14 +370,12 @@ export class CSS3DFactory {
         const center = mesh.userData.geometryCache.center.clone();
         mesh.localToWorld(center);
 
-        // Use decomposed matrix components directly for better performance
         const meshMatrix = mesh.matrixWorld;
         const position = new THREE.Vector3();
         const quaternion = new THREE.Quaternion();
         const scale = new THREE.Vector3();
         meshMatrix.decompose(position, quaternion, scale);
 
-        // Simplified normal calculation - use cached if available
         let normal = mesh.userData.cachedNormal;
         if (!normal) {
             normal = new THREE.Vector3(0, 0, 1);
@@ -297,11 +404,9 @@ export class CSS3DFactory {
     updateFrameTransform(frameTracker) {
         if (!frameTracker.frame || !frameTracker.mesh) return;
 
-        // Cache frequently accessed properties
         const mesh = frameTracker.mesh;
         const frame = frameTracker.frame;
         
-        // Only recalculate if mesh matrix has changed
         if (!mesh.userData.lastMatrixVersion || mesh.userData.lastMatrixVersion !== mesh.matrixWorld.elements.join(',')) {
             const transform = this.calculateMeshTransform(mesh, frameTracker.assetType);
             frame.position.copy(transform.position);
@@ -312,7 +417,6 @@ export class CSS3DFactory {
             const scaleY = dimensions.realHeight / 400;
             frame.scale.set(scaleX, scaleY, 1);
             
-            // Cache the matrix version to avoid unnecessary recalculations
             mesh.userData.lastMatrixVersion = mesh.matrixWorld.elements.join(',');
         }
     }
@@ -323,34 +427,27 @@ export class CSS3DFactory {
         const mesh = frameTracker.mesh;
         const frame = frameTracker.frame;
         
-        // Store previous position for velocity calculation
         if (!mesh.userData.previousPosition) {
             mesh.userData.previousPosition = new THREE.Vector3();
             mesh.userData.velocity = new THREE.Vector3();
         }
 
-        // Calculate current transform
         const transform = this.calculateMeshTransform(mesh, frameTracker.assetType);
         
-        // Calculate velocity for prediction
         const currentPos = transform.position;
         const prevPos = mesh.userData.previousPosition;
         mesh.userData.velocity.subVectors(currentPos, prevPos);
         
-        // Apply predictive positioning (small lookahead)
         const predictedPosition = currentPos.clone().add(mesh.userData.velocity.clone().multiplyScalar(0.016));
         
-        // Apply transforms immediately
         frame.position.copy(predictedPosition);
         frame.quaternion.copy(transform.quaternion);
         
-        // Update scaling
         const dimensions = this.calculateMeshDimensions(mesh);
         const scaleX = dimensions.realWidth / 500;
         const scaleY = dimensions.realHeight / 400;
         frame.scale.set(scaleX, scaleY, 1);
         
-        // Store current state for next frame
         mesh.userData.previousPosition.copy(currentPos);
     }
 
@@ -358,10 +455,8 @@ export class CSS3DFactory {
         const animate = () => {
             this.animationId = requestAnimationFrame(animate);
             
-            // Update transforms every single frame for seamless tracking
             for (const frameTracker of this.frames) {
                 if (frameTracker.mesh && frameTracker.frame) {
-                    // Force update by clearing cache first
                     if (frameTracker.mesh.userData) {
                         delete frameTracker.mesh.userData.lastMatrixVersion;
                     }
@@ -369,7 +464,6 @@ export class CSS3DFactory {
                 }
             }
 
-            // Render immediately after updates
             if (this.css3dRenderer && this.css3dScene && this.mainCamera) {
                 this.css3dRenderer.render(this.css3dScene, this.mainCamera);
             }
@@ -493,5 +587,6 @@ export class CSS3DFactory {
         this.css3dRenderer = null;
         this.css3dScene = null;
         this.isInitialized = false;
+        console.log('CSS3DFactory: Disposed and cleaned up resources');
     }
 }
