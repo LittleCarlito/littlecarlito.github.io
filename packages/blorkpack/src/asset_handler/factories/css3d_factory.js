@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CSS3DRenderer, CSS3DObject } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
+import { MaterialFactory } from './material_factory';
 
 export class CSS3DFactory {
     constructor() {
@@ -9,6 +10,7 @@ export class CSS3DFactory {
         this.animationId = null;
         this.isInitialized = false;
         this.mainCamera = null;
+        this.materialFactory = new MaterialFactory();
     }
 
     async createFrame(incomingMesh, sceneCamera, parentElement, assetType = null, filePath = null) {
@@ -16,7 +18,6 @@ export class CSS3DFactory {
             this.initializeCSS3D(parentElement || document.body);
         }
         this.mainCamera = sceneCamera;
-        const dimensions = this.calculateMeshDimensions(incomingMesh);
         const frame = await this.createCSS3DFrame(500, 400, filePath);
         const frameTracker = {
             mesh: incomingMesh,
@@ -26,6 +27,7 @@ export class CSS3DFactory {
             filePath: filePath,
             isPlaying: false,
             pendingContent: null,
+            isTwoSided: false,
             play: () => this.playFrame(frameTracker),
             reset: () => this.resetFrame(frameTracker)
         };
@@ -38,12 +40,132 @@ export class CSS3DFactory {
         return frameTracker;
     }
 
+    async createTwoSidedFrame(sceneCamera, parentElement, atlasConfig, filePath = null) {
+        if (!this.isInitialized) {
+            this.initializeCSS3D(parentElement || document.body);
+        }
+        this.mainCamera = sceneCamera;
+
+        const { width, height } = await this.getAtlasDimensions(atlasConfig);
+        const css3dFrame = await this.createCSS3DFrame(width, height, filePath);
+        const threejsFrame = await this.createThreeJSFrame(width, height, atlasConfig);
+
+        const container = new THREE.Object3D();
+        container.add(css3dFrame);
+        container.add(threejsFrame);
+
+        const frameTracker = {
+            container: container,
+            css3dFrame: css3dFrame,
+            threejsFrame: threejsFrame,
+            visible: true,
+            filePath: filePath,
+            isPlaying: false,
+            pendingContent: null,
+            isTwoSided: true,
+            isFlipped: false,
+            isFlipping: false,
+            width: width,
+            height: height,
+            atlasConfig: atlasConfig,
+            play: () => this.playFrame(frameTracker),
+            reset: () => this.resetFrame(frameTracker),
+            flip: () => this.flipFrame(frameTracker)
+        };
+
+        this.css3dScene.add(css3dFrame);
+        this.frames.push(frameTracker);
+
+        if (!this.animationId) {
+            this.startAnimationLoop();
+        }
+
+        return frameTracker;
+    }
+
+    async getAtlasDimensions(atlasConfig) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                resolve({
+                    width: img.width,
+                    height: img.height
+                });
+            };
+            img.onerror = () => {
+                reject(new Error(`Failed to load atlas texture: ${atlasConfig.baseColor}`));
+            };
+            img.src = atlasConfig.baseColor;
+        });
+    }
+
+    async createThreeJSFrame(width, height, atlasConfig) {
+        const geometry = new THREE.PlaneGeometry(1, 1);
+        
+        const material = await this.materialFactory.createMaterialFromAtlas(atlasConfig);
+        
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.scale.set(width / 100, height / 100, 1);
+        mesh.rotation.y = Math.PI;
+        mesh.position.z = -0.001;
+        
+        return mesh;
+    }
+
+    flipFrame(frameTracker) {
+        if (!frameTracker.isTwoSided || frameTracker.isFlipping) {
+            return;
+        }
+
+        frameTracker.isFlipping = true;
+        const duration = 600;
+        const startRotation = frameTracker.container.rotation.y;
+        const targetRotation = startRotation + Math.PI;
+        const startTime = Date.now();
+
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            const easeInOutCubic = progress < 0.5 
+                ? 4 * progress * progress * progress 
+                : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+            frameTracker.container.rotation.y = startRotation + (targetRotation - startRotation) * easeInOutCubic;
+
+            if (progress >= 0.5 && !frameTracker.sideSwapped) {
+                frameTracker.isFlipped = !frameTracker.isFlipped;
+                frameTracker.sideSwapped = true;
+                
+                if (frameTracker.isFlipped) {
+                    frameTracker.css3dFrame.visible = false;
+                    frameTracker.threejsFrame.visible = true;
+                } else {
+                    frameTracker.css3dFrame.visible = true;
+                    frameTracker.threejsFrame.visible = false;
+                }
+            }
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                frameTracker.isFlipping = false;
+                frameTracker.sideSwapped = false;
+            }
+        };
+
+        frameTracker.sideSwapped = false;
+        animate();
+    }
+
     playFrame(frameTracker) {
         if (frameTracker.isPlaying) {
             return;
         }
         frameTracker.isPlaying = true;
-        const iframe = frameTracker.frame.element;
+        
+        const iframe = frameTracker.isTwoSided ? frameTracker.css3dFrame.element : frameTracker.frame.element;
+        
         if (frameTracker.pendingContent) {
             iframe.src = 'about:blank';
             setTimeout(() => {
@@ -73,7 +195,8 @@ export class CSS3DFactory {
         }
         frameTracker.isPlaying = false;
         frameTracker.pendingContent = null;
-        const iframe = frameTracker.frame.element;
+        
+        const iframe = frameTracker.isTwoSided ? frameTracker.css3dFrame.element : frameTracker.frame.element;
         iframe.src = 'about:blank';
         setTimeout(() => {
             if (iframe.contentDocument) {
@@ -330,14 +453,11 @@ export class CSS3DFactory {
                     const wasNearBottom = scrollPosition >= lastContentHeight - 100;
                     const heightDiff = currentHeight - lastContentHeight;
                     
-                    // Always auto-scroll for small incremental changes (like terminal output)
-                    // or when user was near bottom
                     const shouldAutoScroll = heightDiff < 200 || wasNearBottom || lastContentHeight === 0;
                     
                     if (shouldAutoScroll) {
                         setTimeout(() => {
                             contentWrapper.scrollTop = currentHeight - contentWrapper.clientHeight;
-                            // Reset user scroll state for terminal-like behavior
                             if (heightDiff < 200) {
                                 userScrolled = false;
                                 autoScrollEnabled = true;
@@ -360,7 +480,6 @@ export class CSS3DFactory {
                     autoScrollEnabled = true;
                 } else {
                     const scrollDistance = Math.abs(contentWrapper.scrollTop - (contentWrapper.scrollHeight - contentWrapper.clientHeight));
-                    // Only disable auto-scroll if user scrolls significantly up
                     if (scrollDistance > 100) {
                         userScrolled = true;
                         autoScrollEnabled = false;
@@ -524,6 +643,10 @@ export class CSS3DFactory {
     }
 
     updateFrameTransform(frameTracker) {
+        if (frameTracker.isTwoSided) {
+            return;
+        }
+        
         if (!frameTracker.frame || !frameTracker.mesh) return;
         const mesh = frameTracker.mesh;
         const frame = frameTracker.frame;
@@ -540,6 +663,10 @@ export class CSS3DFactory {
     }
 
     updateFrameTransformImmediate(frameTracker) {
+        if (frameTracker.isTwoSided) {
+            return;
+        }
+        
         if (!frameTracker.frame || !frameTracker.mesh) return;
         const mesh = frameTracker.mesh;
         const frame = frameTracker.frame;
@@ -565,6 +692,9 @@ export class CSS3DFactory {
         const animate = () => {
             this.animationId = requestAnimationFrame(animate);
             for (const frameTracker of this.frames) {
+                if (frameTracker.isTwoSided) {
+                    continue;
+                }
                 if (frameTracker.mesh && frameTracker.frame) {
                     if (frameTracker.mesh.userData) {
                         delete frameTracker.mesh.userData.lastMatrixVersion;
