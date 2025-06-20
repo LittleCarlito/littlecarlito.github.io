@@ -13,12 +13,13 @@
 
         .terminal-text {
             white-space: pre-wrap;
-            opacity: 0;
             margin: 2px 0;
+            overflow: hidden;
+            height: 0;
         }
 
         .terminal-text.visible {
-            opacity: 1;
+            height: auto;
         }
 
         h1.terminal-text {

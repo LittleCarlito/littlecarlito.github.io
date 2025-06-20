@@ -15,12 +15,9 @@ export class CSS3DFactory {
         if (!this.isInitialized) {
             this.initializeCSS3D(parentElement || document.body);
         }
-
         this.mainCamera = sceneCamera;
-        
         const dimensions = this.calculateMeshDimensions(incomingMesh);
         const frame = await this.createCSS3DFrame(500, 400, filePath);
-        
         const frameTracker = {
             mesh: incomingMesh,
             frame: frame,
@@ -32,60 +29,39 @@ export class CSS3DFactory {
             play: () => this.playFrame(frameTracker),
             reset: () => this.resetFrame(frameTracker)
         };
-        
         this.css3dScene.add(frame);
         this.frames.push(frameTracker);
         this.updateFrameTransform(frameTracker);
-        
         if (!this.animationId) {
             this.startAnimationLoop();
         }
-        
-        console.log(`CSS3DFactory: Created frame for asset type: ${assetType}, file: ${filePath}, playing: ${frameTracker.isPlaying}`);
-        
         return frameTracker;
     }
 
     playFrame(frameTracker) {
         if (frameTracker.isPlaying) {
-            console.log(`CSS3DFactory: Frame already playing for asset: ${frameTracker.assetType}`);
             return;
         }
-
-        console.log(`CSS3DFactory: Playing frame for asset: ${frameTracker.assetType}, file: ${frameTracker.filePath}`);
         frameTracker.isPlaying = true;
-
         const iframe = frameTracker.frame.element;
-        
         if (frameTracker.pendingContent) {
-            console.log(`CSS3DFactory: Loading pending content for: ${frameTracker.assetType}`);
-            
-            // Clear iframe before loading pending content
             iframe.src = 'about:blank';
-            
             setTimeout(() => {
                 if (iframe.contentDocument) {
                     iframe.contentDocument.open();
-                    iframe.contentDocument.write(frameTracker.pendingContent);
+                    iframe.contentDocument.write(this.wrapContentWithScrollControl(frameTracker.pendingContent));
                     iframe.contentDocument.close();
-                    console.log(`CSS3DFactory: Content loaded for: ${frameTracker.assetType}`);
                 }
             }, 150);
         } else if (frameTracker.filePath) {
-            console.log(`CSS3DFactory: Loading external content for: ${frameTracker.assetType} from: ${frameTracker.filePath}`);
             this.loadExternalContentDeferred(iframe, frameTracker.filePath, frameTracker.assetType);
         } else {
-            console.log(`CSS3DFactory: Loading debug content for: ${frameTracker.assetType}`);
-            
-            // Clear iframe before loading debug content
             iframe.src = 'about:blank';
-            
             setTimeout(() => {
                 if (iframe.contentDocument) {
                     iframe.contentDocument.open();
                     iframe.contentDocument.write(this.getDebugHTML());
                     iframe.contentDocument.close();
-                    console.log(`CSS3DFactory: Debug content loaded for: ${frameTracker.assetType}`);
                 }
             }, 150);
         }
@@ -93,30 +69,19 @@ export class CSS3DFactory {
 
     resetFrame(frameTracker) {
         if (!frameTracker.isPlaying) {
-            console.log(`CSS3DFactory: Frame already reset for asset: ${frameTracker.assetType}`);
             return;
         }
-
-        console.log(`CSS3DFactory: Resetting frame for asset: ${frameTracker.assetType}, file: ${frameTracker.filePath}`);
         frameTracker.isPlaying = false;
         frameTracker.pendingContent = null;
-
         const iframe = frameTracker.frame.element;
-        
-        console.log(`CSS3DFactory: Clearing iframe content for: ${frameTracker.assetType}`);
-        
-        // Properly clear the iframe by setting src to about:blank first
         iframe.src = 'about:blank';
-        
         setTimeout(() => {
-            // Wait for the iframe to clear, then load the loading screen
             if (iframe.contentDocument) {
                 iframe.contentDocument.open();
                 iframe.contentDocument.write(this.getLoadingHTML());
                 iframe.contentDocument.close();
-                console.log(`CSS3DFactory: Reset complete for: ${frameTracker.assetType}`);
             }
-        }, 150); // Slightly longer delay to ensure clearing is complete
+        }, 150);
     }
 
     initializeCSS3D(parentElement) {
@@ -130,7 +95,6 @@ export class CSS3DFactory {
         this.css3dRenderer.domElement.style.pointerEvents = 'none';
         parentElement.appendChild(this.css3dRenderer.domElement);
         this.isInitialized = true;
-        console.log('CSS3DFactory: Initialized CSS3D renderer');
     }
 
     async createCSS3DFrame(width, height, filePath = null) {
@@ -140,63 +104,41 @@ export class CSS3DFactory {
         iframe.style.border = 'none';
         iframe.style.borderRadius = '5px';
         iframe.style.backgroundColor = 'white';
-        iframe.style.overflow = 'hidden';
         iframe.style.boxSizing = 'border-box';
-
         const css3dObject = new CSS3DObject(iframe);
-
-        console.log(`CSS3DFactory: Created iframe placeholder for: ${filePath || 'debug content'}`);
-        
         setTimeout(() => {
             if (iframe.contentDocument) {
                 iframe.contentDocument.open();
                 iframe.contentDocument.write(this.getLoadingHTML());
                 iframe.contentDocument.close();
-                console.log(`CSS3DFactory: Loading screen set for: ${filePath || 'debug content'}`);
             }
         }, 100);
-
         return css3dObject;
     }
 
     async loadExternalContentDeferred(iframe, filePath, assetType) {
         try {
-            console.log(`CSS3DFactory: Fetching content from: ${filePath} for asset: ${assetType}`);
             const response = await fetch(filePath);
-            
             if (!response.ok) {
                 throw new Error(`Failed to load ${filePath}: ${response.status}`);
             }
-            
             const htmlContent = await response.text();
-            const wrappedContent = this.wrapContent(htmlContent);
-            
-            console.log(`CSS3DFactory: Content fetched successfully for: ${assetType}, rendering now`);
-            
-            // Clear the iframe first to prevent JavaScript conflicts
+            const wrappedContent = this.wrapContentWithScrollControl(htmlContent);
             iframe.src = 'about:blank';
-            
             setTimeout(() => {
-                // Wait for iframe to clear, then load new content
                 if (iframe.contentDocument) {
                     iframe.contentDocument.open();
                     iframe.contentDocument.write(wrappedContent);
                     iframe.contentDocument.close();
-                    console.log(`CSS3DFactory: External content rendered for: ${assetType}`);
                 }
-            }, 150); // Longer delay to ensure iframe is properly cleared
+            }, 150);
         } catch (error) {
-            console.error(`CSS3DFactory: Error loading external content from ${filePath} for asset ${assetType}:`, error);
-            
-            // Clear iframe before loading error content
             iframe.src = 'about:blank';
-            
             setTimeout(() => {
                 if (iframe.contentDocument) {
                     iframe.contentDocument.open();
                     iframe.contentDocument.write(this.getErrorHTML(filePath, error.message));
                     iframe.contentDocument.close();
-                    console.log(`CSS3DFactory: Error content rendered for: ${assetType}`);
                 }
             }, 150);
         }
@@ -213,13 +155,13 @@ export class CSS3DFactory {
             background: #222;
             font-family: 'Courier New', monospace;
             color: #fff;
-            overflow: hidden;
             height: 100vh;
             width: 100vw;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            overflow: hidden;
         }
         .loading-container {
             text-align: center;
@@ -267,49 +209,122 @@ export class CSS3DFactory {
 </html>`;
     }
 
-    wrapContent(content) {
+    wrapContentWithScrollControl(content) {
         return `<!DOCTYPE html>
-                <html>
-                <head>
-                    <style>
-                        html, body {
-                            margin: 0;
-                            padding: 0;
-                            width: 100%;
-                            height: 100%;
-                            overflow: hidden;
-                            box-sizing: border-box;
-                        }
-                        body {
-                            background-color: white;
-                            color: #333;
-                            font-family: Arial, sans-serif;
-                            padding: 10px;
-                            display: flex;
-                            flex-direction: column;
-                        }
-                        .content {
-                            flex: 1;
-                            overflow: hidden;
-                            padding: 5px;
-                            position: relative;
-                            width: calc(100% - 10px);
-                        }
-                        
-                        .content > * {
-                            max-width: 100%;
-                            box-sizing: border-box;
-                        }
-                        
-                        .content div, .content p, .content span, .content img {
-                            max-width: 100%;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="content">${content}</div>
-                </body>
-                </html>`;
+<html>
+<head>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        body {
+            background-color: white;
+            color: #333;
+            font-family: Arial, sans-serif;
+        }
+        
+        .content-wrapper {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            box-sizing: border-box;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .content-wrapper > * {
+            max-width: 100%;
+            box-sizing: border-box;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .content-wrapper * {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .content-wrapper pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .content-wrapper img {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        .scroll-enable-delay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            z-index: 10000;
+            pointer-events: auto;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+        
+        .scroll-enable-delay.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .virtual-spacer {
+            height: 200vh;
+            width: 1px;
+            position: absolute;
+            top: 0;
+            right: 0;
+            pointer-events: none;
+            visibility: hidden;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-enable-delay" id="scrollDelay"></div>
+    <div class="content-wrapper" id="contentWrapper">
+        <div class="virtual-spacer"></div>
+        ${content}
+    </div>
+    
+    <script>
+        (function() {
+            let contentStabilized = false;
+            
+            const contentWrapper = document.getElementById('contentWrapper');
+            const scrollDelay = document.getElementById('scrollDelay');
+            
+            function enableScrolling() {
+                if (contentStabilized) return;
+                contentStabilized = true;
+                scrollDelay.classList.add('fade-out');
+                setTimeout(() => {
+                    if (scrollDelay && scrollDelay.parentNode) {
+                        scrollDelay.parentNode.removeChild(scrollDelay);
+                    }
+                }, 300);
+            }
+            
+            setTimeout(() => {
+                enableScrolling();
+            }, 1000);
+        })();
+    </script>
+</body>
+</html>`;
     }
 
     getErrorHTML(filePath, errorMessage) {
@@ -323,7 +338,6 @@ export class CSS3DFactory {
             background: #ff0000;
             font-family: 'Courier New', monospace;
             color: #fff;
-            overflow: hidden;
             height: calc(100vh - 40px);
             width: calc(100vw - 40px);
             display: flex;
@@ -331,6 +345,7 @@ export class CSS3DFactory {
             justify-content: center;
             align-items: center;
             text-align: center;
+            overflow: hidden;
         }
         .error-title {
             font-size: 18px;
@@ -361,13 +376,11 @@ export class CSS3DFactory {
 
     calculateMeshDimensions(mesh) {
         if (!mesh || !mesh.geometry) return { realWidth: 1, realHeight: 1 };
-        
         const geometry = mesh.geometry;
         geometry.computeBoundingBox();
         const size = geometry.boundingBox.getSize(new THREE.Vector3());
         const worldScale = mesh.getWorldScale(new THREE.Vector3());
         const worldSize = size.clone().multiply(worldScale);
-        
         let isTabletDisplay = false;
         let current = mesh;
         while (current) {
@@ -377,7 +390,6 @@ export class CSS3DFactory {
             }
             current = current.parent;
         }
-        
         if (isTabletDisplay) {
             const dimensions = [worldSize.x, worldSize.y, worldSize.z].sort((a, b) => b - a);
             return {
@@ -385,7 +397,6 @@ export class CSS3DFactory {
                 realHeight: Math.max(0.1, dimensions[1])
             };
         }
-        
         return {
             realWidth: Math.max(0.1, worldSize.x),
             realHeight: Math.max(0.1, worldSize.y)
@@ -399,28 +410,23 @@ export class CSS3DFactory {
                 quaternion: new THREE.Quaternion()
             };
         }
-
         if (!mesh.userData.geometryCache) {
             const geometry = mesh.geometry;
             geometry.computeBoundingBox();
             const center = new THREE.Vector3();
             geometry.boundingBox.getCenter(center);
-            
             mesh.userData.geometryCache = {
                 center: center.clone(),
                 boundingBox: geometry.boundingBox.clone()
             };
         }
-
         const center = mesh.userData.geometryCache.center.clone();
         mesh.localToWorld(center);
-
         const meshMatrix = mesh.matrixWorld;
         const position = new THREE.Vector3();
         const quaternion = new THREE.Quaternion();
         const scale = new THREE.Vector3();
         meshMatrix.decompose(position, quaternion, scale);
-
         let normal = mesh.userData.cachedNormal;
         if (!normal) {
             normal = new THREE.Vector3(0, 0, 1);
@@ -434,12 +440,9 @@ export class CSS3DFactory {
                 }
             }
         }
-
         const offsetPosition = center.clone();
         offsetPosition.add(normal.clone().multiplyScalar(0.001));
-
         const billboardQuaternion = new THREE.Quaternion();
-
         return {
             position: offsetPosition,
             quaternion: billboardQuaternion
@@ -448,58 +451,45 @@ export class CSS3DFactory {
 
     updateFrameTransform(frameTracker) {
         if (!frameTracker.frame || !frameTracker.mesh) return;
-
         const mesh = frameTracker.mesh;
         const frame = frameTracker.frame;
-        
         if (!mesh.userData.lastMatrixVersion || mesh.userData.lastMatrixVersion !== mesh.matrixWorld.elements.join(',')) {
             const transform = this.calculateMeshTransform(mesh, frameTracker.assetType);
             frame.position.copy(transform.position);
             frame.quaternion.copy(transform.quaternion);
-            
             const dimensions = this.calculateMeshDimensions(mesh);
             const scaleX = dimensions.realWidth / 500;
             const scaleY = dimensions.realHeight / 400;
             frame.scale.set(scaleX, scaleY, 1);
-            
             mesh.userData.lastMatrixVersion = mesh.matrixWorld.elements.join(',');
         }
     }
 
     updateFrameTransformImmediate(frameTracker) {
         if (!frameTracker.frame || !frameTracker.mesh) return;
-
         const mesh = frameTracker.mesh;
         const frame = frameTracker.frame;
-        
         if (!mesh.userData.previousPosition) {
             mesh.userData.previousPosition = new THREE.Vector3();
             mesh.userData.velocity = new THREE.Vector3();
         }
-
         const transform = this.calculateMeshTransform(mesh, frameTracker.assetType);
-        
         const currentPos = transform.position;
         const prevPos = mesh.userData.previousPosition;
         mesh.userData.velocity.subVectors(currentPos, prevPos);
-        
         const predictedPosition = currentPos.clone().add(mesh.userData.velocity.clone().multiplyScalar(0.016));
-        
         frame.position.copy(predictedPosition);
         frame.quaternion.copy(transform.quaternion);
-        
         const dimensions = this.calculateMeshDimensions(mesh);
         const scaleX = dimensions.realWidth / 500;
         const scaleY = dimensions.realHeight / 400;
         frame.scale.set(scaleX, scaleY, 1);
-        
         mesh.userData.previousPosition.copy(currentPos);
     }
 
     startAnimationLoop() {
         const animate = () => {
             this.animationId = requestAnimationFrame(animate);
-            
             for (const frameTracker of this.frames) {
                 if (frameTracker.mesh && frameTracker.frame) {
                     if (frameTracker.mesh.userData) {
@@ -508,7 +498,6 @@ export class CSS3DFactory {
                     this.updateFrameTransform(frameTracker);
                 }
             }
-
             if (this.css3dRenderer && this.css3dScene && this.mainCamera) {
                 this.css3dRenderer.render(this.css3dScene, this.mainCamera);
             }
@@ -527,13 +516,13 @@ export class CSS3DFactory {
             background: #000;
             font-family: 'Courier New', monospace;
             color: #fff;
-            overflow: hidden;
             height: 100vh;
             width: 100vw;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            overflow: auto;
         }
         .debug-container {
             text-align: center;
@@ -623,15 +612,12 @@ export class CSS3DFactory {
             cancelAnimationFrame(this.animationId);
             this.animationId = null;
         }
-        
         if (this.css3dRenderer && this.css3dRenderer.domElement && this.css3dRenderer.domElement.parentNode) {
             this.css3dRenderer.domElement.parentNode.removeChild(this.css3dRenderer.domElement);
         }
-        
         this.frames = [];
         this.css3dRenderer = null;
         this.css3dScene = null;
         this.isInitialized = false;
-        console.log('CSS3DFactory: Disposed and cleaned up resources');
     }
 }
