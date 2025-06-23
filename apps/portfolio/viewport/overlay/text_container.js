@@ -116,7 +116,7 @@ export class TextContainer {
 				if (child.isMesh) {
 					if (child.name.startsWith('display_')){
 						console.log(`TextContainer: Creating CSS3D frame for display mesh: ${child.name}, asset: ${asset_type}`);
-						this.css3d_factory.createFrame(child, this.camera, document.body, asset_type, options.contentPath)
+						this.css3d_factory.createFrameOnDisplay(child, this.camera, document.body, asset_type, options.contentPath)
 							.then(frameTracker => {
 								console.log(`TextContainer: CSS3D frame created for ${asset_type}, storing reference`);
 								this.css3d_frames.set(asset_type, frameTracker);
