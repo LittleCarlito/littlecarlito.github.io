@@ -18,25 +18,56 @@ export class CSS3DFactory {
             this.initializeCSS3D(parentElement || document.body);
         }
         this.mainCamera = sceneCamera;
-        const frame = await this.createCSS3DFrame(500, 400, filePath);
+        
+        const frameTracker = await this.createCSS3DFrame(500, 400, filePath, incomingMesh, assetType);
+        return frameTracker;
+    }
+
+    async createCSS3DFrame(width, height, filePath = null, mesh = null, assetType = null) {
+        if (!this.isInitialized) {
+            this.initializeCSS3D(document.body);
+        }
+
+        const iframe = document.createElement('iframe');
+        iframe.style.width = `${width}px`;
+        iframe.style.height = `${height}px`;
+        iframe.style.border = 'none';
+        iframe.style.borderRadius = '5px';
+        iframe.style.backgroundColor = 'white';
+        iframe.style.boxSizing = 'border-box';
+        const css3dObject = new CSS3DObject(iframe);
+
         const frameTracker = {
-            mesh: incomingMesh,
-            frame: frame,
+            mesh: mesh,
+            frame: css3dObject,
             visible: true,
             assetType: assetType,
             filePath: filePath,
             isPlaying: false,
             pendingContent: null,
-            isTwoSided: false,
             play: () => this.playFrame(frameTracker),
             reset: () => this.resetFrame(frameTracker)
         };
-        this.css3dScene.add(frame);
+
+        this.css3dScene.add(css3dObject);
         this.frames.push(frameTracker);
-        this.updateFrameTransform(frameTracker);
+
+        if (mesh) {
+            this.updateFrameTransform(frameTracker);
+        }
+
         if (!this.animationId) {
             this.startAnimationLoop();
         }
+
+        setTimeout(() => {
+            if (iframe.contentDocument) {
+                iframe.contentDocument.open();
+                iframe.contentDocument.write(this.getLoadingHTML());
+                iframe.contentDocument.close();
+            }
+        }, 100);
+
         return frameTracker;
     }
 
@@ -46,7 +77,7 @@ export class CSS3DFactory {
         }
         frameTracker.isPlaying = true;
         
-        const iframe = frameTracker.isTwoSided ? frameTracker.css3dFrame.element : frameTracker.frame.element;
+        const iframe = frameTracker.frame.element;
         
         if (frameTracker.pendingContent) {
             iframe.src = 'about:blank';
@@ -78,7 +109,7 @@ export class CSS3DFactory {
         frameTracker.isPlaying = false;
         frameTracker.pendingContent = null;
         
-        const iframe = frameTracker.isTwoSided ? frameTracker.css3dFrame.element : frameTracker.frame.element;
+        const iframe = frameTracker.frame.element;
         iframe.src = 'about:blank';
         setTimeout(() => {
             if (iframe.contentDocument) {
@@ -100,25 +131,6 @@ export class CSS3DFactory {
         this.css3dRenderer.domElement.style.pointerEvents = 'none';
         parentElement.appendChild(this.css3dRenderer.domElement);
         this.isInitialized = true;
-    }
-
-    async createCSS3DFrame(width, height, filePath = null) {
-        const iframe = document.createElement('iframe');
-        iframe.style.width = `${width}px`;
-        iframe.style.height = `${height}px`;
-        iframe.style.border = 'none';
-        iframe.style.borderRadius = '5px';
-        iframe.style.backgroundColor = 'white';
-        iframe.style.boxSizing = 'border-box';
-        const css3dObject = new CSS3DObject(iframe);
-        setTimeout(() => {
-            if (iframe.contentDocument) {
-                iframe.contentDocument.open();
-                iframe.contentDocument.write(this.getLoadingHTML());
-                iframe.contentDocument.close();
-            }
-        }, 100);
-        return css3dObject;
     }
 
     async loadExternalContentDeferred(iframe, filePath, assetType) {
@@ -479,12 +491,51 @@ export class CSS3DFactory {
     }
 
     calculateMeshTransform(mesh, assetType = null) {
-        if (!mesh || !mesh.geometry) {
+        if (!mesh) {
             return {
                 position: new THREE.Vector3(0, 0, 0),
                 quaternion: new THREE.Quaternion()
             };
         }
+
+        // Handle Object3D without geometry - create simple reference geometry
+        if (!mesh.geometry) {
+            if (!mesh.userData.referenceGeometry) {
+                mesh.userData.referenceGeometry = new THREE.PlaneGeometry(1, 1);
+                mesh.userData.referenceGeometry.computeBoundingBox();
+            }
+            
+            const geometry = mesh.userData.referenceGeometry;
+            if (!mesh.userData.geometryCache) {
+                const center = new THREE.Vector3();
+                geometry.boundingBox.getCenter(center);
+                mesh.userData.geometryCache = {
+                    center: center.clone(),
+                    boundingBox: geometry.boundingBox.clone()
+                };
+            }
+            
+            const center = mesh.userData.geometryCache.center.clone();
+            mesh.localToWorld(center);
+            
+            const meshMatrix = mesh.matrixWorld;
+            const position = new THREE.Vector3();
+            const quaternion = new THREE.Quaternion();
+            const scale = new THREE.Vector3();
+            meshMatrix.decompose(position, quaternion, scale);
+            
+            const normal = new THREE.Vector3(0, 0, 1);
+            const offsetPosition = center.clone();
+            offsetPosition.add(normal.clone().multiplyScalar(0.001));
+            
+            const billboardQuaternion = new THREE.Quaternion();
+            return {
+                position: offsetPosition,
+                quaternion: billboardQuaternion
+            };
+        }
+
+        // Original logic for meshes with geometry
         if (!mesh.userData.geometryCache) {
             const geometry = mesh.geometry;
             geometry.computeBoundingBox();
@@ -525,10 +576,6 @@ export class CSS3DFactory {
     }
 
     updateFrameTransform(frameTracker) {
-        if (frameTracker.isTwoSided) {
-            return;
-        }
-        
         if (!frameTracker.frame || !frameTracker.mesh) return;
         const mesh = frameTracker.mesh;
         const frame = frameTracker.frame;
@@ -544,11 +591,7 @@ export class CSS3DFactory {
         }
     }
 
-    updateFrameTransformImmediate(frameTracker) {
-        if (frameTracker.isTwoSided) {
-            return;
-        }
-        
+    updateFrameTransformImmediate(frameTracker) {       
         if (!frameTracker.frame || !frameTracker.mesh) return;
         const mesh = frameTracker.mesh;
         const frame = frameTracker.frame;
@@ -574,9 +617,6 @@ export class CSS3DFactory {
         const animate = () => {
             this.animationId = requestAnimationFrame(animate);
             for (const frameTracker of this.frames) {
-                if (frameTracker.isTwoSided) {
-                    continue;
-                }
                 if (frameTracker.mesh && frameTracker.frame) {
                     if (frameTracker.mesh.userData) {
                         delete frameTracker.mesh.userData.lastMatrixVersion;

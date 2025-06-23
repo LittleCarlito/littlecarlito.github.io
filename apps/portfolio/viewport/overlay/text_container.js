@@ -289,7 +289,17 @@ export class TextContainer {
 				})();
 				break;
 			case CATEGORIES.ABOUT.value:
-				create_text_frame(category, text_box);
+				(async () => {
+					const aboutFrame = await this.css3d_factory.createCSS3DFrame(
+						Math.floor(this.container_width * 50),
+						Math.floor(this.container_height * 50),
+						'/pages/about.html',
+						text_box,
+						'ABOUT'
+					);
+					this.css3d_frames.set('ABOUT', aboutFrame);
+				})();
+				create_background(category, text_box);
 				break;
 			case CATEGORIES.WORK.value:
 				(async () => {
@@ -496,6 +506,8 @@ export class TextContainer {
 				return this.#ASSET_TYPE.TABLET;
 			case CATEGORIES.WORK.value:
 				return this.#ASSET_TYPE.MONITOR;
+			case CATEGORIES.ABOUT.value:
+				return 'ABOUT';
 			default:
 				return null;
 		}
@@ -659,6 +671,13 @@ export class TextContainer {
 				}
 			});
 		});
+
+		const aboutFrame = this.css3d_frames.get('ABOUT');
+		if (aboutFrame) {
+			const iframe = aboutFrame.frame.element;
+			iframe.style.width = `${Math.floor(this.container_width * 50)}px`;
+			iframe.style.height = `${Math.floor(this.container_height * 50)}px`;
+		}
 	}
 
 	update_iframe_size(incoming_simple_name, incoming_width, incoming_height) {
