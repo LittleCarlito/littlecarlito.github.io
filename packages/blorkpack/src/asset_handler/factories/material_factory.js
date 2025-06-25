@@ -1,17 +1,19 @@
 import * as THREE from 'three';
 
-const ORM_PATH = "/images/atlas_ORM.jpg";
-const NORMAL_PATH = "/images/atlas_Normal.jpg";
-const BASE_COLOR_PATH = "/images/atlas_Basecolor.png";
-
 export class MaterialFactory {
 
-    async applyPbrMaterial(incomingAsset) {
-        return this.#applyAtlasMaterial(incomingAsset, 'pbr');
+    async applyPbrMaterial(incomingAsset, atlasConfig) {
+        if (!atlasConfig) {
+            throw new Error('Atlas configuration is required for PBR material');
+        }
+        return this.#applyAtlasMaterial(incomingAsset, 'pbr', atlasConfig);
     }
 
-    async applyUnlitMaterial(incomingAsset) {
-        return this.#applyAtlasMaterial(incomingAsset, 'unlit');
+    async applyUnlitMaterial(incomingAsset, atlasConfig) {
+        if (!atlasConfig) {
+            throw new Error('Atlas configuration is required for unlit material');
+        }
+        return this.#applyAtlasMaterial(incomingAsset, 'unlit', atlasConfig);
     }
 
     async createMaterialFromAtlas(atlasConfig) {
@@ -52,19 +54,38 @@ export class MaterialFactory {
         return this.#createAtlasMaterial(textureObjects, 'pbr');
     }
 
-    async #applyAtlasMaterial(incomingAsset, materialType) {
+    async #applyAtlasMaterial(incomingAsset, materialType, atlasConfig) {
         if (!incomingAsset) {
             throw new Error('Invalid GLB asset - asset is null/undefined');
+        }
+        if (!atlasConfig) {
+            throw new Error('Atlas configuration is required');
         }
 
         const scene = incomingAsset;
         const textureLoader = new THREE.TextureLoader();
         
-        const [baseColorTexture, normalTexture, ormTexture] = await Promise.all([
-            this.#loadTexture(textureLoader, BASE_COLOR_PATH, 'baseColor'),
-            this.#loadTexture(textureLoader, NORMAL_PATH, 'normal'),
-            this.#loadTexture(textureLoader, ORM_PATH, 'orm')
-        ]);
+        const texturePromises = [];
+        
+        if (atlasConfig.baseColor) {
+            texturePromises.push(this.#loadTexture(textureLoader, atlasConfig.baseColor, 'baseColor'));
+        } else {
+            texturePromises.push(Promise.resolve(null));
+        }
+        
+        if (atlasConfig.normal) {
+            texturePromises.push(this.#loadTexture(textureLoader, atlasConfig.normal, 'normal'));
+        } else {
+            texturePromises.push(Promise.resolve(null));
+        }
+        
+        if (atlasConfig.orm) {
+            texturePromises.push(this.#loadTexture(textureLoader, atlasConfig.orm, 'orm'));
+        } else {
+            texturePromises.push(Promise.resolve(null));
+        }
+
+        const [baseColorTexture, normalTexture, ormTexture] = await Promise.all(texturePromises);
 
         const textureObjects = {
             baseColor: baseColorTexture,

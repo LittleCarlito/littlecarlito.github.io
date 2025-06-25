@@ -210,33 +210,7 @@ async function init() {
 		await initPhysicsUtil();
 		
 		update_loading_progress('Loading custom asset types...');
-		try {
-			const customTypePaths = [
-				'./custom_types.json',
-				'/custom_types.json',
-				'/threejs_site/custom_types.json',
-				'resources/custom_types.json',
-				'/threejs_site/resources/custom_types.json'
-			];
-			
-			let loaded = false;
-			for (const path of customTypePaths) {
-				try {
-					await CustomTypeManager.loadCustomTypes(path);
-					console.log(`Successfully loaded custom types from: ${path}`);
-					loaded = true;
-					break;
-				} catch (pathError) {
-					console.warn(`Failed to load custom types from ${path}:`, pathError);
-				}
-			}
-			
-			if (!loaded) {
-				console.error('Failed to load custom types from all paths');
-			}
-		} catch (error) {
-			console.error('Error in custom type loading process:', error);
-		}
+		await CustomTypeManager.loadCustomTypes('/custom_types.json');
 		
 		update_loading_progress('Initializing scene...');
 		AssetStorage.get_instance();

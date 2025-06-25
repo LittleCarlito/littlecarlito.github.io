@@ -20,8 +20,6 @@ export class TextContainer {
 	particles = [];
 	asset_handler;
 	css3d_factory;
-	#ASSET_TYPE = CustomTypeManager.getTypes();
-	#ASSET_CONFIGS = CustomTypeManager.getConfigs();
 
 	constructor(incoming_parent, incoming_camera) {
 		this.parent = incoming_parent;
@@ -31,8 +29,6 @@ export class TextContainer {
 		this.css3d_factory = new CSS3DFactory();
 		this.asset_handler = AssetHandler.get_instance(this.parent, null);
 		this.parent.add(this.text_box_container);
-		
-		console.log('TextContainer: Initializing with CSS3D frame management');
 
 		const create_background = (incoming_category, incoming_box) => {
 			this.container_width = this.get_text_box_width();
@@ -57,9 +53,6 @@ export class TextContainer {
 		};
 
 		const create_asset_background = async (incoming_box, asset_type, options = {}) => {
-			this.container_width = this.get_text_box_width();
-			this.container_height = this.get_text_box_height();
-			
 			const config = {
 				horizontalStretch: 1.0,
 				verticalStretch: 1.0,
@@ -68,46 +61,58 @@ export class TextContainer {
 				positionOffsetY: 0,
 				positionOffsetZ: 0,
 				scaleFactor: 0.12,
+				useFixedScale: false,
+				renderOrder: 998,
 				...options
 			};
-			
+
+			const asset_config = CustomTypeManager.getConfigs()[asset_type];
+			if (!asset_config) {
+				throw new Error(`No configuration found for asset type: ${asset_type}`);
+			}
+			// asset_config.materials.default.orm
+			const gltf = await AssetStorage.get_instance().loader.loadAsync(asset_config.PATH);
+			const asset = gltf.scene.clone();
+
+			if (config.useFixedScale) {
+				const scale = asset_config.ui_scale || asset_config.scale || 1.0;
+				asset.scale.set(scale, scale, scale);
+			} else {
+				this.container_width = this.get_text_box_width();
+				this.container_height = this.get_text_box_height();
+				
+				const asset_bounding_box = new THREE.Box3().setFromObject(asset);
+				const asset_width = (asset_bounding_box.max.x - asset_bounding_box.min.x);
+				const asset_height = asset_bounding_box.max.y - asset_bounding_box.min.y;
+
+				const width_scale = this.container_width / asset_width * config.scaleFactor;
+				const height_scale = this.container_height / asset_height * config.scaleFactor;
+
+				const final_width_scale = width_scale * config.horizontalStretch;
+				const final_height_scale = height_scale * config.verticalStretch;
+
+				const base_scale = Math.min(final_width_scale, final_height_scale) * asset_config.scale;
+
+				if (config.horizontalStretch !== config.verticalStretch) {
+					const x_scale = base_scale * (config.horizontalStretch / config.verticalStretch);
+					const y_scale = base_scale;
+					asset.scale.set(x_scale, y_scale, base_scale);
+				} else {
+					asset.scale.set(base_scale, base_scale, base_scale);
+				}
+			}
+
 			config.position.x += config.positionOffsetX;
 			config.position.y += config.positionOffsetY;
 			config.position.z += config.positionOffsetZ;
-
-			const asset_config = this.#ASSET_CONFIGS[asset_type];
-			if (!asset_config) {
-				console.error(`No configuration found for asset type: ${asset_type}`);
-				return null;
-			}
-			const gltf = await AssetStorage.get_instance().loader.loadAsync(asset_config.PATH);
-
-			const asset = gltf.scene.clone();
-
-			const asset_bounding_box = new THREE.Box3().setFromObject(asset);
-			const asset_width = (asset_bounding_box.max.x - asset_bounding_box.min.x);
-			const asset_height = asset_bounding_box.max.y - asset_bounding_box.min.y;
-
-			const width_scale = this.container_width / asset_width * config.scaleFactor;
-			const height_scale = this.container_height / asset_height * config.scaleFactor;
-
-			const final_width_scale = width_scale * config.horizontalStretch;
-			const final_height_scale = height_scale * config.verticalStretch;
-
-			const base_scale = Math.min(final_width_scale, final_height_scale) * asset_config.scale;
-
-			if (config.horizontalStretch !== config.verticalStretch) {
-				const x_scale = base_scale * (config.horizontalStretch / config.verticalStretch);
-				const y_scale = base_scale;
-				asset.scale.set(x_scale, y_scale, base_scale);
-			} else {
-				asset.scale.set(base_scale, base_scale, base_scale);
-			}
-
 			asset.position.copy(config.position);
 
 			if (config.rotation) {
-				asset.rotation.copy(config.rotation);
+				if (config.rotation instanceof THREE.Euler) {
+					asset.rotation.copy(config.rotation);
+				} else {
+					asset.rotation.set(config.rotation.x || 0, config.rotation.y || 0, config.rotation.z || 0);
+				}
 			}
 
 			let createdFrame = null;
@@ -115,10 +120,8 @@ export class TextContainer {
 			asset.traverse((child) => {
 				if (child.isMesh) {
 					if (child.name.startsWith('display_')){
-						console.log(`TextContainer: Creating CSS3D frame for display mesh: ${child.name}, asset: ${asset_type}`);
 						this.css3d_factory.createFrameOnDisplay(child, this.camera, document.body, asset_type, options.contentPath)
 							.then(frameTracker => {
-								console.log(`TextContainer: CSS3D frame created for ${asset_type}, storing reference`);
 								this.css3d_frames.set(asset_type, frameTracker);
 								createdFrame = frameTracker;
 							});
@@ -129,11 +132,6 @@ export class TextContainer {
 					}
 
 					const original_material = child.material;
-					if (FLAGS.ASSET_LOGS) console.log('Original material:', {
-						name: child.name,
-						map: original_material.map?.image?.src,
-						color: original_material.color?.getHexString()
-					});
 
 					child.material = new THREE.MeshBasicMaterial();
 					child.material.copy(original_material);
@@ -142,17 +140,11 @@ export class TextContainer {
 					child.material.transparent = true;
 					child.material.depthTest = false;
 					child.material.side = THREE.DoubleSide;
-					child.renderOrder = 998;
-
-					if (FLAGS.ASSET_LOGS) console.log('New material:', {
-						name: child.name,
-						map: child.material.map?.image?.src,
-						color: child.material.color?.getHexString()
-					});
+					child.renderOrder = config.renderOrder;
 				}
 			});
 
-			this.material_factory.applyUnlitMaterial(asset);
+			this.material_factory.applyUnlitMaterial(asset, asset_config.materials.default);
 			incoming_box.add(asset);
 			return asset;
 		};
@@ -171,116 +163,31 @@ export class TextContainer {
 
 			switch (category.value) {
 			case CATEGORIES.EDUCATION.value:
-				const rotation = new THREE.Euler(-Math.PI / 2, Math.PI, Math.PI, 'XYZ');
-				const position_one_offset = new THREE.Vector3(0, 3, 0);
-				const position_two_offset = new THREE.Vector3(0, -3, 0);
-
 				(async () => {
-					const top_asset_config = this.#ASSET_CONFIGS[this.#ASSET_TYPE.DIPLOMA_TOP];
-					const top_gltf = await AssetStorage.get_instance().loader.loadAsync(top_asset_config.PATH);
-
-					[position_one_offset].forEach(position => {
-						const top_diploma = top_gltf.scene.clone();
-						top_diploma.scale.set(top_asset_config.ui_scale, top_asset_config.ui_scale, top_asset_config.ui_scale);
-						top_diploma.position.copy(position);
-						top_diploma.rotation.copy(rotation);
-						if(BLORKPACK_FLAGS.ASSET_LOGS) {
-							console.log('Top Diploma UI Scale:', top_asset_config.ui_scale);
-							console.log('Top Diploma Applied Scale:', top_diploma.scale);
-						}
-
-						top_diploma.traverse((child) => {
-							if (child.isMesh) {
-								if (child.name.startsWith('col_')) {
-									child.visible = false;
-									return;
-								}
-
-								const originalMaterial = child.material;
-								if (FLAGS.ASSET_LOGS) console.log('Original material:', {
-									name: child.name,
-									map: originalMaterial.map?.image?.src,
-									color: originalMaterial.color.getHexString()
-								});
-
-								child.material = new THREE.MeshBasicMaterial();
-								child.material.copy(originalMaterial);
-								child.material.needsUpdate = true;
-
-								child.material.transparent = true;
-								child.material.depthTest = false;
-								child.material.side = THREE.DoubleSide;
-								child.renderOrder = 999;
-
-								if (FLAGS.ASSET_LOGS) console.log('New material:', {
-									name: child.name,
-									map: child.material.map?.image?.src,
-									color: child.material.color.getHexString()
-								});
-							}
-						});
-						this.material_factory.applyUnlitMaterial(top_diploma);
-						text_box.add(top_diploma);
+					const ASSET_TYPES = CustomTypeManager.getTypes();
+					await create_asset_background(text_box, ASSET_TYPES.DIPLOMA_TOP, {
+						useFixedScale: true,
+						positionOffsetX: 0,
+						positionOffsetY: 3,
+						positionOffsetZ: 0,
+						rotation: { x: -Math.PI / 2, y: Math.PI, z: Math.PI },
+						renderOrder: 999
 					});
-
-					const bot_asset_config = this.#ASSET_CONFIGS[this.#ASSET_TYPE.DIPLOMA_BOT];
-					const bot_gltf = await AssetStorage.get_instance().loader.loadAsync(bot_asset_config.PATH);
-
-					[position_two_offset].forEach(position => {
-						const bot_diploma = bot_gltf.scene.clone();
-						bot_diploma.scale.set(bot_asset_config.ui_scale, bot_asset_config.ui_scale, bot_asset_config.ui_scale);
-						bot_diploma.position.copy(position);
-						bot_diploma.rotation.copy(rotation);
-						if(BLORKPACK_FLAGS.ASSET_LOGS) {
-							console.log('Bottom Diploma UI Scale:', bot_asset_config.ui_scale);
-							console.log('Bottom Diploma Applied Scale:', bot_diploma.scale);
-						}
-
-						bot_diploma.traverse((child) => {
-							if (child.isMesh) {
-								if (child.name.startsWith('col_')) {
-									child.visible = false;
-									return;
-								}
-
-								const originalMaterial = child.material;
-								if (FLAGS.ASSET_LOGS) console.log('Original material:', {
-									name: child.name,
-									map: originalMaterial.map?.image?.src,
-									color: originalMaterial.color.getHexString()
-								});
-
-								child.material = new THREE.MeshBasicMaterial();
-								child.material.copy(originalMaterial);
-								child.material.needsUpdate = true;
-
-								child.material.transparent = true;
-								child.material.depthTest = false;
-								child.material.side = THREE.DoubleSide;
-								child.renderOrder = 999;
-
-								if (FLAGS.ASSET_LOGS) console.log('New material:', {
-									name: child.name,
-									map: child.material.map?.image?.src,
-									color: child.material.color.getHexString()
-								});
-							}
-						});
-
-						this.material_factory.applyUnlitMaterial(bot_diploma);
-						text_box.add(bot_diploma);
-
+					await create_asset_background(text_box, ASSET_TYPES.DIPLOMA_BOT, {
+						useFixedScale: true,
+						positionOffsetX: 0,
+						positionOffsetY: -3,
+						positionOffsetZ: 0,
+						rotation: { x: -Math.PI / 2, y: Math.PI, z: Math.PI },
+						renderOrder: 999
 					});
 				})();
-				if(BLORKPACK_FLAGS.ASSET_LOGS) {
-					console.log('Text Box Container Scale:', text_box.scale);
-					console.log('Text Box Container Size:', text_box.geometry ? text_box.geometry.parameters : 'No geometry');
-				}
 				create_background(category, text_box);
 				break;
 			case CATEGORIES.CONTACT.value:
 				(async () => {
-					await create_asset_background(text_box, this.#ASSET_TYPE.TABLET, {
+					const ASSET_TYPES = CustomTypeManager.getTypes();
+					await create_asset_background(text_box, ASSET_TYPES.TABLET, {
 						horizontalStretch: 1.1,
 						verticalStretch: 0.6,
 						rotation: new THREE.Euler(-Math.PI / 2, 0, Math.PI, 'XYZ'),
@@ -290,20 +197,22 @@ export class TextContainer {
 				break;
 			case CATEGORIES.ABOUT.value:
 				(async () => {
-					const aboutFrame = await this.css3d_factory.createCSS3DFrame(
-						Math.floor(this.container_width * 50),
-						Math.floor(this.container_height * 50),
-						'/pages/about.html',
-						text_box,
-						'ABOUT'
-					);
-					this.css3d_frames.set('ABOUT', aboutFrame);
+					const ASSET_TYPES = CustomTypeManager.getTypes();
+					await create_asset_background(text_box, ASSET_TYPES.BUSINESS_CARD, {
+						horizontalStretch: 2,
+						verticalStretch: 2,
+						positionOffsetX: 0,
+						positionOffsetY: 0,
+						positionOffsetZ: 0,
+						rotation: new THREE.Euler(Math.PI / 2, 0, 0, 'XYZ'),
+						contentPath: '/pages/about.html'
+					});
 				})();
-				create_background(category, text_box);
 				break;
 			case CATEGORIES.WORK.value:
 				(async () => {
-					await create_asset_background(text_box, this.#ASSET_TYPE.MONITOR, {
+					const ASSET_TYPES = CustomTypeManager.getTypes();
+					await create_asset_background(text_box, ASSET_TYPES.MONITOR, {
 						horizontalStretch: 2,
 						verticalStretch: 2,
 						positionOffsetX: 2.85,
@@ -344,13 +253,6 @@ export class TextContainer {
 					const textBoxPos = this.get_focused_text_x();
 					workFrame.originalPositionOffset = monitorModel.position.x - textBoxPos;
 					workFrame.positionInitialized = true;
-					if (FLAGS.SELECT_LOGS) {
-						console.log('Work frame initialized with fixed size:', {
-							fixedWidth: workFrame.fixedWidth,
-							fixedHeight: workFrame.fixedHeight,
-							positionOffset: workFrame.originalPositionOffset
-						});
-					}
 				}
 			}
 		}, 500);
@@ -360,22 +262,8 @@ export class TextContainer {
 		const found_index = incoming_name.indexOf('_');
 		const new_name = TYPES.TEXT + incoming_name.substring(found_index + 1);
 		const category = incoming_name.substring(found_index + 1);
-		
-		if (FLAGS.SELECT_LOGS) {
-			console.log('TextContainer: Focusing text box:', {
-				incoming_name,
-				new_name,
-				category,
-				available_frames: Array.from(this.text_frames.keys()),
-				available_css3d_frames: Array.from(this.css3d_frames.keys()),
-				is_column_left
-			});
-		}
 
 		if (is_column_left) {
-			if (FLAGS.SELECT_LOGS) {
-				console.log('TextContainer: Cannot focus text box while column is on left side');
-			}
 			this.lose_focus_text_box(WEST);
 			return;
 		}
@@ -409,25 +297,10 @@ export class TextContainer {
 
 			const frame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${category}`);
 			
-			console.log(`TextContainer: Checking for CSS3D frame for category: ${category}`);
 			const css3dFrame = this.css3d_frames.get(this.getCss3dAssetType(category));
 			
 			if (css3dFrame) {
-				console.log(`TextContainer: Found CSS3D frame for ${category}, calling play()`);
 				css3dFrame.play();
-			} else {
-				console.log(`TextContainer: No CSS3D frame found for category: ${category}`);
-			}
-
-			if (FLAGS.SELECT_LOGS) {
-				console.log('Frame lookup:', {
-					category,
-					frameKey: `${TYPES.TEXT_BLOCK}${category}`,
-					frameFound: !!frame,
-					css3dFrameFound: !!css3dFrame,
-					frameWindow: frame?.iframe?.contentWindow ? 'exists' : 'missing',
-					hasAnimation: frame?.iframe?.contentWindow?.trigger_frame_animation ? 'yes' : 'no'
-				});
 			}
 
 			if (frame && frame.iframe.contentWindow) {
@@ -458,23 +331,9 @@ export class TextContainer {
 							.to({ x: focusedX + frame.originalPositionOffset }, 285)
 							.easing(Easing.Sinusoidal.Out)
 							.start();
-						if (FLAGS.SELECT_LOGS) {
-							console.log('Aligning monitor with work iframe:', {
-								iframeX: focusedX,
-								monitorX: focusedX + frame.originalPositionOffset,
-								offset: frame.originalPositionOffset
-							});
-						}
 					} else {
 						const currentOffset = monitorModel.position.x - focusedX;
 						frame.originalPositionOffset = currentOffset;
-						if (FLAGS.SELECT_LOGS) {
-							console.log('First-time monitor alignment:', {
-								offset: currentOffset,
-								monitorX: monitorModel.position.x,
-								iframeX: focusedX
-							});
-						}
 					}
 
 					if (frame.fixedWidth && frame.fixedHeight) {
@@ -495,17 +354,16 @@ export class TextContainer {
 				.to({ x: this.get_focused_text_x() }, 285)
 				.easing(Easing.Sinusoidal.Out)
 				.start();
-		} else if (FLAGS.SELECT_LOGS) {
-			console.error(`Failed to find text box: ${this.focused_text_name}`);
 		}
 	}
 
 	getCss3dAssetType(category) {
+		const ASSET_TYPES = CustomTypeManager.getTypes();
 		switch (category) {
 			case CATEGORIES.CONTACT.value:
-				return this.#ASSET_TYPE.TABLET;
+				return ASSET_TYPES.TABLET;
 			case CATEGORIES.WORK.value:
-				return this.#ASSET_TYPE.MONITOR;
+				return ASSET_TYPES.MONITOR;
 			case CATEGORIES.ABOUT.value:
 				return 'ABOUT';
 			default:
@@ -632,15 +490,6 @@ export class TextContainer {
 										const textBoxPos = this.get_focused_text_x();
 										frame.originalPositionOffset = monitorModel.position.x - textBoxPos;
 										frame.positionInitialized = true;
-										if (FLAGS.SELECT_LOGS) {
-											console.log('Work frame position initialized:', {
-												monitorX: monitorModel.position.x,
-												textBoxX: textBoxPos,
-												offset: frame.originalPositionOffset,
-												fixedWidth: frame.fixedWidth,
-												fixedHeight: frame.fixedHeight
-											});
-										}
 									}
 
 									if (this.focused_text_name === `${TYPES.TEXT}${CATEGORIES.WORK.value}`) {
@@ -809,13 +658,6 @@ export class TextContainer {
 	trigger_overlay(is_overlay_hidden, tween_map) {
 		const current_pos = this.text_box_container.position.clone();
 		const target_y = is_overlay_hidden ? get_associated_position(SOUTH, this.camera) : this.get_text_box_y();
-		if (FLAGS.TWEEN_LOGS) {
-			console.log(`Text Container - Starting overlay animation:
-                Hidden: ${is_overlay_hidden}
-                Current Position: (${current_pos.x.toFixed(2)}, ${current_pos.y.toFixed(2)}, ${current_pos.z.toFixed(2)})
-                Target Y: ${target_y.toFixed(2)}
-                Map Size: ${tween_map.size}`);
-		}
 		if (!is_overlay_hidden && FLAGS.LAYER) {
 			this.set_content_layer(0);
 		}
@@ -825,11 +667,6 @@ export class TextContainer {
 			.start()
 			.onComplete(() => {
 				const final_pos = this.text_box_container.position.clone();
-				if (FLAGS.TWEEN_LOGS) {
-					console.log(`Text Container - Completed overlay animation:
-                        Hidden: ${is_overlay_hidden}
-                        Final Position: (${final_pos.x.toFixed(2)}, ${final_pos.y.toFixed(2)}, ${final_pos.z.toFixed(2)})`);
-				}
 				this.current_tween = null;
 				if (is_overlay_hidden && FLAGS.LAYER) {
 					this.set_content_layer(1);

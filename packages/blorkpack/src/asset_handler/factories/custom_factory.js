@@ -96,7 +96,6 @@ export class CustomFactory {
 			[this.#shuffledColors[i], this.#shuffledColors[j]] = [this.#shuffledColors[j], this.#shuffledColors[i]];
 		}
 		this.#colorIndex = 0;
-		console.log('Shuffled colors:', this.#shuffledColors.map(c => c.toString(16)));
 	}
 
 	getRandomColor() {
@@ -128,21 +127,15 @@ export class CustomFactory {
 				}
 			}
 		});
-		
-		console.log(`Applied random color ${randomColor.toString(16)} to asset ${model.name}`);
 	}
 
 	async spawn_custom_asset(asset_type, position = new THREE.Vector3(), rotation = new THREE.Quaternion(), options = {}) {
 		try {
 			if (!CustomTypeManager.hasLoadedCustomTypes()) {
-				console.error(`Custom types not loaded yet. Please ensure CustomTypeManager.loadCustomTypes() is called before spawning assets.`);
-				console.error(`Failed to spawn asset type: "${asset_type}"`);
-				return null;
+				throw new Error(`Custom types not loaded yet. Please ensure CustomTypeManager.loadCustomTypes() is called before spawning assets.`);
 			}
 			if (!CustomTypeManager.hasType(asset_type)) {
-				console.error(`Unsupported asset type: "${asset_type}". Cannot spawn asset.`);
-				console.error(`Available types:`, Object.keys(CustomTypeManager.getTypes()));
-				return null;
+				throw new Error(`Unsupported asset type: "${asset_type}". Available types: ${Object.keys(CustomTypeManager.getTypes()).join(', ')}`);
 			}
 
 			const customTypeKey = CustomTypeManager.getType(asset_type);
@@ -152,8 +145,7 @@ export class CustomFactory {
 
 			const gltfData = await this.storage.load_asset_type(customTypeKey);
 			if (!gltfData) {
-				console.error(`Failed to load custom asset type: ${customTypeKey}`);
-				return null;
+				throw new Error(`Failed to load custom asset type: ${customTypeKey}`);
 			}
 
 			let asset_config = this.#assetConfigs[customTypeKey];
@@ -162,8 +154,7 @@ export class CustomFactory {
 				if (asset_config) {
 					this.#assetConfigs[customTypeKey] = asset_config;
 				} else {
-					console.error(`No configuration found for custom asset type: ${customTypeKey}`);
-					return null;
+					throw new Error(`No configuration found for custom asset type: ${customTypeKey}`);
 				}
 			}
 
@@ -211,14 +202,15 @@ export class CustomFactory {
 				}
 			});
 
-			this.material_factory.applyPbrMaterial(model);
+			if (options.atlasConfig) {
+				this.material_factory.applyPbrMaterial(model, options.atlasConfig);
+			}
 
 			if (displayMeshes.length > 0) {
 				model.userData.displayMeshes = displayMeshes;
 				model.userData.switchDisplayImage = (imageIndex) => {
 					if (imageIndex < 0 || imageIndex > 2) {
-						console.error(`Invalid image index: ${imageIndex}. Must be between 0 and 2.`);
-						return;
+						throw new Error(`Invalid image index: ${imageIndex}. Must be between 0 and 2.`);
 					}
 					displayMeshes.forEach(mesh => {
 						if (mesh.material && mesh.material.map) {
@@ -291,7 +283,7 @@ export class CustomFactory {
 			};
 		} catch (error) {
 			console.error(`Error spawning custom asset ${asset_type}:`, error);
-			return null;
+			throw error;
 		}
 	}
 
@@ -459,7 +451,7 @@ export class CustomFactory {
 			return spawned_assets;
 		} catch (error) {
 			console.error("Error spawning custom assets:", error);
-			return spawned_assets;
+			throw error;
 		}
 	}
 }
