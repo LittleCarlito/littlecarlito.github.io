@@ -13,7 +13,6 @@
             font-family: Arial, sans-serif;
             overflow: hidden;
         }
-
         .scale-container {
             width: 100%;
             height: 100%;
@@ -22,79 +21,81 @@
             align-items: center;
             transform-origin: center center;
         }
-
         .page {
             width: 100%;
             height: 100%;
             background: white !important;
-            border-right: 2px solid #ccc;
-            box-shadow: 5px 0 15px rgba(0, 0, 0, 0.1);
+            border-right: 1px solid #ccc;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
             display: grid;
-            grid-template-rows: auto 1fr;
+            grid-template-rows: auto auto 1fr;
         }
-
         .header-section {
             position: relative;
             width: 100%;
+            height: 35px;
         }
-
         h1 {
             position: absolute;
             width: 100%;
             text-align: center;
-            font-size: calc(2vw + 1.5em);
+            font-size: 18px;
             margin: 0;
-            left: 60%;
-            transform: translate(-50%, -50%);
-            padding-top: 3em;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 8px;
+            font-weight: bold;
+            letter-spacing: -0.5px;
         }
-
+        .profile-text-section {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            padding: 5px 20px;
+            box-sizing: border-box;
+            gap: 20px;
+        }
         .profile-picture {
-            position: absolute;
-            top: 30px;
-            left: 10px;
-            width: 120px;
-            height: 120px;
+            width: 70px;
+            height: 70px;
             border-radius: 50%;
             object-fit: cover;
-            border: 3px solid #ccc;
+            border: 2px solid #ccc;
             pointer-events: none;
             user-select: none;
+            flex-shrink: 0;
         }
-
+        .about-text {
+            flex: 1;
+            max-width: 400px;
+            text-align: left;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            font-size: 13px;
+            line-height: 1.4;
+            letter-spacing: -0.2px;
+            font-weight: 400;
+            margin: 0;
+        }
         .content-wrapper {
             width: 100%;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 2em;
+            padding: 5px;
             box-sizing: border-box;
         }
-
-        .about-text {
-            position: absolute;
-            width: 70vw;
-            text-align: left;
-            left: 60%;
-            transform: translateX(-50%);
-            top: 80px;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            font-size: calc(1vw + 0.6em);
-        }
-
         .physics-container {
-            margin-top: 30vh;
-            width: 90vw;
-            height: 60vh;
-            border: 2px solid #ccc;
-            border-radius: 8px;
+            width: 98%;
+            height: calc(100% - 20px);
+            border: 1px solid #ccc;
+            border-radius: 4px;
             overflow: hidden;
             background: transparent;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 5px rgba(0,0,0,0.1);
             position: relative;
+            min-height: 120px;
         }
-
         .water-container {
             position: absolute;
             top: 0;
@@ -104,19 +105,11 @@
             z-index: 1;
             pointer-events: none;
         }
-
         canvas {
             cursor: grab;
-        }
-
-        @media screen and (max-width: 600px) {
-            h1 { font-size: 1.8em; }
-            .about-text { font-size: 1em; }
-        }
-
-        @media screen and (min-width: 1200px) {
-            h1 { font-size: 2.8em; }
-            .about-text { font-size: 1.2em; }
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
         }
     </style>
 </head>
@@ -124,10 +117,12 @@
     <div class="scale-container">
         <div class="page">
             <div class="header-section">
-                <img src="../images/pxArt.png" alt="Profile Picture" class="profile-picture">
                 <h1>ABOUT</h1>
             </div>
-            <p class="about-text">I have been in the software development industry since 2014. Holding positions from Change Management Representative to Java Engineer at multiple Fortune 500 and 100 companies. Programming is pretty much all I do, reach out to me and maybe I can do it for you!</p>
+            <div class="profile-text-section">
+                <img src="../images/pxArt.png" alt="Profile Picture" class="profile-picture">
+                <p class="about-text">I have been in the software development industry since 2014. Holding positions from Change Management Representative to Java Engineer at multiple Fortune 500 and 100 companies. Programming is pretty much all I do, reach out to me and maybe I can do it for you!</p>
+            </div>
             <div class="content-wrapper">
                 <div id="physics-container" class="physics-container">
                     <div id="water-container" class="water-container"></div>
@@ -186,11 +181,12 @@
                     width: container.clientWidth,
                     height: container.clientHeight,
                     wireframes: false,
-                    background: 'transparent'
+                    background: 'transparent',
+                    pixelRatio: 1
                 }
             });
 
-            const radius = 30;
+            const radius = 18;
             skills.forEach((skill) => {
                 const x = Math.random() * (container.clientWidth - radius * 2) + radius;
                 const y = Math.random() * (container.clientHeight - radius * 2) + radius;
@@ -220,11 +216,10 @@
             });
             Matter.World.add(world, mouseConstraint);
 
-            // Simplified physics behavior
             let frameCounter = 0;
             Matter.Events.on(engine, 'beforeUpdate', () => {
                 frameCounter++;
-                if (frameCounter % 3 !== 0) return; // Reduced calculation frequency
+                if (frameCounter % 3 !== 0) return;
 
                 physicsObjects.forEach(logo => {
                     const velocity = logo.velocity;
@@ -233,19 +228,18 @@
                     if (speed < 0.5) {
                         const direction = Math.random() > 0.5 ? 1 : -1;
                         Matter.Body.setVelocity(logo, {
-                            x: direction * 2,
-                            y: (Math.random() - 0.5) * 0.5
+                            x: direction * 1,
+                            y: (Math.random() - 0.5) * 0.3
                         });
                     }
                     
-                    // Simple avoidance
                     if (mouseConstraint.mouse.position) {
                         const dx = mouseConstraint.mouse.position.x - logo.position.x;
                         const dy = mouseConstraint.mouse.position.y - logo.position.y;
                         const distance = Math.sqrt(dx * dx + dy * dy);
                         
                         if (distance < radius * 4) {
-                            const force = 0.002;
+                            const force = 0.0015;
                             Matter.Body.applyForce(logo, logo.position, {
                                 x: -(dx / distance) * force,
                                 y: -(dy / distance) * force
@@ -263,7 +257,7 @@
             ];
             Matter.World.add(world, walls);
 
-            runner = Matter.Runner.create({ delta: 1000/30 }); // Reduced to 30 FPS
+            runner = Matter.Runner.create({ delta: 1000/30 });
             Matter.Runner.run(runner, engine);
             Matter.Render.run(render);
         }
@@ -275,14 +269,13 @@
             
             const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
             renderer.setSize(width, height);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setPixelRatio(1);
             container.appendChild(renderer.domElement);
             
             const scene = new THREE.Scene();
             const camera = new THREE.OrthographicCamera(-width/2, width/2, height/2, -height/2, 0.1, 1000);
             camera.position.z = 1;
             
-            // Render targets for ping-pong
             const bufferA = new THREE.WebGLRenderTarget(width, height, {
                 minFilter: THREE.NearestFilter,
                 magFilter: THREE.NearestFilter,
@@ -319,7 +312,6 @@
             let mousePosition = new THREE.Vector2(-1000, -1000);
             let mousePressed = false;
             
-            // Buffer A shader (water physics)
             const bufferAMaterial = new THREE.ShaderMaterial({
                 uniforms: {
                     iTime: { value: 0 },
@@ -361,10 +353,10 @@
                         
                         if (iMouse.x > -999.0) {
                             if (iMouse.z > 0.5 && 18.0 - length(iMouse.xy - coord) > 0.0) {
-                                t = 1.4;
+                                t = 1.2;
                             } 
                             else if (25.0 - length(iMouse.xy - coord) > 0.0) {
-                                float mouseRippleIntensity = 0.25 + 0.2 * sin(iTime * 10.0);
+                                float mouseRippleIntensity = 0.25 + 0.18 * sin(iTime * 8.0);
                                 t += mouseRippleIntensity * (1.0 - length(iMouse.xy - coord) / 25.0);
                             }
                         }
@@ -374,14 +366,13 @@
                         if (iFrame < 10) {
                             gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
                         } else {
-                            float damping = max(4.0 - length(bData.xy - coord), 0.0) * length(bData.zw + vec2(0.001)) / 200.0;
+                            float damping = max(3.0 - length(bData.xy - coord), 0.0) * length(bData.zw + vec2(0.001)) / 150.0;
                             gl_FragColor = vec4(t - damping, T(0, 0).x, 0.0, 1.0);
                         }
                     }
                 `
             });
             
-            // Buffer B shader (particle physics)
             const bufferBMaterial = new THREE.ShaderMaterial({
                 uniforms: {
                     iTime: { value: 0 },
@@ -412,7 +403,7 @@
                         return texture2D(tex, (vec2(pixel) + 0.5) / iResolution);
                     }
                     
-                    #define Pspawn 20.0
+                    #define Pspawn 18.0
                     #define Pgrid 5.0
                     #define A(U) texelFetch(iChannel0, ivec2(U), 0).x
                     #define B(a,b) texelFetch(iChannel1, ivec2(coord) + ivec2(a,b), 0)
@@ -445,7 +436,6 @@
                 `
             });
             
-            // Render shader (final output)
             const renderMaterial = new THREE.ShaderMaterial({
                 uniforms: {
                     iTime: { value: 0 },
@@ -480,8 +470,8 @@
                     #define dDB(U,R) DB(U+R)-DB(U-R)
                     
                     float shimmer(vec2 coord, float time) {
-                        float waves = sin(coord.x * 0.05 + time) * sin(coord.y * 0.04 + time * 0.8) * 0.5 + 0.5;
-                        return waves * 0.07;
+                        float waves = sin(coord.x * 0.08 + time) * sin(coord.y * 0.06 + time * 0.8) * 0.5 + 0.5;
+                        return waves * 0.05;
                     }
                     
                     void main() {
@@ -515,9 +505,9 @@
                         float rippleIntensity = abs(dA(coord, vec2(1.0, 0.0))) + abs(dA(coord, vec2(0.0, 1.0)));
                         rippleIntensity *= 0.7;
                         
-                        float baseAlpha = 0.12 * (1.0 - edgeFade * 0.3);
-                        float alphaBoost = min(0.4, rippleIntensity * 1.8);
-                        float alpha = mix(baseAlpha, min(0.25, baseAlpha + 0.15), alphaBoost);
+                        float baseAlpha = 0.10 * (1.0 - edgeFade * 0.3);
+                        float alphaBoost = min(0.35, rippleIntensity * 1.5);
+                        float alpha = mix(baseAlpha, min(0.22, baseAlpha + 0.12), alphaBoost);
                         
                         finalColor = mix(finalColor, finalColor * 1.1, min(0.4, rippleIntensity * 0.8));
                         
@@ -531,7 +521,6 @@
             const renderMesh = new THREE.Mesh(geometry, renderMaterial);
             scene.add(renderMesh);
             
-            // Mouse events
             const physicsContainer = document.getElementById('physics-container');
             
             physicsContainer.addEventListener('mouseenter', (event) => {
@@ -590,14 +579,12 @@
                 bufferBMaterial.uniforms.iMouse.value.z = 0.0;
             });
             
-            // Animation loop with performance optimization
             let frameCount = 0;
             let lastTime = 0;
             const animate = (time) => {
                 requestAnimationFrame(animate);
                 
-                // Cap to 45 FPS for better performance while keeping smoothness
-                if (time - lastTime < 22) return;
+                if (time - lastTime < 33) return;
                 lastTime = time;
                 
                 const timeValue = time * 0.001;
@@ -607,31 +594,26 @@
                 bufferBMaterial.uniforms.iFrame.value = frameCount;
                 renderMaterial.uniforms.iTime.value = timeValue;
                 
-                // Update Buffer B
                 renderer.setRenderTarget(currentBufferB);
                 bufferBMaterial.uniforms.iChannel0.value = previousBufferA.texture;
                 bufferBMaterial.uniforms.iChannel1.value = previousBufferB.texture;
                 scene.overrideMaterial = bufferBMaterial;
                 renderer.render(scene, camera);
                 
-                // Swap B buffers
                 let temp = previousBufferB;
                 previousBufferB = currentBufferB;
                 currentBufferB = temp;
                 
-                // Update Buffer A
                 renderer.setRenderTarget(currentBufferA);
                 bufferAMaterial.uniforms.iChannel0.value = previousBufferA.texture;
                 bufferAMaterial.uniforms.iChannel1.value = previousBufferB.texture;
                 scene.overrideMaterial = bufferAMaterial;
                 renderer.render(scene, camera);
                 
-                // Swap A buffers
                 temp = previousBufferA;
                 previousBufferA = currentBufferA;
                 currentBufferA = temp;
                 
-                // Render to screen
                 renderer.setRenderTarget(null);
                 renderMaterial.uniforms.iChannel0.value = previousBufferA.texture;
                 renderMaterial.uniforms.iChannel1.value = previousBufferB.texture;
@@ -651,7 +633,6 @@
             animate(0);
         }
 
-        // Optimized resize handler
         function handleResize() {
             setTimeout(() => {
                 const container = document.getElementById('physics-container');
@@ -667,7 +648,6 @@
                     render.canvas.width = newWidth;
                     render.canvas.height = newHeight;
                     
-                    // Update walls
                     if (walls && walls.length) {
                         Matter.Composite.remove(world, walls);
                     }
@@ -681,19 +661,16 @@
                 }
                 
                 if (waterEffect.initialized) {
-                    // Simple resize for water effect
                     waterEffect.renderer.setSize(newWidth, newHeight);
                     waterEffect.bufferAMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
                     waterEffect.bufferBMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
                     waterEffect.renderMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
                     
-                    // Dispose old render targets
                     waterEffect.bufferA.dispose();
                     waterEffect.bufferB.dispose();
                     waterEffect.bufferB1.dispose();
                     waterEffect.bufferB2.dispose();
                     
-                    // Create new render targets
                     const rtOptions = {
                         minFilter: THREE.NearestFilter,
                         magFilter: THREE.NearestFilter,
