@@ -254,6 +254,11 @@ export class TextContainer {
 					workFrame.positionInitialized = true;
 				}
 			}
+			// TODO OOOOO
+			// TODO Debug hide css3dframe for about while making flip aniamtion with glb
+			const ASSET_TYPES = CustomTypeManager.getTypes();
+			const aboutFrame = this.css3d_frames.get(ASSET_TYPES.BUSINESS_CARD);
+			aboutFrame.hide();
 		}, 500);
 	}
 

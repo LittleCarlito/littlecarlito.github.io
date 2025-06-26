@@ -46,7 +46,10 @@ export class CSS3DFactory {
             isPlaying: false,
             pendingContent: null,
             play: () => this.playFrame(frameTracker),
-            reset: () => this.resetFrame(frameTracker)
+            reset: () => this.resetFrame(frameTracker),
+            show: () => this.showFrame(frameTracker),
+            hide: () => this.hideFrame(frameTracker),
+            toggleVisibility: () => this.toggleFrameVisibility(frameTracker)
         };
 
         this.css3dScene.add(css3dObject);
@@ -69,6 +72,30 @@ export class CSS3DFactory {
         }, 100);
 
         return frameTracker;
+    }
+
+    showFrame(frameTracker) {
+        if (frameTracker.visible) {
+            return;
+        }
+        frameTracker.visible = true;
+        frameTracker.frame.visible = true;
+    }
+
+    hideFrame(frameTracker) {
+        if (!frameTracker.visible) {
+            return;
+        }
+        frameTracker.visible = false;
+        frameTracker.frame.visible = false;
+    }
+
+    toggleFrameVisibility(frameTracker) {
+        if (frameTracker.visible) {
+            this.hideFrame(frameTracker);
+        } else {
+            this.showFrame(frameTracker);
+        }
     }
 
     playFrame(frameTracker) {
