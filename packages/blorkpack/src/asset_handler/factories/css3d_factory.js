@@ -468,15 +468,22 @@ export class CSS3DFactory {
         const size = geometry.boundingBox.getSize(new THREE.Vector3());
         const worldScale = mesh.getWorldScale(new THREE.Vector3());
         const worldSize = size.clone().multiply(worldScale);
+        
         let isTabletDisplay = false;
+        let isBusinessCardDisplay = false;
         let current = mesh;
         while (current) {
             if (current.name && current.name.toLowerCase().includes('tablet')) {
                 isTabletDisplay = true;
                 break;
             }
+            if (current.name && (current.name.toLowerCase().includes('business') || current.name.toLowerCase().includes('card'))) {
+                isBusinessCardDisplay = true;
+                break;
+            }
             current = current.parent;
         }
+        
         if (isTabletDisplay) {
             const dimensions = [worldSize.x, worldSize.y, worldSize.z].sort((a, b) => b - a);
             return {
@@ -484,6 +491,15 @@ export class CSS3DFactory {
                 realHeight: Math.max(0.1, dimensions[1])
             };
         }
+        
+        if (isBusinessCardDisplay) {
+            const dimensions = [worldSize.x, worldSize.y, worldSize.z].sort((a, b) => b - a);
+            return {
+                realWidth: Math.max(0.1, dimensions[0]),
+                realHeight: Math.max(0.1, dimensions[1])
+            };
+        }
+        
         return {
             realWidth: Math.max(0.1, worldSize.x),
             realHeight: Math.max(0.1, worldSize.y)
@@ -498,7 +514,6 @@ export class CSS3DFactory {
             };
         }
 
-        // Handle Object3D without geometry - create simple reference geometry
         if (!mesh.geometry) {
             if (!mesh.userData.referenceGeometry) {
                 mesh.userData.referenceGeometry = new THREE.PlaneGeometry(1, 1);
@@ -535,7 +550,6 @@ export class CSS3DFactory {
             };
         }
 
-        // Original logic for meshes with geometry
         if (!mesh.userData.geometryCache) {
             const geometry = mesh.geometry;
             geometry.computeBoundingBox();
@@ -553,6 +567,7 @@ export class CSS3DFactory {
         const quaternion = new THREE.Quaternion();
         const scale = new THREE.Vector3();
         meshMatrix.decompose(position, quaternion, scale);
+        
         let normal = mesh.userData.cachedNormal;
         if (!normal) {
             normal = new THREE.Vector3(0, 0, 1);
@@ -567,7 +582,23 @@ export class CSS3DFactory {
             }
         }
         const offsetPosition = center.clone();
-        offsetPosition.add(normal.clone().multiplyScalar(0.001));
+        
+        let isBusinessCardDisplay = false;
+        let current = mesh;
+        while (current) {
+            if (current.name && (current.name.toLowerCase().includes('business') || current.name.toLowerCase().includes('card'))) {
+                isBusinessCardDisplay = true;
+                break;
+            }
+            current = current.parent;
+        }
+        
+        if (isBusinessCardDisplay) {
+            offsetPosition.add(normal.clone().multiplyScalar(0.02));
+        } else {
+            offsetPosition.add(normal.clone().multiplyScalar(0.001));
+        }
+        
         const billboardQuaternion = new THREE.Quaternion();
         return {
             position: offsetPosition,

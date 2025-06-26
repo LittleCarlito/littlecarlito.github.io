@@ -70,7 +70,6 @@ export class TextContainer {
 			if (!asset_config) {
 				throw new Error(`No configuration found for asset type: ${asset_type}`);
 			}
-			// asset_config.materials.default.orm
 			const gltf = await AssetStorage.get_instance().loader.loadAsync(asset_config.PATH);
 			const asset = gltf.scene.clone();
 
@@ -365,7 +364,7 @@ export class TextContainer {
 			case CATEGORIES.WORK.value:
 				return ASSET_TYPES.MONITOR;
 			case CATEGORIES.ABOUT.value:
-				return 'ABOUT';
+				return ASSET_TYPES.BUSINESS_CARD;
 			default:
 				return null;
 		}
@@ -521,7 +520,7 @@ export class TextContainer {
 			});
 		});
 
-		const aboutFrame = this.css3d_frames.get('ABOUT');
+		const aboutFrame = this.css3d_frames.get(this.getCss3dAssetType(CATEGORIES.ABOUT.value));
 		if (aboutFrame) {
 			const iframe = aboutFrame.frame.element;
 			iframe.style.width = `${Math.floor(this.container_width * 50)}px`;
@@ -554,6 +553,35 @@ export class TextContainer {
 						.map(child => child.children[0]);
 					if (tabletModels.length > 0) {
 						tabletModels.forEach(model => {
+							if (!model.userData.originalScale) {
+								model.userData.originalScale = model.scale.clone();
+							}
+
+							const scaleMultiplier = 1.02;
+							model.scale.set(
+								model.userData.originalScale.x * scaleMultiplier,
+								model.userData.originalScale.y * scaleMultiplier,
+								model.userData.originalScale.z * scaleMultiplier
+							);
+						});
+					}
+				}
+			}
+
+			if (incoming_simple_name === CATEGORIES.ABOUT.value && matched_frame.iframe && matched_frame.iframe.contentWindow) {
+				const isExtremeResize = previousWidth < 500 && matched_frame.pixel_width > 800;
+
+				matched_frame.iframe.contentWindow.postMessage(
+					isExtremeResize ? 'extreme-resize' : 'resize',
+					'*'
+				);
+
+				if (isExtremeResize) {
+					const businessCardModels = this.text_box_container.children
+						.filter(child => child.name?.includes('business') || child.name?.includes('card'))
+						.map(child => child.children[0]);
+					if (businessCardModels.length > 0) {
+						businessCardModels.forEach(model => {
 							if (!model.userData.originalScale) {
 								model.userData.originalScale = model.scale.clone();
 							}
