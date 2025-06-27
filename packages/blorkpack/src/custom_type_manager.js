@@ -7,12 +7,10 @@ const SCALE_FACTOR = 5;
 
 class AssetConfig {
 	constructor(config) {
-		// First assign defaults
 		this.scale = SCALE_FACTOR;
 		this.mass = 1;
 		this.restitution = 1;
 		
-		// Then explicitly assign all properties from config
 		Object.keys(config).forEach(key => {
 			this[key] = config[key];
 		});
@@ -70,7 +68,6 @@ class CustomTypeManager {
 				throw new Error(`Failed to load custom types: ${response.status} ${response.statusText}`);
 			}
 			const responseText = await response.text();
-			console.log(`DEBUG: Raw JSON response:`, responseText);
 			const customTypesData = JSON.parse(responseText);
 			if (!customTypesData || !customTypesData.custom_configs) {
 				throw new Error('Invalid custom types data: missing custom_configs');
@@ -80,20 +77,7 @@ class CustomTypeManager {
 				const config = customTypesData.custom_configs[typeName];
 				const typeKey = config.key || typeName;
 				this.types[typeName] = typeKey;
-				
-				console.log(`DEBUG: Raw config for ${typeName}:`, JSON.stringify(config, null, 2));
-				console.log(`DEBUG: Config has materials:`, !!config.materials);
-				if (config.materials) {
-					console.log(`DEBUG: Materials object keys:`, Object.keys(config.materials));
-				}
-				
 				this.configs[typeKey] = new AssetConfig(config);
-				
-				console.log(`DEBUG: AssetConfig for ${typeKey}:`, this.configs[typeKey]);
-				console.log(`DEBUG: AssetConfig has materials:`, !!this.configs[typeKey].materials);
-				if (this.configs[typeKey].materials) {
-					console.log(`DEBUG: AssetConfig materials keys:`, Object.keys(this.configs[typeKey].materials));
-				}
 			});
 
 			this.customTypesLoaded = true;

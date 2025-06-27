@@ -116,6 +116,7 @@ export class TextContainer {
 
 			let createdFrame = null;
 
+			// Handle display meshes first
 			asset.traverse((child) => {
 				if (child.isMesh) {
 					if (child.name.startsWith('display_')){
@@ -127,23 +128,30 @@ export class TextContainer {
 					}
 					else if (child.name.startsWith('col_')) {
 						child.visible = false;
-						return;
 					}
-
-					const original_material = child.material;
-
-					child.material = new THREE.MeshBasicMaterial();
-					child.material.copy(original_material);
-					child.material.needsUpdate = true;
-
-					child.material.transparent = true;
-					child.material.depthTest = false;
-					child.material.side = THREE.DoubleSide;
-					child.renderOrder = config.renderOrder;
 				}
 			});
 
-			this.material_factory.applyUnlitMaterial(asset, asset_config.materials.default);
+			// Apply the unlit material which will handle all material properties correctly
+			if (asset_config.materials && asset_config.materials.default) {
+				await this.material_factory.applyUnlitMaterial(asset, asset_config.materials.default);
+			}
+			
+			// After material factory, set mesh properties (not material properties)
+			asset.traverse((child) => {
+				if (child.isMesh && !child.name.startsWith('col_') && !child.name.startsWith('display_')) {
+					// Set renderOrder on the MESH, not the material
+					child.renderOrder = config.renderOrder;
+					
+					// Set additional material properties if needed
+					if (child.material) {
+						child.material.transparent = true;
+						child.material.depthTest = false;
+						child.material.side = THREE.DoubleSide;
+					}
+				}
+			});
+
 			incoming_box.add(asset);
 			return asset;
 		};

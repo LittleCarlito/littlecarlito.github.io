@@ -133,9 +133,9 @@ export class MaterialFactory {
                 path,
                 (texture) => {
                     if (textureType === 'baseColor') {
-                        texture.encoding = THREE.sRGBEncoding;
+                        texture.colorSpace = THREE.SRGBColorSpace;
                     } else {
-                        texture.encoding = THREE.LinearEncoding;
+                        texture.colorSpace = THREE.LinearSRGBColorSpace;
                     }
                     
                     texture.wrapS = THREE.RepeatWrapping;
@@ -146,7 +146,8 @@ export class MaterialFactory {
                 },
                 undefined,
                 (error) => {
-                    reject(error);
+                    console.warn(`Failed to load texture ${path}:`, error);
+                    resolve(null);
                 }
             );
         });
@@ -164,12 +165,12 @@ export class MaterialFactory {
             baseConfig.color = 0xcccccc;
         }
 
-        if (textureObjects.normal) {
-            baseConfig.normalMap = textureObjects.normal;
-            baseConfig.normalScale = new THREE.Vector2(1, 1);
-        }
-
         if (materialType === 'pbr') {
+            if (textureObjects.normal) {
+                baseConfig.normalMap = textureObjects.normal;
+                baseConfig.normalScale = new THREE.Vector2(1, 1);
+            }
+
             if (textureObjects.orm) {
                 baseConfig.aoMap = textureObjects.orm;
                 baseConfig.roughnessMap = textureObjects.orm;
@@ -188,7 +189,7 @@ export class MaterialFactory {
         } else if (materialType === 'unlit') {
             baseConfig.transparent = true;
             baseConfig.depthTest = false;
-            baseConfig.renderOrder = 999;
+            // REMOVED: baseConfig.renderOrder = 999; - renderOrder is not a valid material property
             
             return new THREE.MeshBasicMaterial(baseConfig);
         }

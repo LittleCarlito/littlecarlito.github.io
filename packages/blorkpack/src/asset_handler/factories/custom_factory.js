@@ -19,29 +19,14 @@ export class CustomFactory {
 	#assetTypes = null;
 	#assetConfigs = null;
 	#randomColors = [
-		0xff0000, // Red
-		0x00ff00, // Green
-		0x0000ff, // Blue
-		0xffff00, // Yellow
-		0xff00ff, // Magenta
-		0x00ffff, // Cyan
-		0xff8000, // Orange
-		0x8000ff, // Purple
-		0xff0080, // Pink
-		0x80ff00, // Lime
-		0x0080ff, // Sky Blue
-		0xff8080, // Light Red
-		0x80ff80, // Light Green
-		0x8080ff, // Light Blue
-		0xffff80, // Light Yellow
-		0xff80ff, // Light Magenta
-		0x80ffff, // Light Cyan
-		0xffc080, // Peach
-		0xc080ff, // Lavender
-		0x80ffc0, // Mint
+		0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff,
+		0xff8000, 0x8000ff, 0xff0080, 0x80ff00, 0x0080ff, 0xff8080,
+		0x80ff80, 0x8080ff, 0xffff80, 0xff80ff, 0x80ffff, 0xffc080,
+		0xc080ff, 0x80ffc0
 	];
 	#colorIndex = 0;
 	#shuffledColors = [];
+	debugMeshes = new Map();
 
 	constructor(scene = null, world = null) {
 		if (CustomFactory.#instance) {
@@ -139,9 +124,6 @@ export class CustomFactory {
 			}
 
 			const customTypeKey = CustomTypeManager.getType(asset_type);
-			if (BLORKPACK_FLAGS.ASSET_LOGS) {
-				console.log(`Spawning custom asset type: ${asset_type} (key: ${customTypeKey})`);
-			}
 
 			const gltfData = await this.storage.load_asset_type(customTypeKey);
 			if (!gltfData) {
@@ -177,24 +159,12 @@ export class CustomFactory {
 						collisionMeshes.push(child);
 					} else if (child.name.startsWith('display_')) {
 						child.visible = true;
-						if (BLORKPACK_FLAGS.ASSET_LOGS) {
-							console.log(`Setting display mesh ${child.name} to transparent by default`);
-						}
 						const displayMaterial = this.createDisplayMeshMaterial(0);
 						child.material = displayMaterial;
 						if (model.userData) {
 							model.userData.currentDisplayImage = 0;
-							if (BLORKPACK_FLAGS.ASSET_LOGS) {
-								console.log(`Set userData.currentDisplayImage to 0 (transparent) for ${model.name}`);
-							}
-						}
-						if (BLORKPACK_FLAGS.ASSET_LOGS) {
-							console.log(`Applied transparent material to display mesh: ${child.name} in ${customTypeKey}`);
 						}
 						displayMeshes.push(child);
-						if (BLORKPACK_FLAGS.ASSET_LOGS) {
-							console.log(`Found display mesh: ${child.name} in ${customTypeKey}`);
-						}
 					} else {
 						const childId = child.id || Math.floor(Math.random() * 10000);
 						child.name = `interactable_${customTypeKey}_${child.name || 'part'}_${childId}`;
@@ -269,9 +239,6 @@ export class CustomFactory {
 							console.warn('Failed to create debug wireframe:', error);
 						}
 					}
-				}
-				if (BLORKPACK_FLAGS.PHYSICS_LOGS) {
-					console.log(`Created physics body for ${customTypeKey} with mass: ${asset_config.mass || 1.0}, scale: ${scale}`);
 				}
 			}
 
@@ -401,14 +368,7 @@ export class CustomFactory {
 		try {
 			const custom_assets = manifest_manager.get_custom_assets();
 			if (!custom_assets || custom_assets.length === 0) {
-				if (BLORKPACK_FLAGS.ASSET_LOGS) {
-					console.log("No custom assets found in manifest");
-				}
 				return spawned_assets;
-			}
-
-			if (BLORKPACK_FLAGS.ASSET_LOGS) {
-				console.log(`Found ${custom_assets.length} custom assets to spawn`);
 			}
 
 			for (const asset_data of custom_assets) {
@@ -442,10 +402,6 @@ export class CustomFactory {
 					result.id = asset_data.id;
 					spawned_assets.push(result);
 				}
-			}
-
-			if (BLORKPACK_FLAGS.ASSET_LOGS) {
-				console.log(`Spawned ${spawned_assets.length} custom assets from manifest`);
 			}
 
 			return spawned_assets;
