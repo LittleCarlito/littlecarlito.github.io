@@ -378,6 +378,9 @@ export class TextContainer {
 							1250, // 500ms duration
 							{
 								easing: Easing.Quintic.In,
+								onHalfway: (asset) => {
+									aboutFrame.show();
+								},
 								onComplete: () => {
 									console.log('Business card flip completed');
 								}

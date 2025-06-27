@@ -32,6 +32,7 @@ export class AssetRotator {
 	 * @param {Function} options.easing - Easing function (default: Easing.Sinusoidal.InOut)
 	 * @param {Function} options.onUpdate - Callback during rotation (progress, asset)
 	 * @param {Function} options.onComplete - Callback when rotation completes (asset)
+	 * @param {Function} options.onHalfway - Callback when rotation reaches exactly 50% (asset)
 	 * @returns {Promise} Promise that resolves when rotation completes
 	 */
 	rotateAsset(asset, axis, radians, duration, options = {}) {
@@ -60,6 +61,7 @@ export class AssetRotator {
 				easing: options.easing || Easing.Sinusoidal.InOut,
 				onUpdate: options.onUpdate || null,
 				onComplete: options.onComplete || null,
+				onHalfway: options.onHalfway || null,
 				...options
 			};
 
@@ -71,7 +73,8 @@ export class AssetRotator {
 			const targetQuaternion = startQuaternion.clone().multiply(quaternion);
 
 			const rotationData = {
-				progress: 0
+				progress: 0,
+				halfwayTriggered: false
 			};
 
 			const tween = new Tween(rotationData)
@@ -84,6 +87,14 @@ export class AssetRotator {
 						rotationData.progress
 					);
 					asset.quaternion.copy(currentQuaternion);
+
+					// Check for halfway point (exactly 50% rotation)
+					if (!rotationData.halfwayTriggered && rotationData.progress >= 0.5) {
+						rotationData.halfwayTriggered = true;
+						if (config.onHalfway) {
+							config.onHalfway(asset);
+						}
+					}
 
 					if (config.onUpdate) {
 						config.onUpdate(rotationData.progress, asset);
@@ -169,6 +180,7 @@ export class AssetRotator {
 	 * @param {THREE.Vector3} axis - The axis to flip around
 	 * @param {number} duration - Duration of flip in milliseconds
 	 * @param {Object} options - Additional options
+	 * @param {Function} options.onHalfway - Callback when flip reaches exactly 90 degrees (halfway point)
 	 * @returns {Promise} Promise that resolves when flip completes
 	 */
 	flipAsset(asset, axis, duration, options = {}) {
@@ -181,6 +193,7 @@ export class AssetRotator {
 	 * @param {THREE.Quaternion} targetQuaternion - Target orientation
 	 * @param {number} duration - Duration of rotation in milliseconds
 	 * @param {Object} options - Additional options
+	 * @param {Function} options.onHalfway - Callback when rotation reaches halfway point
 	 * @returns {Promise} Promise that resolves when rotation completes
 	 */
 	rotateToOrientation(asset, targetQuaternion, duration, options = {}) {
@@ -204,6 +217,7 @@ export class AssetRotator {
 				easing: options.easing || Easing.Sinusoidal.InOut,
 				onUpdate: options.onUpdate || null,
 				onComplete: options.onComplete || null,
+				onHalfway: options.onHalfway || null,
 				...options
 			};
 
@@ -211,7 +225,8 @@ export class AssetRotator {
 
 			const startQuaternion = asset.quaternion.clone();
 			const rotationData = {
-				progress: 0
+				progress: 0,
+				halfwayTriggered: false
 			};
 
 			const tween = new Tween(rotationData)
@@ -224,6 +239,14 @@ export class AssetRotator {
 						rotationData.progress
 					);
 					asset.quaternion.copy(currentQuaternion);
+
+					// Check for halfway point (exactly 50% rotation)
+					if (!rotationData.halfwayTriggered && rotationData.progress >= 0.5) {
+						rotationData.halfwayTriggered = true;
+						if (config.onHalfway) {
+							config.onHalfway(asset);
+						}
+					}
 
 					if (config.onUpdate) {
 						config.onUpdate(rotationData.progress, asset);
