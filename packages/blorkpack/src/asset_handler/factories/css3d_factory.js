@@ -533,6 +533,21 @@ export class CSS3DFactory {
         };
     }
 
+    // Fixed billboard calculation to face camera
+    calculateBillboardQuaternion(position) {
+        if (!this.mainCamera) {
+            return new THREE.Quaternion();
+        }
+        
+        // CSS3D has different coordinate conventions
+        // Apply a 180-degree rotation around Y to face the right direction
+        const cameraQuat = this.mainCamera.quaternion.clone();
+        const flipQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+        cameraQuat.multiply(flipQuat);
+        
+        return cameraQuat;
+    }
+
     calculateMeshTransform(mesh, assetType = null) {
         if (!mesh) {
             return {
@@ -560,20 +575,17 @@ export class CSS3DFactory {
             const center = mesh.userData.geometryCache.center.clone();
             mesh.localToWorld(center);
             
-            const meshMatrix = mesh.matrixWorld;
-            const position = new THREE.Vector3();
-            const quaternion = new THREE.Quaternion();
-            const scale = new THREE.Vector3();
-            meshMatrix.decompose(position, quaternion, scale);
-            
             const normal = new THREE.Vector3(0, 0, 1);
             const offsetPosition = center.clone();
             offsetPosition.add(normal.clone().multiplyScalar(0.001));
             
-            const billboardQuaternion = new THREE.Quaternion();
+            // Use the mesh's world quaternion instead of calculating billboard
+            const meshQuaternion = new THREE.Quaternion();
+            mesh.getWorldQuaternion(meshQuaternion);
+            
             return {
                 position: offsetPosition,
-                quaternion: billboardQuaternion
+                quaternion: meshQuaternion
             };
         }
 
@@ -626,10 +638,13 @@ export class CSS3DFactory {
             offsetPosition.add(normal.clone().multiplyScalar(0.001));
         }
         
-        const billboardQuaternion = new THREE.Quaternion();
+        // Use the mesh's world quaternion instead of calculating billboard
+        const meshQuaternion = new THREE.Quaternion();
+        mesh.getWorldQuaternion(meshQuaternion);
+        
         return {
             position: offsetPosition,
-            quaternion: billboardQuaternion
+            quaternion: meshQuaternion
         };
     }
 
@@ -637,16 +652,15 @@ export class CSS3DFactory {
         if (!frameTracker.frame || !frameTracker.mesh) return;
         const mesh = frameTracker.mesh;
         const frame = frameTracker.frame;
-        if (!mesh.userData.lastMatrixVersion || mesh.userData.lastMatrixVersion !== mesh.matrixWorld.elements.join(',')) {
-            const transform = this.calculateMeshTransform(mesh, frameTracker.assetType);
-            frame.position.copy(transform.position);
-            frame.quaternion.copy(transform.quaternion);
-            const dimensions = this.calculateMeshDimensions(mesh);
-            const scaleX = dimensions.realWidth / 500;
-            const scaleY = dimensions.realHeight / 400;
-            frame.scale.set(scaleX, scaleY, 1);
-            mesh.userData.lastMatrixVersion = mesh.matrixWorld.elements.join(',');
-        }
+        
+        // Always update transform during camera movement - remove caching
+        const transform = this.calculateMeshTransform(mesh, frameTracker.assetType);
+        frame.position.copy(transform.position);
+        frame.quaternion.copy(transform.quaternion);
+        const dimensions = this.calculateMeshDimensions(mesh);
+        const scaleX = dimensions.realWidth / 500;
+        const scaleY = dimensions.realHeight / 400;
+        frame.scale.set(scaleX, scaleY, 1);
     }
 
     updateFrameTransformImmediate(frameTracker) {       
@@ -676,9 +690,7 @@ export class CSS3DFactory {
             this.animationId = requestAnimationFrame(animate);
             for (const frameTracker of this.frames) {
                 if (frameTracker.mesh && frameTracker.frame) {
-                    if (frameTracker.mesh.userData) {
-                        delete frameTracker.mesh.userData.lastMatrixVersion;
-                    }
+                    // Remove caching to ensure updates during camera rotation
                     this.updateFrameTransform(frameTracker);
                 }
             }

@@ -53,6 +53,22 @@ export class TextContainer {
 			this.text_frames.set(new_frame.name, new_frame);
 		};
 
+		const handleDisplay = (asset, asset_type, options) => {
+			asset.traverse((child) => {
+				if (child.isMesh) {
+					if (child.name.startsWith('display_')){
+						this.css3d_factory.createFrameOnDisplay(child, this.camera, document.body, asset_type, options.contentPath)
+							.then(frameTracker => {
+								this.css3d_frames.set(asset_type, frameTracker);
+							});
+					}
+					else if (child.name.startsWith('col_')) {
+						child.visible = false;
+					}
+				}
+			});
+		};
+
 		const create_asset_background = async (incoming_box, asset_type, options = {}) => {
 			const config = {
 				horizontalStretch: 1.0,
@@ -115,36 +131,16 @@ export class TextContainer {
 				}
 			}
 
-			let createdFrame = null;
+			handleDisplay(asset, asset_type, options);
 
-			// Handle display meshes first
-			asset.traverse((child) => {
-				if (child.isMesh) {
-					if (child.name.startsWith('display_')){
-						this.css3d_factory.createFrameOnDisplay(child, this.camera, document.body, asset_type, options.contentPath)
-							.then(frameTracker => {
-								this.css3d_frames.set(asset_type, frameTracker);
-								createdFrame = frameTracker;
-							});
-					}
-					else if (child.name.startsWith('col_')) {
-						child.visible = false;
-					}
-				}
-			});
-
-			// Apply the unlit material which will handle all material properties correctly
 			if (asset_config.materials && asset_config.materials.default) {
 				await this.material_factory.applyUnlitMaterial(asset, asset_config.materials.default);
 			}
 			
-			// After material factory, set mesh properties (not material properties)
 			asset.traverse((child) => {
 				if (child.isMesh && !child.name.startsWith('col_') && !child.name.startsWith('display_')) {
-					// Set renderOrder on the MESH, not the material
 					child.renderOrder = config.renderOrder;
 					
-					// Set additional material properties if needed
 					if (child.material) {
 						child.material.transparent = true;
 						child.material.depthTest = false;
@@ -366,7 +362,6 @@ export class TextContainer {
 				.easing(Easing.Sinusoidal.Out)
 				.start();
 
-			// Handle business card flip after focus tween completes
 			if (category === CATEGORIES.ABOUT.value && this.business_card_asset) {
 				const aboutFrame = this.css3d_frames.get(ASSET_TYPES.BUSINESS_CARD);
 				aboutFrame.hide();
@@ -374,8 +369,8 @@ export class TextContainer {
 					try {
 						this.asset_handler.flipAsset(
 							this.business_card_asset,
-							new THREE.Vector3(0, 0, 1), // Y-axis flip
-							1250, // 500ms duration
+							new THREE.Vector3(0, 0, 1),
+							1250,
 							{
 								easing: Easing.Quintic.In,
 								onHalfway: (asset) => {
