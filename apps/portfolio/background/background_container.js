@@ -60,7 +60,7 @@ export class BackgroundContainer {
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.ROOM}`;
 				this.asset_manifest.add(mesh.name);
 				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Room with name: ${mesh.name}`);
-				const deskPosition = new THREE.Vector3(-.75, FLOOR_HEIGHT, -.75);
+				const deskPosition = new THREE.Vector3(-.5, FLOOR_HEIGHT, -.75);
 				const deskAtlas = ASSET_CONFIGS[ASSET_TYPE.DESK].materials.default;
 				const deskResult = await asset_loader.spawn_asset(
 					ASSET_TYPE.DESK,

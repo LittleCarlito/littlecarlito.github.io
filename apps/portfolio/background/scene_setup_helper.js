@@ -65,7 +65,7 @@ export const SceneSetupHelper = {
 		return new Promise((resolve, reject) => {
 			const loader = new EXRLoader();
 			
-			loader.load('/images/golden_gate_hills.exr', 
+			loader.load('/images/studio_small.exr', 
 				(texture) => {
 					texture.mapping = THREE.EquirectangularReflectionMapping;
 					scene.background = texture;
@@ -100,7 +100,7 @@ export const SceneSetupHelper = {
 		return new Promise((resolve, reject) => {
 			const loader = new EXRLoader();
 			
-			loader.load('/images/golden_gate_hills.exr',
+			loader.load('/images/studio_small.exr',
 				(texture) => {
 					texture.mapping = THREE.EquirectangularReflectionMapping;
 					scene.environment = texture;
