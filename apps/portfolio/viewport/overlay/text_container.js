@@ -20,6 +20,7 @@ export class TextContainer {
 	particles = [];
 	asset_handler;
 	css3d_factory;
+	business_card_asset = null;
 
 	constructor(incoming_parent, incoming_camera) {
 		this.parent = incoming_parent;
@@ -205,7 +206,7 @@ export class TextContainer {
 			case CATEGORIES.ABOUT.value:
 				(async () => {
 					const ASSET_TYPES = CustomTypeManager.getTypes();
-					await create_asset_background(text_box, ASSET_TYPES.BUSINESS_CARD, {
+					const businessCardAsset = await create_asset_background(text_box, ASSET_TYPES.BUSINESS_CARD, {
 						horizontalStretch: 2,
 						verticalStretch: 2,
 						positionOffsetX: 0,
@@ -214,6 +215,7 @@ export class TextContainer {
 						rotation: new THREE.Euler(Math.PI / 2, 0, 0, 'XYZ'),
 						contentPath: '/pages/about.html'
 					});
+					this.business_card_asset = businessCardAsset;
 				})();
 				break;
 			case CATEGORIES.WORK.value:
@@ -262,15 +264,11 @@ export class TextContainer {
 					workFrame.positionInitialized = true;
 				}
 			}
-			// TODO OOOOO
-			// TODO Debug hide css3dframe for about while making flip aniamtion with glb
-			const ASSET_TYPES = CustomTypeManager.getTypes();
-			const aboutFrame = this.css3d_frames.get(ASSET_TYPES.BUSINESS_CARD);
-			aboutFrame.hide();
 		}, 500);
 	}
 
 	focus_text_box(incoming_name, is_column_left) {
+		const ASSET_TYPES = CustomTypeManager.getTypes();
 		const found_index = incoming_name.indexOf('_');
 		const new_name = TYPES.TEXT + incoming_name.substring(found_index + 1);
 		const category = incoming_name.substring(found_index + 1);
@@ -362,10 +360,34 @@ export class TextContainer {
 			if (FLAGS.LAYER) {
 				this.set_content_layer(this.focused_text_name, 0);
 			}
-			new Tween(selected_text_box.position)
+			
+			const focusTween = new Tween(selected_text_box.position)
 				.to({ x: this.get_focused_text_x() }, 285)
 				.easing(Easing.Sinusoidal.Out)
 				.start();
+
+			// Handle business card flip after focus tween completes
+			if (category === CATEGORIES.ABOUT.value && this.business_card_asset) {
+				const aboutFrame = this.css3d_frames.get(ASSET_TYPES.BUSINESS_CARD);
+				aboutFrame.hide();
+				focusTween.onComplete(() => {
+					try {
+						this.asset_handler.flipAsset(
+							this.business_card_asset,
+							new THREE.Vector3(0, 0, 1), // Y-axis flip
+							1250, // 500ms duration
+							{
+								easing: Easing.Quintic.In,
+								onComplete: () => {
+									console.log('Business card flip completed');
+								}
+							}
+						);
+					} catch (error) {
+						console.error('Error flipping business card:', error);
+					}
+				});
+			}
 		}
 	}
 

@@ -5,10 +5,11 @@ import { AssetStorage } from "../../asset_storage.js";
 import { BLORKPACK_FLAGS } from "../../blorkpack_flags.js";
 import { CollisionFactory } from "./collision_factory.js";
 import { MaterialFactory } from "./material_factory.js";
+import { AssetRotator } from "../common/asset_rotator.js";
 
 /**
  * Factory class responsible for spawning custom assets in the scene.
- * Handles loading and spawning of custom 3D models with physics.
+ * Handles loading and spawning of custom 3D models with physics and rotation capabilities.
  */
 export class CustomFactory {
 	static #instance = null;
@@ -27,6 +28,7 @@ export class CustomFactory {
 	#colorIndex = 0;
 	#shuffledColors = [];
 	debugMeshes = new Map();
+	rotator;
 
 	constructor(scene = null, world = null) {
 		if (CustomFactory.#instance) {
@@ -39,6 +41,7 @@ export class CustomFactory {
 		this.#assetConfigs = CustomTypeManager.getConfigs();
 		this.shuffleColors();
 		this.material_factory = new MaterialFactory();
+		this.rotator = AssetRotator.get_instance();
 		CustomFactory.#instance = this;
 		CustomFactory.#disposed = false;
 	}
@@ -59,6 +62,9 @@ export class CustomFactory {
 
 	dispose() {
 		if (!CustomFactory.#instance) return;
+		if (this.rotator) {
+			this.rotator.dispose();
+		}
 		this.scene = null;
 		this.world = null;
 		this.storage = null;
@@ -112,6 +118,92 @@ export class CustomFactory {
 				}
 			}
 		});
+	}
+
+	/**
+	 * Rotates a spawned asset around a specified axis
+	 * @param {THREE.Object3D|string} assetOrInstanceId - Asset mesh or instance ID
+	 * @param {THREE.Vector3} axis - Rotation axis (will be normalized)
+	 * @param {number} radians - Rotation amount in radians
+	 * @param {number} duration - Duration in milliseconds
+	 * @param {Object} options - Additional options (easing, onUpdate, onComplete)
+	 * @returns {Promise} Promise that resolves when rotation completes
+	 */
+	async rotateAsset(assetOrInstanceId, axis, radians, duration, options = {}) {
+		let asset;
+		
+		if (typeof assetOrInstanceId === 'string') {
+			const assetData = this.storage.get_object(assetOrInstanceId);
+			if (!assetData || !assetData.mesh) {
+				throw new Error(`Asset with instance ID ${assetOrInstanceId} not found`);
+			}
+			asset = assetData.mesh;
+		} else if (assetOrInstanceId && assetOrInstanceId.isObject3D) {
+			asset = assetOrInstanceId;
+		} else {
+			throw new Error('Invalid asset provided - must be Object3D or valid instance ID');
+		}
+
+		return this.rotator.rotateAsset(asset, axis, radians, duration, options);
+	}
+
+	/**
+	 * Flips a spawned asset 180 degrees around an axis
+	 * @param {THREE.Object3D|string} assetOrInstanceId - Asset mesh or instance ID
+	 * @param {THREE.Vector3} axis - Flip axis
+	 * @param {number} duration - Duration in milliseconds
+	 * @param {Object} options - Additional options
+	 * @returns {Promise} Promise that resolves when flip completes
+	 */
+	async flipAsset(assetOrInstanceId, axis, duration, options = {}) {
+		return this.rotateAsset(assetOrInstanceId, axis, Math.PI, duration, options);
+	}
+
+	/**
+	 * Stops rotation for a spawned asset
+	 * @param {THREE.Object3D|string} assetOrInstanceId - Asset mesh or instance ID
+	 */
+	stopAssetRotation(assetOrInstanceId) {
+		let asset;
+		
+		if (typeof assetOrInstanceId === 'string') {
+			const assetData = this.storage.get_object(assetOrInstanceId);
+			if (!assetData || !assetData.mesh) {
+				console.warn(`Asset with instance ID ${assetOrInstanceId} not found`);
+				return;
+			}
+			asset = assetData.mesh;
+		} else if (assetOrInstanceId && assetOrInstanceId.isObject3D) {
+			asset = assetOrInstanceId;
+		} else {
+			console.warn('Invalid asset provided to stopAssetRotation');
+			return;
+		}
+
+		this.rotator.stopRotation(asset);
+	}
+
+	/**
+	 * Checks if an asset is currently rotating
+	 * @param {THREE.Object3D|string} assetOrInstanceId - Asset mesh or instance ID
+	 * @returns {boolean} True if asset is rotating
+	 */
+	isAssetRotating(assetOrInstanceId) {
+		let asset;
+		
+		if (typeof assetOrInstanceId === 'string') {
+			const assetData = this.storage.get_object(assetOrInstanceId);
+			if (!assetData || !assetData.mesh) {
+				return false;
+			}
+			asset = assetData.mesh;
+		} else if (assetOrInstanceId && assetOrInstanceId.isObject3D) {
+			asset = assetOrInstanceId;
+		} else {
+			return false;
+		}
+
+		return this.rotator.isRotating(asset);
 	}
 
 	async spawn_custom_asset(asset_type, position = new THREE.Vector3(), rotation = new THREE.Quaternion(), options = {}) {
@@ -192,6 +284,23 @@ export class CustomFactory {
 				};
 			}
 
+			// Add rotation methods to the model's userData for easy access
+			model.userData.rotate = (axis, radians, duration, rotationOptions = {}) => {
+				return this.rotateAsset(model, axis, radians, duration, rotationOptions);
+			};
+
+			model.userData.flip = (axis, duration, rotationOptions = {}) => {
+				return this.flipAsset(model, axis, duration, rotationOptions);
+			};
+
+			model.userData.stopRotation = () => {
+				this.stopAssetRotation(model);
+			};
+
+			model.userData.isRotating = () => {
+				return this.isAssetRotating(model);
+			};
+
 			await new Promise(resolve => setTimeout(resolve, 0));
 			this.scene.add(model);
 			model.userData.assetType = customTypeKey;
@@ -246,7 +355,11 @@ export class CustomFactory {
 			return {
 				mesh: model,
 				body: physicsBody,
-				instance_id
+				instance_id,
+				rotate: model.userData.rotate,
+				flip: model.userData.flip,
+				stopRotation: model.userData.stopRotation,
+				isRotating: model.userData.isRotating
 			};
 		} catch (error) {
 			console.error(`Error spawning custom asset ${asset_type}:`, error);
