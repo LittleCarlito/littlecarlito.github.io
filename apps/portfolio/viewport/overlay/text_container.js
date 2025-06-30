@@ -123,14 +123,6 @@ export class TextContainer {
 			config.position.z += config.positionOffsetZ;
 			asset.position.copy(config.position);
 
-			if (config.rotation) {
-				if (config.rotation instanceof THREE.Euler) {
-					asset.rotation.copy(config.rotation);
-				} else {
-					asset.rotation.set(config.rotation.x || 0, config.rotation.y || 0, config.rotation.z || 0);
-				}
-			}
-
 			handleDisplay(asset, asset_type, options);
 
 			if (asset_config.materials && asset_config.materials.default) {

@@ -13,17 +13,93 @@ export class CSS3DFactory {
         this.materialFactory = new MaterialFactory();
     }
 
-    async createFrameOnDisplay(incomingMesh, sceneCamera, parentElement, assetType = null, filePath = null) {
+    async createFrameOnDisplay(displayMesh, sceneCamera, parentElement, assetType = null, filePath = null) {
         if (!this.isInitialized) {
             this.initializeCSS3D(parentElement || document.body);
         }
         this.mainCamera = sceneCamera;
         
-        const frameTracker = await this.createCSS3DFrame(500, 400, filePath, incomingMesh, assetType);
+        this.validateDisplayMesh(displayMesh);
+        
+        const frameTracker = await this.createCSS3DFrame(500, 400, filePath, displayMesh, assetType);
         return frameTracker;
     }
 
-    async createCSS3DFrame(width, height, filePath = null, mesh = null, assetType = null) {
+    validateDisplayMesh(mesh) {
+        if (!mesh) {
+            throw new Error('Display mesh is null or undefined');
+        }
+
+        if (!mesh.isMesh) {
+            throw new Error('Display object is not a mesh');
+        }
+
+        if (!mesh.geometry) {
+            throw new Error(`Display mesh "${mesh.name}" has no geometry`);
+        }
+
+        const geometry = mesh.geometry;
+        
+        if (geometry.type === 'PlaneGeometry' || geometry.type === 'BoxGeometry') {
+            return;
+        }
+
+        const positions = geometry.attributes.position;
+        if (!positions || positions.count < 4) {
+            throw new Error(`Display mesh "${mesh.name}" is not a valid rectangle - insufficient vertices`);
+        }
+    }
+
+    determineDisplaySurfaceNormal(displayMesh) {
+        const geometry = displayMesh.geometry;
+        
+        if (geometry.type === 'PlaneGeometry') {
+            const normal = new THREE.Vector3(0, 0, 1);
+            const normalMatrix = new THREE.Matrix3().getNormalMatrix(displayMesh.matrixWorld);
+            normal.applyMatrix3(normalMatrix).normalize();
+            return normal;
+        }
+
+        if (geometry.attributes.normal) {
+            const normalAttribute = geometry.attributes.normal;
+            const normal = new THREE.Vector3();
+            normal.fromBufferAttribute(normalAttribute, 0);
+            
+            const normalMatrix = new THREE.Matrix3().getNormalMatrix(displayMesh.matrixWorld);
+            normal.applyMatrix3(normalMatrix).normalize();
+            return normal;
+        }
+
+        const positions = geometry.attributes.position;
+        if (positions && positions.count >= 3) {
+            const v1 = new THREE.Vector3().fromBufferAttribute(positions, 0);
+            const v2 = new THREE.Vector3().fromBufferAttribute(positions, 1);
+            const v3 = new THREE.Vector3().fromBufferAttribute(positions, 2);
+
+            v1.applyMatrix4(displayMesh.matrixWorld);
+            v2.applyMatrix4(displayMesh.matrixWorld);
+            v3.applyMatrix4(displayMesh.matrixWorld);
+
+            const edge1 = v2.clone().sub(v1);
+            const edge2 = v3.clone().sub(v1);
+            const normal = edge1.cross(edge2).normalize();
+            return normal;
+        }
+
+        const normal = new THREE.Vector3(0, 0, 1);
+        const normalMatrix = new THREE.Matrix3().getNormalMatrix(displayMesh.matrixWorld);
+        normal.applyMatrix3(normalMatrix).normalize();
+        return normal;
+    }
+
+    isLayingDownMesh(displayMesh) {
+        const normal = this.determineDisplaySurfaceNormal(displayMesh);
+        const upVector = new THREE.Vector3(0, 1, 0);
+        const dotProduct = Math.abs(normal.dot(upVector));
+        return dotProduct > 0.7;
+    }
+
+    async createCSS3DFrame(width, height, filePath = null, displayMesh = null, assetType = null) {
         if (!this.isInitialized) {
             this.initializeCSS3D(document.body);
         }
@@ -38,7 +114,7 @@ export class CSS3DFactory {
         const css3dObject = new CSS3DObject(iframe);
 
         const frameTracker = {
-            mesh: mesh,
+            mesh: displayMesh,
             frame: css3dObject,
             visible: true,
             assetType: assetType,
@@ -55,7 +131,7 @@ export class CSS3DFactory {
         this.css3dScene.add(css3dObject);
         this.frames.push(frameTracker);
 
-        if (mesh) {
+        if (displayMesh) {
             this.updateFrameTransform(frameTracker);
         }
 
@@ -488,44 +564,27 @@ export class CSS3DFactory {
 </html>`;
     }
 
-    calculateMeshDimensions(mesh) {
-        if (!mesh || !mesh.geometry) return { realWidth: 1, realHeight: 1 };
-        const geometry = mesh.geometry;
+    calculateMeshDimensionsInLocalSpace(displayMesh) {
+        if (!displayMesh || !displayMesh.geometry) return { realWidth: 1, realHeight: 1 };
+        
+        const geometry = displayMesh.geometry;
         geometry.computeBoundingBox();
         const size = geometry.boundingBox.getSize(new THREE.Vector3());
-        const worldScale = mesh.getWorldScale(new THREE.Vector3());
+        
+        return {
+            realWidth: Math.max(0.1, Math.abs(size.x)),
+            realHeight: Math.max(0.1, Math.abs(size.y))
+        };
+    }
+
+    calculateMeshDimensions(displayMesh) {
+        if (!displayMesh || !displayMesh.geometry) return { realWidth: 1, realHeight: 1 };
+        
+        const geometry = displayMesh.geometry;
+        geometry.computeBoundingBox();
+        const size = geometry.boundingBox.getSize(new THREE.Vector3());
+        const worldScale = displayMesh.getWorldScale(new THREE.Vector3());
         const worldSize = size.clone().multiply(worldScale);
-        
-        let isTabletDisplay = false;
-        let isBusinessCardDisplay = false;
-        let current = mesh;
-        while (current) {
-            if (current.name && current.name.toLowerCase().includes('tablet')) {
-                isTabletDisplay = true;
-                break;
-            }
-            if (current.name && (current.name.toLowerCase().includes('business') || current.name.toLowerCase().includes('card'))) {
-                isBusinessCardDisplay = true;
-                break;
-            }
-            current = current.parent;
-        }
-        
-        if (isTabletDisplay) {
-            const dimensions = [worldSize.x, worldSize.y, worldSize.z].sort((a, b) => b - a);
-            return {
-                realWidth: Math.max(0.1, dimensions[0]),
-                realHeight: Math.max(0.1, dimensions[1])
-            };
-        }
-        
-        if (isBusinessCardDisplay) {
-            const dimensions = [worldSize.x, worldSize.y, worldSize.z].sort((a, b) => b - a);
-            return {
-                realWidth: Math.max(0.1, dimensions[0]),
-                realHeight: Math.max(0.1, dimensions[1])
-            };
-        }
         
         return {
             realWidth: Math.max(0.1, worldSize.x),
@@ -533,97 +592,34 @@ export class CSS3DFactory {
         };
     }
 
-    // Fixed billboard calculation to face camera
-    calculateBillboardQuaternion(position) {
-        if (!this.mainCamera) {
-            return new THREE.Quaternion();
-        }
-        
-        // CSS3D has different coordinate conventions
-        // Apply a 180-degree rotation around Y to face the right direction
-        const cameraQuat = this.mainCamera.quaternion.clone();
-        const flipQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
-        cameraQuat.multiply(flipQuat);
-        
-        return cameraQuat;
-    }
-
-    calculateMeshTransform(mesh, assetType = null) {
-        if (!mesh) {
+    calculateMeshTransform(displayMesh, assetType = null) {
+        if (!displayMesh) {
             return {
                 position: new THREE.Vector3(0, 0, 0),
-                quaternion: new THREE.Quaternion()
+                quaternion: new THREE.Quaternion(),
+                scale: new THREE.Vector3(1, 1, 1)
             };
         }
 
-        if (!mesh.geometry) {
-            if (!mesh.userData.referenceGeometry) {
-                mesh.userData.referenceGeometry = new THREE.PlaneGeometry(1, 1);
-                mesh.userData.referenceGeometry.computeBoundingBox();
-            }
-            
-            const geometry = mesh.userData.referenceGeometry;
-            if (!mesh.userData.geometryCache) {
-                const center = new THREE.Vector3();
-                geometry.boundingBox.getCenter(center);
-                mesh.userData.geometryCache = {
-                    center: center.clone(),
-                    boundingBox: geometry.boundingBox.clone()
-                };
-            }
-            
-            const center = mesh.userData.geometryCache.center.clone();
-            mesh.localToWorld(center);
-            
-            const normal = new THREE.Vector3(0, 0, 1);
-            const offsetPosition = center.clone();
-            offsetPosition.add(normal.clone().multiplyScalar(0.001));
-            
-            // Use the mesh's world quaternion instead of calculating billboard
-            const meshQuaternion = new THREE.Quaternion();
-            mesh.getWorldQuaternion(meshQuaternion);
-            
-            return {
-                position: offsetPosition,
-                quaternion: meshQuaternion
-            };
-        }
-
-        if (!mesh.userData.geometryCache) {
-            const geometry = mesh.geometry;
+        if (!displayMesh.userData.geometryCache) {
+            const geometry = displayMesh.geometry;
             geometry.computeBoundingBox();
             const center = new THREE.Vector3();
             geometry.boundingBox.getCenter(center);
-            mesh.userData.geometryCache = {
+            displayMesh.userData.geometryCache = {
                 center: center.clone(),
                 boundingBox: geometry.boundingBox.clone()
             };
         }
-        const center = mesh.userData.geometryCache.center.clone();
-        mesh.localToWorld(center);
-        const meshMatrix = mesh.matrixWorld;
-        const position = new THREE.Vector3();
-        const quaternion = new THREE.Quaternion();
-        const scale = new THREE.Vector3();
-        meshMatrix.decompose(position, quaternion, scale);
         
-        let normal = mesh.userData.cachedNormal;
-        if (!normal) {
-            normal = new THREE.Vector3(0, 0, 1);
-            if (mesh.geometry.attributes.normal) {
-                const normalAttribute = mesh.geometry.attributes.normal;
-                if (normalAttribute.count > 0) {
-                    normal.fromBufferAttribute(normalAttribute, 0);
-                    normal.transformDirection(meshMatrix);
-                    normal.normalize();
-                    mesh.userData.cachedNormal = normal.clone();
-                }
-            }
-        }
+        const center = displayMesh.userData.geometryCache.center.clone();
+        displayMesh.localToWorld(center);
+        
+        const normal = this.determineDisplaySurfaceNormal(displayMesh);
         const offsetPosition = center.clone();
         
         let isBusinessCardDisplay = false;
-        let current = mesh;
+        let current = displayMesh;
         while (current) {
             if (current.name && (current.name.toLowerCase().includes('business') || current.name.toLowerCase().includes('card'))) {
                 isBusinessCardDisplay = true;
@@ -638,51 +634,63 @@ export class CSS3DFactory {
             offsetPosition.add(normal.clone().multiplyScalar(0.001));
         }
         
-        // Use the mesh's world quaternion instead of calculating billboard
         const meshQuaternion = new THREE.Quaternion();
-        mesh.getWorldQuaternion(meshQuaternion);
+        displayMesh.getWorldQuaternion(meshQuaternion);
+        
+        const isLayingDown = this.isLayingDownMesh(displayMesh);
+        
+        let displayQuaternion = new THREE.Quaternion();
+        let scale = new THREE.Vector3(1, 1, 1);
+        
+        if (isLayingDown) {
+            const localDimensions = this.calculateMeshDimensionsInLocalSpace(displayMesh);
+            const worldScale = displayMesh.getWorldScale(new THREE.Vector3());
+            const realWidth = localDimensions.realWidth * Math.abs(worldScale.x);
+            const realHeight = localDimensions.realHeight * Math.abs(worldScale.y);
+            
+            const scaleX = realWidth / 500;
+            const scaleY = realHeight / 400;
+            scale.set(scaleX, scaleY, 1);
+            
+            if (displayMesh.name.includes('display_')) {
+                const meshUp = new THREE.Vector3(0, 1, 0);
+                meshUp.applyQuaternion(meshQuaternion);
+                const meshForward = new THREE.Vector3(0, 0, 1);
+                meshForward.applyQuaternion(meshQuaternion);
+                
+                const displayUp = new THREE.Vector3(0, 0, -1);
+                const displayForward = meshUp.clone();
+                
+                const rotationMatrix = new THREE.Matrix4();
+                rotationMatrix.lookAt(new THREE.Vector3(0, 0, 0), displayForward, displayUp);
+                displayQuaternion.setFromRotationMatrix(rotationMatrix);
+            } else {
+                displayQuaternion.copy(meshQuaternion);
+            }
+        } else {
+            displayQuaternion.copy(meshQuaternion);
+            const dimensions = this.calculateMeshDimensions(displayMesh);
+            const scaleX = dimensions.realWidth / 500;
+            const scaleY = dimensions.realHeight / 400;
+            scale.set(scaleX, scaleY, 1);
+        }
         
         return {
             position: offsetPosition,
-            quaternion: meshQuaternion
+            quaternion: displayQuaternion,
+            scale: scale
         };
     }
 
     updateFrameTransform(frameTracker) {
         if (!frameTracker.frame || !frameTracker.mesh) return;
-        const mesh = frameTracker.mesh;
+        const displayMesh = frameTracker.mesh;
         const frame = frameTracker.frame;
         
-        // Always update transform during camera movement - remove caching
-        const transform = this.calculateMeshTransform(mesh, frameTracker.assetType);
+        const transform = this.calculateMeshTransform(displayMesh, frameTracker.assetType);
         frame.position.copy(transform.position);
         frame.quaternion.copy(transform.quaternion);
-        const dimensions = this.calculateMeshDimensions(mesh);
-        const scaleX = dimensions.realWidth / 500;
-        const scaleY = dimensions.realHeight / 400;
-        frame.scale.set(scaleX, scaleY, 1);
-    }
-
-    updateFrameTransformImmediate(frameTracker) {       
-        if (!frameTracker.frame || !frameTracker.mesh) return;
-        const mesh = frameTracker.mesh;
-        const frame = frameTracker.frame;
-        if (!mesh.userData.previousPosition) {
-            mesh.userData.previousPosition = new THREE.Vector3();
-            mesh.userData.velocity = new THREE.Vector3();
-        }
-        const transform = this.calculateMeshTransform(mesh, frameTracker.assetType);
-        const currentPos = transform.position;
-        const prevPos = mesh.userData.previousPosition;
-        mesh.userData.velocity.subVectors(currentPos, prevPos);
-        const predictedPosition = currentPos.clone().add(mesh.userData.velocity.clone().multiplyScalar(0.016));
-        frame.position.copy(predictedPosition);
-        frame.quaternion.copy(transform.quaternion);
-        const dimensions = this.calculateMeshDimensions(mesh);
-        const scaleX = dimensions.realWidth / 500;
-        const scaleY = dimensions.realHeight / 400;
-        frame.scale.set(scaleX, scaleY, 1);
-        mesh.userData.previousPosition.copy(currentPos);
+        frame.scale.copy(transform.scale);
     }
 
     startAnimationLoop() {
@@ -690,7 +698,6 @@ export class CSS3DFactory {
             this.animationId = requestAnimationFrame(animate);
             for (const frameTracker of this.frames) {
                 if (frameTracker.mesh && frameTracker.frame) {
-                    // Remove caching to ensure updates during camera rotation
                     this.updateFrameTransform(frameTracker);
                 }
             }
