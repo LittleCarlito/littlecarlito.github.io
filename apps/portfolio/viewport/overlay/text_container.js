@@ -123,7 +123,17 @@ export class TextContainer {
 			config.position.z += config.positionOffsetZ;
 			asset.position.copy(config.position);
 
-			handleDisplay(asset, asset_type, options);
+			if (config.rotation) {
+				if (config.rotation instanceof THREE.Euler) {
+					asset.rotation.copy(config.rotation);
+				} else if (config.rotation.x !== undefined) {
+					asset.rotation.set(config.rotation.x, config.rotation.y, config.rotation.z);
+				}
+			}
+
+			if (config.contentPath) {
+				handleDisplay(asset, asset_type, config);
+			}
 
 			if (asset_config.materials && asset_config.materials.default) {
 				await this.material_factory.applyUnlitMaterial(asset, asset_config.materials.default);
@@ -253,6 +263,14 @@ export class TextContainer {
 				}
 			}
 		}, 500);
+	}
+
+	setCSS3DDebugMode(enabled) {
+		this.css3d_factory.setDebugMode(enabled);
+	}
+
+	getCSS3DDebugMode() {
+		return this.css3d_factory.getDebugMode();
 	}
 
 	focus_text_box(incoming_name, is_column_left) {
@@ -544,13 +562,6 @@ export class TextContainer {
 				}
 			});
 		});
-
-		const aboutFrame = this.css3d_frames.get(this.getCss3dAssetType(CATEGORIES.ABOUT.value));
-		if (aboutFrame) {
-			const iframe = aboutFrame.frame.element;
-			iframe.style.width = `${Math.floor(this.container_width * 50)}px`;
-			iframe.style.height = `${Math.floor(this.container_height * 50)}px`;
-		}
 	}
 
 	update_iframe_size(incoming_simple_name, incoming_width, incoming_height) {

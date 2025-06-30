@@ -11,6 +11,20 @@ export class CSS3DFactory {
         this.isInitialized = false;
         this.mainCamera = null;
         this.materialFactory = new MaterialFactory();
+        this.debugMode = false;
+    }
+
+    setDebugMode(enabled) {
+        this.debugMode = enabled;
+        this.frames.forEach(frameTracker => {
+            if (frameTracker.isPlaying) {
+                this.playFrame(frameTracker);
+            }
+        });
+    }
+
+    getDebugMode() {
+        return this.debugMode;
     }
 
     async createFrameOnDisplay(displayMesh, sceneCamera, parentElement, assetType = null, filePath = null) {
@@ -39,64 +53,157 @@ export class CSS3DFactory {
         }
 
         const geometry = mesh.geometry;
-        
-        if (geometry.type === 'PlaneGeometry' || geometry.type === 'BoxGeometry') {
-            return;
-        }
-
         const positions = geometry.attributes.position;
         if (!positions || positions.count < 4) {
             throw new Error(`Display mesh "${mesh.name}" is not a valid rectangle - insufficient vertices`);
         }
     }
 
-    determineDisplaySurfaceNormal(displayMesh) {
-        const geometry = displayMesh.geometry;
+    calculateDisplayMeshDimensions(mesh) {
+        if (!mesh || !mesh.geometry) {
+            throw new Error('Display mesh or geometry not found');
+        }
         
-        if (geometry.type === 'PlaneGeometry') {
-            const normal = new THREE.Vector3(0, 0, 1);
-            const normalMatrix = new THREE.Matrix3().getNormalMatrix(displayMesh.matrixWorld);
-            normal.applyMatrix3(normalMatrix).normalize();
-            return normal;
+        const geometry = mesh.geometry;
+        const position = geometry.attributes.position;
+        
+        if (!position) {
+            throw new Error('Display mesh has no position attribute');
         }
-
-        if (geometry.attributes.normal) {
-            const normalAttribute = geometry.attributes.normal;
-            const normal = new THREE.Vector3();
-            normal.fromBufferAttribute(normalAttribute, 0);
-            
-            const normalMatrix = new THREE.Matrix3().getNormalMatrix(displayMesh.matrixWorld);
-            normal.applyMatrix3(normalMatrix).normalize();
-            return normal;
+        
+        geometry.computeBoundingBox();
+        const localSize = geometry.boundingBox.getSize(new THREE.Vector3());
+        
+        const worldScale = mesh.getWorldScale(new THREE.Vector3());
+        const worldSize = localSize.clone().multiply(worldScale);
+        
+        const dimensions = [
+            { size: worldSize.x, axis: 'x' },
+            { size: worldSize.y, axis: 'y' },
+            { size: worldSize.z, axis: 'z' }
+        ].sort((a, b) => b.size - a.size);
+        
+        if (dimensions[0].size <= 0 || dimensions[1].size <= 0) {
+            throw new Error('Could not determine rectangular face dimensions from display mesh');
         }
-
-        const positions = geometry.attributes.position;
-        if (positions && positions.count >= 3) {
-            const v1 = new THREE.Vector3().fromBufferAttribute(positions, 0);
-            const v2 = new THREE.Vector3().fromBufferAttribute(positions, 1);
-            const v3 = new THREE.Vector3().fromBufferAttribute(positions, 2);
-
-            v1.applyMatrix4(displayMesh.matrixWorld);
-            v2.applyMatrix4(displayMesh.matrixWorld);
-            v3.applyMatrix4(displayMesh.matrixWorld);
-
-            const edge1 = v2.clone().sub(v1);
-            const edge2 = v3.clone().sub(v1);
-            const normal = edge1.cross(edge2).normalize();
-            return normal;
-        }
-
-        const normal = new THREE.Vector3(0, 0, 1);
-        const normalMatrix = new THREE.Matrix3().getNormalMatrix(displayMesh.matrixWorld);
-        normal.applyMatrix3(normalMatrix).normalize();
-        return normal;
+        
+        const faceWidth = dimensions[0].size;
+        const faceHeight = dimensions[1].size;
+        
+        return { 
+            width: Math.max(50, faceWidth * 1000),
+            height: Math.max(50, faceHeight * 1000),
+            realWidth: faceWidth,
+            realHeight: faceHeight
+        };
     }
 
-    isLayingDownMesh(displayMesh) {
-        const normal = this.determineDisplaySurfaceNormal(displayMesh);
-        const upVector = new THREE.Vector3(0, 1, 0);
-        const dotProduct = Math.abs(normal.dot(upVector));
-        return dotProduct > 0.7;
+    calculateMeshTransform(mesh, offsetDistance = 0.001) {
+        if (!mesh || !mesh.geometry) {
+            return {
+                position: new THREE.Vector3(0, 0, 0),
+                rotation: new THREE.Euler(0, 0, 0),
+                quaternion: new THREE.Quaternion()
+            };
+        }
+
+        const geometry = mesh.geometry;
+        if (!geometry.boundingBox) {
+            geometry.computeBoundingBox();
+        }
+        
+        const center = new THREE.Vector3();
+        geometry.boundingBox.getCenter(center);
+        mesh.localToWorld(center);
+
+        const meshMatrix = mesh.matrixWorld.clone();
+        
+        const position = new THREE.Vector3();
+        const quaternion = new THREE.Quaternion();
+        const scale = new THREE.Vector3();
+        
+        meshMatrix.decompose(position, quaternion, scale);
+        
+        const box = geometry.boundingBox;
+        const width = box.max.x - box.min.x;
+        const height = box.max.y - box.min.y;
+        const depth = box.max.z - box.min.z;
+        
+        const dimensions = [
+            { size: width, axis: 'x' },
+            { size: height, axis: 'y' },
+            { size: depth, axis: 'z' }
+        ];
+        
+        dimensions.sort((a, b) => a.size - b.size);
+        
+        const tolerance = 0.01;
+        if (dimensions[0].size > tolerance) {
+            throw new Error(`Display mesh is not rectangular - smallest dimension (${dimensions[0].axis}: ${dimensions[0].size.toFixed(4)}) is too large`);
+        }
+        
+        const thinAxis = dimensions[0].axis;
+        
+        const isAboutSection = this.isAboutSectionFrame(mesh);
+        
+        let correctionRotation = new THREE.Quaternion();
+        
+        if (thinAxis === 'z') {
+            if (isAboutSection) {
+                correctionRotation.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+            } else {
+                correctionRotation.identity();
+            }
+        } else if (thinAxis === 'y') {
+            correctionRotation.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+            
+            if (isAboutSection) {
+                const faceAwayRotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+                correctionRotation.multiply(faceAwayRotation);
+            } else {
+                if (mesh.name && mesh.name.toLowerCase().includes('display_')) {
+                    let current = mesh.parent;
+                    let isTablet = false;
+                    while (current) {
+                        if (current.name && (current.name.toLowerCase().includes('tablet') || current.name.toLowerCase().includes('contact'))) {
+                            isTablet = true;
+                            break;
+                        }
+                        current = current.parent;
+                    }
+                    
+                    if (isTablet) {
+                        const flipRotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI);
+                        correctionRotation.multiply(flipRotation);
+                    }
+                }
+            }
+        } else if (thinAxis === 'x') {
+            if (isAboutSection) {
+                correctionRotation.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2);
+            } else {
+                correctionRotation.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
+            }
+        }
+        
+        const finalQuaternion = quaternion.clone().multiply(correctionRotation);
+
+        return {
+            position: center,
+            rotation: new THREE.Euler().setFromQuaternion(finalQuaternion),
+            quaternion: finalQuaternion
+        };
+    }
+
+    isAboutSectionFrame(mesh) {
+        let current = mesh;
+        while (current) {
+            if (current.name && (current.name.toLowerCase().includes('business') || current.name.toLowerCase().includes('card'))) {
+                return true;
+            }
+            current = current.parent;
+        }
+        return false;
     }
 
     async createCSS3DFrame(width, height, filePath = null, displayMesh = null, assetType = null) {
@@ -116,6 +223,8 @@ export class CSS3DFactory {
         const frameTracker = {
             mesh: displayMesh,
             frame: css3dObject,
+            frameWidth: width,
+            frameHeight: height,
             visible: true,
             assetType: assetType,
             filePath: filePath,
@@ -150,6 +259,23 @@ export class CSS3DFactory {
         return frameTracker;
     }
 
+    updateFrameTransform(frameTracker) {
+        if (!frameTracker.frame || !frameTracker.mesh) return;
+        
+        const displayMesh = frameTracker.mesh;
+        const frame = frameTracker.frame;
+        
+        const transform = this.calculateMeshTransform(displayMesh, 0.001);
+        frame.position.copy(transform.position);
+        frame.rotation.copy(transform.rotation);
+        frame.quaternion.copy(transform.quaternion);
+        
+        const dimensions = this.calculateDisplayMeshDimensions(displayMesh);
+        const scaleX = dimensions.realWidth / frameTracker.frameWidth;
+        const scaleY = dimensions.realHeight / frameTracker.frameHeight;
+        frame.scale.set(scaleX, scaleY, 1);
+    }
+
     showFrame(frameTracker) {
         if (frameTracker.visible) {
             return;
@@ -182,18 +308,7 @@ export class CSS3DFactory {
         
         const iframe = frameTracker.frame.element;
         
-        if (frameTracker.pendingContent) {
-            iframe.src = 'about:blank';
-            setTimeout(() => {
-                if (iframe.contentDocument) {
-                    iframe.contentDocument.open();
-                    iframe.contentDocument.write(this.wrapContentWithScrollControl(frameTracker.pendingContent));
-                    iframe.contentDocument.close();
-                }
-            }, 150);
-        } else if (frameTracker.filePath) {
-            this.loadExternalContentDeferred(iframe, frameTracker.filePath, frameTracker.assetType);
-        } else {
+        if (this.debugMode) {
             iframe.src = 'about:blank';
             setTimeout(() => {
                 if (iframe.contentDocument) {
@@ -202,6 +317,28 @@ export class CSS3DFactory {
                     iframe.contentDocument.close();
                 }
             }, 150);
+        } else {
+            if (frameTracker.pendingContent) {
+                iframe.src = 'about:blank';
+                setTimeout(() => {
+                    if (iframe.contentDocument) {
+                        iframe.contentDocument.open();
+                        iframe.contentDocument.write(this.wrapContentWithScrollControl(frameTracker.pendingContent));
+                        iframe.contentDocument.close();
+                    }
+                }, 150);
+            } else if (frameTracker.filePath) {
+                this.loadExternalContentDeferred(iframe, frameTracker.filePath, frameTracker.assetType);
+            } else {
+                iframe.src = 'about:blank';
+                setTimeout(() => {
+                    if (iframe.contentDocument) {
+                        iframe.contentDocument.open();
+                        iframe.contentDocument.write(this.getDebugHTML());
+                        iframe.contentDocument.close();
+                    }
+                }, 150);
+            }
         }
     }
 
@@ -262,6 +399,21 @@ export class CSS3DFactory {
                 }
             }, 150);
         }
+    }
+
+    startAnimationLoop() {
+        const animate = () => {
+            this.animationId = requestAnimationFrame(animate);
+            for (const frameTracker of this.frames) {
+                if (frameTracker.mesh && frameTracker.frame) {
+                    this.updateFrameTransform(frameTracker);
+                }
+            }
+            if (this.css3dRenderer && this.css3dScene && this.mainCamera) {
+                this.css3dRenderer.render(this.css3dScene, this.mainCamera);
+            }
+        };
+        animate();
     }
 
     getLoadingHTML() {
@@ -562,150 +714,6 @@ export class CSS3DFactory {
     <div class="error-path">Error: ${errorMessage}</div>
 </body>
 </html>`;
-    }
-
-    calculateMeshDimensionsInLocalSpace(displayMesh) {
-        if (!displayMesh || !displayMesh.geometry) return { realWidth: 1, realHeight: 1 };
-        
-        const geometry = displayMesh.geometry;
-        geometry.computeBoundingBox();
-        const size = geometry.boundingBox.getSize(new THREE.Vector3());
-        
-        return {
-            realWidth: Math.max(0.1, Math.abs(size.x)),
-            realHeight: Math.max(0.1, Math.abs(size.y))
-        };
-    }
-
-    calculateMeshDimensions(displayMesh) {
-        if (!displayMesh || !displayMesh.geometry) return { realWidth: 1, realHeight: 1 };
-        
-        const geometry = displayMesh.geometry;
-        geometry.computeBoundingBox();
-        const size = geometry.boundingBox.getSize(new THREE.Vector3());
-        const worldScale = displayMesh.getWorldScale(new THREE.Vector3());
-        const worldSize = size.clone().multiply(worldScale);
-        
-        return {
-            realWidth: Math.max(0.1, worldSize.x),
-            realHeight: Math.max(0.1, worldSize.y)
-        };
-    }
-
-    calculateMeshTransform(displayMesh, assetType = null) {
-        if (!displayMesh) {
-            return {
-                position: new THREE.Vector3(0, 0, 0),
-                quaternion: new THREE.Quaternion(),
-                scale: new THREE.Vector3(1, 1, 1)
-            };
-        }
-
-        if (!displayMesh.userData.geometryCache) {
-            const geometry = displayMesh.geometry;
-            geometry.computeBoundingBox();
-            const center = new THREE.Vector3();
-            geometry.boundingBox.getCenter(center);
-            displayMesh.userData.geometryCache = {
-                center: center.clone(),
-                boundingBox: geometry.boundingBox.clone()
-            };
-        }
-        
-        const center = displayMesh.userData.geometryCache.center.clone();
-        displayMesh.localToWorld(center);
-        
-        const normal = this.determineDisplaySurfaceNormal(displayMesh);
-        const offsetPosition = center.clone();
-        
-        let isBusinessCardDisplay = false;
-        let current = displayMesh;
-        while (current) {
-            if (current.name && (current.name.toLowerCase().includes('business') || current.name.toLowerCase().includes('card'))) {
-                isBusinessCardDisplay = true;
-                break;
-            }
-            current = current.parent;
-        }
-        
-        if (isBusinessCardDisplay) {
-            offsetPosition.add(normal.clone().multiplyScalar(0.02));
-        } else {
-            offsetPosition.add(normal.clone().multiplyScalar(0.001));
-        }
-        
-        const meshQuaternion = new THREE.Quaternion();
-        displayMesh.getWorldQuaternion(meshQuaternion);
-        
-        const isLayingDown = this.isLayingDownMesh(displayMesh);
-        
-        let displayQuaternion = new THREE.Quaternion();
-        let scale = new THREE.Vector3(1, 1, 1);
-        
-        if (isLayingDown) {
-            const localDimensions = this.calculateMeshDimensionsInLocalSpace(displayMesh);
-            const worldScale = displayMesh.getWorldScale(new THREE.Vector3());
-            const realWidth = localDimensions.realWidth * Math.abs(worldScale.x);
-            const realHeight = localDimensions.realHeight * Math.abs(worldScale.y);
-            
-            const scaleX = realWidth / 500;
-            const scaleY = realHeight / 400;
-            scale.set(scaleX, scaleY, 1);
-            
-            if (displayMesh.name.includes('display_')) {
-                const meshUp = new THREE.Vector3(0, 1, 0);
-                meshUp.applyQuaternion(meshQuaternion);
-                const meshForward = new THREE.Vector3(0, 0, 1);
-                meshForward.applyQuaternion(meshQuaternion);
-                
-                const displayUp = new THREE.Vector3(0, 0, -1);
-                const displayForward = meshUp.clone();
-                
-                const rotationMatrix = new THREE.Matrix4();
-                rotationMatrix.lookAt(new THREE.Vector3(0, 0, 0), displayForward, displayUp);
-                displayQuaternion.setFromRotationMatrix(rotationMatrix);
-            } else {
-                displayQuaternion.copy(meshQuaternion);
-            }
-        } else {
-            displayQuaternion.copy(meshQuaternion);
-            const dimensions = this.calculateMeshDimensions(displayMesh);
-            const scaleX = dimensions.realWidth / 500;
-            const scaleY = dimensions.realHeight / 400;
-            scale.set(scaleX, scaleY, 1);
-        }
-        
-        return {
-            position: offsetPosition,
-            quaternion: displayQuaternion,
-            scale: scale
-        };
-    }
-
-    updateFrameTransform(frameTracker) {
-        if (!frameTracker.frame || !frameTracker.mesh) return;
-        const displayMesh = frameTracker.mesh;
-        const frame = frameTracker.frame;
-        
-        const transform = this.calculateMeshTransform(displayMesh, frameTracker.assetType);
-        frame.position.copy(transform.position);
-        frame.quaternion.copy(transform.quaternion);
-        frame.scale.copy(transform.scale);
-    }
-
-    startAnimationLoop() {
-        const animate = () => {
-            this.animationId = requestAnimationFrame(animate);
-            for (const frameTracker of this.frames) {
-                if (frameTracker.mesh && frameTracker.frame) {
-                    this.updateFrameTransform(frameTracker);
-                }
-            }
-            if (this.css3dRenderer && this.css3dScene && this.mainCamera) {
-                this.css3dRenderer.render(this.css3dScene, this.mainCamera);
-            }
-        };
-        animate();
     }
 
     getDebugHTML() {
