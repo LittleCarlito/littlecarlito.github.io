@@ -16,7 +16,7 @@
     "predev": "cd ../../packages/blorkpack && pnpm run build",
     "prebuild": "cd ../../packages/blorkpack && pnpm run build",
     "dev": "vite",
-    "build": "vite build && pnpm dlx cpy-cli custom_types.json dist/",
+    "build": "vite build",
     "preview": "vite preview",
     "clean": "rimraf dist",
     "test": "cd ../.. && jest apps/portfolio/src/test tests/apps/portfolio --config=tests/config/jest/jest.config.cjs --passWithNoTests"

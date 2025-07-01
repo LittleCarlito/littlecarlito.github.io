@@ -6,7 +6,7 @@
  */
 import * as THREE from 'three';
 import { getState, updateState } from '../../util/state/scene-state.js';
-import { createMeshVisibilityPanel } from '../../panels/mesh-panel/mesh-panel.js';
+import { createMeshVisibilityPanel } from '../../panels/mesh-heading/mesh-heading.js';
 
 /**
  * Load a specific example by name

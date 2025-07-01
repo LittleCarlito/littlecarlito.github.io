@@ -11,9 +11,6 @@
             <div id="mesh-visibility-container">
                 <h4 class="subsection-header">Mesh Visibility</h4>
                 <div id="mesh-groups" class="mesh-groups-container"></div>
-                <div class="button-container" style="margin-top: 20px; text-align: center;">
-                    <button id="download-asset-btn" class="theme-toggle">Download Asset</button>
-                </div>
             </div>
         </div>
     </div>
@@ -26,8 +23,8 @@
             <span class="collapse-indicator">[+]</span>
         </div>
         <div class="metadata-content section-content" style="display: none;">
-            <!-- Atlas Panel -->
-            <div id="atlas-panel-container" class="panel-container">
+            <!-- Atlas Heading -->
+            <div id="atlas-heading-container" class="panel-container">
                 <div class="texture-type-selector">
                     <button data-texture-type="baseColor" class="texture-type-button active">Base Color</button>
                     <button data-texture-type="orm" class="texture-type-button">ORM</button>
@@ -35,7 +32,7 @@
                 </div>
                 <div class="atlas-view-container">
                     <canvas id="atlas-canvas" width="256" height="256"></canvas>
-                    <div id="coords-text" class="coords-text">No texture loaded</div>
+                    <div id="coords-text" class="coords-container">No texture loaded</div>
                 </div>
             </div>
         </div>
@@ -49,8 +46,8 @@
             <span class="collapse-indicator">[+]</span>
         </div>
         <div class="metadata-content section-content" style="display: none;">
-            <!-- UV Panel -->
-            <div id="uv-panel-container" class="panel-container">
+            <!-- UV Heading -->
+            <div id="uv-heading-container" class="panel-container">
                 <div id="uv-info-container" class="uv-info-container">
                     <p>No UV data loaded yet.</p>
                 </div>
@@ -92,9 +89,9 @@
             <span class="collapse-indicator">[+]</span>
         </div>
         <div class="metadata-content section-content" style="display: none;">
-            <!-- Rig Panel -->
-            <div id="rig-panel-container" class="panel-container">
-                <div id="rig-content" class="rig-content">
+            <!-- Rig Heading -->
+            <div id="rig-heading-container" class="panel-container">
+                <div id="rig-content" class="rig-container">
                     <p>No rig data loaded yet.</p>
                 </div>
                 
@@ -118,4 +115,9 @@
             </div>
         </div>
     </div>
-</div> 
+
+    <!-- Download Asset Button - Always visible at bottom -->
+    <div class="asset-download-section">
+        <button id="download-asset-btn" class="download-asset-button">Download Asset</button>
+    </div>
+</div>

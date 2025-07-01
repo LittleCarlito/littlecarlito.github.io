@@ -1,0 +1,219 @@
+/* Mesh Info Modal Styles */
+
+/* Base modal styles */
+#mesh-info-modal {
+    display: none;
+}
+
+#mesh-info-modal.visible {
+    display: flex !important;
+    z-index: 3000;
+}
+
+.mesh-info-modal-container {
+    width: 400px;
+    max-width: 90%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Content styling */
+.mesh-info-container {
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-color);
+    padding: 5px 0;
+}
+
+.mesh-info-container strong {
+    color: var(--primary-color);
+    font-weight: bold;
+    display: block;
+    margin-top: 15px;
+    margin-bottom: 5px;
+}
+
+.mesh-info-container strong:first-child {
+    margin-top: 0;
+}
+
+/* Info sections */
+.info-section {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--panel-border);
+}
+
+.info-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+/* Property rows */
+.info-row {
+    margin: 3px 0;
+    padding-left: 10px;
+    color: var(--text-color);
+}
+
+.info-label {
+    color: var(--label-text);
+    font-weight: normal;
+}
+
+.info-value {
+    color: var(--input-text);
+    font-weight: normal;
+}
+
+/* Special styling for color values */
+.color-swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 1px solid #333;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+
+/* Transform values styling */
+.transform-value {
+    font-family: monospace;
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 2px 4px;
+    border-radius: 2px;
+    margin: 0 2px;
+}
+
+/* Geometry info styling */
+.geometry-info {
+    background-color: rgba(76, 175, 80, 0.1);
+    padding: 8px;
+    border-radius: 4px;
+    margin: 5px 0;
+}
+
+/* Material info styling */
+.material-info {
+    background-color: rgba(30, 136, 229, 0.1);
+    padding: 8px;
+    border-radius: 4px;
+    margin: 5px 0;
+}
+
+/* HTML settings styling */
+.html-settings-info {
+    background-color: rgba(241, 196, 15, 0.1);
+    padding: 8px;
+    border-radius: 4px;
+    margin: 5px 0;
+}
+
+/* Modal footer with debug buttons */
+.modal-footer {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+/* CSS3D Debug button styling */
+.modal-btn-css3d {
+    background-color: #6f42c1;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.modal-btn-css3d:hover {
+    background-color: #5a359a;
+    transform: translateY(-1px);
+}
+
+.modal-btn-css3d:active {
+    transform: translateY(0);
+}
+
+.modal-btn-css3d:disabled {
+    background-color: #666;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* CSS3D button when active */
+.modal-btn-css3d.debug-active {
+    background-color: #20c997;
+    animation: pulse-css3d 2s ease-in-out infinite;
+}
+
+.modal-btn-css3d.debug-active:hover {
+    background-color: #1ba085;
+}
+
+/* Debug texture button styling */
+.modal-btn-debug {
+    background-color: #ff6b35;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.modal-btn-debug:hover {
+    background-color: #e55a2b;
+    transform: translateY(-1px);
+}
+
+.modal-btn-debug:active {
+    transform: translateY(0);
+}
+
+.modal-btn-debug:disabled {
+    background-color: #666;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Debug button when active */
+.modal-btn-debug.debug-active {
+    background-color: #28a745;
+    animation: pulse-debug 2s ease-in-out infinite;
+}
+
+.modal-btn-debug.debug-active:hover {
+    background-color: #218838;
+}
+
+/* Pulse animations */
+@keyframes pulse-css3d {
+    0% {
+        box-shadow: 0 0 0 0 rgba(32, 201, 151, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(32, 201, 151, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(32, 201, 151, 0);
+    }
+}
+
+@keyframes pulse-debug {
+    0% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(40, 167, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+    }
+}

@@ -35,6 +35,8 @@ export * from './app_renderer.js';
 export * from './physics/index.js'; // Export physics utilities
 import { AssetStorage } from './asset_storage.js';
 import { AssetHandler } from './asset_handler/asset_handler.js';
+import { MaterialFactory } from './asset_handler/index.js';
+import { CSS3DFactory } from './asset_handler/index.js';
 import { AssetActivator } from './asset_activator.js';
 import { ManifestManager } from './manifest_manager.js';
 import { AppRenderer } from './app_renderer.js';
@@ -47,7 +49,9 @@ import { SystemAssetType } from './asset_handler/common/system_asset_types.js';
 export {
 	ManifestManager,
 	MANIFEST_TYPES,
-	AssetHandler as AssetHandler,
+	AssetHandler,
+	MaterialFactory,
+	CSS3DFactory,
 	AssetStorage,
 	AssetActivator,
 	AppRenderer,

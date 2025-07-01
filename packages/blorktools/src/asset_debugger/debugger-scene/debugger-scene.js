@@ -1,40 +1,41 @@
-// Import all dependencies at the top
+import * as THREE from 'three';
 import { loadSettings, saveSettings } from '../util/data/localstorage-manager.js';
 import { SettingsModal } from '../modals/settings-modal/settings-modal.js';
 import { initAssetPanel } from '../panels/asset-panel/asset-panel.js';
-import { initModelIntegration } from '../modals/html-editor-modal/model-integration.js';
 import { initHtmlEditorModal } from '../modals/html-editor-modal/html-editor-modal.js';
 import { initWorldPanel } from '../panels/world-panel/world-panel.js';
 import { getState, printStateReport, hasFiles } from '../util/state/scene-state.js';
 import { initUiManager } from '../util/scene/ui-manager.js';
 import { hideLoadingSplash, showLoadingSplash, updateLoadingProgress } from '../loading-splash/loading-splash.js';
-import { setupDropzones } from '../util/upload/file-upload-manager.js';
 import { terminateAllWorkers } from '../util/workers/worker-manager.js';
+import { CSS3DDebugController } from '../util/scene/css3d-debug-controller.js';
 import * as sceneController from '../util/scene/threejs-scene-controller.js';
 import * as cameraController from '../util/scene/camera-controller.js';
-import * as rigController from '../util/scene/rig/rig-controller.js';
+import * as rigController from '../util/rig/rig-controller.js';
 import * as lightingManager from '../util/scene/lighting-manager.js';
 import * as backgroundManager from '../util/scene/background-manager.js';
-import * as modelHandler from '../util/scene/model-handler.js';
-import * as textureHandler from '../util/upload/handlers/texture-file-handler.js';
+import * as modelHandler from '../util/scene/threejs-model-manager.js';
+import * as textureHandler from '../util/data/upload/texture-file-handler.js';
 import * as worldPanel from '../panels/world-panel/world-panel.js';
 import * as assetPanel from '../panels/asset-panel/asset-panel.js';
 import * as htmlEditorModule from '../modals/html-editor-modal/html-editor-modal.js';
+import * as meshInfoModule from '../modals/mesh-info-modal/mesh-info-modal.js'
 import * as stateModule from '../util/state/scene-state.js';
+import { initModelIntegration } from '../util/scene/glb-controller.js';
 
-// Debug flags
 const DEBUG_LIGHTING = false;
 
-// Component loading state tracker
+let css3dDebugController = null;
+
 const componentsLoaded = {
     worldPanel: false,
     assetPanel: false,
     settingsModal: false,
     htmlEditor: false,
+    meshInfo:false,
     scene: false
 };
 
-// Resource loading state tracker
 const resourcesLoaded = {
     componentsLoaded: false,
     sceneInitialized: false,
@@ -44,10 +45,7 @@ const resourcesLoaded = {
     controlsReady: false
 };
 
-// Track if loading is complete
 let loadingComplete = false;
-
-// Flag to indicate that page is being unloaded
 let isPageUnloading = false;
 
 export function setupDebuggerScene() {
@@ -78,27 +76,31 @@ export function setupDebuggerScene() {
     return cleanupDebuggerScene;
 }
 
+export function getCSS3DDebugController() {
+    return css3dDebugController;
+}
+
+export function setCSS3DDebugController(controller) {
+    css3dDebugController = controller;
+}
+
 function resetThreeJSState() {
     const state = stateModule.getState();
     
-    // Clear ThreeJS objects
     if (state.scene) {
         while(state.scene.children && state.scene.children.length > 0) { 
             state.scene.remove(state.scene.children[0]); 
         }
     }
     
-    // Dispose renderer
     if (state.renderer) {
         state.renderer.dispose();
     }
     
-    // Dispose controls
     if (state.controls) {
         state.controls.dispose();
     }
     
-    // Reset critical state values
     stateModule.updateState('scene', null);
     stateModule.updateState('camera', null);
     stateModule.updateState('renderer', null);
@@ -106,7 +108,6 @@ function resetThreeJSState() {
     stateModule.updateState('cube', null);
     stateModule.updateState('animating', false);
     
-    // Reset background option via DOM
     setTimeout(() => {
         const noneRadioBtn = document.querySelector('input[name="bg-option"][value="none"]');
         if (noneRadioBtn) {
@@ -124,55 +125,50 @@ function resetThreeJSState() {
 function cleanupDebuggerScene() {
     isPageUnloading = true;
     
-    // Reset HTML editor initialization flag
+    cleanupCSS3DComponents();
+    
     if (htmlEditorModule.resetInitialization) {
         htmlEditorModule.resetInitialization();
     }
     
-    // Hide UI elements immediately
     const debugControls = document.querySelector('.debug-controls');
     if (debugControls) {
         debugControls.style.display = 'none';
     }
     
-    // Force terminate any active workers
     terminateAllWorkers();
     
-    // Schedule non-critical cleanup asynchronously
     setTimeout(() => {
-        // Clean up World Panel event listeners
         if (worldPanel.cleanupWorldPanel) {
             worldPanel.cleanupWorldPanel();
         }
         
-        // Clear all file state
         if (stateModule.clearAllFiles) {
             stateModule.clearAllFiles(true);
         }
         
         const state = stateModule.getState();
         
-        // Stop animation loop
         if (state.animating && sceneController.stopAnimation) {
             sceneController.stopAnimation();
         }
         
-        // Dispose ThreeJS resources
         if (state.renderer) {
             state.renderer.dispose();
             stateModule.updateState('renderer', null);
         }
         
-        // Dispose of controls
-        if (state.controls) {
+        const controls = state.controls;
+        if (controls) {
             if (cameraController.disposeControls) {
                 cameraController.disposeControls();
             }
-            state.controls.dispose();
+            if (controls.dispose) {
+                controls.dispose();
+            }
             stateModule.updateState('controls', null);
         }
         
-        // Clean up scene
         if (state.scene) {
             while(state.scene.children && state.scene.children.length > 0) {
                 const obj = state.scene.children[0];
@@ -189,7 +185,6 @@ function cleanupDebuggerScene() {
             stateModule.updateState('scene', null);
         }
         
-        // Clean up canvas elements
         const canvasElements = document.querySelectorAll('canvas[data-animation-id]');
         canvasElements.forEach(canvas => {
             if (typeof canvas.cleanup === 'function') {
@@ -202,7 +197,6 @@ function cleanupDebuggerScene() {
             }
         });
         
-        // Reset UI state
         const noneRadioBtn = document.querySelector('input[name="bg-option"][value="none"]');
         if (noneRadioBtn) {
             noneRadioBtn.checked = true;
@@ -216,6 +210,34 @@ function cleanupDebuggerScene() {
     }, 0);
     
     return null;
+}
+
+function cleanupCSS3DComponents() {
+    if (css3dDebugController) {
+        css3dDebugController.cleanup();
+        css3dDebugController = null;
+    }
+    
+    const css3dElements = document.querySelectorAll('[style*="position: absolute"][style*="z-index: 1000"]');
+    css3dElements.forEach(element => {
+        if (element.parentNode) {
+            element.parentNode.removeChild(element);
+        }
+    });
+    
+    const css3dIframes = document.querySelectorAll('iframe[style*="border: 2px solid #00ff88"]');
+    css3dIframes.forEach(iframe => {
+        if (iframe.parentNode) {
+            iframe.parentNode.removeChild(iframe);
+        }
+    });
+    
+    const css3dRenderers = document.querySelectorAll('div[style*="position: absolute"][style*="pointer-events: none"]');
+    css3dRenderers.forEach(renderer => {
+        if (renderer.parentNode && renderer.style.zIndex === '1000') {
+            renderer.parentNode.removeChild(renderer);
+        }
+    });
 }
 
 function loadComponentHtml() {
@@ -238,7 +260,7 @@ function loadComponentHtml() {
     const settingsModalPromise = fetch('./modals/settings-modal/settings-modal.html')
         .then(response => response.text())
         .then(html => {
-            const container = document.querySelector('settings-modal-container');
+            const container = document.getElementById('settings-modal-container');
             if (container) {
                 container.innerHTML = html;
                 setTimeout(() => new SettingsModal(), 0);
@@ -283,11 +305,44 @@ function loadComponentHtml() {
             }
         });
 
+    const meshInfoPromise = fetch('./modals/mesh-info-modal/mesh-info-modal.html')
+        .then(response => response.text())
+        .then(html => {
+            const container = document.getElementById('mesh-info-modal-container');
+            
+            if (container) {
+                container.innerHTML = html;
+                
+                const modalElement = document.getElementById('mesh-info-modal');
+                
+                if (modalElement) {
+                    modalElement.style.display = 'none';
+                    
+                    if (meshInfoModule.resetInitialization) {
+                        meshInfoModule.resetInitialization();
+                    }
+                    
+                    meshInfoModule.initMeshInfoModal();
+                    
+                    componentsLoaded.meshInfo = true;
+                } else {
+                    throw new Error('Mesh info modal element not found');
+                }
+            } else {
+                throw new Error('Mesh info modal container not found');
+            }
+        })
+        .catch(error => {
+            componentsLoaded.meshInfo = false;
+        });
+
     Promise.all([
         worldPanelPromise,
         assetPanelPromise,
+        settingsModalPromise,
         axisIndicatorPromise,
-        htmlEditorPromise
+        htmlEditorPromise,
+        meshInfoPromise
     ])
     .then(() => {
         resourcesLoaded.componentsLoaded = true;
@@ -386,7 +441,6 @@ function processFilesFromState() {
         return true;
     };
 
-    // Process lighting first
     if (stateModule.hasLightingFile() && checkContinueProcessing()) {
         const lightingFile = stateModule.getLightingFile();
         promiseChain = promiseChain.then(() => {
@@ -430,7 +484,6 @@ function processFilesFromState() {
         checkAllResourcesLoaded();
     }
 
-    // Handle background file
     if (stateModule.hasBackgroundFile() && checkContinueProcessing()) {
         const backgroundFile = stateModule.getBackgroundFile();
         promiseChain = promiseChain.then(() => {
@@ -458,7 +511,6 @@ function processFilesFromState() {
         checkAllResourcesLoaded();
     }
 
-    // Handle model file
     if (stateModule.hasModelFile() && checkContinueProcessing()) {
         promiseChain = promiseChain.then(() => {
             return modelHandler.loadDebugModel();
@@ -476,7 +528,6 @@ function processFilesFromState() {
         checkAllResourcesLoaded();
     }
 
-    // Handle texture files
     if ((stateModule.hasBaseColorFile() || stateModule.hasOrmFile() || stateModule.hasNormalFile()) && checkContinueProcessing()) {
         promiseChain = promiseChain.then(() => {
             const promises = [];
@@ -495,7 +546,6 @@ function processFilesFromState() {
         });
     }
 
-    // Initialize UI panels after all resources are loaded
     promiseChain = promiseChain.then(() => {
         if (worldPanel.initWorldPanel) {
             worldPanel.initWorldPanel(false);

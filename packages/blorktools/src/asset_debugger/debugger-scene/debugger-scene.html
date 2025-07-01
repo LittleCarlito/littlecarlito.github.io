@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Asset Debugger - Blorktools</title>
-    <link rel="stylesheet" href="../styles.css">
-    <link rel="stylesheet" href="../loading-splash/loading-splash.css">
     <script>
         // Get pinned state from localStorage before DOM is constructed
         function getPinnedState() {
@@ -28,7 +26,7 @@
     </script>
 </head>
 <body>
-    <!-- Header container - will be populated by the header-loader.js script -->
+    <!-- Header container - will be populated by the header.js script -->
     <div id="header-container"></div>
     
     <div class="container">
@@ -43,7 +41,7 @@
         </div>
         
         <!-- Tab container overlay -->
-        <div id="tab-container" class="tab-container" style="display: none !important; visibility: hidden !important;">
+        <div id="tab-container" class="ui-tab-container">
             <div class="tab-navigation">
                 <button id="world-tab-button" class="tab-button active">World</button>
                 <button id="asset-tab-button" class="tab-button">Asset</button>
@@ -57,10 +55,11 @@
     <!-- Modal containers - will be loaded dynamically -->
     <div id="settings-modal-container"></div>
     <div id="html-editor-modal-container"></div>
+    <div id="mesh-info-modal-container"></div>
     
     <!-- Load the header component -->
     <script type="module">
-        import { loadHeader } from '../header/header-loader.js';
+        import { loadHeader } from '../header/header.js';
         
         // Load the header when the DOM is ready
         document.addEventListener('DOMContentLoaded', () => {

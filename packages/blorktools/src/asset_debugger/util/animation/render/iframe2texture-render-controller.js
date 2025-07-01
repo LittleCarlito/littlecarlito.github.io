@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { injectUnifiedAnimationDetectionScript } from '../../classifier/animation-classifier';
+import { injectUnifiedAnimationDetectionScript } from '../../data/animation-classifier';
 import { loadHtml2Canvas } from '../../loaders/html2canvas-loader';
 
 const HTML2CANVAS_DEBUG_FLAG = false;

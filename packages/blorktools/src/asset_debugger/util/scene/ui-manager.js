@@ -4,8 +4,8 @@
  * This module handles the UI interactions and tab switching.
  */
 import { getState } from '../state/scene-state.js';
-import { updateAtlasVisualization } from '../../panels/atlas-panel/atlas-panel.js';
-import { updateUvPanel } from '../../panels/uv-panel/uv-panel.js';
+import { updateUvPanel } from '../../panels/asset-panel/uv-heading/uv-heading.js';
+import { updateAtlasVisualization } from '../../panels/asset-panel/atlas-heading/atlas-heading.js';
 
 /**
  * Initialize the UI manager and set up event listeners
@@ -42,12 +42,12 @@ function setupTabs() {
                 panel.classList.add('active');
                 
                 // If switching to atlas tab, update atlas visualization
-                if (panelId === 'atlas-panel') {
+                if (panelId === 'atlas-heading') {
                     updateAtlasVisualization();
                 }
                 
                 // If switching to UV tab, update UV visualization
-                if (panelId === 'uv-panel') {
+                if (panelId === 'uv-heading') {
                     updateUvPanel();
                 }
             }

@@ -4,7 +4,7 @@
  * Tests for the HTML formatter in blorktools
  */
 
-import { formatHtml, hasExternalFormatter } from "../../../packages/blorktools/src/asset_debugger/modals/html-editor-modal/html-formatter";
+import { formatHtml, hasExternalFormatter } from "../../../packages/blorktools/src/asset_debugger/util/data/html-formatter";
 
 
 describe('HTML Formatter', () => {

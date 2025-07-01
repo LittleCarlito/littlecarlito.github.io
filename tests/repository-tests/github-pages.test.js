@@ -56,7 +56,7 @@ describe('GitHub Pages Deployment', () => {
 		});
 
 		test('custom_types.json exists and is valid JSON', () => {
-			const customTypesPath = path.resolve(PORTFOLIO_DIR, 'custom_types.json');
+			const customTypesPath = path.resolve(PORTFOLIO_PUBLIC_DIR, 'custom_types.json');
 			expect(fs.existsSync(customTypesPath)).toBe(true);
       
 			// Verify it's valid JSON by trying to parse it
@@ -142,4 +142,4 @@ describe('GitHub Pages Dependencies', () => {
 		const headersDistPath = path.resolve(PORTFOLIO_DIST_DIR, '_headers');
 		expect(fs.existsSync(headersDistPath)).toBe(true);
 	});
-}); 
+});

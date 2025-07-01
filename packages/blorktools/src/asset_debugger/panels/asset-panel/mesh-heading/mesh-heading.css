@@ -1,0 +1,129 @@
+/* Mesh Panel Styles */
+
+/* Mesh Visibility Panel Styles */
+#mesh-visibility-container {
+    margin-bottom: 12px;
+    width: 100%;
+}
+
+.subsection-header {
+    font-size: 0.95em;
+    color: #aaa;
+    margin: 0 0 8px 0;
+    font-weight: normal;
+}
+
+.mesh-groups-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mesh-group {
+    margin-bottom: 8px;
+}
+
+.mesh-group-header {
+    padding: 2px 0;
+    font-size: 0.9em;
+    color: #ddd;
+}
+
+.mesh-group-name {
+    margin-left: 6px;
+}
+
+.mesh-group-count {
+    font-size: 0.85em;
+    color: #777;
+}
+
+.mesh-group-collapse {
+    padding: 0 4px;
+    color: #777;
+}
+
+.mesh-items {
+    margin-left: 20px;
+    margin-top: 4px;
+}
+
+.mesh-item {
+    display: flex;
+    align-items: center;
+    padding: 2px 0;
+    font-size: 0.85em;
+}
+
+.mesh-item:hover {
+    background-color: rgba(30, 30, 30, 0.8);
+}
+
+.mesh-name {
+   margin-left: 6px;
+   margin-right: 10px;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   max-width: 170px;
+   flex-grow: 1;
+   color: var(--text-color);
+   font-size: 14px;
+}
+
+/* HTML Editor Icon */
+.mesh-html-editor-icon {
+    color: #28a745;
+    cursor: pointer;
+    margin-left: 8px;
+    font-size: 1.1em;
+    display: flex;
+    align-items: center;
+}
+
+.mesh-html-editor-icon svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+    transition: transform 0.2s ease;
+}
+
+.mesh-html-editor-icon:hover svg {
+    transform: rotate(20deg);
+}
+
+/* Mesh Info Icon */
+.mesh-info-icon {
+    color: #6c757d;
+    cursor: pointer;
+    margin-left: 8px;
+    font-size: 1.1em;
+    display: flex;
+    align-items: center;
+}
+
+.mesh-info-icon svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+}
+
+/* Mesh Item Icons Container */
+.mesh-item-icons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.mesh-toggle {
+    margin-right: 8px;
+    cursor: pointer;
+}
+
+/* No Sample Message */
+.no-sample-message {
+    text-align: center;
+    color: #777;
+    font-size: 0.9em;
+    font-style: italic;
+}

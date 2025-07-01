@@ -1,5 +1,5 @@
 import { showStatus } from "../../../modals/html-editor-modal/html-editor-modal";
-import { createMeshInfoPanel } from "../../../modals/html-editor-modal/mesh-info-panel-util";
+import { createMeshInfoPanel } from "../../../widgets/mesh-info-widget";
 import { updateMeshTexture } from "../playback/animation-playback-controller";
 import { 
     animationCaptureStartTime,
@@ -24,7 +24,7 @@ import {
     setPreRenderingInProgress 
 } from "../../state/animation-state";
 import { logAnimationAnalysisReport } from "../../state/log-util";
-import { injectUnifiedAnimationDetectionScript } from "../../classifier/animation-classifier";
+import { injectUnifiedAnimationDetectionScript } from "../../data/animation-classifier";
 
 /**
  * Start pre-rendering for CSS3D content

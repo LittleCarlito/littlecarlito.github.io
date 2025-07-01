@@ -1,0 +1,70 @@
+.uv-note {
+    font-size: 11px;
+    color: var(--label-text);
+    margin-top: 5px;
+    font-style: italic;
+}
+
+
+/* Shared UV Controls */
+.uv-info-container {
+    margin-bottom: 15px;
+    font-size: 13px;
+    color: var(--text-color);
+}
+
+.uv-control-group {
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-border);
+}
+
+.uv-control-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.85em;
+    font-weight: bold;
+    color: #aaa;
+}
+
+.uv-control-group select {
+    width: 100%;
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #555;
+    padding: 6px;
+    border-radius: 3px;
+}
+
+.uv-control-row {
+   display: flex;
+   flex-wrap: wrap;
+   align-items: center;
+   margin-bottom: 8px;
+   gap: 8px;
+}
+
+.uv-control-row label {
+    width: 70px;
+    font-size: 0.85em;
+    color: #aaa;
+}
+
+.uv-control-row span {
+    width: 20px;
+    text-align: center;
+    color: var(--text-color);
+    font-weight: bold;
+}
+
+.uv-control-row input {
+   flex: 1;
+   width: 60px;
+   padding: 5px;
+   border: 1px solid #555;
+   background-color: #333;
+   color: #fff;
+   border-radius: 3px;
+   font-family: monospace;
+}
