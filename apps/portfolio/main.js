@@ -8,7 +8,8 @@ import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewp
 import { AppRenderer } from './common/index.js';
 import { AssetStorage, AssetActivator, AssetHandler, ManifestManager, BLORKPACK_FLAGS, CustomTypeManager, 
 	shove_object, translate_object, update_mouse_position, zoom_object_in, zoom_object_out, 
-	grab_object, release_object, initPhysicsUtil } from '@littlecarlito/blorkpack';
+	grab_object, release_object, initPhysicsUtil, 
+	resolvePath} from '@littlecarlito/blorkpack';
 import { toggleDebugUI, createDebugUI as create_debug_UI, setBackgroundContainer as set_background_container, setResolutionScale as set_resolution_scale, updateLabelWireframes, setSceneReference } from './common/debug_ui.js';
 
 // Enable HMR for development
@@ -144,7 +145,8 @@ function update_loading_progress(text) {
 
 /** Shows the loading screen */
 async function show_loading_screen() {
-	const response = await fetch('pages/loading.html');
+	const loadingPagePath = resolvePath('pages/loading.html');
+	const response = await fetch(loadingPagePath);
 	const html = await response.text();
 	document.body.insertAdjacentHTML('beforeend', html);
 }
@@ -167,7 +169,8 @@ function hide_loading_screen() {
  */
 async function display_modal(modal_path, modal_id, button_id, onAcknowledge) {
 	try {
-		const response = await fetch(modal_path);
+		const resolvedPath = resolvePath(modal_path);
+		const response = await fetch(resolvedPath);
 		if (!response.ok) {
 			throw new Error(`Failed to load modal: ${response.status} ${response.statusText}`);
 		}
@@ -210,7 +213,8 @@ async function init() {
 		await initPhysicsUtil();
 		
 		update_loading_progress('Loading custom asset types...');
-		await CustomTypeManager.loadCustomTypes('/custom_types.json');
+		const customTypesPath = resolvePath('custom_types.json');
+		await CustomTypeManager.loadCustomTypes(customTypesPath);
 		
 		update_loading_progress('Initializing scene...');
 		AssetStorage.get_instance();

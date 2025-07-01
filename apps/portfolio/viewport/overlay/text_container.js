@@ -8,7 +8,8 @@ import {
 	MaterialFactory,
 	CSS3DFactory,
 	CustomTypeManager, 
-	BLORKPACK_FLAGS 
+	BLORKPACK_FLAGS, 
+	resolvePath
 }  from '@littlecarlito/blorkpack';
 
 export class TextContainer {
@@ -198,7 +199,7 @@ export class TextContainer {
 						horizontalStretch: 1.1,
 						verticalStretch: 0.6,
 						rotation: new THREE.Euler(-Math.PI / 2, 0, Math.PI, 'XYZ'),
-						contentPath: '/pages/contact.html'
+						contentPath: resolvePath('pages/contact.html')
 					});
 				})();
 				break;
@@ -212,7 +213,7 @@ export class TextContainer {
 						positionOffsetY: 0,
 						positionOffsetZ: 0,
 						rotation: new THREE.Euler(Math.PI / 2, 0, 0, 'XYZ'),
-						contentPath: '/pages/about.html'
+						contentPath: resolvePath('pages/about.html')
 					});
 					this.business_card_asset = businessCardAsset;
 				})();
@@ -227,7 +228,7 @@ export class TextContainer {
 						positionOffsetY: -9.27,
 						positionOffsetZ: 0,
 						rotation: new THREE.Euler(Math.PI, Math.PI, Math.PI, 'XYZ'),
-						contentPath: '/pages/work.html'
+						contentPath: resolvePath('pages/work.html')
 					});
 
 					setTimeout(() => {
