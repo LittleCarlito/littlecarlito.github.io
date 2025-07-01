@@ -21,6 +21,7 @@ export class TextContainer {
 	asset_handler;
 	css3d_factory;
 	business_card_asset = null;
+	business_card_flipped = false;
 
 	constructor(incoming_parent, incoming_camera) {
 		this.parent = incoming_parent;
@@ -374,27 +375,32 @@ export class TextContainer {
 
 			if (category === CATEGORIES.ABOUT.value && this.business_card_asset) {
 				const aboutFrame = this.css3d_frames.get(ASSET_TYPES.BUSINESS_CARD);
-				aboutFrame.hide();
-				focusTween.onComplete(() => {
-					try {
-						this.asset_handler.flipAsset(
-							this.business_card_asset,
-							new THREE.Vector3(0, 0, 1),
-							1250,
-							{
-								easing: Easing.Quintic.In,
-								onHalfway: (asset) => {
-									aboutFrame.show();
-								},
-								onComplete: () => {
-									console.log('Business card flip completed');
+				
+				if (!this.business_card_flipped) {
+					aboutFrame.hide();
+					focusTween.onComplete(() => {
+						try {
+							this.asset_handler.flipAsset(
+								this.business_card_asset,
+								new THREE.Vector3(0, 0, 1),
+								1250,
+								{
+									easing: Easing.Quintic.In,
+									onHalfway: (asset) => {
+										aboutFrame.show();
+									},
+									onComplete: () => {
+										this.business_card_flipped = true;
+									}
 								}
-							}
-						);
-					} catch (error) {
-						console.error('Error flipping business card:', error);
-					}
-				});
+							);
+						} catch (error) {
+							console.error('Error flipping business card:', error);
+						}
+					});
+				} else {
+					aboutFrame.show();
+				}
 			}
 		}
 	}
