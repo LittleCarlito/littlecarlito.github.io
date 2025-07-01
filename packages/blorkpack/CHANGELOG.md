@@ -3,6 +3,33 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 0.49.0 (2025-07-01)
+
+- refactor(blorkpack): copying css3d setup ([a95468a](https://github.com/littlecarlito/threejs_site/commit/a95468a))
+- refactor(blorktools): double sided removal ([9bb0d28](https://github.com/littlecarlito/threejs_site/commit/9bb0d28))
+- refactor(portfolio): about to css3d frame ([28d4e6b](https://github.com/littlecarlito/threejs_site/commit/28d4e6b))
+- refactor(portfolio): about.html one sided ([04eab55](https://github.com/littlecarlito/threejs_site/commit/04eab55))
+- refactor(portfolio): rearrange furniture ([19bc1f2](https://github.com/littlecarlito/threejs_site/commit/19bc1f2))
+- fix: initial css3d frame orientation ([9a665c3](https://github.com/littlecarlito/threejs_site/commit/9a665c3))
+- fix(blorkpack): console errors ([b05c558](https://github.com/littlecarlito/threejs_site/commit/b05c558))
+- fix(blorkpack): css3d content scaling ([e9dc3e4](https://github.com/littlecarlito/threejs_site/commit/e9dc3e4))
+- fix(blorkpack): css3d frame scrollbar ([13e3827](https://github.com/littlecarlito/threejs_site/commit/13e3827))
+- fix(portfolio): about css3d frame ([c662da9](https://github.com/littlecarlito/threejs_site/commit/c662da9))
+- fix(portfolio): css3d frame orientation ([37828b2](https://github.com/littlecarlito/threejs_site/commit/37828b2))
+- slice(blorkpack): 2 sided css3d frames ([6304a49](https://github.com/littlecarlito/threejs_site/commit/6304a49))
+- slice(blorkpack): css3d frame autoscroll ([579fd61](https://github.com/littlecarlito/threejs_site/commit/579fd61))
+- slice(blorkpack): css3d frame reset ([b15c0de](https://github.com/littlecarlito/threejs_site/commit/b15c0de))
+- slice(blorkpack): custom css3d frame content ([a61fb45](https://github.com/littlecarlito/threejs_site/commit/a61fb45))
+- slice(blorkpack): hide/show css3d frame ([19da745](https://github.com/littlecarlito/threejs_site/commit/19da745))
+- slice(blorkpack): playable frames ([6f1f210](https://github.com/littlecarlito/threejs_site/commit/6f1f210))
+- slice(portfolio): about reveal half flip ([2f801fc](https://github.com/littlecarlito/threejs_site/commit/2f801fc))
+- feat(blorkpack): asset rotator ([6158d1d](https://github.com/littlecarlito/threejs_site/commit/6158d1d))
+- feat(blorkpack): css3d frame factory ([8da1898](https://github.com/littlecarlito/threejs_site/commit/8da1898))
+- feat(portfolio): business card in ui ([8f57f88](https://github.com/littlecarlito/threejs_site/commit/8f57f88))
+- feat(portfolio): exr hdri background ([4605939](https://github.com/littlecarlito/threejs_site/commit/4605939))
+- feat(portfolio): texture loading ([521c9b5](https://github.com/littlecarlito/threejs_site/commit/521c9b5))
+- feat(portfolio): ui texture ([0c1c4a6](https://github.com/littlecarlito/threejs_site/commit/0c1c4a6))
+
 ## <small>0.48.12 (2025-05-04)</small>
 
 **Note:** Version bump only for package @littlecarlito/blorkpack
