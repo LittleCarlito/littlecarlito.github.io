@@ -120,7 +120,7 @@
                 <h1>ABOUT</h1>
             </div>
             <div class="profile-text-section">
-                <img src="../images/pxArt.png" alt="Profile Picture" class="profile-picture">
+                <img src="/images/pxArt.png" alt="Profile Picture" class="profile-picture">
                 <p class="about-text">I have been in the software development industry since 2014. Holding positions from Change Management Representative to Java Engineer at multiple Fortune 500 and 100 companies. Programming is pretty much all I do, reach out to me and maybe I can do it for you!</p>
             </div>
             <div class="content-wrapper">
@@ -147,29 +147,44 @@
     <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
     <script>
         const skills = [
-            { name: 'React', icon: '../logos/react.svg' },
-            { name: 'ThreeJS', icon: '../logos/threejs.svg' },
-            { name: 'JavaScript', icon: '../logos/js.svg' },
-            { name: 'TypeScript', icon: '../logos/ts.svg' },
-            { name: 'HTML', icon: '../logos/html.svg' },
-            { name: 'CSS', icon: '../logos/css.svg' },
-            { name: 'WebGL', icon: '../logos/web_gl.svg' },
-            { name: 'Spring Boot', icon: '../logos/spring.svg' },
-            { name: 'Java', icon: '../logos/java.svg' },
-            { name: 'SQL', icon: '../logos/sql.svg' },
-            { name: 'Kubernetes', icon: '../logos/kubernetes.svg' },
-            { name: 'Docker', icon: '../logos/docker.svg' },
-            { name: 'AWS', icon: '../logos/aws.svg' },
-            { name: 'GDScript', icon: '../logos/gdscript.svg' },
-            { name: 'JUnit 5', icon: '../logos/junit.svg' }
+            { name: 'React', icon: '/logos/react.svg' },
+            { name: 'ThreeJS', icon: '/logos/threejs.svg' },
+            { name: 'JavaScript', icon: '/logos/js.svg' },
+            { name: 'TypeScript', icon: '/logos/ts.svg' },
+            { name: 'HTML', icon: '/logos/html.svg' },
+            { name: 'CSS', icon: '/logos/css.svg' },
+            { name: 'WebGL', icon: '/logos/web_gl.svg' },
+            { name: 'Spring Boot', icon: '/logos/spring.svg' },
+            { name: 'Java', icon: '/logos/java.svg' },
+            { name: 'SQL', icon: '/logos/sql.svg' },
+            { name: 'Kubernetes', icon: '/logos/kubernetes.svg' },
+            { name: 'Docker', icon: '/logos/docker.svg' },
+            { name: 'AWS', icon: '/logos/aws.svg' },
+            { name: 'GDScript', icon: '/logos/gdscript.svg' },
+            { name: 'JUnit 5', icon: '/logos/junit.svg' }
         ];
 
         let engine, render, world, walls, runner;
         let physicsObjects = [];
         let waterEffect = { initialized: false };
 
-        function initPhysics() {
-            const container = document.getElementById('physics-container');
+        function waitForContainer() {
+            return new Promise((resolve) => {
+                const checkContainer = () => {
+                    const container = document.getElementById('physics-container');
+                    if (container && container.clientWidth > 0 && container.clientHeight > 0) {
+                        resolve(container);
+                    } else {
+                        setTimeout(checkContainer, 50);
+                    }
+                };
+                checkContainer();
+            });
+        }
+
+        async function initPhysics() {
+            const container = await waitForContainer();
+            
             engine = Matter.Engine.create();
             world = engine.world;
             engine.world.gravity.y = 0;
@@ -262,47 +277,50 @@
             Matter.Render.run(render);
         }
 
-        function initWaterEffect() {
+        async function initWaterEffect() {
             const container = document.getElementById('water-container');
-            const width = container.clientWidth;
-            const height = container.clientHeight;
+            if (!container) return;
             
-            const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            const width = Math.max(container.clientWidth, 100);
+            const height = Math.max(container.clientHeight, 100);
+            
+            if (width <= 0 || height <= 0) {
+                setTimeout(initWaterEffect, 200);
+                return;
+            }
+            
+            const renderer = new THREE.WebGLRenderer({ 
+                antialias: false, 
+                alpha: true,
+                preserveDrawingBuffer: false,
+                powerPreference: "high-performance"
+            });
+            
             renderer.setSize(width, height);
             renderer.setPixelRatio(1);
+            renderer.debug.checkShaderErrors = false;
             container.appendChild(renderer.domElement);
             
             const scene = new THREE.Scene();
             const camera = new THREE.OrthographicCamera(-width/2, width/2, height/2, -height/2, 0.1, 1000);
             camera.position.z = 1;
             
-            const bufferA = new THREE.WebGLRenderTarget(width, height, {
+            const rtOptions = {
                 minFilter: THREE.NearestFilter,
                 magFilter: THREE.NearestFilter,
                 format: THREE.RGBAFormat,
-                type: THREE.FloatType
-            });
+                type: THREE.HalfFloatType || THREE.FloatType,
+                generateMipmaps: false,
+                depthBuffer: false,
+                stencilBuffer: false
+            };
             
-            const bufferB = new THREE.WebGLRenderTarget(width, height, {
-                minFilter: THREE.NearestFilter,
-                magFilter: THREE.NearestFilter,
-                format: THREE.RGBAFormat,
-                type: THREE.FloatType
-            });
-            
-            const bufferB1 = new THREE.WebGLRenderTarget(width, height, {
-                minFilter: THREE.NearestFilter,
-                magFilter: THREE.NearestFilter,
-                format: THREE.RGBAFormat,
-                type: THREE.FloatType
-            });
-            
-            const bufferB2 = new THREE.WebGLRenderTarget(width, height, {
-                minFilter: THREE.NearestFilter,
-                magFilter: THREE.NearestFilter,
-                format: THREE.RGBAFormat,
-                type: THREE.FloatType
-            });
+            const bufferA = new THREE.WebGLRenderTarget(width, height, rtOptions);
+            const bufferB = new THREE.WebGLRenderTarget(width, height, rtOptions);
+            const bufferB1 = new THREE.WebGLRenderTarget(width, height, rtOptions);
+            const bufferB2 = new THREE.WebGLRenderTarget(width, height, rtOptions);
             
             let currentBufferA = bufferA;
             let previousBufferA = bufferB;
@@ -594,31 +612,35 @@
                 bufferBMaterial.uniforms.iFrame.value = frameCount;
                 renderMaterial.uniforms.iTime.value = timeValue;
                 
-                renderer.setRenderTarget(currentBufferB);
-                bufferBMaterial.uniforms.iChannel0.value = previousBufferA.texture;
-                bufferBMaterial.uniforms.iChannel1.value = previousBufferB.texture;
-                scene.overrideMaterial = bufferBMaterial;
-                renderer.render(scene, camera);
-                
-                let temp = previousBufferB;
-                previousBufferB = currentBufferB;
-                currentBufferB = temp;
-                
-                renderer.setRenderTarget(currentBufferA);
-                bufferAMaterial.uniforms.iChannel0.value = previousBufferA.texture;
-                bufferAMaterial.uniforms.iChannel1.value = previousBufferB.texture;
-                scene.overrideMaterial = bufferAMaterial;
-                renderer.render(scene, camera);
-                
-                temp = previousBufferA;
-                previousBufferA = currentBufferA;
-                currentBufferA = temp;
-                
-                renderer.setRenderTarget(null);
-                renderMaterial.uniforms.iChannel0.value = previousBufferA.texture;
-                renderMaterial.uniforms.iChannel1.value = previousBufferB.texture;
-                scene.overrideMaterial = renderMaterial;
-                renderer.render(scene, camera);
+                try {
+                    renderer.setRenderTarget(currentBufferB);
+                    bufferBMaterial.uniforms.iChannel0.value = previousBufferA.texture;
+                    bufferBMaterial.uniforms.iChannel1.value = previousBufferB.texture;
+                    scene.overrideMaterial = bufferBMaterial;
+                    renderer.render(scene, camera);
+                    
+                    let temp = previousBufferB;
+                    previousBufferB = currentBufferB;
+                    currentBufferB = temp;
+                    
+                    renderer.setRenderTarget(currentBufferA);
+                    bufferAMaterial.uniforms.iChannel0.value = previousBufferA.texture;
+                    bufferAMaterial.uniforms.iChannel1.value = previousBufferB.texture;
+                    scene.overrideMaterial = bufferAMaterial;
+                    renderer.render(scene, camera);
+                    
+                    temp = previousBufferA;
+                    previousBufferA = currentBufferA;
+                    currentBufferA = temp;
+                    
+                    renderer.setRenderTarget(null);
+                    renderMaterial.uniforms.iChannel0.value = previousBufferA.texture;
+                    renderMaterial.uniforms.iChannel1.value = previousBufferB.texture;
+                    scene.overrideMaterial = renderMaterial;
+                    renderer.render(scene, camera);
+                } catch (error) {
+                    console.warn('Water render error:', error);
+                }
                 
                 frameCount++;
             };
@@ -660,36 +682,45 @@
                     Matter.World.add(world, walls);
                 }
                 
-                if (waterEffect.initialized) {
-                    waterEffect.renderer.setSize(newWidth, newHeight);
-                    waterEffect.bufferAMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
-                    waterEffect.bufferBMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
-                    waterEffect.renderMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
-                    
-                    waterEffect.bufferA.dispose();
-                    waterEffect.bufferB.dispose();
-                    waterEffect.bufferB1.dispose();
-                    waterEffect.bufferB2.dispose();
-                    
-                    const rtOptions = {
-                        minFilter: THREE.NearestFilter,
-                        magFilter: THREE.NearestFilter,
-                        format: THREE.RGBAFormat,
-                        type: THREE.FloatType
-                    };
-                    
-                    waterEffect.bufferA = new THREE.WebGLRenderTarget(newWidth, newHeight, rtOptions);
-                    waterEffect.bufferB = new THREE.WebGLRenderTarget(newWidth, newHeight, rtOptions);
-                    waterEffect.bufferB1 = new THREE.WebGLRenderTarget(newWidth, newHeight, rtOptions);
-                    waterEffect.bufferB2 = new THREE.WebGLRenderTarget(newWidth, newHeight, rtOptions);
+                if (waterEffect.initialized && newWidth > 0 && newHeight > 0) {
+                    try {
+                        waterEffect.renderer.setSize(newWidth, newHeight);
+                        waterEffect.bufferAMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
+                        waterEffect.bufferBMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
+                        waterEffect.renderMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
+                        
+                        waterEffect.bufferA.dispose();
+                        waterEffect.bufferB.dispose();
+                        waterEffect.bufferB1.dispose();
+                        waterEffect.bufferB2.dispose();
+                        
+                        const rtOptions = {
+                            minFilter: THREE.NearestFilter,
+                            magFilter: THREE.NearestFilter,
+                            format: THREE.RGBAFormat,
+                            type: THREE.HalfFloatType || THREE.FloatType,
+                            generateMipmaps: false,
+                            depthBuffer: false,
+                            stencilBuffer: false
+                        };
+                        
+                        waterEffect.bufferA = new THREE.WebGLRenderTarget(newWidth, newHeight, rtOptions);
+                        waterEffect.bufferB = new THREE.WebGLRenderTarget(newWidth, newHeight, rtOptions);
+                        waterEffect.bufferB1 = new THREE.WebGLRenderTarget(newWidth, newHeight, rtOptions);
+                        waterEffect.bufferB2 = new THREE.WebGLRenderTarget(newWidth, newHeight, rtOptions);
+                    } catch (error) {
+                        console.warn('Water resize error:', error);
+                    }
                 }
             }, 250);
         }
         
         window.addEventListener('load', () => {
-            initPhysics();
-            setTimeout(initWaterEffect, 200);
-            window.addEventListener('resize', handleResize);
+            setTimeout(() => {
+                initPhysics();
+                setTimeout(initWaterEffect, 800);
+                window.addEventListener('resize', handleResize);
+            }, 100);
         });
     </script>
 </body>
