@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.48.8 (2025-07-02)</small>
+
+- fix(portfolio): temporarily disabling image optimizer ([83c8144](https://github.com/littlecarlito/threejs_site/commit/83c8144))
+
 ## <small>0.48.7 (2025-07-02)</small>
 
 - fix(portfolio): copy resource removal ([4019ed0](https://github.com/littlecarlito/threejs_site/commit/4019ed0))
