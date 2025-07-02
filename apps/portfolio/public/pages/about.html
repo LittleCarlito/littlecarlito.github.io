@@ -111,9 +111,11 @@
             image-rendering: -moz-crisp-edges;
             image-rendering: crisp-edges;
         }
+
     </style>
 </head>
 <body>
+
     <div class="scale-container">
         <div class="page">
             <div class="header-section">
@@ -146,6 +148,13 @@
     <script src="https://unpkg.com/matter-js@0.19.0/build/matter.min.js"></script>
     <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
     <script>
+        function logDebug(message, type = 'info') {
+            console.log(`[DEBUG][${type.toUpperCase()}] ${message}`);
+        }
+
+        logDebug(`Current URL: ${window.location.href}`);
+        logDebug(`Base URL: ${window.location.origin}${window.location.pathname}`);
+
         const skills = [
             { name: 'React', icon: './images/react.svg' },
             { name: 'ThreeJS', icon: './images/threejs.svg' },
@@ -167,6 +176,69 @@
         let engine, render, world, walls, runner;
         let physicsObjects = [];
         let waterEffect = { initialized: false };
+        let loadedImages = new Map();
+        let failedImages = new Set();
+
+        function preloadImages() {
+            return Promise.all(skills.map(skill => {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    
+                    img.onload = () => {
+                        logDebug(`✓ Loaded: ${skill.icon} (${img.width}x${img.height})`);
+                        loadedImages.set(skill.icon, img);
+                        resolve({ skill, success: true, img });
+                    };
+                    
+                    img.onerror = (error) => {
+                        logDebug(`✗ Failed: ${skill.icon} - ${error.type}`, 'error');
+                        failedImages.add(skill.icon);
+                        
+                        // Try absolute path as fallback
+                        const absolutePath = new URL(skill.icon, window.location.href).href;
+                        logDebug(`Trying absolute path: ${absolutePath}`, 'warn');
+                        
+                        const fallbackImg = new Image();
+                        fallbackImg.onload = () => {
+                            logDebug(`✓ Fallback loaded: ${absolutePath}`);
+                            loadedImages.set(skill.icon, fallbackImg);
+                            resolve({ skill, success: true, img: fallbackImg });
+                        };
+                        fallbackImg.onerror = () => {
+                            logDebug(`✗ Fallback failed: ${absolutePath}`, 'error');
+                            resolve({ skill, success: false, img: null });
+                        };
+                        fallbackImg.src = absolutePath;
+                    };
+                    
+                    // Set a timeout for debugging
+                    setTimeout(() => {
+                        if (!loadedImages.has(skill.icon) && !failedImages.has(skill.icon)) {
+                            logDebug(`⏱ Timeout loading: ${skill.icon}`, 'warn');
+                        }
+                    }, 5000);
+                    
+                    img.src = skill.icon;
+                    logDebug(`Attempting to load: ${skill.icon}`);
+                });
+            }));
+        }
+
+        function createFallbackTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 36;
+            canvas.height = 36;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#4fc3f7';
+            ctx.fillRect(0, 0, 36, 36);
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('?', 18, 22);
+            
+            return canvas.toDataURL();
+        }
 
         function waitForContainer() {
             return new Promise((resolve) => {
@@ -184,6 +256,15 @@
 
         async function initPhysics() {
             const container = await waitForContainer();
+            logDebug(`Container ready: ${container.clientWidth}x${container.clientHeight}`);
+            
+            // Preload all images first
+            logDebug('Starting image preload...');
+            const imageResults = await preloadImages();
+            
+            const successCount = imageResults.filter(r => r.success).length;
+            const failCount = imageResults.filter(r => !r.success).length;
+            logDebug(`Images loaded: ${successCount} success, ${failCount} failed`);
             
             engine = Matter.Engine.create();
             world = engine.world;
@@ -202,14 +283,23 @@
             });
 
             const radius = 18;
+            const fallbackTexture = createFallbackTexture();
+            
             skills.forEach((skill) => {
                 const x = Math.random() * (container.clientWidth - radius * 2) + radius;
                 const y = Math.random() * (container.clientHeight - radius * 2) + radius;
                 
+                const loadedImg = loadedImages.get(skill.icon);
+                const texture = loadedImg ? skill.icon : fallbackTexture;
+                
+                if (!loadedImg) {
+                    logDebug(`Using fallback for: ${skill.name}`, 'warn');
+                }
+                
                 const logo = Matter.Bodies.circle(x, y, radius, {
                     render: {
                         sprite: {
-                            texture: skill.icon,
+                            texture: texture,
                             xScale: 1,
                             yScale: 1
                         }
@@ -223,6 +313,8 @@
                 Matter.World.add(world, logo);
                 physicsObjects.push(logo);
             });
+
+            logDebug(`Created ${physicsObjects.length} physics objects`);
 
             const mouse = Matter.Mouse.create(render.canvas);
             const mouseConstraint = Matter.MouseConstraint.create(engine, {
@@ -275,11 +367,15 @@
             runner = Matter.Runner.create({ delta: 1000/30 });
             Matter.Runner.run(runner, engine);
             Matter.Render.run(render);
+            
+            logDebug('Physics engine initialized');
         }
 
         async function initWaterEffect() {
             const container = document.getElementById('water-container');
             if (!container) return;
+            
+            logDebug('Starting water effect initialization...');
             
             await new Promise(resolve => setTimeout(resolve, 500));
             
@@ -561,167 +657,4 @@
             
             physicsContainer.addEventListener('mousemove', (event) => {
                 const rect = container.getBoundingClientRect();
-                mousePosition.x = event.clientX - rect.left;
-                mousePosition.y = height - (event.clientY - rect.top);
-                bufferAMaterial.uniforms.iMouse.value.x = mousePosition.x;
-                bufferAMaterial.uniforms.iMouse.value.y = mousePosition.y;
-                bufferBMaterial.uniforms.iMouse.value.x = mousePosition.x;
-                bufferBMaterial.uniforms.iMouse.value.y = mousePosition.y;
-                
-                if (!mousePressed) {
-                    bufferAMaterial.uniforms.iMouse.value.w = 1.0;
-                }
-            });
-            
-            physicsContainer.addEventListener('mousedown', (event) => {
-                mousePressed = true;
-                
-                const rect = container.getBoundingClientRect();
-                mousePosition.x = event.clientX - rect.left;
-                mousePosition.y = height - (event.clientY - rect.top);
-                
-                bufferAMaterial.uniforms.iMouse.value.x = mousePosition.x;
-                bufferAMaterial.uniforms.iMouse.value.y = mousePosition.y;
-                bufferAMaterial.uniforms.iMouse.value.z = 1.0;
-                
-                bufferBMaterial.uniforms.iMouse.value.x = mousePosition.x;
-                bufferBMaterial.uniforms.iMouse.value.y = mousePosition.y;
-                bufferBMaterial.uniforms.iMouse.value.z = 1.0;
-                
-                bufferAMaterial.uniforms.iMouse.value.w = 0.0;
-            });
-            
-            window.addEventListener('mouseup', () => {
-                mousePressed = false;
-                bufferAMaterial.uniforms.iMouse.value.z = 0.0;
-                bufferBMaterial.uniforms.iMouse.value.z = 0.0;
-            });
-            
-            let frameCount = 0;
-            let lastTime = 0;
-            const animate = (time) => {
-                requestAnimationFrame(animate);
-                
-                if (time - lastTime < 33) return;
-                lastTime = time;
-                
-                const timeValue = time * 0.001;
-                bufferAMaterial.uniforms.iTime.value = timeValue;
-                bufferAMaterial.uniforms.iFrame.value = frameCount;
-                bufferBMaterial.uniforms.iTime.value = timeValue;
-                bufferBMaterial.uniforms.iFrame.value = frameCount;
-                renderMaterial.uniforms.iTime.value = timeValue;
-                
-                try {
-                    renderer.setRenderTarget(currentBufferB);
-                    bufferBMaterial.uniforms.iChannel0.value = previousBufferA.texture;
-                    bufferBMaterial.uniforms.iChannel1.value = previousBufferB.texture;
-                    scene.overrideMaterial = bufferBMaterial;
-                    renderer.render(scene, camera);
-                    
-                    let temp = previousBufferB;
-                    previousBufferB = currentBufferB;
-                    currentBufferB = temp;
-                    
-                    renderer.setRenderTarget(currentBufferA);
-                    bufferAMaterial.uniforms.iChannel0.value = previousBufferA.texture;
-                    bufferAMaterial.uniforms.iChannel1.value = previousBufferB.texture;
-                    scene.overrideMaterial = bufferAMaterial;
-                    renderer.render(scene, camera);
-                    
-                    temp = previousBufferA;
-                    previousBufferA = currentBufferA;
-                    currentBufferA = temp;
-                    
-                    renderer.setRenderTarget(null);
-                    renderMaterial.uniforms.iChannel0.value = previousBufferA.texture;
-                    renderMaterial.uniforms.iChannel1.value = previousBufferB.texture;
-                    scene.overrideMaterial = renderMaterial;
-                    renderer.render(scene, camera);
-                } catch (error) {
-                    console.warn('Water render error:', error);
-                }
-                
-                frameCount++;
-            };
-            
-            waterEffect = { 
-                renderer, 
-                bufferA, bufferB, bufferB1, bufferB2,
-                bufferAMaterial, bufferBMaterial, renderMaterial,
-                initialized: true 
-            };
-            
-            animate(0);
-        }
-
-        function handleResize() {
-            setTimeout(() => {
-                const container = document.getElementById('physics-container');
-                const waterContainer = document.getElementById('water-container');
-                if (!container || !waterContainer) return;
-                
-                const newWidth = container.clientWidth;
-                const newHeight = container.clientHeight;
-                
-                if (render) {
-                    render.options.width = newWidth;
-                    render.options.height = newHeight;
-                    render.canvas.width = newWidth;
-                    render.canvas.height = newHeight;
-                    
-                    if (walls && walls.length) {
-                        Matter.Composite.remove(world, walls);
-                    }
-                    walls = [
-                        Matter.Bodies.rectangle(newWidth/2, -10, newWidth, 20, { isStatic: true }),
-                        Matter.Bodies.rectangle(newWidth/2, newHeight + 10, newWidth, 20, { isStatic: true }),
-                        Matter.Bodies.rectangle(-10, newHeight/2, 20, newHeight, { isStatic: true }),
-                        Matter.Bodies.rectangle(newWidth + 10, newHeight/2, 20, newHeight, { isStatic: true })
-                    ];
-                    Matter.World.add(world, walls);
-                }
-                
-                if (waterEffect.initialized && newWidth > 0 && newHeight > 0) {
-                    try {
-                        waterEffect.renderer.setSize(newWidth, newHeight);
-                        waterEffect.bufferAMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
-                        waterEffect.bufferBMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
-                        waterEffect.renderMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
-                        
-                        waterEffect.bufferA.dispose();
-                        waterEffect.bufferB.dispose();
-                        waterEffect.bufferB1.dispose();
-                        waterEffect.bufferB2.dispose();
-                        
-                        const rtOptions = {
-                            minFilter: THREE.NearestFilter,
-                            magFilter: THREE.NearestFilter,
-                            format: THREE.RGBAFormat,
-                            type: THREE.HalfFloatType || THREE.FloatType,
-                            generateMipmaps: false,
-                            depthBuffer: false,
-                            stencilBuffer: false
-                        };
-                        
-                        waterEffect.bufferA = new THREE.WebGLRenderTarget(newWidth, newHeight, rtOptions);
-                        waterEffect.bufferB = new THREE.WebGLRenderTarget(newWidth, newHeight, rtOptions);
-                        waterEffect.bufferB1 = new THREE.WebGLRenderTarget(newWidth, newHeight, rtOptions);
-                        waterEffect.bufferB2 = new THREE.WebGLRenderTarget(newWidth, newHeight, rtOptions);
-                    } catch (error) {
-                        console.warn('Water resize error:', error);
-                    }
-                }
-            }, 250);
-        }
-        
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                initPhysics();
-                setTimeout(initWaterEffect, 800);
-                window.addEventListener('resize', handleResize);
-            }, 100);
-        });
-    </script>
-</body>
-</html>
+                mousePosition.x = event.clientX - rect.
