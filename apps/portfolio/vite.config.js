@@ -135,6 +135,33 @@ export default defineConfig(({ command }) => {
 			createVirtualBlorkpackPlugin(),
 			gracefulShutdownPlugin(),
 			{
+				name: 'debug-svg-copying',
+				buildStart() {
+					// Check source files before build
+					const imagesSrc = path.resolve(__dirname, 'public/images');
+					const svgFiles = fs.readdirSync(imagesSrc).filter(file => file.endsWith('.svg'));
+					console.log('\n=== SVG DEBUG - BUILD START ===');
+					svgFiles.forEach(file => {
+						const srcPath = path.join(imagesSrc, file);
+						const size = fs.statSync(srcPath).size;
+						console.log(`SOURCE ${file}: ${size} bytes`);
+					});
+				},
+				generateBundle() {
+					// Check what Vite is about to output
+					console.log('\n=== SVG DEBUG - GENERATE BUNDLE ===');
+					const distImages = path.resolve(__dirname, 'dist/images');
+					if (fs.existsSync(distImages)) {
+						const svgFiles = fs.readdirSync(distImages).filter(file => file.endsWith('.svg'));
+						svgFiles.forEach(file => {
+							const distPath = path.join(distImages, file);
+							const size = fs.statSync(distPath).size;
+							console.log(`DIST ${file}: ${size} bytes`);
+						});
+					}
+				}
+			},
+			{
 				name: 'blorkpack-hmr-helper',
 				transformIndexHtml(html) {
 					let updatedHtml = html.replace('</head>', `
@@ -231,15 +258,15 @@ export default defineConfig(({ command }) => {
 					return options;
 				}
 			},
-			isProduction && ViteImageOptimizer({
-				png: { quality: 80 },
-				jpeg: { quality: 80 },
-				jpg: { quality: 80 },
-				webp: { lossless: true },
-				avif: { lossless: true },
-				gif: { optimizationLevel: 3 },
-				svg: false
-			}),
+			// isProduction && ViteImageOptimizer({
+			// 	png: { quality: 80 },
+			// 	jpeg: { quality: 80 },
+			// 	jpg: { quality: 80 },
+			// 	webp: { lossless: true },
+			// 	avif: { lossless: true },
+			// 	gif: { optimizationLevel: 3 },
+			// 	svg: false
+			// }),
 			{
 				name: 'copy-resources',
 				closeBundle() {
@@ -278,11 +305,16 @@ export default defineConfig(({ command }) => {
 				closeBundle() {
 					console.log('✅ Copying additional files to dist');
 					try {
-						fs.copyFileSync(
-							path.resolve(__dirname, 'custom_types.json'),
-							path.resolve(__dirname, 'dist/custom_types.json')
-						);
-						console.log('✓ Copied custom_types.json to dist root');
+						const customTypesPath = path.resolve(__dirname, 'public/custom_types.json');
+						if (fs.existsSync(customTypesPath)) {
+							fs.copyFileSync(
+								customTypesPath,
+								path.resolve(__dirname, 'dist/custom_types.json')
+							);
+							console.log('✓ Copied custom_types.json to dist root');
+						} else {
+							console.warn('⚠️ custom_types.json not found, skipping');
+						}
 							
 						fs.writeFileSync(
 							path.resolve(__dirname, 'dist/.nojekyll'),
