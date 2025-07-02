@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.48.5 (2025-07-02)</small>
+
+- fix(portfolio): about html cutoff ([757d1f4](https://github.com/littlecarlito/threejs_site/commit/757d1f4))
+
 ## <small>0.48.4 (2025-07-02)</small>
 
 - chore(portfolio): about logging ([83b9555](https://github.com/littlecarlito/threejs_site/commit/83b9555))
