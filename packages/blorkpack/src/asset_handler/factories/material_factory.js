@@ -54,6 +54,17 @@ export class MaterialFactory {
         return this.#createAtlasMaterial(textureObjects, 'pbr');
     }
 
+    #resolveTexturePath(path) {
+        if (!path) return null;
+        if (path.startsWith('http://') || path.startsWith('https://')) {
+            return path;
+        }
+        if (!path.startsWith('/') && !path.startsWith('./')) {
+            path = './' + path;
+        }
+        return path;
+    }
+
     async #applyAtlasMaterial(incomingAsset, materialType, atlasConfig) {
         if (!incomingAsset) {
             throw new Error('Invalid GLB asset - asset is null/undefined');
@@ -128,9 +139,12 @@ export class MaterialFactory {
     }
 
     async #loadTexture(loader, path, textureType) {
+        const resolvedPath = this.#resolveTexturePath(path);
+        if (!resolvedPath) return null;
+
         return new Promise((resolve, reject) => {
             loader.load(
-                path,
+                resolvedPath,
                 (texture) => {
                     if (textureType === 'baseColor') {
                         texture.colorSpace = THREE.SRGBColorSpace;
@@ -189,7 +203,6 @@ export class MaterialFactory {
         } else if (materialType === 'unlit') {
             baseConfig.transparent = true;
             baseConfig.depthTest = false;
-            // REMOVED: baseConfig.renderOrder = 999; - renderOrder is not a valid material property
             
             return new THREE.MeshBasicMaterial(baseConfig);
         }

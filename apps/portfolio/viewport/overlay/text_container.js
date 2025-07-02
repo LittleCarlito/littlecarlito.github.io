@@ -212,7 +212,7 @@ export class TextContainer {
 						positionOffsetY: 0,
 						positionOffsetZ: 0,
 						rotation: new THREE.Euler(Math.PI / 2, 0, 0, 'XYZ'),
-						contentPath: '/pages/contact.html'
+						contentPath: 'pages/about.html'
 					});
 					this.business_card_asset = businessCardAsset;
 				})();
@@ -289,7 +289,7 @@ export class TextContainer {
 			if (this.focused_text_name != "") {
 				const currentCategory = this.focused_text_name.replace(TYPES.TEXT, '');
 				const currentFrame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${currentCategory}`);
-				if (currentFrame && currentFrame.iframe.contentWindow) {
+				if (currentFrame && currentFrame.iframe && currentFrame.iframe.contentWindow) {
 					try {
 						currentFrame.iframe.contentWindow.postMessage(
 							{ type: 'visibility', visible: false },
@@ -320,7 +320,7 @@ export class TextContainer {
 				css3dFrame.play();
 			}
 
-			if (frame && frame.iframe.contentWindow) {
+			if (frame && frame.iframe && frame.iframe.contentWindow) {
 				try {
 					frame.iframe.contentWindow.postMessage(
 						{ type: 'visibility', visible: true },
@@ -377,7 +377,7 @@ export class TextContainer {
 				const aboutFrame = this.css3d_frames.get(ASSET_TYPES.BUSINESS_CARD);
 				
 				if (!this.business_card_flipped) {
-					aboutFrame.hide();
+					if (aboutFrame) aboutFrame.hide();
 					focusTween.onComplete(() => {
 						try {
 							this.asset_handler.flipAsset(
@@ -387,7 +387,7 @@ export class TextContainer {
 								{
 									easing: Easing.Quintic.In,
 									onHalfway: (asset) => {
-										aboutFrame.show();
+										if (aboutFrame) aboutFrame.show();
 									},
 									onComplete: () => {
 										this.business_card_flipped = true;
@@ -399,7 +399,7 @@ export class TextContainer {
 						}
 					});
 				} else {
-					aboutFrame.show();
+					if (aboutFrame) aboutFrame.show();
 				}
 			}
 		}
@@ -426,7 +426,7 @@ export class TextContainer {
 
 				const category = this.focused_text_name.replace(TYPES.TEXT, '');
 				const frame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${category}`);
-				if (frame && frame.iframe.contentWindow) {
+				if (frame && frame.iframe && frame.iframe.contentWindow) {
 					try {
 						frame.iframe.contentWindow.postMessage(
 							{ type: 'visibility', visible: false },
@@ -581,7 +581,7 @@ export class TextContainer {
 			}
 			matched_frame.update_size(incoming_width, incoming_height);
 
-			if (incoming_simple_name === CATEGORIES.CONTACT.value && matched_frame.iframe.contentWindow) {
+			if (incoming_simple_name === CATEGORIES.CONTACT.value && matched_frame.iframe && matched_frame.iframe.contentWindow) {
 				const isExtremeResize = previousWidth < 500 && matched_frame.pixel_width > 800;
 
 				matched_frame.iframe.contentWindow.postMessage(
@@ -696,9 +696,11 @@ export class TextContainer {
 
 	set_content_layer(incoming_object_name, incoming_layer) {
 		const existing_object = this.text_box_container.getObjectByName(incoming_object_name);
-		existing_object.children.forEach(c => {
-			c.layers.set(incoming_layer);
-		});
+		if (existing_object) {
+			existing_object.children.forEach(c => {
+				c.layers.set(incoming_layer);
+			});
+		}
 	}
 
 	get_focused_text_x() {
