@@ -33,7 +33,6 @@ export * from './manifest_manager.js';
 export * from './loader.js';
 export * from './app_renderer.js';
 export * from './physics/index.js'; // Export physics utilities
-export * from './common/path-util.js';
 import { AssetStorage } from './asset_storage.js';
 import { AssetHandler } from './asset_handler/asset_handler.js';
 import { MaterialFactory } from './asset_handler/index.js';

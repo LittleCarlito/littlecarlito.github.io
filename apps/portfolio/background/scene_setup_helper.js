@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { THREE, BLORKPACK_FLAGS, resolvePath } from '@littlecarlito/blorkpack';
+import { THREE, BLORKPACK_FLAGS } from '@littlecarlito/blorkpack';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 
 /**
@@ -60,7 +60,7 @@ export const SceneSetupHelper = {
 	 * @returns {Promise} Promise that resolves when HDRI is loaded
 	 */
 	_create_hdri_background(scene, progressCallback) {
-		const hdriPath = resolvePath('images/studio_small.exr');
+		const hdriPath = 'images/studio_small.exr';
 		console.log('Loading HDRI environment map from:', hdriPath);
 		
 		return new Promise((resolve, reject) => {
@@ -96,7 +96,7 @@ export const SceneSetupHelper = {
 	 * @returns {Promise} Promise that resolves when HDRI lighting is loaded
 	 */
 	_create_hdri_lighting(scene, progressCallback) {
-		const hdriPath = resolvePath('images/studio_small.exr');
+		const hdriPath = 'images/studio_small.exr';
 		console.log('Configuring HDRI environment lighting from:', hdriPath);
 		
 		return new Promise((resolve, reject) => {
