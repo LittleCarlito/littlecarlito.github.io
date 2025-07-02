@@ -194,6 +194,81 @@
                         logDebug(`✗ Failed: ${skill.icon} - ${error.type}`, 'error');
                         failedImages.add(skill.icon);
                         
+                        // Comprehensive server analysis
+                        fetch(skill.icon, { 
+                            method: 'HEAD',
+                            cache: 'no-cache'
+                        })
+                            .then(response => {
+                                logDebug(`HEAD ${skill.icon}: ${response.status} ${response.statusText}`, 'error');
+                                logDebug(`Content-Type: ${response.headers.get('content-type') || 'MISSING'}`, 'error');
+                                logDebug(`Content-Length: ${response.headers.get('content-length') || 'MISSING'}`, 'error');
+                                logDebug(`Cache-Control: ${response.headers.get('cache-control') || 'MISSING'}`, 'error');
+                                logDebug(`X-Content-Type-Options: ${response.headers.get('x-content-type-options') || 'MISSING'}`, 'error');
+                                logDebug(`Content-Security-Policy: ${response.headers.get('content-security-policy') || 'MISSING'}`, 'error');
+                                
+                                // Now try full fetch to check file content
+                                return fetch(skill.icon, { cache: 'no-cache' });
+                            })
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                                }
+                                return response.text();
+                            })
+                            .then(content => {
+                                logDebug(`File content length: ${content.length} chars`, 'info');
+                                logDebug(`Content starts with: "${content.substring(0, 50)}"`, 'info');
+                                logDebug(`Content ends with: "${content.substring(content.length - 20)}"`, 'info');
+                                
+                                // Check if it's valid SVG
+                                const isValidSVG = content.trim().startsWith('<svg') && content.trim().endsWith('</svg>');
+                                logDebug(`Is valid SVG structure: ${isValidSVG}`, isValidSVG ? 'info' : 'error');
+                                
+                                if (!isValidSVG) {
+                                    logDebug(`Full corrupted content: "${content}"`, 'error');
+                                }
+                                
+                                // Test if we can create a working Image from the SVG content
+                                const testImg = new Image();
+                                testImg.onload = () => {
+                                    logDebug(`✓ SVG content can be loaded as image when using data URL`, 'info');
+                                };
+                                testImg.onerror = (err) => {
+                                    logDebug(`✗ SVG content cannot be loaded as image: ${err.type}`, 'error');
+                                };
+                                
+                                // Create data URL to test content validity
+                                const dataUrl = `data:image/svg+xml;base64,${btoa(content)}`;
+                                testImg.src = dataUrl;
+                                
+                                // Also test with direct content
+                                const testImg2 = new Image();
+                                testImg2.onload = () => {
+                                    logDebug(`✓ SVG content works with data URL (utf8)`, 'info');
+                                };
+                                testImg2.onerror = (err) => {
+                                    logDebug(`✗ SVG content fails with data URL (utf8): ${err.type}`, 'error');
+                                };
+                                const dataUrlUtf8 = `data:image/svg+xml;charset=utf8,${encodeURIComponent(content)}`;
+                                testImg2.src = dataUrlUtf8;
+                                
+                            })
+                            .catch(fetchError => {
+                                logDebug(`Fetch error for ${skill.icon}: ${fetchError.message}`, 'error');
+                                
+                                // Test if it's a CORS issue by trying to load in an img element
+                                const testImg = new Image();
+                                testImg.crossOrigin = 'anonymous';
+                                testImg.onload = () => {
+                                    logDebug(`✓ File loads in img element with crossOrigin`, 'warn');
+                                };
+                                testImg.onerror = (err) => {
+                                    logDebug(`✗ File fails even in img element with crossOrigin: ${err.type}`, 'error');
+                                };
+                                testImg.src = skill.icon;
+                            });
+                        
                         // Try absolute path as fallback
                         const absolutePath = new URL(skill.icon, window.location.href).href;
                         logDebug(`Trying absolute path: ${absolutePath}`, 'warn');
@@ -204,8 +279,8 @@
                             loadedImages.set(skill.icon, fallbackImg);
                             resolve({ skill, success: true, img: fallbackImg });
                         };
-                        fallbackImg.onerror = () => {
-                            logDebug(`✗ Fallback failed: ${absolutePath}`, 'error');
+                        fallbackImg.onerror = (fallbackError) => {
+                            logDebug(`✗ Fallback failed: ${absolutePath} - ${fallbackError.type}`, 'error');
                             resolve({ skill, success: false, img: null });
                         };
                         fallbackImg.src = absolutePath;
