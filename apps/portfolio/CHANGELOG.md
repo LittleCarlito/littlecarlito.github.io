@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.48.1 (2025-07-02)</small>
+
+- refactor: removing path util ([6fc19eb](https://github.com/littlecarlito/threejs_site/commit/6fc19eb))
+- fix: gh page paths ([a88908f](https://github.com/littlecarlito/threejs_site/commit/a88908f))
+
 ## 0.48.0 (2025-07-01)
 
 - fix: initial css3d frame orientation ([9a665c3](https://github.com/littlecarlito/threejs_site/commit/9a665c3))

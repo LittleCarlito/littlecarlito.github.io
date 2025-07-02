@@ -1,6 +1,6 @@
 {
   "name": "@littlecarlito/portfolio",
-  "version": "0.48.0",
+  "version": "0.48.1",
   "type": "module",
   "description": "Interactive 3D portfolio website showcasing web development and creative coding projects",
   "blorkType": "app",
