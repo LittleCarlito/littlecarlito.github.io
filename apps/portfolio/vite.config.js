@@ -231,7 +231,6 @@ export default defineConfig(({ command }) => {
 					return options;
 				}
 			},
-			// FIXED: Disable SVG optimization to prevent corruption
 			isProduction && ViteImageOptimizer({
 				png: { quality: 80 },
 				jpeg: { quality: 80 },
@@ -239,7 +238,6 @@ export default defineConfig(({ command }) => {
 				webp: { lossless: true },
 				avif: { lossless: true },
 				gif: { optimizationLevel: 3 },
-				// Disable SVG optimization that may be corrupting files
 				svg: false
 			}),
 			{
@@ -265,34 +263,6 @@ export default defineConfig(({ command }) => {
 							const pagesSrc = path.resolve(__dirname, 'public/pages');
 							const pagesDest = path.resolve(__dirname, 'dist/pages');
 							copyDirectory(pagesSrc, pagesDest);
-							
-							// ADDED: Explicitly copy images directory to ensure SVGs are preserved
-							const imagesSrc = path.resolve(__dirname, 'public/images');
-							const imagesDest = path.resolve(__dirname, 'dist/images');
-							if (fs.existsSync(imagesSrc)) {
-								copyDirectory(imagesSrc, imagesDest);
-								console.log('✓ Images directory copied');
-								
-								// Verify SVG files were copied correctly
-								const svgFiles = fs.readdirSync(imagesSrc).filter(file => file.endsWith('.svg'));
-								svgFiles.forEach(svgFile => {
-									const srcPath = path.join(imagesSrc, svgFile);
-									const destPath = path.join(imagesDest, svgFile);
-									if (fs.existsSync(destPath)) {
-										const srcSize = fs.statSync(srcPath).size;
-										const destSize = fs.statSync(destPath).size;
-										if (srcSize === destSize && srcSize > 0) {
-											console.log(`✓ SVG ${svgFile}: ${srcSize} bytes`);
-										} else {
-											console.error(`❌ SVG ${svgFile}: size mismatch (src: ${srcSize}, dest: ${destSize})`);
-										}
-									} else {
-										console.error(`❌ SVG ${svgFile}: not copied`);
-									}
-								});
-							} else {
-								console.warn('⚠️ No images directory found in public');
-							}
 							
 							console.log('✅ Static resources copied successfully');
 						} catch (error) {
