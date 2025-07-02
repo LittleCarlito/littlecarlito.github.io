@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.48.3 (2025-07-02)</small>
+
+- fix(portfolio): profile picture path ([6bf42d5](https://github.com/littlecarlito/threejs_site/commit/6bf42d5))
+
 ## <small>0.48.2 (2025-07-02)</small>
 
 - fix: dot to path ref ([edd8bb3](https://github.com/littlecarlito/threejs_site/commit/edd8bb3))
