@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.48.2 (2025-07-02)</small>
+
+- fix: dot to path ref ([edd8bb3](https://github.com/littlecarlito/threejs_site/commit/edd8bb3))
+- fix(porfolio): about icon paths ([29fc536](https://github.com/littlecarlito/threejs_site/commit/29fc536))
+
 ## <small>0.48.1 (2025-07-02)</small>
 
 - refactor: removing path util ([6fc19eb](https://github.com/littlecarlito/threejs_site/commit/6fc19eb))

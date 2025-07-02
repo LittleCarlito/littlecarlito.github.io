@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.49.1 (2025-07-02)</small>
+
+- fix: dot to path ref ([edd8bb3](https://github.com/littlecarlito/threejs_site/commit/edd8bb3))
+- fix: gh page paths ([a88908f](https://github.com/littlecarlito/threejs_site/commit/a88908f))
+- refactor: removing path util ([6fc19eb](https://github.com/littlecarlito/threejs_site/commit/6fc19eb))
+
 ## 0.49.0 (2025-07-01)
 
 - refactor(blorkpack): copying css3d setup ([a95468a](https://github.com/littlecarlito/threejs_site/commit/a95468a))
