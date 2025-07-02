@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.48.4 (2025-07-02)</small>
+
+- chore(portfolio): about logging ([83b9555](https://github.com/littlecarlito/threejs_site/commit/83b9555))
+- refactor(portfolio): logo location ([7bfec4c](https://github.com/littlecarlito/threejs_site/commit/7bfec4c))
+
 ## <small>0.48.3 (2025-07-02)</small>
 
 - fix(portfolio): profile picture path ([6bf42d5](https://github.com/littlecarlito/threejs_site/commit/6bf42d5))
