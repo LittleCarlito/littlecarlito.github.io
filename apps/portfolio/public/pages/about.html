@@ -657,4 +657,168 @@
             
             physicsContainer.addEventListener('mousemove', (event) => {
                 const rect = container.getBoundingClientRect();
-                mousePosition.x = event.clientX - rect.
+                mousePosition.x = event.clientX - rect.left;
+                mousePosition.y = height - (event.clientY - rect.top);
+                bufferAMaterial.uniforms.iMouse.value.x = mousePosition.x;
+                bufferAMaterial.uniforms.iMouse.value.y = mousePosition.y;
+                bufferBMaterial.uniforms.iMouse.value.x = mousePosition.x;
+                bufferBMaterial.uniforms.iMouse.value.y = mousePosition.y;
+                
+                if (!mousePressed) {
+                    bufferAMaterial.uniforms.iMouse.value.w = 1.0;
+                }
+            });
+            
+            physicsContainer.addEventListener('mousedown', (event) => {
+                mousePressed = true;
+                
+                const rect = container.getBoundingClientRect();
+                mousePosition.x = event.clientX - rect.left;
+                mousePosition.y = height - (event.clientY - rect.top);
+                
+                bufferAMaterial.uniforms.iMouse.value.x = mousePosition.x;
+                bufferAMaterial.uniforms.iMouse.value.y = mousePosition.y;
+                bufferAMaterial.uniforms.iMouse.value.z = 1.0;
+                
+                bufferBMaterial.uniforms.iMouse.value.x = mousePosition.x;
+                bufferBMaterial.uniforms.iMouse.value.y = mousePosition.y;
+                bufferBMaterial.uniforms.iMouse.value.z = 1.0;
+                
+                bufferAMaterial.uniforms.iMouse.value.w = 0.0;
+            });
+            
+            window.addEventListener('mouseup', () => {
+                mousePressed = false;
+                bufferAMaterial.uniforms.iMouse.value.z = 0.0;
+                bufferBMaterial.uniforms.iMouse.value.z = 0.0;
+            });
+            
+            let frameCount = 0;
+            let lastTime = 0;
+            const animate = (time) => {
+                requestAnimationFrame(animate);
+                
+                if (time - lastTime < 33) return;
+                lastTime = time;
+                
+                const timeValue = time * 0.001;
+                bufferAMaterial.uniforms.iTime.value = timeValue;
+                bufferAMaterial.uniforms.iFrame.value = frameCount;
+                bufferBMaterial.uniforms.iTime.value = timeValue;
+                bufferBMaterial.uniforms.iFrame.value = frameCount;
+                renderMaterial.uniforms.iTime.value = timeValue;
+                
+                try {
+                    renderer.setRenderTarget(currentBufferB);
+                    bufferBMaterial.uniforms.iChannel0.value = previousBufferA.texture;
+                    bufferBMaterial.uniforms.iChannel1.value = previousBufferB.texture;
+                    scene.overrideMaterial = bufferBMaterial;
+                    renderer.render(scene, camera);
+                    
+                    let temp = previousBufferB;
+                    previousBufferB = currentBufferB;
+                    currentBufferB = temp;
+                    
+                    renderer.setRenderTarget(currentBufferA);
+                    bufferAMaterial.uniforms.iChannel0.value = previousBufferA.texture;
+                    bufferAMaterial.uniforms.iChannel1.value = previousBufferB.texture;
+                    scene.overrideMaterial = bufferAMaterial;
+                    renderer.render(scene, camera);
+                    
+                    temp = previousBufferA;
+                    previousBufferA = currentBufferA;
+                    currentBufferA = temp;
+                    
+                    renderer.setRenderTarget(null);
+                    renderMaterial.uniforms.iChannel0.value = previousBufferA.texture;
+                    renderMaterial.uniforms.iChannel1.value = previousBufferB.texture;
+                    scene.overrideMaterial = renderMaterial;
+                    renderer.render(scene, camera);
+                } catch (error) {
+                    console.warn('Water render error:', error);
+                }
+                
+                frameCount++;
+            };
+            
+            waterEffect = { 
+                renderer, 
+                bufferA, bufferB, bufferB1, bufferB2,
+                bufferAMaterial, bufferBMaterial, renderMaterial,
+                initialized: true 
+            };
+            
+            animate(0);
+            logDebug('Water effect initialized');
+        }
+
+        function handleResize() {
+            setTimeout(() => {
+                const container = document.getElementById('physics-container');
+                const waterContainer = document.getElementById('water-container');
+                if (!container || !waterContainer) return;
+                
+                const newWidth = container.clientWidth;
+                const newHeight = container.clientHeight;
+                
+                if (render) {
+                    render.options.width = newWidth;
+                    render.options.height = newHeight;
+                    render.canvas.width = newWidth;
+                    render.canvas.height = newHeight;
+                    
+                    if (walls && walls.length) {
+                        Matter.Composite.remove(world, walls);
+                    }
+                    walls = [
+                        Matter.Bodies.rectangle(newWidth/2, -10, newWidth, 20, { isStatic: true }),
+                        Matter.Bodies.rectangle(newWidth/2, newHeight + 10, newWidth, 20, { isStatic: true }),
+                        Matter.Bodies.rectangle(-10, newHeight/2, 20, newHeight, { isStatic: true }),
+                        Matter.Bodies.rectangle(newWidth + 10, newHeight/2, 20, newHeight, { isStatic: true })
+                    ];
+                    Matter.World.add(world, walls);
+                }
+                
+                if (waterEffect.initialized && newWidth > 0 && newHeight > 0) {
+                    try {
+                        waterEffect.renderer.setSize(newWidth, newHeight);
+                        waterEffect.bufferAMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
+                        waterEffect.bufferBMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
+                        waterEffect.renderMaterial.uniforms.iResolution.value.set(newWidth, newHeight);
+                        
+                        waterEffect.bufferA.dispose();
+                        waterEffect.bufferB.dispose();
+                        waterEffect.bufferB1.dispose();
+                        waterEffect.bufferB2.dispose();
+                        
+                        const rtOptions = {
+                            minFilter: THREE.NearestFilter,
+                            magFilter: THREE.NearestFilter,
+                            format: THREE.RGBAFormat,
+                            type: THREE.HalfFloatType || THREE.FloatType,
+                            generateMipmaps: false,
+                            depthBuffer: false,
+                            stencilBuffer: false
+                        };
+                        
+                        waterEffect.bufferA = new THREE.WebGLRenderTarget(newWidth, newHeight, rtOptions);
+                        waterEffect.bufferB = new THREE.WebGLRenderTarget(newWidth, newHeight, rtOptions);
+                        waterEffect.bufferB1 = new THREE.WebGLRenderTarget(newWidth, newHeight, rtOptions);
+                        waterEffect.bufferB2 = new THREE.WebGLRenderTarget(newWidth, newHeight, rtOptions);
+                    } catch (error) {
+                        console.warn('Water resize error:', error);
+                    }
+                }
+            }, 250);
+        }
+        
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                initPhysics();
+                setTimeout(initWaterEffect, 800);
+                window.addEventListener('resize', handleResize);
+            }, 100);
+        });
+    </script>
+</body>
+</html>
