@@ -17,10 +17,6 @@ const outputPath = path.resolve(__dirname, 'dist/index.js')
 const isGitHubPages = process.env.GITHUB_PAGES === 'true'
 const base = isGitHubPages ? '/threejs_site/' : '/'
 
-// Helper function to copy directory contents to the dist folder
-/**
- *
- */
 function copyDirectory(src, dest) {
 	if (!fs.existsSync(src)) {
 		console.warn(`Source directory ${src} doesn't exist`);
@@ -44,7 +40,6 @@ function copyDirectory(src, dest) {
 			} else {
 				try {
 					fs.copyFileSync(srcPath, destPath);
-					// Reduce verbosity - only log directory copying, not each file
 				} catch (error) {
 					console.error(`Failed to copy file ${path.basename(srcPath)}: ${error.message}`);
 				}
@@ -58,13 +53,12 @@ function copyDirectory(src, dest) {
 export default defineConfig(({ command }) => {
 	const isProduction = command === 'build'
 	console.log(`Starting ${isProduction ? 'production' : 'development'} build...`)
-	// Skip optimization for blorkpack entirely
+	
 	const optimizeDepsConfig = {}
 	return {
 		base: base,
 		optimizeDeps: optimizeDepsConfig,
 		resolve: {
-			// Let the virtual module plugin handle resolution
 			alias: {
 				'@littlecarlito/blorkpack': '@littlecarlito/blorkpack'
 			}
@@ -108,7 +102,6 @@ export default defineConfig(({ command }) => {
 					})
 				},
 				onwarn(warning, warn) {
-					// Only log critical warnings, skip eval warnings from three.js libs
 					if (warning.code === 'EVAL' && warning.id.includes('node_modules/three')) {
 						return;
 					}
@@ -144,7 +137,6 @@ export default defineConfig(({ command }) => {
 			{
 				name: 'blorkpack-hmr-helper',
 				transformIndexHtml(html) {
-					// First add the error handler script
 					let updatedHtml = html.replace('</head>', `
             <script>
               window.__BLORKPACK_ERROR_HANDLER = (error) => {
@@ -158,7 +150,6 @@ export default defineConfig(({ command }) => {
             </script>
           </head>`);
 					
-					// Then make sure script paths use the correct base
 					if (isGitHubPages) {
 						updatedHtml = updatedHtml.replace(
 							/<script\s+type="module"\s+src="\.\/([^"]+)"/g, 
@@ -240,6 +231,7 @@ export default defineConfig(({ command }) => {
 					return options;
 				}
 			},
+			// FIXED: Disable SVG optimization to prevent corruption
 			isProduction && ViteImageOptimizer({
 				png: { quality: 80 },
 				jpeg: { quality: 80 },
@@ -247,19 +239,8 @@ export default defineConfig(({ command }) => {
 				webp: { lossless: true },
 				avif: { lossless: true },
 				gif: { optimizationLevel: 3 },
-				svg: {
-					multipass: true,
-					plugins: [
-						{
-							name: 'preset-default',
-							params: {
-								overrides: {
-									removeViewBox: false,
-								},
-							},
-						},
-					],
-				},
+				// Disable SVG optimization that may be corrupting files
+				svg: false
 			}),
 			{
 				name: 'copy-resources',
@@ -267,6 +248,7 @@ export default defineConfig(({ command }) => {
 					if (isProduction) {
 						console.log('🔄 Copying static resources...');
 						try {
+							// Copy manifest
 							const manifestSrc = path.resolve(__dirname, 'public/resources/manifest.json');
 							const manifestDest = path.resolve(__dirname, 'dist/resources/manifest.json');
 							if (fs.existsSync(manifestSrc)) {
@@ -278,9 +260,40 @@ export default defineConfig(({ command }) => {
 							} else {
 								console.warn('⚠️ No manifest.json found in public/resources directory');
 							}
+							
+							// Copy pages
 							const pagesSrc = path.resolve(__dirname, 'public/pages');
 							const pagesDest = path.resolve(__dirname, 'dist/pages');
 							copyDirectory(pagesSrc, pagesDest);
+							
+							// ADDED: Explicitly copy images directory to ensure SVGs are preserved
+							const imagesSrc = path.resolve(__dirname, 'public/images');
+							const imagesDest = path.resolve(__dirname, 'dist/images');
+							if (fs.existsSync(imagesSrc)) {
+								copyDirectory(imagesSrc, imagesDest);
+								console.log('✓ Images directory copied');
+								
+								// Verify SVG files were copied correctly
+								const svgFiles = fs.readdirSync(imagesSrc).filter(file => file.endsWith('.svg'));
+								svgFiles.forEach(svgFile => {
+									const srcPath = path.join(imagesSrc, svgFile);
+									const destPath = path.join(imagesDest, svgFile);
+									if (fs.existsSync(destPath)) {
+										const srcSize = fs.statSync(srcPath).size;
+										const destSize = fs.statSync(destPath).size;
+										if (srcSize === destSize && srcSize > 0) {
+											console.log(`✓ SVG ${svgFile}: ${srcSize} bytes`);
+										} else {
+											console.error(`❌ SVG ${svgFile}: size mismatch (src: ${srcSize}, dest: ${destSize})`);
+										}
+									} else {
+										console.error(`❌ SVG ${svgFile}: not copied`);
+									}
+								});
+							} else {
+								console.warn('⚠️ No images directory found in public');
+							}
+							
 							console.log('✅ Static resources copied successfully');
 						} catch (error) {
 							console.error('❌ Error copying resources:', error.message);
@@ -294,7 +307,6 @@ export default defineConfig(({ command }) => {
 				name: 'copy-extra-files',
 				closeBundle() {
 					console.log('✅ Copying additional files to dist');
-					// Copy custom_types.json to the dist root
 					try {
 						fs.copyFileSync(
 							path.resolve(__dirname, 'custom_types.json'),
@@ -302,7 +314,6 @@ export default defineConfig(({ command }) => {
 						);
 						console.log('✓ Copied custom_types.json to dist root');
 							
-						// Copy .nojekyll file to disable Jekyll processing on GitHub Pages
 						fs.writeFileSync(
 							path.resolve(__dirname, 'dist/.nojekyll'),
 							''
@@ -323,4 +334,4 @@ export default defineConfig(({ command }) => {
 			}
 		].filter(Boolean)
 	};
-}) 
+})
