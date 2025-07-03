@@ -24,7 +24,8 @@
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",
     "@littlecarlito/blorkpack": "workspace:*",
-    "three": "^0.172.0"
+    "three": "^0.172.0",
+    "troika-three-text": "0.52.4"
   },
   "devDependencies": {
     "rimraf": "^5.0.5",
