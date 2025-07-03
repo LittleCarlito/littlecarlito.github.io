@@ -1,6 +1,15 @@
 import { THREE, initThree } from "../../../common";
-// Create a lazy-loaded TextureLoader
+// Constants
+export const PAN_SPEED = 800;
+export const ROTATE_SPEED = 300;
+export const FOCUS_ROTATION = .7;
+export const LINK_RADIUS = .44;
+export const HIDE_WIDTH = 1;
+export const HIDE_HEIGHT = 1;
 let textureLoader = null;
+let raycaster = null;
+let mouse_location = null;
+
 /**
  * Get the TextureLoader instance, initializing if needed
  * @returns {THREE.TextureLoader} The texture loader instance
@@ -13,24 +22,7 @@ export function getTextureLoader() {
 	}
 	return textureLoader;
 }
-// Export a compatible API that works like the old TEXTURE_LOADER
-export const TEXTURE_LOADER = {
-	load: (url, onLoad, onProgress, onError) => {
-		const loader = getTextureLoader();
-		// Enable CORS specifically for GitHub Pages URLs
-		if (url.includes('/threejs_site/')) {
-			loader.crossOrigin = 'anonymous';
-		}
-		return loader.load(url, onLoad, onProgress, onError);
-	}
-};
-// Constants
-export const PAN_SPEED = 800;
-export const ROTATE_SPEED = 300;
-export const FOCUS_ROTATION = .7;
-export const LINK_RADIUS = .44;
-export const HIDE_WIDTH = 1;
-export const HIDE_HEIGHT = 1;
+
 /**
  * Takes a named object and returns the substring before '_' character
  * @param {*} incoming_object any named object
@@ -44,9 +36,6 @@ export function extract_type(incoming_object) {
 	const name_type = split_intersected_name[0] + "_";
 	return name_type;
 }
-// Mouse detection
-let raycaster = null;
-let mouse_location = null;
 
 /**
  * Get the raycaster, initializing if needed
@@ -70,14 +59,19 @@ function getMouseLocation() {
 	return mouse_location;
 }
 
-/** Converts screen coordinates to Normalized Device Coordinates (NDC) */
+/** 
+ * Converts screen coordinates to Normalized Device Coordinates (NDC)
+ * */
 export function get_ndc_from_event(e) {
 	return {
 		x: (e.clientX / window.innerWidth) * 2 - 1,
 		y: -(e.clientY / window.innerHeight) * 2 + 1
 	};
 }
-/** Retrieves objects mouse is intersecting with from the given event */
+
+/** 
+ * Retrieves objects mouse is intersecting with from the given event 
+ * */
 export function get_intersect_list(e, incoming_camera, incoming_scene) {
 	const ndc = get_ndc_from_event(e);
 	const mousePos = getMouseLocation();

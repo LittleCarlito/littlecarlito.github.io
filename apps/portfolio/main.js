@@ -4,7 +4,7 @@ import { FLAGS, THREE, RAPIER, initThree, updateTween, initRapier } from './comm
 import { ViewableContainer } from './viewport/viewable_container.js';
 import { BackgroundContainer } from './background/background_container.js';
 import { SceneSetupHelper } from './background/scene_setup_helper.js';
-import { extract_type, get_intersect_list, TEXTURE_LOADER, TYPES } from './viewport/overlay/overlay_common/index.js';
+import { extract_type, get_intersect_list, TYPES } from './viewport/overlay/overlay_common/index.js';
 import { AppRenderer } from './common/index.js';
 import { 
 	AssetStorage, 
@@ -20,7 +20,8 @@ import {
 	zoom_object_out, 
 	grab_object, 
 	release_object, 
-	initPhysicsUtil, 
+	initPhysicsUtil,
+	InteractionManager, 
 	} from '@littlecarlito/blorkpack';
 import { 
 	toggleDebugUI, 
@@ -43,73 +44,9 @@ if (import.meta.hot) {
 }
 
 // ----- Variables
-let resize_move = false;
-let zoom_event = false;
-let resize_timeout;
-let hovered_interactable_name = "";
-let grabbed_object = null;
-let left_mouse_down = false;
-let right_mouse_down = false;
 let is_cleaned_up = false;
 let is_physics_paused = false;
-let greeting_acknowledged = false;
-
-/** Cleans up resources to prevent memory leaks */
-function cleanup() {
-	if (is_cleaned_up) {
-		if(BLORKPACK_FLAGS.DEBUG_LOGS) {
-			console.debug("Scene already clean; Skipping cleanup");
-		}
-		return;
-	}
-	window.removeEventListener('resize', handle_resize);
-	window.removeEventListener('mousemove', handle_mouse_move);
-	window.removeEventListener('mousedown', handle_mouse_down);
-	window.removeEventListener('mouseup', handle_mouse_up);
-	window.removeEventListener('contextmenu', handle_context_menu);
-	window.removeEventListener('wheel', handle_wheel);
-	window.removeEventListener('keydown', toggle_debug_ui);
-	if (window.app_renderer) {
-		window.app_renderer.dispose();
-		window.app_renderer = null;
-	}
-	if (window.asset_handler) {
-		window.asset_handler.cleanup();
-		window.asset_handler.cleanup_debug();
-		window.asset_handler = null;
-	}
-	if (window.scene) {
-		window.scene.traverse(object => {
-			if (object.geometry) object.geometry.dispose();
-			if (object.material) {
-				if (Array.isArray(object.material)) {
-					object.material.forEach(material => {
-						if (material.map) material.map.dispose();
-						material.dispose();
-					});
-				} else {
-					if (object.material.map) object.material.map.dispose();
-					object.material.dispose();
-				}
-			}
-		});
-		SceneSetupHelper.dispose_background(window.scene);
-		SceneSetupHelper.dispose_lighting(window.scene);
-		window.scene.clear();
-		window.scene = null;
-	}
-	if (window.world) {
-		window.world = null;
-	}
-	window.viewable_container = null;
-	window.background_container = null;
-	window.clock = null;
-	grabbed_object = null;
-	is_cleaned_up = true;
-	if (BLORKPACK_FLAGS.DEBUG_LOGS) {
-		console.log("Application resources cleaned up");
-	}
-}
+let interactionManager = null;
 
 /** Creates and configures scene background based on manifest settings */
 async function setup_scene_background() {
@@ -177,47 +114,9 @@ function hide_loading_screen() {
 	}
 }
 
-/**
- * Displays a modal loaded from a remote HTML file
- * @param {string} modal_path - Path to the HTML file containing the modal content
- * @param {string} modal_id - ID of the modal element in the HTML
- * @param {string} button_id - ID of the button element to acknowledge the modal
- * @param {Function} onAcknowledge - Callback function to be executed when the modal is acknowledged
- * @returns {Promise} Promise that resolves when the modal is loaded and displayed
- */
-async function display_modal(modal_path, modal_id, button_id, onAcknowledge) {
-	try {
-		const resolvedPath = modal_path;
-		const response = await fetch(resolvedPath);
-		if (!response.ok) {
-			throw new Error(`Failed to load modal: ${response.status} ${response.statusText}`);
-		}
-		const html = await response.text();
-		document.body.insertAdjacentHTML('beforeend', html);
-		const modal = document.getElementById(modal_id);
-		if (!modal) {
-			throw new Error(`Modal HTML does not contain an element with ID '${modal_id}'`);
-		}
-		modal.style.display = 'block';
-		const acknowledge_btn = document.getElementById(button_id);
-		if (!acknowledge_btn) {
-			console.warn(`Modal is missing an '${button_id}' element, user won't be able to dismiss it.`);
-		} else {
-			acknowledge_btn.addEventListener('click', () => {
-				modal.style.display = 'none';
-				if (onAcknowledge) onAcknowledge();
-			});
-		}
-		return true;
-	} catch (error) {
-		console.error(`Error loading modal from path "${modal_path}": ${error.message}`);
-		if (onAcknowledge) onAcknowledge();
-		return false;
-	}
-}
-
 /** Initializes the main scene */
 async function init() {
+	interactionManager = InteractionManager.getInstance();
 	try {
 		await show_loading_screen();
 		
@@ -241,22 +140,12 @@ async function init() {
 		window.manifest_manager = ManifestManager.get_instance();
 		await window.manifest_manager.load_manifest();
 		
-		const greeting_data = window.manifest_manager.get_greeting_data();
-		greeting_acknowledged = !(greeting_data && greeting_data.display === true);
 		if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
 			console.log("Manifest loaded:", window.manifest_manager.get_manifest());
 		}
 		
-		window.addEventListener('resize', handle_resize);
-		window.addEventListener('mousemove', handle_mouse_move);
-		window.addEventListener('mousedown', handle_mouse_down);
-		window.addEventListener('mouseup', handle_mouse_up);
-		window.addEventListener('contextmenu', handle_context_menu);
-		window.addEventListener('wheel', handle_wheel);
-		window.addEventListener('keydown', toggle_debug_ui);
-		window.addEventListener('unload', cleanup);
-		
 		window.scene = new THREE.Scene();
+
 		setSceneReference(window.scene);
 		
 		update_loading_progress('Setting up scene background...');
@@ -272,18 +161,14 @@ async function init() {
 		await setup_scene_lighting();
 		
 		window.viewable_container = new ViewableContainer(window);
+		
 		window.app_renderer = new AppRenderer(window.scene, window.viewable_container.get_camera());
 		window.renderer = window.app_renderer.get_renderer();
 		window.asset_activator = AssetActivator.get_instance(window.viewable_container.get_camera(), window.app_renderer.get_renderer());
 		
-		if(greeting_data.display === true) {
-			await display_modal(
-				greeting_data.modal_path,
-				'greeting-modal',
-				'acknowledge-btn',
-				() => { greeting_acknowledged = true; }
-			);
-		}
+		await interactionManager.startListening(window);
+		window.addEventListener('keydown', toggle_debug_ui);
+		window.addEventListener('unload', cleanup);
 		
 		update_loading_progress('Loading background assets...');
 		window.background_container = new BackgroundContainer(window.scene, window.viewable_container.get_camera(), window.world);
@@ -338,6 +223,58 @@ async function init() {
 	}
 }
 
+/** Cleans up resources to prevent memory leaks */
+function cleanup() {
+	if (is_cleaned_up) {
+		if(BLORKPACK_FLAGS.DEBUG_LOGS) {
+			console.debug("Scene already clean; Skipping cleanup");
+		}
+		return;
+	}
+	interactionManager.stopListening();
+	// TODO Leaving this one in main as its specific to this app
+	window.removeEventListener('keydown', toggle_debug_ui);
+	if (window.app_renderer) {
+		window.app_renderer.dispose();
+		window.app_renderer = null;
+	}
+	if (window.asset_handler) {
+		window.asset_handler.cleanup();
+		window.asset_handler.cleanup_debug();
+		window.asset_handler = null;
+	}
+	if (window.scene) {
+		window.scene.traverse(object => {
+			if (object.geometry) object.geometry.dispose();
+			if (object.material) {
+				if (Array.isArray(object.material)) {
+					object.material.forEach(material => {
+						if (material.map) material.map.dispose();
+						material.dispose();
+					});
+				} else {
+					if (object.material.map) object.material.map.dispose();
+					object.material.dispose();
+				}
+			}
+		});
+		SceneSetupHelper.dispose_background(window.scene);
+		SceneSetupHelper.dispose_lighting(window.scene);
+		window.scene.clear();
+		window.scene = null;
+	}
+	if (window.world) {
+		window.world = null;
+	}
+	window.viewable_container = null;
+	window.background_container = null;
+	window.clock = null;
+	is_cleaned_up = true;
+	if (BLORKPACK_FLAGS.DEBUG_LOGS) {
+		console.log("Application resources cleaned up");
+	}
+}
+
 /** Toggle physics simulation pause state */
 function toggle_physics_pause() {
 	is_physics_paused = !is_physics_paused;
@@ -358,13 +295,13 @@ window.toggle_physics_pause = toggle_physics_pause;
 function animate() {
 	const delta = window.clock.getDelta();
 	updateTween();
-	if(resize_move) {
-		if(!zoom_event) {
+	if(interactionManager.resize_move) {
+		if(!interactionManager.zoom_event) {
 			window.viewable_container.resize_reposition();
 		} else {
-			zoom_event = false;
+			interactionManager.zoom_event = false;
 		}
-		resize_move = false;
+		interactionManager.resize_move = false;
 	}
 	const isTextActive = window.viewable_container.is_text_active();
 	if (!window.previousTextContainerState && isTextActive && !is_physics_paused) {
@@ -383,10 +320,10 @@ function animate() {
 	window.previousTextContainerState = isTextActive;
 	if(window.viewable_container.get_overlay().is_intersected() != null) {
 		window.asset_activator.activate_object(window.viewable_container.get_intersected_name());
-	} else if(grabbed_object) {
-		translate_object(grabbed_object, window.viewable_container.get_camera());
-	} else if(hovered_interactable_name != "" && window.viewable_container.is_overlay_hidden()) {
-		window.asset_activator.activate_object(hovered_interactable_name);
+	} else if(interactionManager.grabbed_object) {
+		translate_object(interactionManager.grabbed_object, window.viewable_container.get_camera());
+	} else if(interactionManager.hovered_interactable_name != "" && window.viewable_container.is_overlay_hidden()) {
+		window.asset_activator.activate_object(interactionManager.hovered_interactable_name);
 	} else if(window.viewable_container.is_text_active()) {
 		window.asset_activator.activate_object(window.viewable_container.get_active_name());
 	} else {
@@ -397,13 +334,13 @@ function animate() {
 		window.world.step();
 	}
 	if (window.background_container) {
-		window.background_container.update(grabbed_object, window.viewable_container);
+		window.background_container.update(interactionManager.grabbed_object, window.viewable_container);
 	}
 	if (AssetStorage.get_instance()) {
 		if (!is_physics_paused) {
 			AssetStorage.get_instance().update();
-		} else if (grabbed_object) {
-			const body_pair = AssetStorage.get_instance().get_body_pair_by_mesh(grabbed_object);
+		} else if (interactionManager.grabbed_object) {
+			const body_pair = AssetStorage.get_instance().get_body_pair_by_mesh(interactionManager.grabbed_object);
 			if (body_pair) {
 				const [mesh, body] = body_pair;
 				const position = body.translation();
@@ -421,163 +358,6 @@ function animate() {
 		}
 	}
 	window.app_renderer.render();
-}
-
-// ----- Handlers
-/** Handles resize events */
-function handle_resize() {
-	if (resize_timeout) clearTimeout(resize_timeout);
-	resize_timeout = setTimeout(() => {
-		if (window.app_renderer) window.app_renderer.resize();
-		if (window.viewable_container) {
-			window.viewable_container.reset_camera();
-			window.viewable_container.resize_reposition();
-		}
-	}, 100);
-}
-
-/**
- *
- */
-function handle_mouse_move(e) {
-	if (!window.viewable_container) return;
-	update_mouse_position(e);
-	if(window.viewable_container.detect_rotation) {
-		const sensitivity = 0.02;
-		window.viewable_container.get_camera_manager().rotate(
-			e.movementX * sensitivity,
-			e.movementY * sensitivity
-		);
-	}
-	if(greeting_acknowledged) {
-		if(window.viewable_container.is_animating()) {
-			return;
-		}
-		const found_intersections = get_intersect_list(e, window.viewable_container.get_camera(), window.scene);
-		const is_overlay_hidden = window.viewable_container.is_overlay_hidden();
-		let relevant_intersections = found_intersections;
-		if(!is_overlay_hidden) {
-			relevant_intersections = found_intersections.filter(intersection => {
-				const object_name = intersection.object.name;
-				const name_type = object_name.split("_")[0] + "_";
-				return name_type === TYPES.LABEL;
-			});
-		}
-		if(relevant_intersections.length > 0 && !window.viewable_container.get_overlay().is_swapping_sides()) {
-			const intersected_object = relevant_intersections[0].object;
-			const object_name = intersected_object.name;
-			const name_type = object_name.split("_")[0] + "_";
-			switch(name_type) {
-			case TYPES.LABEL:
-				window.viewable_container.get_overlay().handle_hover(intersected_object);
-				break;
-			case TYPES.FLOOR:
-				window.viewable_container.get_overlay().reset_hover();
-				break;
-			case TYPES.INTERACTABLE:
-				hovered_interactable_name = object_name;
-				if (FLAGS.ACTIVATE_LOGS) {
-					console.log("Hover detected on interactable:", object_name);
-				}
-				break;
-			default:
-				window.viewable_container.get_overlay().reset_hover();
-				break;
-			}
-		} else {
-			window.viewable_container.get_overlay().reset_hover();
-			if (is_overlay_hidden) {
-				hovered_interactable_name = "";
-			}
-		}
-	}
-}
-
-/**
- *
- */
-function handle_mouse_up(e) {
-	if (!window.viewable_container) return;
-	if(greeting_acknowledged) {
-		if(grabbed_object) {
-			release_object(grabbed_object, window.background_container);
-			grabbed_object = null;
-		}
-		window.viewable_container.handle_mouse_up(get_intersect_list(e, window.viewable_container.get_camera(), window.scene));
-		if (e.button === 0) {
-			window.viewable_container.detect_rotation = false;
-			left_mouse_down = false;
-		}
-		if (e.button === 2) {
-			window.viewable_container.detect_rotation = false;
-			right_mouse_down = false;
-		}
-	}
-}
-
-/**
- *
- */
-function handle_mouse_down(e) {
-	if (!window.viewable_container) return;
-	if(greeting_acknowledged) {
-		if(e.button === 0) {
-			left_mouse_down = true;
-		}
-		if(e.button === 2) {
-			right_mouse_down = true;
-			if(grabbed_object) {
-				release_object(grabbed_object);
-				grabbed_object = null;
-			}
-		}
-		if(left_mouse_down && right_mouse_down && window.viewable_container.is_overlay_hidden()) {
-			window.viewable_container.detect_rotation = true;
-		} else if(window.viewable_container.is_overlay_hidden()) {
-			const found_intersections = get_intersect_list(e, window.viewable_container.get_camera(), window.scene);
-			found_intersections.forEach(i => {
-				switch(extract_type(i.object)) {
-				case TYPES.INTERACTABLE:
-					if(left_mouse_down) {
-						grabbed_object = i.object;
-						grab_object(grabbed_object, window.viewable_container.get_camera());
-					} else {
-						shove_object(i.object, window.viewable_container.get_camera());
-					}
-					break;
-				default:
-					break;
-				}
-			});
-		}
-	}
-}
-
-/**
- *
- */
-function handle_context_menu(e) {
-	e.preventDefault();
-}
-
-/**
- *
- */
-function handle_wheel(e) {
-	if (!window.viewable_container || !window.background_container) return;
-	if(greeting_acknowledged) {
-		if(grabbed_object) {
-			if(e.deltaY < 0) {
-				window.background_container.break_secondary_chains();
-				zoom_object_in(grabbed_object);
-			} else {
-				window.background_container.break_secondary_chains();
-				zoom_object_out(grabbed_object);
-			}
-			zoom_event = true;
-			resize_move = true;
-		}
-	}
 }
 
 /** Toggle debug UI when 's' key is pressed */

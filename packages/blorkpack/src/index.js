@@ -29,13 +29,16 @@ export { Easing, Tween };
 export * from './asset_storage.js';
 export * from './asset_activator.js';
 export * from './asset_handler/asset_handler.js';
+export * from './btype_helper.js';
 export * from './manifest_manager.js';
 export * from './loader.js';
 export * from './app_renderer.js';
 export * from './physics/index.js'; // Export physics utilities
 import { AssetStorage } from './asset_storage.js';
 import { AssetHandler } from './asset_handler/asset_handler.js';
+import { BTYPES } from './BTYPES.js';
 import { MaterialFactory } from './asset_handler/index.js';
+import { InteractionManager } from './interaction_manager.js';
 import { CSS3DFactory } from './asset_handler/index.js';
 import { AssetActivator } from './asset_activator.js';
 import { ManifestManager } from './manifest_manager.js';
@@ -47,8 +50,10 @@ import { initPhysicsUtil } from './physics/physics_util.js';
 import { SystemAssetType } from './asset_handler/common/system_asset_types.js';
 // Export the components
 export {
+	BTYPES,
 	ManifestManager,
 	MANIFEST_TYPES,
+	InteractionManager,
 	AssetHandler,
 	MaterialFactory,
 	CSS3DFactory,
