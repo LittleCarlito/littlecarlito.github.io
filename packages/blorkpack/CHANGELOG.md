@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 0.50.0 (2025-07-03)
+
+- feat(blorkpack): interaction manager ([490f064](https://github.com/littlecarlito/threejs_site/commit/490f064))
+
 ## <small>0.49.1 (2025-07-02)</small>
 
 - fix: dot to path ref ([edd8bb3](https://github.com/littlecarlito/threejs_site/commit/edd8bb3))
