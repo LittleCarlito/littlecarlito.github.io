@@ -56,8 +56,8 @@ export class LabelContainer {
 			
 			// Set font path to your downloaded Roboto font
 			const fontPath = window.location.hostname === 'littlecarlito.github.io' 
-				? '/threejs_site/fonts/Karnivore-Digit.woff'
-				: '/fonts/Karnivore-Digit.woff';
+				? '/threejs_site/fonts/russo-one.woff'
+				: '/fonts/russo-one.woff';
 			textMesh.font = fontPath;
 			
 			// Sync the text to ensure proper dimensions
