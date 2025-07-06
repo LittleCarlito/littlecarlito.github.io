@@ -2,6 +2,8 @@
 import { THREE, BLORKPACK_FLAGS } from '@littlecarlito/blorkpack';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 
+const BACKGROUND_PATH = 'images/water.exr';
+
 /**
  * Scene Setup Helper - Functional class for managing scene background and lighting
  * Handles initialization and configuration of scene visual elements
@@ -60,13 +62,12 @@ export const SceneSetupHelper = {
 	 * @returns {Promise} Promise that resolves when HDRI is loaded
 	 */
 	_create_hdri_background(scene, progressCallback) {
-		const hdriPath = 'images/studio_small.exr';
-		console.log('Loading HDRI environment map from:', hdriPath);
+		console.log('Loading HDRI environment map from:', BACKGROUND_PATH);
 		
 		return new Promise((resolve, reject) => {
 			const loader = new EXRLoader();
 			
-			loader.load(hdriPath, 
+			loader.load(BACKGROUND_PATH, 
 				(texture) => {
 					texture.mapping = THREE.EquirectangularReflectionMapping;
 					scene.background = texture;
@@ -96,13 +97,12 @@ export const SceneSetupHelper = {
 	 * @returns {Promise} Promise that resolves when HDRI lighting is loaded
 	 */
 	_create_hdri_lighting(scene, progressCallback) {
-		const hdriPath = 'images/studio_small.exr';
-		console.log('Configuring HDRI environment lighting from:', hdriPath);
+		console.log('Configuring HDRI environment lighting from:', BACKGROUND_PATH);
 		
 		return new Promise((resolve, reject) => {
 			const loader = new EXRLoader();
 			
-			loader.load(hdriPath,
+			loader.load(BACKGROUND_PATH,
 				(texture) => {
 					texture.mapping = THREE.EquirectangularReflectionMapping;
 					scene.environment = texture;
