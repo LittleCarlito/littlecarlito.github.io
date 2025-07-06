@@ -16,6 +16,12 @@ const LEFT_BURST_ANGLE = -80;
 const RIGHT_BURST_ANGLE = -100; 
 const SPREAD_ANGLE = 45;
 
+export const TEXT_COLORS = {
+	PRIMARY: 0xffffff,
+	SECONDARY: 0x000000,
+	TERTIARY: 0x000000
+};
+
 export class OverlayContainer {
 	overlay_container;
 	title_block;
@@ -38,14 +44,18 @@ export class OverlayContainer {
 		this.overlay_container.traverse((child) => {
 			child.renderOrder = 999;
 		});
-		this.title_block = new TitleBlock(this.overlay_container, this.camera);
+		this.title_block = new TitleBlock(this.overlay_container, this.camera, this);
 		this.text_box_container = new TextContainer(this.overlay_container, this.camera);
-		this.label_container = new LabelContainer(this.overlay_container, this.camera);
+		this.label_container = new LabelContainer(this.overlay_container, this.camera, this);
 		this.link_container = new LinkContainer(this.overlay_container, this.camera);
-		this.artist_block = new ArtistBlock(this.overlay_container, this.camera);
+		this.artist_block = new ArtistBlock(this.overlay_container, this.camera, this);
 		this.hide_button = new HideButton(this.overlay_container, this.camera);
 		this.overlay_container.position.z = this.camera.position.z - 15;
 		this.parent.add(this.overlay_container);
+	}
+
+	get_text_colors() {
+		return TEXT_COLORS;
 	}
 
 	create_confetti_burst() {

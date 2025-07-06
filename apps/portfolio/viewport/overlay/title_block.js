@@ -9,9 +9,10 @@ const TITLE_Y = 9;
 const TITLE_X = -4;
 
 export class TitleBlock {
-	constructor(incoming_parent, incoming_camera) {
+	constructor(incoming_parent, incoming_camera, overlay_container) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
+		this.overlay_container = overlay_container;
 		
 		this.title_container = new THREE.Group();
 		this.title_container.name = `${TITLE}`;
@@ -32,6 +33,7 @@ export class TitleBlock {
 	}
 
 	create_letter_containers() {
+		const colors = this.overlay_container.get_text_colors();
 		const text = 'Steven Meier';
 		const font_size = this.get_title_font_size();
 		const char_width = font_size * 0.8;
@@ -49,7 +51,7 @@ export class TitleBlock {
 			solid_letter.text = char;
 			solid_letter.font = 'fonts/Dubtronic-Solid.woff';
 			solid_letter.fontSize = font_size;
-			solid_letter.color = 0xffffff;
+			solid_letter.color = colors.PRIMARY;
 			solid_letter.anchorX = 'center';
 			solid_letter.anchorY = 'middle';
 			solid_letter.name = `${TITLE}solid_${i}`;
@@ -61,7 +63,7 @@ export class TitleBlock {
 				inline_letter.text = char;
 				inline_letter.font = 'fonts/Dubtronic-Inline.woff';
 				inline_letter.fontSize = font_size;
-				inline_letter.color = 0x000000;
+				inline_letter.color = colors.SECONDARY;
 				inline_letter.anchorX = 'center';
 				inline_letter.anchorY = 'middle';
 				inline_letter.name = `${TITLE}inline_${i}`;

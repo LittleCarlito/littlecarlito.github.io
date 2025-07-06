@@ -10,18 +10,18 @@ export class LabelContainer {
 	is_column_left = true;
 	current_intersected = null;
 	wireframe_boxes = [];
-	// Define colors for wireframes - high visibility versions of category colors
 	wireframe_colors = {
-		contact: 0xffff55,    // bright yellow
-		project: 0xff55ff,    // bright purple
-		work: 0xff5555,       // bright red
-		education: 0x55ff55,  // bright green
-		about: 0x5555ff       // bright blue
+		contact: 0xffff55,
+		project: 0xff55ff,
+		work: 0xff5555,
+		education: 0x55ff55,
+		about: 0x5555ff
 	};
 
-	constructor(incoming_parent, incoming_camera) {
+	constructor(incoming_parent, incoming_camera, overlay_container) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
+		this.overlay_container = overlay_container;
 		this.container_column = new THREE.Object3D();
 		this.container_column.name = `${TYPES.CONATINER}column`
 		this.parent.add(this.container_column);
@@ -32,20 +32,21 @@ export class LabelContainer {
 	}
 
 	createLabels() {
-		// Create section labels
+		const colors = this.overlay_container.get_text_colors();
 		Object.values(CATEGORIES).forEach((category, i) => {
-			if (typeof category === 'function') return; // Skip helper methods
+			if (typeof category === 'function') return;
 			const button_container = new THREE.Object3D();
 			button_container.simple_name = category.value;
 			button_container.name = `${TYPES.CONATINER}${category.value}`;
 			this.container_column.add(button_container);
 			button_container.position.y = i * 3;
 
-			// Create Troika Text
 			const textMesh = new Text();
 			textMesh.text = category.value.toUpperCase();
 			textMesh.fontSize = 1.0;
-			textMesh.color = category.color;
+			textMesh.color = colors.PRIMARY;
+			textMesh.strokeColor = colors.TERTIARY;
+			textMesh.strokeWidth = 0.02;
 			textMesh.anchorX = 'center';
 			textMesh.anchorY = 'middle';
 			textMesh.position.z = 0.1;
@@ -54,18 +55,29 @@ export class LabelContainer {
 			textMesh.simple_name = category.value;
 			textMesh.name = `${TYPES.LABEL}${category.value}`;
 			
-			// Set font path to your downloaded Roboto font
 			const fontPath = window.location.hostname === 'littlecarlito.github.io' 
 				? '/threejs_site/fonts/russo-one.woff'
 				: '/fonts/russo-one.woff';
 			textMesh.font = fontPath;
+
+			const outerTextMesh = new Text();
+			outerTextMesh.text = category.value.toUpperCase();
+			outerTextMesh.fontSize = 1.0;
+			outerTextMesh.color = colors.TERTIARY;
+			outerTextMesh.strokeColor = colors.SECONDARY;
+			outerTextMesh.strokeWidth = 0.1;
+			outerTextMesh.anchorX = 'center';
+			outerTextMesh.anchorY = 'middle';
+			outerTextMesh.position.set(0.02, -0.02, -0.01);
+			outerTextMesh.renderOrder = 1;
+			outerTextMesh.depthTest = false;
+			outerTextMesh.font = fontPath;
 			
-			// Sync the text to ensure proper dimensions
+			textMesh.add(outerTextMesh);
+			
 			textMesh.sync(() => {
-				// Get text width after sync for collision box sizing
 				const textWidth = Math.max(5, textMesh.textRenderInfo.blockBounds[2] - textMesh.textRenderInfo.blockBounds[0] + 1);
 				
-				// Create invisible collision box with width matching the text
 				const boxGeometry = new THREE.BoxGeometry(textWidth, 3, 0.2);
 				const collisionMaterial = new THREE.MeshBasicMaterial({
 					transparent: true,
@@ -79,7 +91,6 @@ export class LabelContainer {
 				collisionBox.name = `${TYPES.LABEL}${category.value}_collision`;
 				button_container.add(collisionBox);
 
-				// Add wireframe box for visual debugging
 				if (FLAGS.COLLISION_VISUAL_DEBUG) {
 					const wireframe_material = new THREE.MeshBasicMaterial({
 						color: this.wireframe_colors[category.value] || 0xffffff,
@@ -89,7 +100,7 @@ export class LabelContainer {
 						depthTest: false
 					});
 					const wireframe_box = new THREE.Mesh(boxGeometry, wireframe_material);
-					wireframe_box.raycast = () => null; // Disable raycasting
+					wireframe_box.raycast = () => null;
 					wireframe_box.visible = true;
 					button_container.add(wireframe_box);
 					this.wireframe_boxes.push(wireframe_box);
@@ -197,7 +208,6 @@ export class LabelContainer {
 				if (FLAGS.COLLISION_VISUAL_DEBUG) {
 					container.children.forEach(child => {
 						if (child.material && child.material.wireframe) {
-							// Don't change visibility here since they should always be visible when debug is on
 						}
 					});
 				}
@@ -227,7 +237,6 @@ export class LabelContainer {
 			if (FLAGS.COLLISION_VISUAL_DEBUG) {
 				const container = object_to_reset.parent;
 				if (container) {
-					// Don't hide wireframes anymore - they should stay visible
 				}
 			}
 			const existing_tween = this.in_tween_map.get(object_to_reset.name);
@@ -253,7 +262,7 @@ export class LabelContainer {
 	set_content_layer(incoming_layer) {
 		this.container_column.layers.set(0);
 		Object.values(CATEGORIES).forEach(category => {
-			if (typeof category === 'function') return; // Skip helper methods
+			if (typeof category === 'function') return;
 			const label_name = `${TYPES.CONATINER}${category.value}`;
 			const button_name = `${TYPES.LABEL}${category.value}`;
 			const existing_label_container = this.container_column.getObjectByName(label_name);
@@ -290,8 +299,8 @@ export class LabelContainer {
 						depthTest: false
 					});
 					const wireframe_box = new THREE.Mesh(collisionBox.geometry, wireframe_material);
-					wireframe_box.raycast = () => null; // Disable raycasting
-					wireframe_box.visible = FLAGS.COLLISION_VISUAL_DEBUG; // Initial visibility based on flag
+					wireframe_box.raycast = () => null;
+					wireframe_box.visible = FLAGS.COLLISION_VISUAL_DEBUG;
 					button_container.add(wireframe_box);
 					this.wireframe_boxes.push(wireframe_box);
 				}

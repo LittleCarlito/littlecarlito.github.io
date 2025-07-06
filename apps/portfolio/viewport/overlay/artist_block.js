@@ -15,9 +15,10 @@ const ARTIST_BLOCK = {
 };
 
 export class ArtistBlock {
-	constructor(incoming_parent, incoming_camera) {
+	constructor(incoming_parent, incoming_camera, overlay_container) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
+		this.overlay_container = overlay_container;
 		
 		this.artist_container = new THREE.Group();
 		this.artist_container.name = `${ARTIST}`;
@@ -40,6 +41,7 @@ export class ArtistBlock {
 	}
 
 	create_letter_containers() {
+		const colors = this.overlay_container.get_text_colors();
 		const font_size = this.get_artist_font_size();
 		const char_width = font_size * 0.8;
 		const total_width = artist_name.length * char_width;
@@ -56,7 +58,7 @@ export class ArtistBlock {
 			solid_letter.text = char;
 			solid_letter.font = 'fonts/Dubtronic-Solid.woff';
 			solid_letter.fontSize = font_size;
-			solid_letter.color = 0x444444;
+			solid_letter.color = colors.SECONDARY;
 			solid_letter.anchorX = 'center';
 			solid_letter.anchorY = 'middle';
 			solid_letter.name = `${ARTIST}solid_${i}`;
@@ -68,7 +70,7 @@ export class ArtistBlock {
 				inline_letter.text = char;
 				inline_letter.font = 'fonts/Dubtronic-Inline.woff';
 				inline_letter.fontSize = font_size;
-				inline_letter.color = 0xffffff;
+				inline_letter.color = colors.PRIMARY;
 				inline_letter.anchorX = 'center';
 				inline_letter.anchorY = 'middle';
 				inline_letter.name = `${ARTIST}inline_${i}`;
