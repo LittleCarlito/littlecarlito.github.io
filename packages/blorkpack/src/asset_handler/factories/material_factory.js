@@ -196,8 +196,14 @@ export class MaterialFactory {
                 baseConfig.metalness = 0.2;
             }
             
-            baseConfig.transparent = false;
-            baseConfig.alphaTest = 0;
+            // Enable transparency and alpha testing for glass materials
+            if (textureObjects.baseColor) {
+                baseConfig.transparent = true;
+                baseConfig.alphaTest = 0.01;
+            } else {
+                baseConfig.transparent = false;
+                baseConfig.alphaTest = 0;
+            }
             
             return new THREE.MeshStandardMaterial(baseConfig);
         } else if (materialType === 'unlit') {

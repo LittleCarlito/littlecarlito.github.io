@@ -43,7 +43,7 @@ export class TextContainer {
 			});
 			const text_box_background = new THREE.Mesh(box_geometry, box_material);
 			text_box_background.name = `${TYPES.BACKGROUND}${incoming_category.value}`;
-			text_box_background.renderOrder = -1;
+			text_box_background.renderOrder = 1000; // Increased from -1 to ensure it renders on top
 			incoming_box.add(text_box_background);
 		};
 
