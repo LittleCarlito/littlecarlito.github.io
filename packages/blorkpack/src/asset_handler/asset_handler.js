@@ -11,6 +11,8 @@ import {
 import { CollisionFactory } from "./factories/collision_factory.js";
 import { DebugFactory } from "./factories/debug_factory.js";
 import { AssetRotator } from "./common/asset_rotator.js";
+import { RigAnalyzer } from './data/rig_analyzer.js';
+import { createRigVisualization, updateRigVisualization, clearRigVisualization } from './factories/rig_factory.js';
 
 /**
  * Class responsible for spawning and managing 3D assets in the scene.
@@ -27,6 +29,8 @@ export class AssetHandler {
 	#assetConfigs = null;
 	debugFactory = null;
 	rotator;
+	rigAnalyzer;
+	activeRigVisualizations = new Map();
 
 	constructor(target_container = null, target_world = null) {
 		if (AssetHandler.#instance) {
@@ -38,6 +42,8 @@ export class AssetHandler {
 		this.#assetTypes = CustomTypeManager.getTypes();
 		this.#assetConfigs = CustomTypeManager.getConfigs();
 		this.rotator = AssetRotator.get_instance();
+		this.rigAnalyzer = RigAnalyzer.get_instance();
+		this.activeRigVisualizations = new Map();
 		AssetHandler.#instance = this;
 		AssetHandler.#disposed = false;
 	}
@@ -59,6 +65,117 @@ export class AssetHandler {
 		}
 		
 		return AssetHandler.#instance;
+	}
+
+	/**
+	 * Analyzes an asset for rig structure after spawning
+	 * @param {Object} spawnResult - Result from spawn_asset containing mesh and other data
+	 * @param {string} assetType - The asset type for logging
+	 * @returns {Object|null} Rig details if found, null otherwise
+	 */
+	analyzeAssetRig(spawnResult, assetType) {
+		if (!spawnResult || !spawnResult.mesh) {
+			return null;
+		}
+
+		try {
+			// Get the original GLTF data from storage to analyze
+			const storage = AssetStorage.get_instance();
+			const customTypeKey = CustomTypeManager.getType(assetType);
+			
+			// Check if we have cached GLTF data
+			if (storage.cached_models && storage.cached_models.has(customTypeKey)) {
+				const gltfData = storage.cached_models.get(customTypeKey);
+				const rigDetails = this.rigAnalyzer.analyze(gltfData, customTypeKey);
+				
+				if (rigDetails) {
+					// Store rig details in the spawned mesh
+					spawnResult.mesh.userData.rigDetails = rigDetails;
+					spawnResult.mesh.userData.hasRig = true;
+					
+					// Add rig details to the spawn result
+					spawnResult.rigDetails = rigDetails;
+					
+					// LOG SUCCESS
+					console.log(`[AssetHandler] 🎯 RIG DETECTED in ${assetType}:`, {
+						instanceId: spawnResult.instance_id,
+						bones: rigDetails.bones.length,
+						constraints: rigDetails.constraints.length,
+						roots: rigDetails.roots.length,
+						armature: rigDetails.armature ? rigDetails.armature.name : 'none'
+					});
+					
+					// Detailed bone logging if we have bones
+					if (rigDetails.bones.length > 0) {
+						console.log(`[AssetHandler] Bone Details:`, rigDetails.bones.map(b => ({
+							name: b.name,
+							parent: b.parentName,
+							constraint: b.constraintType
+						})));
+					}
+					
+					// CREATE RIG VISUALIZATION
+					this.createRigForAsset(spawnResult, rigDetails, assetType);
+					
+					return rigDetails;
+				} else {
+					console.log(`[AssetHandler] ⚪ No rig structure found in ${assetType}`);
+					spawnResult.mesh.userData.hasRig = false;
+				}
+			} else {
+				console.warn(`[AssetHandler] No cached GLTF data found for ${assetType}, cannot analyze rig`);
+			}
+		} catch (error) {
+			console.error(`[AssetHandler] Error analyzing rig for ${assetType}:`, error);
+			spawnResult.mesh.userData.hasRig = false;
+		}
+		
+		return null;
+	}
+
+	/**
+	 * Creates rig visualization for an asset
+	 * @param {Object} spawnResult - Spawn result containing mesh
+	 * @param {Object} rigDetails - Analyzed rig details
+	 * @param {string} assetType - Asset type name
+	 */
+	createRigForAsset(spawnResult, rigDetails, assetType) {
+		if (!this.scene) {
+			console.warn('[AssetHandler] No scene available for rig visualization');
+			return;
+		}
+
+		try {
+			console.log(`[AssetHandler] Creating rig visualization for ${assetType}`);
+			
+			const rigVisualization = createRigVisualization(rigDetails, this.scene, spawnResult.mesh);
+			
+			if (rigVisualization) {
+				// Store the visualization reference
+				this.activeRigVisualizations.set(spawnResult.instance_id, {
+					visualization: rigVisualization,
+					assetType: assetType,
+					mesh: spawnResult.mesh
+				});
+				
+				console.log(`[AssetHandler] ✅ Rig visualization created for ${assetType}`);
+			}
+		} catch (error) {
+			console.error(`[AssetHandler] Error creating rig visualization for ${assetType}:`, error);
+		}
+	}
+
+	/**
+	 * Updates all active rig visualizations
+	 */
+	updateRigVisualizations() {
+		this.activeRigVisualizations.forEach((rigData, instanceId) => {
+			try {
+				updateRigVisualization();
+			} catch (error) {
+				console.error(`[AssetHandler] Error updating rig visualization for ${rigData.assetType}:`, error);
+			}
+		});
 	}
 
 	/**
@@ -86,7 +203,13 @@ export class AssetHandler {
 			if (CustomTypeManager.hasLoadedCustomTypes()) {
 				if (CustomTypeManager.hasType(type_value)) {
 					const custom_factory = CustomFactory.get_instance(this.scene, this.world);
-					return await custom_factory.spawn_custom_asset(type_value, position, rotation, options);
+					const spawnResult = await custom_factory.spawn_custom_asset(type_value, position, rotation, options);
+					
+					if (spawnResult) {
+						this.analyzeAssetRig(spawnResult, type_value);
+					}
+					
+					return spawnResult;
 				} else {
 					if (!CustomTypeManager.hasLoadedCustomTypes()) {
 						console.error(`Custom types not loaded yet. Please ensure CustomTypeManager.loadCustomTypes() is called before spawning assets.`);
@@ -242,6 +365,18 @@ export class AssetHandler {
 	 * Core cleanup of essential resources.
 	 */
 	cleanup() {
+		// Clear all rig visualizations
+		this.activeRigVisualizations.forEach((rigData, instanceId) => {
+			try {
+				if (this.scene) {
+					clearRigVisualization(this.scene);
+				}
+			} catch (error) {
+				console.error(`[AssetHandler] Error clearing rig visualization:`, error);
+			}
+		});
+		this.activeRigVisualizations.clear();
+		
 		AssetHandler.#instance = null;
 		if (this.storage) {
 			const allAssets = this.storage.get_all_assets();
@@ -282,6 +417,9 @@ export class AssetHandler {
 	 * Delegates to DebugFactory.
 	 */
 	update_visualizations() {
+		// Update rig visualizations
+		this.updateRigVisualizations();
+		
 		if (!this.debugFactory) {
 			this.debugFactory = DebugFactory.get_instance(this.scene, this.world);
 		}
@@ -514,12 +652,16 @@ export class AssetHandler {
 		CollisionFactory.dispose_instance();
 		DebugFactory.dispose_instance();
 		AssetRotator.dispose_instance();
+		if (this.rigAnalyzer) {
+			this.rigAnalyzer.dispose();
+		}
 		this.scene = null;
 		this.world = null;
 		this.storage = null;
 		this.container = null;
 		this.debugFactory = null;
 		this.rotator = null;
+		this.rigAnalyzer = null;
 		AssetHandler.#disposed = true;
 		AssetHandler.#instance = null;
 	}
