@@ -21,33 +21,24 @@ export class InteractionManager {
     static mouse_sensitivity = 0.02;
 
     constructor() {
-        // See if instance exists
         if (InteractionManager.instance){
             return InteractionManager.instance;
         }
-        // Setup variables
         this.window = null;
         this.abortController = null;
         this.listening = false;
         this.raycaster = null;
-        // Pointer variables
         this.mouse_location = null;
         this.left_mouse_down = false;
         this.right_mouse_down = false;
-        // Object specific variables
         this.hovered_interactable_name = "";
         this.grabbed_object = null;
         this.resize_timeout = null;
         this.resize_move = false;
         this.zoom_event = false;
-        // Set instance to this
         InteractionManager.instance = this;
     }
 
-    /**
-     * Gets the singleton instance of InteractionManager
-     * @returns {InteractionManager} The singleton instance
-     */
     static getInstance() {
         if(!InteractionManager.instance) {
             InteractionManager.instance = new InteractionManager();
@@ -55,13 +46,7 @@ export class InteractionManager {
         return InteractionManager.instance;
     }
 
-    /**
-     * Starts listening for user input events on the provided window
-     * @param {Window} incomingWindow - The window object to attach event listeners to
-     * @returns {Promise<void>} Promise that resolves when listening has started
-     */
     async startListening(incomingWindow) {
-        // this.#logString("BAZINGA GOTTEM", LogLevel.ERROR);
         this.window = incomingWindow;
         await this.#waitForDependencies();
         this.abortController = new AbortController();
@@ -75,9 +60,6 @@ export class InteractionManager {
         this.window.addEventListener('wheel', (e) => this.handle_wheel(e), { abortSignal });
     }
 
-    /**
-     * Stops listening for user input events and cleans up resources
-     */
     stopListening() {
         if(!this.listening) {
             this.#logString("Wasn't listening anyways...", LogLevel.WARN)
@@ -90,10 +72,6 @@ export class InteractionManager {
         this.listening = false;
     }
 
-    /**
-     * Handles window resize events and triggers appropriate responses
-     * @param {Event} e - The resize event
-     */
     handle_resize(e) {
         if(!this.listening) {
             this.#logString("Cannot handle resize. Not listening...", LogLevel.ERROR, true);
@@ -114,10 +92,6 @@ export class InteractionManager {
         }, 100);
     }
 
-    /**
-     * Handles mouse movement events for camera rotation and object intersection detection
-     * @param {Event} e - Mouse movement event
-     */
     handle_mouse_move(e) {
         if(!this.listening) {
             this.#logString("Cannot handle mouse move. Not listening...", LogLevel.ERROR, true);
@@ -131,13 +105,9 @@ export class InteractionManager {
             movement ${e.movementX}x${e.movementY}`, 
             LogLevel.DEBUG);
         this.#handle_rotation(e);
-        this.#handle_intersections(e);
+        this.handle_intersections(e);
     }
 
-    /**
-     * Handles mouse down events for object interaction and camera rotation control
-     * @param {Event} e - Mouse down event
-     */
     handle_mouse_down(e) {
         if(!this.listening) {
             this.#logString("Cannot handle mouse down. Not listening...", LogLevel.ERROR, true);
@@ -156,7 +126,7 @@ export class InteractionManager {
         if(this.left_mouse_down && this.right_mouse_down && this.window.viewable_container.is_overlay_hidden()) {
             this.window.viewable_container.detect_rotation = true;
         } else if(this.window.viewable_container.is_overlay_hidden()) {
-            const found_intersections = this.#get_intersect_list(e, this.window.viewable_container.get_camera(), this.window.scene);
+            const found_intersections = this.get_intersect_list(e, this.window.viewable_container.get_camera(), this.window.scene);
             found_intersections.forEach(i => {
                 switch(extract_type(i.object)) {
                 case BTYPES.INTERACTABLE:
@@ -174,10 +144,6 @@ export class InteractionManager {
         }
     }
 
-    /**
-     * Handles mouse up events for the viewable container
-     * @param {Event} e - The mouse event
-     */
     handle_mouse_up(e) {
         if(!this.listening) {
             this.#logString("Cannot handle mouse up. Not listening...", LogLevel.ERROR, true);
@@ -187,7 +153,7 @@ export class InteractionManager {
             release_object(this.grabbed_object, this.window.background_container);
             this.grabbed_object = null;
         }
-        const intersections = this.#get_intersect_list(
+        const intersections = this.get_intersect_list(
             e, 
             this.window.viewable_container.get_camera(), 
             this.window.scene
@@ -203,10 +169,6 @@ export class InteractionManager {
         }
     }
 
-    /**
-     * Handles mouse wheel events for zooming grabbed objects
-     * @param {WheelEvent} e - The wheel event
-     */
     handle_wheel(e) {
         if(this.grabbed_object) {
             if(e.deltaY < 0) {
@@ -221,21 +183,13 @@ export class InteractionManager {
         }
     }
 
-    /**
-     * Prevents the default context menu from appearing
-     * @param {Event} e - The context menu event
-     */
     handle_context_menu(e) {
         e.preventDefault();
     }
 
-    /**
-     * Waits for required dependencies to be available before proceeding
-     * @returns {Promise<void>} Promise that resolves when dependencies are ready
-     */
     #waitForDependencies() {
         return new Promise((resolve, reject) => {
-            const timeout = 5000; // 5 second timeout
+            const timeout = 5000;
             const startTime = Date.now();
             
             const checkDependencies = () => {
@@ -260,10 +214,6 @@ export class InteractionManager {
         });
     }
 
-    /**
-     * Handles mouse rotation events for camera control
-     * @param {Event} e - Mouse movement event
-     */
     #handle_rotation(e) {
         update_mouse_position(e);
         if(this.window.viewable_container.detect_rotation) {
@@ -274,12 +224,8 @@ export class InteractionManager {
         }
     }
 
-    /**
-     * Handles intersection detection and processes hover interactions for different object types
-     * @param {Event} e - Mouse movement event
-     */
-    #handle_intersections(e) {
-        const found_intersections = this.#get_intersect_list(e, this.window.viewable_container.get_camera(), this.window.scene);       
+    handle_intersections(e) {
+        const found_intersections = this.get_intersect_list(e, this.window.viewable_container.get_camera(), this.window.scene);       
         const is_overlay_hidden = this.window.viewable_container.is_overlay_hidden();
         let relevant_intersections = found_intersections;
         if(!is_overlay_hidden) {
@@ -316,14 +262,7 @@ export class InteractionManager {
         }
     }
 
-    /**
-     * Retrieves objects mouse is intersecting with from the given event
-     * @param {Event} e - The mouse event
-     * @param {THREE.Camera} incoming_camera - The camera to use for raycasting
-     * @param {THREE.Scene} incoming_scene - The scene to raycast against
-     * @returns {Array} Array of intersection objects sorted by priority
-     */
-    #get_intersect_list(e, incoming_camera, incoming_scene) {
+    get_intersect_list(e, incoming_camera, incoming_scene) {
         const ndc = this.#get_ndc_from_event(e);
         const mousePos = this.#getMouseLocation();
         mousePos.x = ndc.x;
@@ -331,31 +270,20 @@ export class InteractionManager {
         const ray = this.#getRaycaster();
         ray.setFromCamera(mousePos, incoming_camera);
         const intersections = ray.intersectObject(incoming_scene, true);
-        // First sort by renderOrder (higher values first)
-        // This ensures UI elements with high renderOrder are prioritized
-        // Then sort by distance within the same renderOrder group
         return intersections.sort((a, b) => {
             const renderOrderA = a.object.renderOrder || 0;
             const renderOrderB = b.object.renderOrder || 0;
-            // If renderOrder is different, prioritize higher renderOrder
             if (renderOrderB !== renderOrderA) {
                 return renderOrderB - renderOrderA;
             }
-            // Check if either object is a label or contains "label" in its name
             const isLabelA = a.object.name.includes('label_') || a.object.name.includes('_collision');
             const isLabelB = b.object.name.includes('label_') || b.object.name.includes('_collision');
-            // If only one is a label, prioritize it
             if (isLabelA && !isLabelB) return -1;
             if (!isLabelA && isLabelB) return 1;
-            // Otherwise, sort by distance (closer first for UI elements)
             return a.distance - b.distance;
         });
     }
 
-    /**
-     * Get the mouse location vector, initializing if needed
-     * @returns {THREE.Vector2} The mouse location vector
-     */
     #getMouseLocation() {
         if (!this.mouse_location) {
             this.mouse_location = new THREE.Vector2();
@@ -363,11 +291,6 @@ export class InteractionManager {
         return this.mouse_location;
     }
 
-    /**
-     * Converts screen coordinates to Normalized Device Coordinates (NDC)
-     * @param {Event} e - The mouse event
-     * @returns {Object} Object containing x and y NDC coordinates
-     */
     #get_ndc_from_event(e) {
         return {
             x: (e.clientX / this.window.innerWidth) * 2 - 1,
@@ -375,10 +298,6 @@ export class InteractionManager {
         };
     }
 
-    /**
-     * Get the raycaster, initializing if needed
-     * @returns {THREE.Raycaster} The raycaster instance
-     */
     #getRaycaster() {
         if (!this.raycaster) {
             this.raycaster = new THREE.Raycaster();
@@ -386,12 +305,6 @@ export class InteractionManager {
         return this.raycaster;
     }
 
-    /**
-     * Logs a string with the specified log level
-     * @param {string} incomingString - The string to log
-     * @param {string} incomingLevel - The log level to use
-     * @param {boolean} forceLog - Whether to force logging regardless of LOG_FLAG
-     */
     #logString(incomingString, incomingLevel, forceLog = false) {
         if(InteractionManager.LOG_FLAG || forceLog) {
             switch(incomingLevel) {

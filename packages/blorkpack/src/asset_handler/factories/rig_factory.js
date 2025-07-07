@@ -1,4 +1,5 @@
 import { THREE } from '../../index';
+import { setupRigInteractionHandling, cleanupRigInteractionHandling } from '../../rig_interaction_handler';
 
 // Rig visualization configuration
 const RIG_CONFIG = {
@@ -73,6 +74,11 @@ export function createRigVisualization(rigDetails, scene, asset) {
     // Apply Force Z settings if enabled
     if (RIG_CONFIG.forceZ) {
         applyForceZSettings();
+    }
+    
+    // Set up interaction handling for control handles
+    if (controlHandles.length > 0) {
+        setupRigInteractionHandling(controlHandles, scene);
     }
     
     console.log('[RigFactory] Rig visualization created successfully');
@@ -299,7 +305,7 @@ function createControlHandle(bone, scene, modelScale) {
     bone.getWorldPosition(bonePos);
     handle.position.copy(bonePos);
     
-    // Store references
+    // Store references for interaction system
     handle.userData.controlledBone = bone;
     handle.userData.isControlHandle = true;
     handle.userData.updatePosition = () => updateHandlePosition(handle);
@@ -453,6 +459,9 @@ export function updateRigVisualization() {
  * @param {Object} scene - Three.js scene
  */
 export function clearRigVisualization(scene) {
+    // Clean up interaction handling first
+    cleanupRigInteractionHandling();
+    
     if (rigVisualsGroup) {
         scene.remove(rigVisualsGroup);
         rigVisualsGroup = null;
