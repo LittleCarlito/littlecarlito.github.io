@@ -31,6 +31,11 @@ export function createRigVisualization(rigDetails, scene, asset) {
     // Clear any existing rig visualization
     clearRigVisualization(scene);
     
+    // Initialize rigDetails.joints if needed
+    if (!rigDetails.joints) {
+        rigDetails.joints = [];
+    }
+    
     // Create main rig group
     rigVisualsGroup = new THREE.Group();
     rigVisualsGroup.name = "RigVisualization";
@@ -59,11 +64,37 @@ export function createRigVisualization(rigDetails, scene, asset) {
     const modelScale = size.length() * 0.02;
     const boneRadius = Math.max(0.02, modelScale * 0.3);
     
-    // Create bone visualizations
-    createBoneStructure(bones, boneRadius);
+    // Group bones by parent for easier bone pair creation
+    const bonesByParent = new Map();
     
-    // Create root bone visualizations
-    createRootBoneVisualizations(bones, boneRadius);
+    // Filter out control bones that we don't want to visualize
+    const visualizableBones = bones.filter(bone => 
+        !(bone.name.toLowerCase().includes('control') || 
+          bone.name.toLowerCase().includes('ctrl') || 
+          bone.name.toLowerCase().includes('handle'))
+    );
+    
+    // Identify root bones
+    const rootBones = visualizableBones.filter(bone => 
+        bone.name.toLowerCase().includes('root')
+    );
+    
+    // Group bones by parent
+    visualizableBones.forEach(bone => {
+        if (bone.parent && bone.parent.isBone) {
+            const parentId = bone.parent.uuid;
+            if (!bonesByParent.has(parentId)) {
+                bonesByParent.set(parentId, []);
+            }
+            bonesByParent.get(parentId).push(bone);
+        }
+    });
+    
+    // Create bone structure visualization with joints
+    createBoneStructureWithJoints(visualizableBones, bonesByParent, boneRadius, rigDetails);
+    
+    // Create root bone visualizations with joints
+    createRootBoneVisualizationsWithJoints(rootBones, boneRadius, rigDetails);
     
     // Create control handle at furthest bone
     const furthestBone = findFarthestBone(bones);
@@ -82,43 +113,26 @@ export function createRigVisualization(rigDetails, scene, asset) {
     }
     
     console.log('[RigFactory] Rig visualization created successfully');
+    console.log(`[RigFactory] Created ${rigDetails.joints.length} joints`);
     
     return {
         group: rigVisualsGroup,
         bones: bones,
-        handles: controlHandles
+        handles: controlHandles,
+        joints: rigDetails.joints
     };
 }
 
 /**
- * Creates bone structure visualization with cylinders and joints
+ * Creates bone structure visualization with cylinders and joints, storing joint data
  * @param {Array} bones - Array of bone objects
+ * @param {Map} bonesByParent - Map of bones grouped by parent
  * @param {Number} boneRadius - Radius for bone visualization
+ * @param {Object} rigDetails - Rig details object to store joint data
  */
-function createBoneStructure(bones, boneRadius) {
-    // Group bones by parent for easier bone pair creation
-    const bonesByParent = new Map();
-    
-    // Filter out control bones that we don't want to visualize
-    const visualizableBones = bones.filter(bone => 
-        !(bone.name.toLowerCase().includes('control') || 
-          bone.name.toLowerCase().includes('ctrl') || 
-          bone.name.toLowerCase().includes('handle'))
-    );
-    
-    // Group bones by parent
-    visualizableBones.forEach(bone => {
-        if (bone.parent && bone.parent.isBone) {
-            const parentId = bone.parent.uuid;
-            if (!bonesByParent.has(parentId)) {
-                bonesByParent.set(parentId, []);
-            }
-            bonesByParent.get(parentId).push(bone);
-        }
-    });
-    
+function createBoneStructureWithJoints(bones, bonesByParent, boneRadius, rigDetails) {
     // Create visual bones between parent-child bone pairs
-    visualizableBones.forEach(bone => {
+    bones.forEach(bone => {
         // Get current bone position
         const bonePos = new THREE.Vector3();
         bone.getWorldPosition(bonePos);
@@ -144,24 +158,26 @@ function createBoneStructure(bones, boneRadius) {
             
             // Only create visual bone if distance is significant
             if (distance > 0.001) {
-                createBoneConnection(bonePos, childPos, boneRadius, bone, childBone);
+                const boneGroup = createBoneConnectionWithJoints(bonePos, childPos, boneRadius, bone, childBone, rigDetails);
+                rigVisualsGroup.add(boneGroup);
             }
         });
     });
 }
 
 /**
- * Creates a bone connection between two points
+ * Creates a bone connection between two points with joints, storing joint data
  * @param {THREE.Vector3} startPos - Start position
  * @param {THREE.Vector3} endPos - End position  
  * @param {Number} radius - Bone radius
  * @param {Object} parentBone - Parent bone object
  * @param {Object} childBone - Child bone object
+ * @param {Object} rigDetails - Rig details object to store joint data
+ * @returns {THREE.Group} The created bone group
  */
-function createBoneConnection(startPos, endPos, radius, parentBone, childBone) {
+function createBoneConnectionWithJoints(startPos, endPos, radius, parentBone, childBone, rigDetails) {
     // Create bone group
     const boneGroup = new THREE.Group();
-    rigVisualsGroup.add(boneGroup);
     
     // Position at start
     boneGroup.position.copy(startPos);
@@ -200,7 +216,7 @@ function createBoneConnection(startPos, endPos, radius, parentBone, childBone) {
         boneGroup.add(segment);
     }
     
-    // Create joint spheres at both ends
+    // Create joint spheres at both ends and store joint data
     const jointMaterial = new THREE.MeshBasicMaterial({
         color: RIG_CONFIG.jointColor,
         side: THREE.DoubleSide,
@@ -209,42 +225,54 @@ function createBoneConnection(startPos, endPos, radius, parentBone, childBone) {
         opacity: RIG_CONFIG.opacity
     });
     
-    // Bottom joint
+    // Bottom joint (parent connection)
     const bottomJoint = new THREE.Mesh(
         new THREE.SphereGeometry(radius, 16, 16),
         jointMaterial.clone()
     );
     bottomJoint.userData.bonePart = 'cap';
     bottomJoint.userData.jointType = 'bottom';
+    bottomJoint.userData.parentBone = parentBone;
     boneGroup.add(bottomJoint);
     
-    // Top joint
+    // Top joint (child connection)
     const topJoint = new THREE.Mesh(
         new THREE.SphereGeometry(radius, 16, 16),
         jointMaterial.clone()
     );
     topJoint.userData.bonePart = 'cap';
     topJoint.userData.jointType = 'top';
+    topJoint.userData.childBone = childBone;
     topJoint.position.y = distance;
     boneGroup.add(topJoint);
+    
+    // Store joint data in rigDetails.joints (exactly like reference system)
+    if (rigDetails && rigDetails.joints) {
+        rigDetails.joints.push({
+            name: `Joint_${parentBone.name}_to_${childBone.name}`,
+            parentBone: parentBone.name,
+            childBone: childBone.name,
+            position: [startPos.x, startPos.y, startPos.z],
+            count: 1
+        });
+    }
     
     // Store references for updates
     boneGroup.userData.parentBone = parentBone;
     boneGroup.userData.childBone = childBone;
     boneGroup.userData.isVisualBone = true;
     boneGroup.userData.updatePosition = () => updateBonePosition(boneGroup);
+    
+    return boneGroup;
 }
 
 /**
- * Creates root bone visualizations as horizontal pucks
- * @param {Array} bones - Array of bone objects
+ * Creates root bone visualizations as horizontal pucks with joint data
+ * @param {Array} rootBones - Array of root bone objects
  * @param {Number} radius - Base radius for puck
+ * @param {Object} rigDetails - Rig details object to store joint data
  */
-function createRootBoneVisualizations(bones, radius) {
-    const rootBones = bones.filter(bone => 
-        bone.name.toLowerCase().includes('root')
-    );
-    
+function createRootBoneVisualizationsWithJoints(rootBones, radius, rigDetails) {
     rootBones.forEach(rootBone => {
         const rootPos = new THREE.Vector3();
         rootBone.getWorldPosition(rootPos);
@@ -272,6 +300,18 @@ function createRootBoneVisualizations(bones, radius) {
         puck.userData.bonePart = 'root';
         puck.userData.rootBone = rootBone;
         rootGroup.add(puck);
+        
+        // Store root joint data in rigDetails.joints (exactly like reference system)
+        if (rigDetails && rigDetails.joints) {
+            rigDetails.joints.push({
+                name: `Root_Joint_${rootBone.name}`,
+                parentBone: "Scene Root",
+                childBone: rootBone.name,
+                position: [rootPos.x, rootPos.y, rootPos.z],
+                count: 1,
+                isRoot: true
+            });
+        }
         
         // Store references
         rootGroup.userData.rootBone = rootBone;
@@ -483,4 +523,20 @@ export function clearRigVisualization(scene) {
 export function updateRigConfig(newConfig) {
     Object.assign(RIG_CONFIG, newConfig);
     console.log('[RigFactory] Rig config updated:', RIG_CONFIG);
+}
+
+/**
+ * Deduplicates joint data by name (helper function)
+ * @param {Array} joints - Array of joint objects
+ * @returns {Array} Deduplicated joint array
+ */
+function deduplicateJointsByName(joints) {
+    const seen = new Set();
+    return joints.filter(joint => {
+        if (seen.has(joint.name)) {
+            return false;
+        }
+        seen.add(joint.name);
+        return true;
+    });
 }

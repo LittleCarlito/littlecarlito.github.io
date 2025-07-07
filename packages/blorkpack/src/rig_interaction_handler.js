@@ -1,4 +1,5 @@
 import { InteractionManager } from './interaction_manager';
+import { THREE } from './index';
 
 // Rig interaction configuration
 const RIG_INTERACTION_CONFIG = {
@@ -11,6 +12,32 @@ let rigInteractionEnabled = true;
 let hoveredHandle = null;
 let isDragging = false;
 let dragTarget = null;
+
+// EXACT COPY of drag state tracking from working rig-mouse-handler.js
+let dragStartPosition = null;
+let dragPlane = null;
+let dragOffset = null;
+let dragTargetPosition = null;
+
+// Variables needed for exact IK copy
+let bones = []; // Will be populated from the rig
+let lockedBones = new Set(); // For bone locking functionality
+
+// Raycaster for mouse interaction (EXACT COPY)
+let raycaster = null;
+let mouse = null;
+
+/**
+ * Initialize THREE objects for rig interaction
+ */
+function initializeRigObjects() {
+    if (!dragStartPosition) dragStartPosition = new THREE.Vector3();
+    if (!dragPlane) dragPlane = new THREE.Plane();
+    if (!dragOffset) dragOffset = new THREE.Vector3();
+    if (!dragTargetPosition) dragTargetPosition = new THREE.Vector3();
+    if (!raycaster) raycaster = new THREE.Raycaster();
+    if (!mouse) mouse = new THREE.Vector2();
+}
 
 /**
  * Sets up rig interaction handling for control handles
@@ -26,6 +53,8 @@ export function setupRigInteractionHandling(controlHandles, scene) {
 
     console.log(`[RigInteractionHandler] Setting up interaction for ${controlHandles.length} control handles`);
     
+    // Initialize THREE objects
+    initializeRigObjects();
     // Get the interaction manager instance
     const interactionManager = InteractionManager.getInstance();
     
@@ -68,6 +97,34 @@ export function setupRigInteractionHandling(controlHandles, scene) {
         // Call original handler
         if (originalHandleMouseUp) {
             originalHandleMouseUp.call(this, e);
+        }
+    };
+
+    // Override mouse move to handle rig manipulation
+    const originalHandleMouseMove = interactionManager.handle_mouse_move;
+    
+    interactionManager.handle_mouse_move = function(e) {
+        // Ensure objects are initialized
+        initializeRigObjects();
+        
+        // Update mouse position for rig system (EXACT COPY from working code)
+        const rect = this.window.renderer.domElement.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        
+        // Update raycaster with the new mouse position
+        if (this.window.viewable_container && this.window.viewable_container.get_camera()) {
+            raycaster.setFromCamera(mouse, this.window.viewable_container.get_camera());
+        }
+        
+        // Handle rig dragging (EXACT COPY from working code)
+        if (getIsDragging() && dragTarget) {
+            handleDrag.call(this);
+        }
+        
+        // Call original handler
+        if (originalHandleMouseMove) {
+            originalHandleMouseMove.call(this, e);
         }
     };
 }
@@ -146,20 +203,13 @@ function handleRigMouseDown(e) {
         if (object.userData && object.userData.isControlHandle) {
             console.log('[RigInteractionHandler] ✅ STARTING DRAG on rig control handle:', object.name);
             
-            // Start dragging
-            isDragging = true;
-            dragTarget = object;
-            
-            // Set active color
-            if (object.material) {
-                object.material.color.setHex(RIG_INTERACTION_CONFIG.activeColor);
-                object.material.needsUpdate = true;
+            // Populate bones array from the rig if not already done
+            if (bones.length === 0) {
+                populateBonesFromRig(object);
             }
             
-            // Disable orbit controls if available
-            if (this.window.viewable_container && this.window.viewable_container.controls) {
-                this.window.viewable_container.controls.enabled = false;
-            }
+            // Start dragging using EXACT COPY from working code
+            startDrag(intersection, object, this);
             
             e.preventDefault();
             return true; // Rig handled the event
@@ -177,29 +227,381 @@ function handleRigMouseUp(e) {
     if (isDragging && dragTarget) {
         console.log('[RigInteractionHandler] ✅ ENDING DRAG on rig control handle:', dragTarget.name);
         
-        // Reset color based on hover state
-        const isStillHovered = hoveredHandle === dragTarget;
-        const targetColor = isStillHovered ? RIG_INTERACTION_CONFIG.hoverColor : RIG_INTERACTION_CONFIG.normalColor;
-        
-        if (dragTarget.material) {
-            dragTarget.material.color.setHex(targetColor);
-            dragTarget.material.needsUpdate = true;
-        }
-        
-        // Re-enable orbit controls
-        if (this.window.viewable_container && this.window.viewable_container.controls) {
-            this.window.viewable_container.controls.enabled = true;
-        }
-        
-        // Reset drag state
-        isDragging = false;
-        dragTarget = null;
-        
-        // Reset cursor
-        document.body.style.cursor = 'auto';
+        // Stop dragging using EXACT COPY from working code
+        stopDrag.call(this, this);
         
         e.preventDefault();
     }
+}
+
+/**
+ * Handle dragging logic (EXACT COPY from working rig-mouse-handler.js)
+ */
+function handleDrag() {
+    if (!isDragging || !dragTarget) return;
+    
+    // Ensure objects are initialized
+    initializeRigObjects();
+    
+    // Get current intersection point with drag plane
+    const planeIntersection = new THREE.Vector3();
+    // Check if ray intersects plane
+    if (raycaster.ray.intersectPlane(dragPlane, planeIntersection)) {
+        // Apply the offset to maintain the grab point
+        planeIntersection.add(dragOffset);
+        // Move handle to new position
+        dragTarget.position.copy(planeIntersection);
+        // Apply IK if this is the furthest bone handle
+        if (dragTarget.userData.controlledBone) {
+            const controlledBone = dragTarget.userData.controlledBone;
+            // Even if the controlled bone is locked, we still want to move other bones in the chain
+            // This is different from before - we don't check if the target bone is locked here
+            // Store current locked bone rotations
+            restoreLockedBoneRotations();
+            // Use the moveBonesForTarget function to handle IK chain properly
+            moveBonesForTarget(controlledBone, planeIntersection);
+            // Restore locked bone rotations again
+            restoreLockedBoneRotations();
+            // Force immediate update of visual bone meshes during drag
+            updateBoneVisuals();
+        }
+    }
+}
+
+/**
+ * Start dragging a control handle (EXACT COPY from working rig-mouse-handler.js)
+ * @param {Object} intersection - The intersection data from raycaster
+ * @param {Object} handle - The handle being dragged
+ * @param {Object} interactionManager - The interaction manager instance with window reference
+ */
+function startDrag(intersection, handle, interactionManager) {
+    // Ensure the handle exists
+    if (!handle) return;
+    
+    // Ensure objects are initialized
+    initializeRigObjects();
+    
+    // Set the dragging state to true
+    setIsDragging(true);
+    dragTarget = handle;
+    // Update material to active color
+    if (handle.material) {
+        handle.material.color.setHex(RIG_INTERACTION_CONFIG.activeColor);
+        handle.material.needsUpdate = true;
+    }
+    // Store the initial position
+    dragTargetPosition.copy(handle.position);
+    
+    // Create a drag plane perpendicular to the camera
+    const camera = interactionManager.window.viewable_container.get_camera();
+    const planeNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(camera.quaternion);
+    dragPlane.setFromNormalAndCoplanarPoint(planeNormal, dragTargetPosition);
+    // Calculate offset for precise dragging
+    const dragIntersectionPoint = new THREE.Vector3();
+    raycaster.ray.intersectPlane(dragPlane, dragIntersectionPoint);
+    dragOffset.subVectors(dragTargetPosition, dragIntersectionPoint);
+    
+    console.log('Drag started at', dragTargetPosition);
+}
+
+/**
+ * Stop dragging operation (EXACT COPY from working rig-mouse-handler.js)
+ * @param {Object} interactionManager - The interaction manager instance with window reference
+ */
+function stopDrag(interactionManager) {
+    if (!getIsDragging() || !dragTarget) return;
+    setIsDragging(false);
+    // Reset material to normal or hover color based on current state
+    if (dragTarget.material) {
+        const isHovered = dragTarget === hoveredHandle;
+        dragTarget.material.color.setHex(isHovered ? RIG_INTERACTION_CONFIG.hoverColor : RIG_INTERACTION_CONFIG.normalColor);
+        dragTarget.material.needsUpdate = true;
+    }
+    // Re-enable orbit controls
+    if (interactionManager.window.viewable_container && interactionManager.window.viewable_container.controls) {
+        interactionManager.window.viewable_container.controls.enabled = true;
+        document.body.style.cursor = 'auto';
+    }
+}
+
+/**
+ * Move a chain of bones to reach a target position (EXACT COPY from bone-kinematics.js)
+ * @param {Object} targetBone - The target bone being controlled
+ * @param {THREE.Vector3} targetPosition - The target world position
+ */
+function moveBonesForTarget(targetBone, targetPosition) {
+    if (!targetBone) return;
+    
+    const boneChain = [];
+    let currentBone = targetBone;
+    
+    while (currentBone && bones.includes(currentBone)) {
+        boneChain.unshift(currentBone);
+        currentBone = currentBone.parent;
+        
+        if (!currentBone || !currentBone.isBone) break;
+    }
+    
+    if (boneChain.length === 0) {
+        boneChain.push(targetBone);
+    }
+    
+    console.log(`Applying IK to chain of ${boneChain.length} bones`);
+    
+    const rotationBackups = new Map();
+    boneChain.forEach(bone => {
+        rotationBackups.set(bone.uuid, {
+            bone: bone,
+            rotation: new THREE.Euler(
+                bone.rotation.x,
+                bone.rotation.y,
+                bone.rotation.z,
+                bone.rotation.order
+            )
+        });
+    });
+    
+    applyIKToBoneChain(boneChain, targetPosition);
+    
+    boneChain.forEach(bone => {
+        const lockedData = Array.from(lockedBones).find(data => data.bone === bone);
+        if (lockedData) {
+            const backup = rotationBackups.get(bone.uuid);
+            if (backup) {
+                bone.rotation.copy(backup.rotation);
+            }
+        }
+    });
+    
+    updateAllBoneMatrices();
+}
+
+/**
+ * Apply inverse kinematics to a chain of bones to reach a target (EXACT COPY from bone-kinematics.js)
+ * @param {Array} boneChain - Array of bones from parent to child
+ * @param {THREE.Vector3} targetPosition - The target world position
+ */
+function applyIKToBoneChain(boneChain, targetPosition) {
+    if (boneChain.length === 0) return;
+    
+    const iterations = 10;
+    
+    for (let iteration = 0; iteration < iterations; iteration++) {
+        for (let i = boneChain.length - 1; i >= 0; i--) {
+            const bone = boneChain[i];
+            
+            const lockedData = Array.from(lockedBones).find(data => data.bone === bone);
+            if (lockedData) {
+                continue;
+            }
+            
+            const endEffector = new THREE.Vector3();
+            boneChain[boneChain.length - 1].getWorldPosition(endEffector);
+            
+            const bonePos = new THREE.Vector3();
+            bone.getWorldPosition(bonePos);
+            
+            const dirToEffector = new THREE.Vector3().subVectors(endEffector, bonePos).normalize();
+            const dirToTarget = new THREE.Vector3().subVectors(targetPosition, bonePos).normalize();
+            
+            let rotAngle = Math.acos(Math.min(1, Math.max(-1, dirToEffector.dot(dirToTarget))));
+            
+            if (rotAngle < 0.01) continue;
+            
+            rotAngle = Math.min(rotAngle, 0.1);
+            
+            const rotAxis = new THREE.Vector3().crossVectors(dirToEffector, dirToTarget).normalize();
+            
+            if (rotAxis.lengthSq() < 0.01) continue;
+            
+            const boneWorldQuat = new THREE.Quaternion();
+            bone.getWorldQuaternion(boneWorldQuat);
+            const localRotAxis = rotAxis.clone().applyQuaternion(boneWorldQuat.clone().invert()).normalize();
+            
+            bone.rotateOnAxis(localRotAxis, rotAngle);
+            
+            updateBoneChainMatrices(boneChain);
+            
+            const newEffectorPos = new THREE.Vector3();
+            boneChain[boneChain.length - 1].getWorldPosition(newEffectorPos);
+            
+            if (newEffectorPos.distanceTo(targetPosition) < 0.1) {
+                break;
+            }
+        }
+    }
+    
+    if (boneChain.length >= 2) {
+        const lastBone = boneChain[boneChain.length - 1];
+        const secondLastBone = boneChain[boneChain.length - 2];
+        
+        const lockedData = Array.from(lockedBones).find(data => data.bone === lastBone);
+        if (!lockedData) {
+            const secondLastPos = new THREE.Vector3();
+            secondLastBone.getWorldPosition(secondLastPos);
+            
+            const dirToTarget = new THREE.Vector3().subVectors(targetPosition, secondLastPos).normalize();
+            
+            const lastBoneDir = new THREE.Vector3(0, 1, 0);
+            lastBoneDir.applyQuaternion(lastBone.getWorldQuaternion(new THREE.Quaternion()));
+            
+            const alignQuat = new THREE.Quaternion();
+            alignQuat.setFromUnitVectors(lastBoneDir, dirToTarget);
+            
+            const worldQuatInverse = new THREE.Quaternion();
+            secondLastBone.getWorldQuaternion(worldQuatInverse).invert();
+            
+            const localQuat = new THREE.Quaternion().multiplyQuaternions(worldQuatInverse, alignQuat);
+            
+            lastBone.quaternion.multiply(localQuat);
+            
+            updateBoneChainMatrices(boneChain);
+        }
+    }
+}
+
+/**
+ * Update matrices for a specific chain of bones
+ * This helps avoid unnecessary updates to the entire hierarchy
+ * @param {Array} boneChain - The bone chain to update
+ */
+function updateBoneChainMatrices(boneChain) {
+    if (!boneChain || boneChain.length === 0) return;
+    
+    boneChain.forEach(bone => {
+        if (bone.updateMatrix && bone.updateMatrixWorld) {
+            bone.updateMatrix();
+            bone.updateMatrixWorld(true);
+        }
+    });
+}
+
+/**
+ * Update matrices for all bones in the scene
+ * @param {boolean} forceUpdate - Force update even if no bones
+ */
+function updateAllBoneMatrices(forceUpdate = false) {
+    if (!bones || bones.length === 0) {
+        if (!forceUpdate) return;
+    }
+    
+    let armature = null;
+    
+    for (let i = 0; i < bones.length; i++) {
+        const bone = bones[i];
+        if (!bone.parent || !bone.parent.isBone) {
+            if (bone.parent) {
+                armature = bone.parent;
+                break;
+            }
+        }
+    }
+    
+    if (!armature) {
+        bones.forEach(bone => {
+            if (bone && bone.updateMatrixWorld) {
+                bone.updateMatrix();
+                bone.updateMatrixWorld(true);
+            }
+        });
+    } else {
+        armature.updateMatrixWorld(true);
+    }
+}
+
+/**
+ * Restore locked bone rotations (EXACT COPY from bone-kinematics.js)
+ */
+function restoreLockedBoneRotations() {
+    lockedBones.forEach((boneData) => {
+        if (boneData.bone && boneData.rotation) {
+            boneData.bone.rotation.x = boneData.rotation.x;
+            boneData.bone.rotation.y = boneData.rotation.y;
+            boneData.bone.rotation.z = boneData.rotation.z;
+            boneData.bone.updateMatrix();
+        }
+    });
+    
+    updateAllBoneMatrices();
+}
+
+/**
+ * Update the bone visual meshes to match bone positions and rotations (EXACT COPY from bone-kinematics.js)
+ */
+function updateBoneVisuals() {
+    // This function would update rig visualizations
+    // For now, we'll just update matrices since we don't have direct access to boneVisualsGroup
+    updateAllBoneMatrices();
+}
+
+/**
+ * Populate bones array from the rig visualization
+ * @param {Object} handle - The control handle to find bones from
+ */
+function populateBonesFromRig(handle) {
+    if (!handle.userData.controlledBone) return;
+    
+    // Find all bones in the rig by traversing from the controlled bone
+    let currentBone = handle.userData.controlledBone;
+    
+    // First, go to the root of the bone hierarchy
+    while (currentBone.parent && currentBone.parent.isBone) {
+        currentBone = currentBone.parent;
+    }
+    
+    // Now traverse down and collect all bones
+    function collectBones(bone) {
+        if (bone.isBone) {
+            bones.push(bone);
+        }
+        
+        if (bone.children) {
+            bone.children.forEach(child => {
+                if (child.isBone) {
+                    collectBones(child);
+                }
+            });
+        }
+    }
+    
+    collectBones(currentBone);
+    
+    // LOCK THE END EFFECTOR BONE to prevent spinning
+    const controlledBone = handle.userData.controlledBone;
+    if (controlledBone) {
+        const rotationBackup = new THREE.Euler(
+            controlledBone.rotation.x,
+            controlledBone.rotation.y,
+            controlledBone.rotation.z,
+            controlledBone.rotation.order
+        );
+        
+        lockedBones.add({
+            bone: controlledBone,
+            rotation: rotationBackup,
+            uuid: controlledBone.uuid
+        });
+        
+        console.log(`[RigInteractionHandler] 🔒 LOCKED end effector bone: ${controlledBone.name} to prevent spinning`);
+    }
+    
+    console.log(`[RigInteractionHandler] 🦴 Populated bones array with ${bones.length} bones`);
+}
+
+/**
+ * Update the isDragging state
+ * @param {Boolean} dragging - The new dragging state
+ */
+export function setIsDragging(dragging) {
+    isDragging = dragging;
+}
+
+/**
+ * Returns the current dragging state
+ * @returns {Boolean} The current dragging state
+ */
+export function getIsDragging() {
+    return isDragging;
 }
 
 /**
@@ -238,14 +640,6 @@ export function getHoveredHandle() {
 }
 
 /**
- * Gets the current dragging state
- * @returns {boolean} True if currently dragging a rig handle
- */
-export function getIsDragging() {
-    return isDragging;
-}
-
-/**
  * Gets the current drag target
  * @returns {Object|null} Currently dragged handle or null
  */
@@ -257,6 +651,11 @@ export function getDragTarget() {
  * Cleans up rig interaction handling
  */
 export function cleanupRigInteractionHandling() {
+    // Stop any active manipulation
+    if (isDragging) {
+        setIsDragging(false);
+    }
+    
     // Reset any hover states
     if (hoveredHandle && hoveredHandle.material) {
         hoveredHandle.material.color.setHex(RIG_INTERACTION_CONFIG.normalColor);
@@ -267,6 +666,10 @@ export function cleanupRigInteractionHandling() {
     hoveredHandle = null;
     isDragging = false;
     dragTarget = null;
+    
+    // Clear bones array for next session
+    bones = [];
+    lockedBones.clear();
     
     // Reset cursor
     document.body.style.cursor = 'auto';

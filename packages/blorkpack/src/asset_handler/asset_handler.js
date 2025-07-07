@@ -68,7 +68,7 @@ export class AssetHandler {
 	}
 
 	/**
-	 * Analyzes an asset for rig structure after spawning
+	 * Analyzes an asset for rig structure after spawning and creates joints
 	 * @param {Object} spawnResult - Result from spawn_asset containing mesh and other data
 	 * @param {string} assetType - The asset type for logging
 	 * @returns {Object|null} Rig details if found, null otherwise
@@ -89,6 +89,11 @@ export class AssetHandler {
 				const rigDetails = this.rigAnalyzer.analyze(gltfData, customTypeKey);
 				
 				if (rigDetails) {
+					// Initialize joints array if not present
+					if (!rigDetails.joints) {
+						rigDetails.joints = [];
+					}
+					
 					// Store rig details in the spawned mesh
 					spawnResult.mesh.userData.rigDetails = rigDetails;
 					spawnResult.mesh.userData.hasRig = true;
@@ -114,8 +119,20 @@ export class AssetHandler {
 						})));
 					}
 					
-					// CREATE RIG VISUALIZATION
+					// CREATE RIG VISUALIZATION WITH JOINTS
 					this.createRigForAsset(spawnResult, rigDetails, assetType);
+					
+					// Log joint creation results
+					if (rigDetails.joints && rigDetails.joints.length > 0) {
+						console.log(`[AssetHandler] 🔗 JOINTS CREATED: ${rigDetails.joints.length} joints`, 
+							rigDetails.joints.map(j => ({
+								name: j.name,
+								parent: j.parentBone,
+								child: j.childBone,
+								isRoot: j.isRoot || false
+							}))
+						);
+					}
 					
 					return rigDetails;
 				} else {

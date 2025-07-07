@@ -52,6 +52,7 @@ export class RigAnalyzer {
             rigs: [],
             roots: [],
             constraints: [],
+            joints: [],          // Initialize joints array here
             hasRig: false,
             boneHierarchy: new Map(),
             armature: null
