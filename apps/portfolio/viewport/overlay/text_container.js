@@ -178,7 +178,7 @@ export class TextContainer {
 						positionOffsetY: 3,
 						positionOffsetZ: 0,
 						rotation: { x: -Math.PI / 2, y: Math.PI, z: Math.PI },
-						renderOrder: 999
+						renderOrder: 1002 // Higher than background (1000)
 					});
 					await create_asset_background(text_box, ASSET_TYPES.DIPLOMA_BOT, {
 						useFixedScale: true,
@@ -186,7 +186,7 @@ export class TextContainer {
 						positionOffsetY: -3,
 						positionOffsetZ: 0,
 						rotation: { x: -Math.PI / 2, y: Math.PI, z: Math.PI },
-						renderOrder: 999
+						renderOrder: 1002 // Higher than background (1000)
 					});
 				})();
 				create_background(category, text_box);
