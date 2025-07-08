@@ -27,6 +27,9 @@ let lockedBones = new Set(); // For bone locking functionality
 let raycaster = null;
 let mouse = null;
 
+// NEW: Store reference to the asset container for coordinate transformations
+let assetContainer = null;
+
 /**
  * Initialize THREE objects for rig interaction
  */
@@ -37,6 +40,33 @@ function initializeRigObjects() {
     if (!dragTargetPosition) dragTargetPosition = new THREE.Vector3();
     if (!raycaster) raycaster = new THREE.Raycaster();
     if (!mouse) mouse = new THREE.Vector2();
+}
+
+/**
+ * Find and store reference to the asset container
+ * @param {Object} controlHandle - A control handle to traverse from
+ */
+function findAssetContainer(controlHandle) {
+    if (assetContainer) return assetContainer;
+    
+    let currentParent = controlHandle.parent;
+    console.log('[RigInteractionHandler] Looking for asset container from handle:', controlHandle.name);
+    
+    while (currentParent) {
+        console.log('[RigInteractionHandler] Checking parent:', currentParent.name, 'userData:', currentParent.userData);
+        
+        if (currentParent.name === 'asset_container' || 
+            (currentParent.userData && currentParent.userData.isAssetContainer)) {
+            assetContainer = currentParent;
+            console.log('[RigInteractionHandler] Found asset container:', assetContainer.name);
+            console.log('[RigInteractionHandler] Asset container rotation:', assetContainer.rotation);
+            return assetContainer;
+        }
+        currentParent = currentParent.parent;
+    }
+    
+    console.warn('[RigInteractionHandler] Could not find asset container, using scene');
+    return null;
 }
 
 /**
@@ -55,6 +85,12 @@ export function setupRigInteractionHandling(controlHandles, scene) {
     
     // Initialize THREE objects
     initializeRigObjects();
+    
+    // Find the asset container from the first control handle
+    if (controlHandles.length > 0) {
+        findAssetContainer(controlHandles[0]);
+    }
+    
     // Get the interaction manager instance
     const interactionManager = InteractionManager.getInstance();
     
@@ -117,7 +153,7 @@ export function setupRigInteractionHandling(controlHandles, scene) {
             raycaster.setFromCamera(mouse, this.window.viewable_container.get_camera());
         }
         
-        // Handle rig dragging (EXACT COPY from working code)
+        // Handle rig dragging with coordinate transformation
         if (getIsDragging() && dragTarget) {
             handleDrag.call(this);
         }
@@ -203,12 +239,17 @@ function handleRigMouseDown(e) {
         if (object.userData && object.userData.isControlHandle) {
             console.log('[RigInteractionHandler] ✅ STARTING DRAG on rig control handle:', object.name);
             
+            // Ensure we have the asset container reference
+            if (!assetContainer) {
+                findAssetContainer(object);
+            }
+            
             // Populate bones array from the rig if not already done
             if (bones.length === 0) {
                 populateBonesFromRig(object);
             }
             
-            // Start dragging using EXACT COPY from working code
+            // Start dragging with coordinate transformation
             startDrag(intersection, object, this);
             
             e.preventDefault();
@@ -227,7 +268,7 @@ function handleRigMouseUp(e) {
     if (isDragging && dragTarget) {
         console.log('[RigInteractionHandler] ✅ ENDING DRAG on rig control handle:', dragTarget.name);
         
-        // Stop dragging using EXACT COPY from working code
+        // Stop dragging
         stopDrag.call(this, this);
         
         e.preventDefault();
@@ -235,7 +276,7 @@ function handleRigMouseUp(e) {
 }
 
 /**
- * Handle dragging logic (EXACT COPY from working rig-mouse-handler.js)
+ * Handle dragging logic with coordinate transformation for rotated asset container
  */
 function handleDrag() {
     if (!isDragging || !dragTarget) return;
@@ -243,25 +284,48 @@ function handleDrag() {
     // Ensure objects are initialized
     initializeRigObjects();
     
-    // Get current intersection point with drag plane
-    const planeIntersection = new THREE.Vector3();
+    // Get current intersection point with drag plane (in world space)
+    const worldIntersection = new THREE.Vector3();
+    
     // Check if ray intersects plane
-    if (raycaster.ray.intersectPlane(dragPlane, planeIntersection)) {
+    if (raycaster.ray.intersectPlane(dragPlane, worldIntersection)) {
         // Apply the offset to maintain the grab point
-        planeIntersection.add(dragOffset);
-        // Move handle to new position
-        dragTarget.position.copy(planeIntersection);
+        worldIntersection.add(dragOffset);
+        
+        console.log('[RigInteractionHandler] World intersection point:', worldIntersection);
+        
+        // Transform world position to local space relative to asset container
+        let localIntersection = worldIntersection.clone();
+        if (assetContainer) {
+            assetContainer.worldToLocal(localIntersection);
+            console.log('[RigInteractionHandler] Local intersection point:', localIntersection);
+        }
+        
+        // Move handle to new LOCAL position
+        dragTarget.position.copy(localIntersection);
+        
         // Apply IK if this is the furthest bone handle
         if (dragTarget.userData.controlledBone) {
             const controlledBone = dragTarget.userData.controlledBone;
-            // Even if the controlled bone is locked, we still want to move other bones in the chain
-            // This is different from before - we don't check if the target bone is locked here
+            
+            // For IK calculations, we need the target position in WORLD space
+            // because bone.getWorldPosition() returns world coordinates
+            const worldTargetPosition = localIntersection.clone();
+            if (assetContainer) {
+                assetContainer.localToWorld(worldTargetPosition);
+            }
+            
+            console.log('[RigInteractionHandler] IK target world position:', worldTargetPosition);
+            
             // Store current locked bone rotations
             restoreLockedBoneRotations();
-            // Use the moveBonesForTarget function to handle IK chain properly
-            moveBonesForTarget(controlledBone, planeIntersection);
+            
+            // Use the moveBonesForTarget function with world coordinates
+            moveBonesForTarget(controlledBone, worldTargetPosition);
+            
             // Restore locked bone rotations again
             restoreLockedBoneRotations();
+            
             // Force immediate update of visual bone meshes during drag
             updateBoneVisuals();
         }
@@ -269,7 +333,7 @@ function handleDrag() {
 }
 
 /**
- * Start dragging a control handle (EXACT COPY from working rig-mouse-handler.js)
+ * Start dragging a control handle with coordinate transformation
  * @param {Object} intersection - The intersection data from raycaster
  * @param {Object} handle - The handle being dragged
  * @param {Object} interactionManager - The interaction manager instance with window reference
@@ -284,44 +348,63 @@ function startDrag(intersection, handle, interactionManager) {
     // Set the dragging state to true
     setIsDragging(true);
     dragTarget = handle;
+    
     // Update material to active color
     if (handle.material) {
         handle.material.color.setHex(RIG_INTERACTION_CONFIG.activeColor);
         handle.material.needsUpdate = true;
     }
-    // Store the initial position
+    
+    // Store the initial position (in local space)
     dragTargetPosition.copy(handle.position);
     
-    // Create a drag plane perpendicular to the camera
+    console.log('[RigInteractionHandler] Handle local position:', dragTargetPosition);
+    
+    // Convert handle position to world space for plane calculation
+    let worldHandlePosition = dragTargetPosition.clone();
+    if (assetContainer) {
+        assetContainer.localToWorld(worldHandlePosition);
+    }
+    
+    console.log('[RigInteractionHandler] Handle world position:', worldHandlePosition);
+    
+    // Create a drag plane perpendicular to the camera using world position
     const camera = interactionManager.window.viewable_container.get_camera();
     const planeNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(camera.quaternion);
-    dragPlane.setFromNormalAndCoplanarPoint(planeNormal, dragTargetPosition);
-    // Calculate offset for precise dragging
+    dragPlane.setFromNormalAndCoplanarPoint(planeNormal, worldHandlePosition);
+    
+    // Calculate offset for precise dragging (in world space)
     const dragIntersectionPoint = new THREE.Vector3();
     raycaster.ray.intersectPlane(dragPlane, dragIntersectionPoint);
-    dragOffset.subVectors(dragTargetPosition, dragIntersectionPoint);
+    dragOffset.subVectors(worldHandlePosition, dragIntersectionPoint);
     
-    console.log('Drag started at', dragTargetPosition);
+    console.log('[RigInteractionHandler] Drag started at world position:', worldHandlePosition);
+    console.log('[RigInteractionHandler] Drag offset:', dragOffset);
+    console.log('[RigInteractionHandler] Asset container rotation:', assetContainer ? assetContainer.rotation : 'No container');
 }
 
 /**
- * Stop dragging operation (EXACT COPY from working rig-mouse-handler.js)
+ * Stop dragging operation
  * @param {Object} interactionManager - The interaction manager instance with window reference
  */
 function stopDrag(interactionManager) {
     if (!getIsDragging() || !dragTarget) return;
     setIsDragging(false);
+    
     // Reset material to normal or hover color based on current state
     if (dragTarget.material) {
         const isHovered = dragTarget === hoveredHandle;
         dragTarget.material.color.setHex(isHovered ? RIG_INTERACTION_CONFIG.hoverColor : RIG_INTERACTION_CONFIG.normalColor);
         dragTarget.material.needsUpdate = true;
     }
+    
     // Re-enable orbit controls
     if (interactionManager.window.viewable_container && interactionManager.window.viewable_container.controls) {
         interactionManager.window.viewable_container.controls.enabled = true;
         document.body.style.cursor = 'auto';
     }
+    
+    console.log('[RigInteractionHandler] Drag ended');
 }
 
 /**
@@ -346,7 +429,7 @@ function moveBonesForTarget(targetBone, targetPosition) {
         boneChain.push(targetBone);
     }
     
-    console.log(`Applying IK to chain of ${boneChain.length} bones`);
+    console.log(`[RigInteractionHandler] Applying IK to chain of ${boneChain.length} bones`);
     
     const rotationBackups = new Map();
     boneChain.forEach(bone => {
@@ -666,6 +749,7 @@ export function cleanupRigInteractionHandling() {
     hoveredHandle = null;
     isDragging = false;
     dragTarget = null;
+    assetContainer = null; // Reset container reference
     
     // Clear bones array for next session
     bones = [];

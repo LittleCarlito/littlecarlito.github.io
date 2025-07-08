@@ -57,12 +57,31 @@ export function createRigVisualization(rigDetails, scene, asset) {
         rigDetails.joints = [];
     }
     
-    // Create main rig group
+    // Find the asset container that the asset belongs to
+    let targetContainer = scene;
+    let currentParent = asset.parent;
+    console.log('[RigFactory] Looking for asset container, asset parent:', asset.parent?.name);
+    
+    while (currentParent && currentParent !== scene) {
+        console.log('[RigFactory] Checking parent:', currentParent.name, 'userData:', currentParent.userData);
+        // Look for the asset_container or background container
+        if (currentParent.name === 'asset_container' || 
+            currentParent.userData && currentParent.userData.isAssetContainer) {
+            targetContainer = currentParent;
+            console.log('[RigFactory] Found asset container:', targetContainer.name);
+            break;
+        }
+        currentParent = currentParent.parent;
+    }
+    
+    console.log('[RigFactory] Using target container:', targetContainer.name || 'scene');
+    console.log('[RigFactory] Target container rotation:', targetContainer.rotation);
+    
+    // Create main rig group and add to the same container as the asset
     rigVisualsGroup = new THREE.Group();
     rigVisualsGroup.name = "RigVisualization";
-    // Check both config and global state for visibility
     rigVisualsGroup.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
-    scene.add(rigVisualsGroup);
+    targetContainer.add(rigVisualsGroup);  // Add to asset container instead of scene
     
     // Extract bones from the asset
     bones = [];
@@ -118,10 +137,10 @@ export function createRigVisualization(rigDetails, scene, asset) {
     // Create root bone visualizations with joints
     createRootBoneVisualizationsWithJoints(rootBones, boneRadius, rigDetails);
     
-    // Create control handle at furthest bone
+    // Create control handle at furthest bone - add to same container as rig
     const furthestBone = findFarthestBone(bones);
     if (furthestBone) {
-        createControlHandle(furthestBone, scene, modelScale);
+        createControlHandle(furthestBone, targetContainer, modelScale);  // Pass container instead of scene
     }
     
     // Apply Force Z settings if enabled
@@ -153,14 +172,22 @@ export function createRigVisualization(rigDetails, scene, asset) {
  * @param {Object} rigDetails - Rig details object to store joint data
  */
 function createBoneStructureWithJoints(bones, bonesByParent, boneRadius, rigDetails) {
+    console.log('[RigFactory] Creating bone structure with', bones.length, 'bones');
+    
     // Create visual bones between parent-child bone pairs
     bones.forEach(bone => {
-        // Get current bone position
+        // Get current bone position in LOCAL space relative to the rig container
         const bonePos = new THREE.Vector3();
         bone.getWorldPosition(bonePos);
         
+        // Convert world position to local position relative to rig container
+        rigVisualsGroup.worldToLocal(bonePos);
+        
+        console.log('[RigFactory] Bone', bone.name, 'local position:', bonePos);
+        
         // Check if this bone has children in our bone list
         const childBones = bonesByParent.get(bone.uuid) || [];
+        console.log('[RigFactory] Bone', bone.name, 'has', childBones.length, 'children');
         
         // Create a visual bone for each child connection
         childBones.forEach(childBone => {
@@ -168,20 +195,26 @@ function createBoneStructureWithJoints(bones, bonesByParent, boneRadius, rigDeta
             if (childBone.name.toLowerCase().includes('control') || 
                 childBone.name.toLowerCase().includes('ctrl') || 
                 childBone.name.toLowerCase().includes('handle')) {
+                console.log('[RigFactory] Skipping control bone:', childBone.name);
                 return;
             }
             
-            // Get child bone position
+            // Get child bone position in LOCAL space relative to the rig container
             const childPos = new THREE.Vector3();
             childBone.getWorldPosition(childPos);
+            rigVisualsGroup.worldToLocal(childPos);
+            
+            console.log('[RigFactory] Child bone', childBone.name, 'local position:', childPos);
             
             // Calculate distance
             const distance = bonePos.distanceTo(childPos);
+            console.log('[RigFactory] Distance between', bone.name, 'and', childBone.name, ':', distance);
             
             // Only create visual bone if distance is significant
             if (distance > 0.001) {
                 const boneGroup = createBoneConnectionWithJoints(bonePos, childPos, boneRadius, bone, childBone, rigDetails);
                 rigVisualsGroup.add(boneGroup);
+                console.log('[RigFactory] Created bone connection from', bone.name, 'to', childBone.name);
             }
         });
     });
@@ -189,8 +222,8 @@ function createBoneStructureWithJoints(bones, bonesByParent, boneRadius, rigDeta
 
 /**
  * Creates a bone connection between two points with joints, storing joint data
- * @param {THREE.Vector3} startPos - Start position
- * @param {THREE.Vector3} endPos - End position  
+ * @param {THREE.Vector3} startPos - Start position (local coordinates)
+ * @param {THREE.Vector3} endPos - End position (local coordinates)
  * @param {Number} radius - Bone radius
  * @param {Object} parentBone - Parent bone object
  * @param {Object} childBone - Child bone object
@@ -198,21 +231,33 @@ function createBoneStructureWithJoints(bones, bonesByParent, boneRadius, rigDeta
  * @returns {THREE.Group} The created bone group
  */
 function createBoneConnectionWithJoints(startPos, endPos, radius, parentBone, childBone, rigDetails) {
+    console.log(`[RigFactory] Creating bone connection from ${parentBone.name} to ${childBone.name}`);
+    console.log(`[RigFactory] Start pos (local):`, startPos);
+    console.log(`[RigFactory] End pos (local):`, endPos);
+    
     // Create bone group
     const boneGroup = new THREE.Group();
     
     // Position at start
     boneGroup.position.copy(startPos);
     
-    // Calculate direction and distance
+    // Calculate direction and distance in local space
     const direction = new THREE.Vector3().subVectors(endPos, startPos);
     const distance = direction.length();
     
-    // Orient bone towards end position
-    boneGroup.lookAt(endPos);
-    boneGroup.rotateX(Math.PI / 2);
+    console.log(`[RigFactory] Direction vector:`, direction);
+    console.log(`[RigFactory] Distance:`, distance);
     
-    // Create bone cylinder with 8 segments for alternating colors
+    // Skip if distance is too small
+    if (distance < 0.001) {
+        console.log(`[RigFactory] Distance too small, skipping bone connection`);
+        return boneGroup;
+    }
+    
+    // Create the bone cylinder oriented along Y axis (Three.js default)
+    const boneGeometry = new THREE.CylinderGeometry(radius, radius, distance, 8);
+    
+    // Create alternating colored segments
     for (let i = 0; i < 8; i++) {
         const segmentGeometry = new THREE.CylinderGeometry(
             radius, radius, distance, 1, 1, false,
@@ -233,12 +278,12 @@ function createBoneConnectionWithJoints(startPos, endPos, radius, parentBone, ch
         const segment = new THREE.Mesh(segmentGeometry, material);
         segment.userData.bonePart = 'side';
         segment.userData.sideType = (i % 2 === 0) ? 'primary' : 'secondary';
-        segment.position.y = distance / 2;
+        segment.position.y = distance / 2; // Position in center of cylinder
         
         boneGroup.add(segment);
     }
     
-    // Create joint spheres at both ends and store joint data
+    // Create joint spheres at both ends
     const jointMaterial = new THREE.MeshBasicMaterial({
         color: RIG_CONFIG.jointColor,
         side: THREE.DoubleSide,
@@ -247,7 +292,7 @@ function createBoneConnectionWithJoints(startPos, endPos, radius, parentBone, ch
         opacity: RIG_CONFIG.opacity
     });
     
-    // Bottom joint (parent connection)
+    // Bottom joint (parent connection) - at origin of boneGroup
     const bottomJoint = new THREE.Mesh(
         new THREE.SphereGeometry(radius, 16, 16),
         jointMaterial.clone()
@@ -255,9 +300,10 @@ function createBoneConnectionWithJoints(startPos, endPos, radius, parentBone, ch
     bottomJoint.userData.bonePart = 'cap';
     bottomJoint.userData.jointType = 'bottom';
     bottomJoint.userData.parentBone = parentBone;
+    bottomJoint.position.y = 0; // At start of cylinder
     boneGroup.add(bottomJoint);
     
-    // Top joint (child connection)
+    // Top joint (child connection) - at end of cylinder
     const topJoint = new THREE.Mesh(
         new THREE.SphereGeometry(radius, 16, 16),
         jointMaterial.clone()
@@ -265,10 +311,23 @@ function createBoneConnectionWithJoints(startPos, endPos, radius, parentBone, ch
     topJoint.userData.bonePart = 'cap';
     topJoint.userData.jointType = 'top';
     topJoint.userData.childBone = childBone;
-    topJoint.position.y = distance;
+    topJoint.position.y = distance; // At end of cylinder
     boneGroup.add(topJoint);
     
-    // Store joint data in rigDetails.joints (exactly like reference system)
+    // Now orient the entire bone group to point from start to end
+    // We need to rotate the group so its Y axis points toward the end position
+    const targetDirection = direction.clone().normalize();
+    const upVector = new THREE.Vector3(0, 1, 0); // Y axis
+    
+    // Calculate rotation to align Y axis with target direction
+    const quaternion = new THREE.Quaternion().setFromUnitVectors(upVector, targetDirection);
+    boneGroup.setRotationFromQuaternion(quaternion);
+    
+    console.log(`[RigFactory] Applied rotation quaternion:`, quaternion);
+    console.log(`[RigFactory] Final bone group position:`, boneGroup.position);
+    console.log(`[RigFactory] Final bone group rotation:`, boneGroup.rotation);
+    
+    // Store joint data in rigDetails.joints
     if (rigDetails && rigDetails.joints) {
         rigDetails.joints.push({
             name: `Joint_${parentBone.name}_to_${childBone.name}`,
@@ -295,11 +354,16 @@ function createBoneConnectionWithJoints(startPos, endPos, radius, parentBone, ch
  * @param {Object} rigDetails - Rig details object to store joint data
  */
 function createRootBoneVisualizationsWithJoints(rootBones, radius, rigDetails) {
+    console.log('[RigFactory] Creating root visualizations for', rootBones.length, 'root bones');
+    
     rootBones.forEach(rootBone => {
         const rootPos = new THREE.Vector3();
         rootBone.getWorldPosition(rootPos);
         
-        console.log(`[RigFactory] Creating root visualization for: ${rootBone.name}`);
+        // Convert world position to local position relative to rig container
+        rigVisualsGroup.worldToLocal(rootPos);
+        
+        console.log(`[RigFactory] Creating root visualization for: ${rootBone.name} at local position:`, rootPos);
         
         // Create root group
         const rootGroup = new THREE.Group();
@@ -339,16 +403,18 @@ function createRootBoneVisualizationsWithJoints(rootBones, radius, rigDetails) {
         rootGroup.userData.rootBone = rootBone;
         rootGroup.userData.isVisualBone = true;
         rootGroup.userData.updatePosition = () => updateRootPosition(rootGroup);
+        
+        console.log(`[RigFactory] Created root puck for ${rootBone.name} at position:`, rootGroup.position);
     });
 }
 
 /**
  * Creates control handle at the furthest bone
  * @param {Object} bone - Target bone
- * @param {Object} scene - Three.js scene
+ * @param {Object} container - Container to add handle to (instead of scene)
  * @param {Number} modelScale - Model scale factor
  */
-function createControlHandle(bone, scene, modelScale) {
+function createControlHandle(bone, container, modelScale) {
     const handleSize = modelScale * 2.6;
     const geometry = new THREE.SphereGeometry(handleSize, 16, 16);
     const material = new THREE.MeshBasicMaterial({
@@ -361,12 +427,19 @@ function createControlHandle(bone, scene, modelScale) {
     const handle = new THREE.Mesh(geometry, material);
     handle.name = "RigControlHandle";
     handle.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
-    scene.add(handle);
     
-    // Position at bone
+    // Position at bone in LOCAL space relative to container
     const bonePos = new THREE.Vector3();
     bone.getWorldPosition(bonePos);
+    
+    // Convert to local coordinates relative to the container
+    container.worldToLocal(bonePos);
     handle.position.copy(bonePos);
+    
+    container.add(handle);  // Add to container instead of scene
+    
+    console.log(`[RigFactory] Created control handle for bone: ${bone.name} at local position:`, handle.position);
+    console.log(`[RigFactory] Container rotation:`, container.rotation);
     
     // Store references for interaction system
     handle.userData.controlledBone = bone;
@@ -374,8 +447,6 @@ function createControlHandle(bone, scene, modelScale) {
     handle.userData.updatePosition = () => updateHandlePosition(handle);
     
     controlHandles.push(handle);
-    
-    console.log(`[RigFactory] Created control handle for bone: ${bone.name}`);
 }
 
 /**
@@ -422,13 +493,25 @@ function updateBonePosition(boneGroup) {
         boneGroup.userData.parentBone.getWorldPosition(parentPos);
         boneGroup.userData.childBone.getWorldPosition(childPos);
         
-        // Update position and orientation
+        // Convert to local coordinates relative to the rig container
+        rigVisualsGroup.worldToLocal(parentPos);
+        rigVisualsGroup.worldToLocal(childPos);
+        
+        // Update position
         boneGroup.position.copy(parentPos);
         
+        // Calculate direction and distance in local space
         const direction = new THREE.Vector3().subVectors(childPos, parentPos);
-        if (direction.lengthSq() > 0.001) {
-            boneGroup.lookAt(childPos);
-            boneGroup.rotateX(Math.PI / 2);
+        const distance = direction.length();
+        
+        if (distance > 0.001) {
+            // Normalize direction
+            const targetDirection = direction.clone().normalize();
+            const upVector = new THREE.Vector3(0, 1, 0); // Y axis
+            
+            // Calculate rotation to align Y axis with target direction
+            const quaternion = new THREE.Quaternion().setFromUnitVectors(upVector, targetDirection);
+            boneGroup.setRotationFromQuaternion(quaternion);
         }
     }
 }
@@ -441,6 +524,9 @@ function updateRootPosition(rootGroup) {
     if (rootGroup.userData.rootBone) {
         const pos = new THREE.Vector3();
         rootGroup.userData.rootBone.getWorldPosition(pos);
+        
+        // Convert to local coordinates relative to the rig container
+        rigVisualsGroup.worldToLocal(pos);
         rootGroup.position.copy(pos);
     }
 }
@@ -450,9 +536,12 @@ function updateRootPosition(rootGroup) {
  * @param {Object} handle - Control handle mesh
  */
 function updateHandlePosition(handle) {
-    if (handle.userData.controlledBone) {
+    if (handle.userData.controlledBone && handle.parent) {
         const bonePos = new THREE.Vector3();
         handle.userData.controlledBone.getWorldPosition(bonePos);
+        
+        // Convert to local coordinates relative to the handle's parent container
+        handle.parent.worldToLocal(bonePos);
         handle.position.copy(bonePos);
     }
 }
@@ -525,14 +614,16 @@ export function clearRigVisualization(scene) {
     // Clean up interaction handling first
     cleanupRigInteractionHandling();
     
-    if (rigVisualsGroup) {
-        scene.remove(rigVisualsGroup);
+    if (rigVisualsGroup && rigVisualsGroup.parent) {
+        rigVisualsGroup.parent.remove(rigVisualsGroup);
         rigVisualsGroup = null;
     }
     
     // Clear control handles
     controlHandles.forEach(handle => {
-        scene.remove(handle);
+        if (handle.parent) {
+            handle.parent.remove(handle);
+        }
     });
     controlHandles = [];
     

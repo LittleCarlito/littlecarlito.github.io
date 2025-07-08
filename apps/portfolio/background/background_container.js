@@ -35,6 +35,8 @@ export class BackgroundContainer {
 		
 		// Create a separate container for all assets that can be rotated as a unit
 		this.asset_container = new THREE.Object3D();
+		this.asset_container.name = "asset_container";  // Give it a name for identification
+		this.asset_container.userData.isAssetContainer = true;  // ADD THIS LINE
 		this.object_container.add(this.asset_container);
 		
 		// Apply global rotation to the asset container
