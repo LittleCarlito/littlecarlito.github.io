@@ -7,6 +7,7 @@ import {
     grab_object,
     shove_object
 } from "./physics";
+import { DiplomaInteractionHandler } from './diploma_interaction_handler';
 
 const LogLevel = {
     DEBUG: 'debug',
@@ -36,6 +37,7 @@ export class InteractionManager {
         this.resize_timeout = null;
         this.resize_move = false;
         this.zoom_event = false;
+        this.diploma_handler = new DiplomaInteractionHandler();
         InteractionManager.instance = this;
     }
 
@@ -66,6 +68,9 @@ export class InteractionManager {
         }
         if (this.abortController) {
             this.abortController.abort();
+        }
+        if (this.diploma_handler) {
+            this.diploma_handler.dispose();
         }
         this.window = null;
         this.abortController = null;
@@ -104,6 +109,9 @@ export class InteractionManager {
         this.#logString(`Mouse move event: position ${e.clientX}x${e.clientY}, 
             movement ${e.movementX}x${e.movementY}`, 
             LogLevel.DEBUG);
+        
+        this.diploma_handler.update_mouse_position(e.clientX, e.clientY);
+        
         this.#handle_rotation(e);
         this.handle_intersections(e);
     }
@@ -227,6 +235,9 @@ export class InteractionManager {
     handle_intersections(e) {
         const found_intersections = this.get_intersect_list(e, this.window.viewable_container.get_camera(), this.window.scene);       
         const is_overlay_hidden = this.window.viewable_container.is_overlay_hidden();
+        
+        this.diploma_handler.check_diploma_hover(found_intersections, this.window.scene);
+        
         let relevant_intersections = found_intersections;
         if(!is_overlay_hidden) {
             relevant_intersections = found_intersections.filter(intersection => {
