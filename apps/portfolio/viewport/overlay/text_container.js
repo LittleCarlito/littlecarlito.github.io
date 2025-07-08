@@ -58,9 +58,13 @@ export class TextContainer {
 			asset.traverse((child) => {
 				if (child.isMesh) {
 					if (child.name.startsWith('display_')){
-						this.css3d_factory.createFrameOnDisplay(child, this.camera, document.body, asset_type, options.contentPath)
+						const displayIdentifier = child.name.replace('display_', '');
+						const contentPath = options.contentPaths?.[displayIdentifier] || options.contentPath;
+						
+						this.css3d_factory.createFrameOnDisplay(child, this.camera, document.body, asset_type, contentPath)
 							.then(frameTracker => {
-								this.css3d_frames.set(asset_type, frameTracker);
+								const frameKey = `${asset_type}_${displayIdentifier}`;
+								this.css3d_frames.set(frameKey, frameTracker);
 							});
 					}
 					else if (child.name.startsWith('col_')) {
@@ -132,7 +136,7 @@ export class TextContainer {
 				}
 			}
 
-			if (config.contentPath) {
+			if (config.contentPath || config.contentPaths) {
 				handleDisplay(asset, asset_type, config);
 			}
 
@@ -287,6 +291,17 @@ export class TextContainer {
 		return this.css3d_factory.getDebugMode();
 	}
 
+	getCss3dFramesForCategory(category) {
+		const frames = [];
+		this.css3d_frames.forEach((frame, key) => {
+			const assetType = this.getCss3dAssetType(category);
+			if (assetType && key.startsWith(`${assetType}_`)) {
+				frames.push(frame);
+			}
+		});
+		return frames;
+	}
+
 	focus_text_box(incoming_name, is_column_left) {
 		const ASSET_TYPES = CustomTypeManager.getTypes();
 		const found_index = incoming_name.indexOf('_');
@@ -321,17 +336,18 @@ export class TextContainer {
 						currentFrame.iframe.contentDocument.dispatchEvent(visibilityEvent);
 					}
 				}
+
+				const currentCss3dFrames = this.getCss3dFramesForCategory(currentCategory);
+				currentCss3dFrames.forEach(frame => frame.reset());
+
 				this.lose_focus_text_box(SOUTH);
 			}
 			this.focused_text_name = new_name;
 
 			const frame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${category}`);
 			
-			const css3dFrame = this.css3d_frames.get(this.getCss3dAssetType(category));
-			
-			if (css3dFrame) {
-				css3dFrame.play();
-			}
+			const css3dFrames = this.getCss3dFramesForCategory(category);
+			css3dFrames.forEach(frame => frame.play());
 
 			if (frame && frame.iframe && frame.iframe.contentWindow) {
 				try {
@@ -387,10 +403,10 @@ export class TextContainer {
 				.start();
 
 			if (category === CATEGORIES.ABOUT.value && this.business_card_asset) {
-				const aboutFrame = this.css3d_frames.get(ASSET_TYPES.BUSINESS_CARD);
+				const aboutFrames = this.getCss3dFramesForCategory(CATEGORIES.ABOUT.value);
 				
 				if (!this.business_card_flipped) {
-					if (aboutFrame) aboutFrame.hide();
+					aboutFrames.forEach(frame => frame.hide());
 					focusTween.onComplete(() => {
 						try {
 							this.asset_handler.flipAsset(
@@ -400,7 +416,7 @@ export class TextContainer {
 								{
 									easing: Easing.Quintic.In,
 									onHalfway: (asset) => {
-										if (aboutFrame) aboutFrame.show();
+										aboutFrames.forEach(frame => frame.show());
 									},
 									onComplete: () => {
 										this.business_card_flipped = true;
@@ -412,7 +428,7 @@ export class TextContainer {
 						}
 					});
 				} else {
-					if (aboutFrame) aboutFrame.show();
+					aboutFrames.forEach(frame => frame.show());
 				}
 			}
 		}
@@ -449,6 +465,9 @@ export class TextContainer {
 						console.error('Error sending visibility message:', e);
 					}
 				}
+
+				const css3dFrames = this.getCss3dFramesForCategory(category);
+				css3dFrames.forEach(frame => frame.reset());
 
 				if (move_direction == "") {
 					existing_focus_box.position.x = get_associated_position(WEST, this.camera);
