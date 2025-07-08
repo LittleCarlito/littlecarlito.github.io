@@ -7,10 +7,6 @@ import { CollisionFactory } from "./collision_factory.js";
 import { MaterialFactory } from "./material_factory.js";
 import { AssetRotator } from "../common/asset_rotator.js";
 
-/**
- * Factory class responsible for spawning custom assets in the scene.
- * Handles loading and spawning of custom 3D models with physics and rotation capabilities.
- */
 export class CustomFactory {
 	static #instance = null;
 	static #disposed = false;
@@ -120,15 +116,6 @@ export class CustomFactory {
 		});
 	}
 
-	/**
-	 * Rotates a spawned asset around a specified axis
-	 * @param {THREE.Object3D|string} assetOrInstanceId - Asset mesh or instance ID
-	 * @param {THREE.Vector3} axis - Rotation axis (will be normalized)
-	 * @param {number} radians - Rotation amount in radians
-	 * @param {number} duration - Duration in milliseconds
-	 * @param {Object} options - Additional options (easing, onUpdate, onComplete)
-	 * @returns {Promise} Promise that resolves when rotation completes
-	 */
 	async rotateAsset(assetOrInstanceId, axis, radians, duration, options = {}) {
 		let asset;
 		
@@ -147,22 +134,10 @@ export class CustomFactory {
 		return this.rotator.rotateAsset(asset, axis, radians, duration, options);
 	}
 
-	/**
-	 * Flips a spawned asset 180 degrees around an axis
-	 * @param {THREE.Object3D|string} assetOrInstanceId - Asset mesh or instance ID
-	 * @param {THREE.Vector3} axis - Flip axis
-	 * @param {number} duration - Duration in milliseconds
-	 * @param {Object} options - Additional options
-	 * @returns {Promise} Promise that resolves when flip completes
-	 */
 	async flipAsset(assetOrInstanceId, axis, duration, options = {}) {
 		return this.rotateAsset(assetOrInstanceId, axis, Math.PI, duration, options);
 	}
 
-	/**
-	 * Stops rotation for a spawned asset
-	 * @param {THREE.Object3D|string} assetOrInstanceId - Asset mesh or instance ID
-	 */
 	stopAssetRotation(assetOrInstanceId) {
 		let asset;
 		
@@ -183,11 +158,6 @@ export class CustomFactory {
 		this.rotator.stopRotation(asset);
 	}
 
-	/**
-	 * Checks if an asset is currently rotating
-	 * @param {THREE.Object3D|string} assetOrInstanceId - Asset mesh or instance ID
-	 * @returns {boolean} True if asset is rotating
-	 */
 	isAssetRotating(assetOrInstanceId) {
 		let asset;
 		
@@ -250,13 +220,18 @@ export class CustomFactory {
 						child.visible = false;
 						collisionMeshes.push(child);
 					} else if (child.name.startsWith('display_')) {
-						child.visible = true;
-						const displayMaterial = this.createDisplayMeshMaterial(0);
-						child.material = displayMaterial;
-						if (model.userData) {
-							model.userData.currentDisplayImage = 0;
+						// Check if we should hide display meshes (for background assets)
+						if (options.hideDisplayMeshes) {
+							child.visible = false;
+						} else {
+							child.visible = true;
+							const displayMaterial = this.createDisplayMeshMaterial(0);
+							child.material = displayMaterial;
+							if (model.userData) {
+								model.userData.currentDisplayImage = 0;
+							}
+							displayMeshes.push(child);
 						}
-						displayMeshes.push(child);
 					} else {
 						const childId = child.id || Math.floor(Math.random() * 10000);
 						child.name = `interactable_${customTypeKey}_${child.name || 'part'}_${childId}`;
@@ -268,7 +243,8 @@ export class CustomFactory {
 				this.material_factory.applyPbrMaterial(model, options.atlasConfig);
 			}
 
-			if (displayMeshes.length > 0) {
+			// Only add display functionality if display meshes are not hidden
+			if (displayMeshes.length > 0 && !options.hideDisplayMeshes) {
 				model.userData.displayMeshes = displayMeshes;
 				model.userData.switchDisplayImage = (imageIndex) => {
 					if (imageIndex < 0 || imageIndex > 2) {
@@ -284,7 +260,6 @@ export class CustomFactory {
 				};
 			}
 
-			// Add rotation methods to the model's userData for easy access
 			model.userData.rotate = (axis, radians, duration, rotationOptions = {}) => {
 				return this.rotateAsset(model, axis, radians, duration, rotationOptions);
 			};
