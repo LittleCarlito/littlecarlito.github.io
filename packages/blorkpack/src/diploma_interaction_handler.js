@@ -1,7 +1,7 @@
-const TOP_DIPLOMA_LOG_MESSAGE = "Michigan State University";
-const TOP_DIPLOMA_TEXT = "Bachelor of Arts in Economics";
-const BOTTOM_DIPLOMA_LOG_MESSAGE = "DePaul University";
-const BOTTOM_DIPLOMA_TEXT = `Masters in Computer Science <i>with Distinction</i>\nGPA: 3.98`;
+const TOP_DIPLOMA_LOG_MESSAGE = "DePaul University";
+const TOP_DIPLOMA_TEXT = `Masters in Computer Science <i>with Distinction</i>\nGPA: 3.98`;
+const BOTTOM_DIPLOMA_LOG_MESSAGE = "Michigan State University";
+const BOTTOM_DIPLOMA_TEXT = "Bachelor of Arts in Economics";
 const INFO_BOX_WIDTH = 190;
 const INFO_BOX_HEIGHT = 100;
 
@@ -111,7 +111,7 @@ export class DiplomaInteractionHandler {
                 
                 if (!is_ui_diploma) continue;
                 
-                if (object.name.includes('TOP') || object.name.includes('top')) {
+                if (object.name.includes('BOT') || object.name.includes('bot')) {
                     new_hovered_diploma = 'top';
                     diploma_asset_info = {
                         name: object.name,
@@ -120,7 +120,7 @@ export class DiplomaInteractionHandler {
                         isUI: is_ui_diploma
                     };
                     break;
-                } else if (object.name.includes('BOT') || object.name.includes('bot')) {
+                } else if (object.name.includes('TOP') || object.name.includes('top')) {
                     new_hovered_diploma = 'bot';
                     diploma_asset_info = {
                         name: object.name,
@@ -139,7 +139,7 @@ export class DiplomaInteractionHandler {
                     
                     if (!is_ui_diploma) break;
                     
-                    if (parent.name.includes('TOP') || parent.name.includes('top')) {
+                    if (parent.name.includes('BOT') || parent.name.includes('bot')) {
                         new_hovered_diploma = 'top';
                         diploma_asset_info = {
                             name: parent.name,
@@ -148,7 +148,7 @@ export class DiplomaInteractionHandler {
                             isUI: is_ui_diploma
                         };
                         break;
-                    } else if (parent.name.includes('BOT') || parent.name.includes('bot')) {
+                    } else if (parent.name.includes('TOP') || parent.name.includes('top')) {
                         new_hovered_diploma = 'bot';
                         diploma_asset_info = {
                             name: parent.name,

@@ -344,28 +344,7 @@ export class BackgroundContainer {
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.NOTEBOOK_OPENED}`;
 				this.asset_manifest.add(mesh.name);
 				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Notebook opened with name: ${mesh.name}`);
-				const diplomaTopPosition = new THREE.Vector3(DIPLOMA_X, 1.5, DIPLOMA_Z);
-				const diplomaTopAtlas = ASSET_CONFIGS[ASSET_TYPE.DIPLOMA_TOP].materials.default;
-				const diplomaTopResult = await asset_loader.spawn_asset(
-					ASSET_TYPE.DIPLOMA_TOP,
-					diplomaTopPosition,
-					new THREE.Quaternion()
-						.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2)
-						.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2)),
-					{ 
-						enablePhysics: false,
-						atlasConfig: diplomaTopAtlas,
-						hideDisplayMeshes: true
-					});
-				if (!diplomaTopResult) {
-					throw new Error(`${this.name} Failed to spawn DIPLOMA_TOP, result is null`);
-				}
-				mesh = diplomaTopResult.mesh;
-				body = diplomaTopResult.body;
-				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DIPLOMA_TOP}`;
-				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma Top with name: ${mesh.name}`);
-				const diplomaBotPosition = new THREE.Vector3(DIPLOMA_X, -1.5, DIPLOMA_Z);
+				const diplomaBotPosition = new THREE.Vector3(DIPLOMA_X, 1.5, DIPLOMA_Z);
 				const diplomaBotAtlas = ASSET_CONFIGS[ASSET_TYPE.DIPLOMA_BOT].materials.default;
 				const diplomaBotResult = await asset_loader.spawn_asset(
 					ASSET_TYPE.DIPLOMA_BOT,
@@ -386,6 +365,27 @@ export class BackgroundContainer {
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DIPLOMA_BOT}`;
 				this.asset_manifest.add(mesh.name);
 				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma Bot with name: ${mesh.name}`);
+				const diplomaTopPosition = new THREE.Vector3(DIPLOMA_X, -1.5, DIPLOMA_Z);
+				const diplomaTopAtlas = ASSET_CONFIGS[ASSET_TYPE.DIPLOMA_TOP].materials.default;
+				const diplomaTopResult = await asset_loader.spawn_asset(
+					ASSET_TYPE.DIPLOMA_TOP,
+					diplomaTopPosition,
+					new THREE.Quaternion()
+						.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2)
+						.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2)),
+					{ 
+						enablePhysics: false,
+						atlasConfig: diplomaTopAtlas,
+						hideDisplayMeshes: true
+					});
+				if (!diplomaTopResult) {
+					throw new Error(`${this.name} Failed to spawn DIPLOMA_TOP, result is null`);
+				}
+				mesh = diplomaTopResult.mesh;
+				body = diplomaTopResult.body;
+				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DIPLOMA_TOP}`;
+				this.asset_manifest.add(mesh.name);
+				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma Top with name: ${mesh.name}`);
 				if (FLAGS.PHYSICS_LOGS) {
 					console.log('All assets initialized successfully');
 				}

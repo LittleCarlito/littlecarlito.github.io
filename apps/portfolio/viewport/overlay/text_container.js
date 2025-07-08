@@ -43,7 +43,7 @@ export class TextContainer {
 			});
 			const text_box_background = new THREE.Mesh(box_geometry, box_material);
 			text_box_background.name = `${TYPES.BACKGROUND}${incoming_category.value}`;
-			text_box_background.renderOrder = 1000; // Increased from -1 to ensure it renders on top
+			text_box_background.renderOrder = 1000;
 			incoming_box.add(text_box_background);
 		};
 
@@ -172,21 +172,21 @@ export class TextContainer {
 			case CATEGORIES.EDUCATION.value:
 				(async () => {
 					const ASSET_TYPES = CustomTypeManager.getTypes();
-					await create_asset_background(text_box, ASSET_TYPES.DIPLOMA_TOP, {
+					await create_asset_background(text_box, ASSET_TYPES.DIPLOMA_BOT, {
 						useFixedScale: true,
 						positionOffsetX: 0,
 						positionOffsetY: 3,
 						positionOffsetZ: 0,
 						rotation: { x: -Math.PI / 2, y: Math.PI, z: Math.PI },
-						renderOrder: 1002 // Higher than background (1000)
+						renderOrder: 1002
 					});
-					await create_asset_background(text_box, ASSET_TYPES.DIPLOMA_BOT, {
+					await create_asset_background(text_box, ASSET_TYPES.DIPLOMA_TOP, {
 						useFixedScale: true,
 						positionOffsetX: 0,
 						positionOffsetY: -3,
 						positionOffsetZ: 0,
 						rotation: { x: -Math.PI / 2, y: Math.PI, z: Math.PI },
-						renderOrder: 1002 // Higher than background (1000)
+						renderOrder: 1002
 					});
 				})();
 				create_background(category, text_box);
