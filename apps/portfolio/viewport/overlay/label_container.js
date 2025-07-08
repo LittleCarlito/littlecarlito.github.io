@@ -4,6 +4,8 @@ import { TYPES, PAN_SPEED, ROTATE_SPEED, FOCUS_ROTATION } from './overlay_common
 import { Easing, FLAGS, THREE, Tween } from '../../common';
 import { Text } from 'troika-three-text';
 
+const LABEL_SPACING = 2.7;
+
 export class LabelContainer {
 	in_tween_map = new Map();
 	swapping_column_sides = false;
@@ -33,13 +35,16 @@ export class LabelContainer {
 
 	createLabels() {
 		const colors = this.overlay_container.get_text_colors();
-		Object.values(CATEGORIES).forEach((category, i) => {
-			if (typeof category === 'function') return;
+		const categories = Object.values(CATEGORIES).filter(category => typeof category !== 'function');
+		const aboutIndex = categories.findIndex(category => category.value === 'about');
+		const aboutOriginalPosition = aboutIndex * 3;
+		
+		categories.forEach((category, i) => {
 			const button_container = new THREE.Object3D();
 			button_container.simple_name = category.value;
 			button_container.name = `${TYPES.CONATINER}${category.value}`;
 			this.container_column.add(button_container);
-			button_container.position.y = i * 3;
+			button_container.position.y = aboutOriginalPosition + (i - aboutIndex) * LABEL_SPACING;
 
 			const textMesh = new Text();
 			textMesh.text = category.value.toUpperCase();
@@ -78,7 +83,7 @@ export class LabelContainer {
 			textMesh.sync(() => {
 				const textWidth = Math.max(5, textMesh.textRenderInfo.blockBounds[2] - textMesh.textRenderInfo.blockBounds[0] + 1);
 				
-				const boxGeometry = new THREE.BoxGeometry(textWidth, 3, 0.2);
+				const boxGeometry = new THREE.BoxGeometry(textWidth, LABEL_SPACING, 0.2);
 				const collisionMaterial = new THREE.MeshBasicMaterial({
 					transparent: true,
 					opacity: 0,
@@ -135,9 +140,6 @@ export class LabelContainer {
 		const x_position = this.get_column_x_position(this.is_column_left);
 		const y_position = this.get_column_y_position(this.is_column_left);
 		const y_rotation = this.get_column_y_rotation(this.is_column_left);
-		if (FLAGS.ROTATION_TWEEN_LOGS) {
-			console.log(`[RotationTween] Swapping sides to ${this.is_column_left ? 'left' : 'right'}`);
-		}
 		this.swapping_column_sides = true;
 		new Tween(this.container_column.position)
 			.to({ x: x_position, y: y_position}, PAN_SPEED)
@@ -145,9 +147,6 @@ export class LabelContainer {
 			.start()
 			.onComplete(() => {
 				this.swapping_column_sides = false;
-				if (FLAGS.ROTATION_TWEEN_LOGS) {
-					console.log('[RotationTween] Swap sides complete');
-				}
 			});
 		new Tween(this.container_column.rotation)
 			.to({ y: y_rotation}, ROTATE_SPEED)
@@ -173,21 +172,9 @@ export class LabelContainer {
 
 	handle_hover(intersected_object) {
 		if (!intersected_object || !intersected_object.rotation) {
-			if (FLAGS.ROTATION_TWEEN_LOGS) {
-				console.log('[RotationTween] Invalid hover object received');
-			}
 			return;
 		}
-		if (FLAGS.ROTATION_TWEEN_LOGS) {
-			console.log(`[RotationTween] Hover detected on object: ${intersected_object.name}`);
-			console.log(`[RotationTween] Current rotation: ${JSON.stringify(intersected_object.rotation)}`);
-			console.log(`[RotationTween] Swapping sides status: ${this.swapping_column_sides}`);
-			console.log(`[RotationTween] Is column left: ${this.is_column_left}`);
-		}
 		if (this.swapping_column_sides) {
-			if (FLAGS.ROTATION_TWEEN_LOGS) {
-				console.log('[RotationTween] Ignoring hover while swapping sides');
-			}
 			return;
 		}
 		let target_object = intersected_object;
@@ -217,9 +204,6 @@ export class LabelContainer {
 					.easing(Easing.Sinusoidal.In)
 					.start()
 					.onComplete(() => {
-						if (FLAGS.ROTATION_TWEEN_LOGS) {
-							console.log(`[RotationTween] Tween complete for ${object_name}. Final rotation:`, target_object.rotation.y);
-						}
 						target_object.rotation.y = final_rotation;
 						this.in_tween_map.delete(object_name);
 					});
@@ -230,9 +214,6 @@ export class LabelContainer {
 
 	reset_previous_intersected() {
 		if(this.current_intersected) {
-			if (FLAGS.ROTATION_TWEEN_LOGS) {
-				console.log(`[RotationTween] Resetting rotation for ${this.current_intersected.name}. Current rotation:`, this.current_intersected.rotation.y);
-			}
 			const object_to_reset = this.current_intersected;
 			if (FLAGS.COLLISION_VISUAL_DEBUG) {
 				const container = object_to_reset.parent;
@@ -250,9 +231,6 @@ export class LabelContainer {
 				.easing(Easing.Elastic.Out)
 				.start()
 				.onComplete(() => {
-					if (FLAGS.ROTATION_TWEEN_LOGS) {
-						console.log(`[RotationTween] Reset complete for ${object_to_reset.name}. Final rotation:`, object_to_reset.rotation.y);
-					}
 					object_to_reset.rotation.y = deselected_rotation;
 				});
 			this.current_intersected = null;

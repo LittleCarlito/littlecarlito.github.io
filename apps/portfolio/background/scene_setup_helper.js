@@ -4,6 +4,11 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 
 const BACKGROUND_PATH = 'images/orbit_sunset.exr';
 
+// HDRI Background Rotation Controls (in degrees)
+const HDRI_ROTATION_X_DEG = 0;      // Pitch rotation
+const HDRI_ROTATION_Y_DEG = 40;     // Yaw rotation
+const HDRI_ROTATION_Z_DEG = 0;      // Roll rotation
+
 /**
  * Scene Setup Helper - Functional class for managing scene background and lighting
  * Handles initialization and configuration of scene visual elements
@@ -70,8 +75,32 @@ export const SceneSetupHelper = {
 			loader.load(BACKGROUND_PATH, 
 				(texture) => {
 					texture.mapping = THREE.EquirectangularReflectionMapping;
-					scene.background = texture;
+					
+					// Convert degrees to radians
+					const rotX = THREE.MathUtils.degToRad(HDRI_ROTATION_X_DEG);
+					const rotY = THREE.MathUtils.degToRad(HDRI_ROTATION_Y_DEG);
+					const rotZ = THREE.MathUtils.degToRad(HDRI_ROTATION_Z_DEG);
+					
+					// Always use sphere approach for proper rotation control
+					const sphere = new THREE.SphereGeometry(500, 64, 32);
+					const material = new THREE.MeshBasicMaterial({
+						map: texture,
+						side: THREE.BackSide,
+						fog: false
+					});
+					const backgroundSphere = new THREE.Mesh(sphere, material);
+					backgroundSphere.rotation.set(rotX, rotY, rotZ);
+					backgroundSphere.renderOrder = -1;
+					backgroundSphere.matrixAutoUpdate = false;
+					backgroundSphere.updateMatrix();
+					scene.add(backgroundSphere);
+					
+					// Store reference for cleanup
+					scene.userData.backgroundSphere = backgroundSphere;
+					
+					// Still set environment for lighting
 					scene.environment = texture;
+					
 					console.log('HDRI background and environment loaded successfully');
 					resolve(texture);
 				},
@@ -105,6 +134,23 @@ export const SceneSetupHelper = {
 			loader.load(BACKGROUND_PATH,
 				(texture) => {
 					texture.mapping = THREE.EquirectangularReflectionMapping;
+					
+					// Convert degrees to radians (same as background)
+					const rotX = THREE.MathUtils.degToRad(HDRI_ROTATION_X_DEG);
+					const rotY = THREE.MathUtils.degToRad(HDRI_ROTATION_Y_DEG);
+					const rotZ = THREE.MathUtils.degToRad(HDRI_ROTATION_Z_DEG);
+					
+					// Apply same rotation transformations to environment lighting
+					texture.center.set(0.5, 0.5);
+					texture.rotation = rotZ;
+					
+					if (rotX !== 0 || rotY !== 0) {
+						const offsetU = rotY / (2 * Math.PI);
+						const offsetV = rotX / (2 * Math.PI);
+						texture.offset.set(offsetU, offsetV);
+						texture.repeat.set(1, 1);
+					}
+					
 					scene.environment = texture;
 					console.log('HDRI environment lighting configured');
 					resolve(texture);
@@ -144,6 +190,16 @@ export const SceneSetupHelper = {
 	 * @param {THREE.Scene} scene - The Three.js scene to clean up
 	 */
 	dispose_background(scene) {
+		if (scene && scene.userData.backgroundSphere) {
+			const sphere = scene.userData.backgroundSphere;
+			scene.remove(sphere);
+			if (sphere.geometry) sphere.geometry.dispose();
+			if (sphere.material) {
+				if (sphere.material.map) sphere.material.map.dispose();
+				sphere.material.dispose();
+			}
+			delete scene.userData.backgroundSphere;
+		}
 		if (scene && scene.background) {
 			if (scene.background.isTexture) {
 				scene.background.dispose();
