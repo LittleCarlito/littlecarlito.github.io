@@ -238,6 +238,19 @@ export class TextContainer {
 					}, 100);
 				})();
 				break;
+			case CATEGORIES.PROJECTS.value:
+				(async () => {
+					const ASSET_TYPES = CustomTypeManager.getTypes();
+					await create_asset_background(text_box, ASSET_TYPES.NOTEBOOK_OPENED, {
+						horizontalStretch: 1.5,
+						verticalStretch: 1.5,
+						positionOffsetX: 5,
+						positionOffsetY: 0,
+						positionOffsetZ: 0,
+						rotation: new THREE.Euler(Math.PI / 2, -Math.PI / 2, 0, 'XYZ')
+					});
+				})();
+				break;
 			default:
 				create_background(category, text_box);
 				create_text_frame(category, text_box);
