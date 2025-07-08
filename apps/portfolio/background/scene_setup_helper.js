@@ -2,7 +2,7 @@
 import { THREE, BLORKPACK_FLAGS } from '@littlecarlito/blorkpack';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 
-const BACKGROUND_PATH = 'images/water.exr';
+const BACKGROUND_PATH = 'images/orbit_sunset.exr';
 
 /**
  * Scene Setup Helper - Functional class for managing scene background and lighting
