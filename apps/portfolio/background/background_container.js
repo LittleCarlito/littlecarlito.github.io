@@ -7,12 +7,18 @@ const DESK_HEIGHT = FLOOR_HEIGHT/2;
 const DIPLOMA_X = -7.2;
 const DIPLOMA_Z = -.5;
 
+// Global rotation constants (in degrees)
+const GLOBAL_ROTATION_X = 7;
+const GLOBAL_ROTATION_Y = -25;
+const GLOBAL_ROTATION_Z = 0;
+
 export class BackgroundContainer {
 	name = "[BackgroundContainer]"
 	parent;
 	camera;
 	world;
 	object_container;
+	asset_container;  // New container for all assets
 	dynamic_bodies = [];
 	asset_manifest = new Set();
 	loading_complete = false;
@@ -26,7 +32,20 @@ export class BackgroundContainer {
 		this.world = incoming_world;
 		this.object_container = new THREE.Object3D();
 		this.parent.add(this.object_container);
-		const asset_loader = AssetHandler.get_instance(this.object_container, this.world);
+		
+		// Create a separate container for all assets that can be rotated as a unit
+		this.asset_container = new THREE.Object3D();
+		this.object_container.add(this.asset_container);
+		
+		// Apply global rotation to the asset container
+		this.asset_container.rotation.set(
+			THREE.MathUtils.degToRad(GLOBAL_ROTATION_X),
+			THREE.MathUtils.degToRad(GLOBAL_ROTATION_Y),
+			THREE.MathUtils.degToRad(GLOBAL_ROTATION_Z)
+		);
+		
+		// Pass the asset_container instead of object_container to AssetHandler
+		const asset_loader = AssetHandler.get_instance(this.asset_container, this.world);
 		this.loading_promise = (async () => {
 			try {
 				if (!CustomTypeManager.hasLoadedCustomTypes()) {
@@ -362,6 +381,78 @@ export class BackgroundContainer {
 				throw error;
 			}
 		})();
+	}
+
+	/**
+	 * Sets the global rotation of all assets as a unit
+	 * @param {number} x - Rotation around X axis in degrees
+	 * @param {number} y - Rotation around Y axis in degrees  
+	 * @param {number} z - Rotation around Z axis in degrees
+	 */
+	setGlobalRotation(x, y, z) {
+		this.asset_container.rotation.set(
+			THREE.MathUtils.degToRad(x),
+			THREE.MathUtils.degToRad(y),
+			THREE.MathUtils.degToRad(z)
+		);
+	}
+
+	/**
+	 * Gets the current global rotation in degrees
+	 * @returns {Object} Object with x, y, z rotation values in degrees
+	 */
+	getGlobalRotation() {
+		return {
+			x: THREE.MathUtils.radToDeg(this.asset_container.rotation.x),
+			y: THREE.MathUtils.radToDeg(this.asset_container.rotation.y),
+			z: THREE.MathUtils.radToDeg(this.asset_container.rotation.z)
+		};
+	}
+
+	/**
+	 * Animates the global rotation to new values
+	 * @param {number} x - Target X rotation in degrees
+	 * @param {number} y - Target Y rotation in degrees
+	 * @param {number} z - Target Z rotation in degrees
+	 * @param {number} duration - Animation duration in milliseconds
+	 * @returns {Promise} Promise that resolves when animation completes
+	 */
+	animateGlobalRotation(x, y, z, duration = 1000) {
+		return new Promise((resolve) => {
+			const startRotation = {
+				x: this.asset_container.rotation.x,
+				y: this.asset_container.rotation.y,
+				z: this.asset_container.rotation.z
+			};
+			
+			const targetRotation = {
+				x: THREE.MathUtils.degToRad(x),
+				y: THREE.MathUtils.degToRad(y),
+				z: THREE.MathUtils.degToRad(z)
+			};
+			
+			const startTime = Date.now();
+			
+			const animate = () => {
+				const elapsed = Date.now() - startTime;
+				const progress = Math.min(elapsed / duration, 1);
+				
+				// Easing function (ease-out)
+				const eased = 1 - Math.pow(1 - progress, 3);
+				
+				this.asset_container.rotation.x = startRotation.x + (targetRotation.x - startRotation.x) * eased;
+				this.asset_container.rotation.y = startRotation.y + (targetRotation.y - startRotation.y) * eased;
+				this.asset_container.rotation.z = startRotation.z + (targetRotation.z - startRotation.z) * eased;
+				
+				if (progress < 1) {
+					requestAnimationFrame(animate);
+				} else {
+					resolve();
+				}
+			};
+			
+			animate();
+		});
 	}
 
 	async is_loading_complete() {
