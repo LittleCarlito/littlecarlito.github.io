@@ -1,6 +1,9 @@
 import { THREE } from '../../index';
 import { setupRigInteractionHandling, cleanupRigInteractionHandling } from '../../rig_interaction_handler';
 
+// Global rig visualization state - controlled by external systems
+let RIG_VISUALIZATION_ENABLED = false;
+
 // Rig visualization configuration
 const RIG_CONFIG = {
     displayRig: true,
@@ -17,6 +20,24 @@ const RIG_CONFIG = {
 let rigVisualsGroup = null;
 let bones = [];
 let controlHandles = [];
+
+/**
+ * Sets the global rig visualization state
+ * @param {boolean} enabled - Whether rig visualization should be enabled
+ */
+export function setRigVisualizationEnabled(enabled) {
+    RIG_VISUALIZATION_ENABLED = enabled;
+    
+    // Update visibility of existing rig visualizations
+    if (rigVisualsGroup) {
+        rigVisualsGroup.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
+    }
+    
+    // Update control handles visibility
+    controlHandles.forEach(handle => {
+        handle.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
+    });
+}
 
 /**
  * Creates rig visualization from analyzed rig data
@@ -39,7 +60,8 @@ export function createRigVisualization(rigDetails, scene, asset) {
     // Create main rig group
     rigVisualsGroup = new THREE.Group();
     rigVisualsGroup.name = "RigVisualization";
-    rigVisualsGroup.visible = RIG_CONFIG.displayRig;
+    // Check both config and global state for visibility
+    rigVisualsGroup.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
     scene.add(rigVisualsGroup);
     
     // Extract bones from the asset
@@ -338,6 +360,7 @@ function createControlHandle(bone, scene, modelScale) {
     
     const handle = new THREE.Mesh(geometry, material);
     handle.name = "RigControlHandle";
+    handle.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
     scene.add(handle);
     
     // Position at bone
@@ -477,7 +500,7 @@ function applyForceZSettings() {
  * Updates rig visualization animation frame
  */
 export function updateRigVisualization() {
-    if (!rigVisualsGroup || !RIG_CONFIG.displayRig) return;
+    if (!rigVisualsGroup || !RIG_CONFIG.displayRig || !RIG_VISUALIZATION_ENABLED) return;
     
     // Update all bone positions
     rigVisualsGroup.children.forEach(boneGroup => {
@@ -523,20 +546,14 @@ export function clearRigVisualization(scene) {
 export function updateRigConfig(newConfig) {
     Object.assign(RIG_CONFIG, newConfig);
     console.log('[RigFactory] Rig config updated:', RIG_CONFIG);
-}
-
-/**
- * Deduplicates joint data by name (helper function)
- * @param {Array} joints - Array of joint objects
- * @returns {Array} Deduplicated joint array
- */
-function deduplicateJointsByName(joints) {
-    const seen = new Set();
-    return joints.filter(joint => {
-        if (seen.has(joint.name)) {
-            return false;
-        }
-        seen.add(joint.name);
-        return true;
+    
+    // Update visibility of existing rig visualizations
+    if (rigVisualsGroup) {
+        rigVisualsGroup.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
+    }
+    
+    // Update control handles visibility
+    controlHandles.forEach(handle => {
+        handle.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
     });
 }

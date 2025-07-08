@@ -683,6 +683,40 @@ export class AssetHandler {
 		AssetHandler.#instance = null;
 	}
 
+	/**
+	 * Updates rig configuration settings
+	 * @param {Object} newConfig - New configuration options for rig visualization
+	 */
+	updateRigConfig(newConfig) {
+		try {
+			// Import and call the rig factory updateRigConfig function
+			import('./factories/rig_factory.js').then(({ updateRigConfig }) => {
+				updateRigConfig(newConfig);
+			}).catch(error => {
+				console.error('[AssetHandler] Error importing rig factory:', error);
+			});
+		} catch (error) {
+			console.error('[AssetHandler] Error updating rig config:', error);
+		}
+	}
+
+	/**
+	 * Sets the global rig visualization enabled state
+	 * @param {boolean} enabled - Whether rig visualization should be enabled
+	 */
+	setRigVisualizationEnabled(enabled) {
+		try {
+			// Import and call the rig factory setRigVisualizationEnabled function
+			import('./factories/rig_factory.js').then(({ setRigVisualizationEnabled }) => {
+				setRigVisualizationEnabled(enabled);
+			}).catch(error => {
+				console.error('[AssetHandler] Error importing rig factory:', error);
+			});
+		} catch (error) {
+			console.error('[AssetHandler] Error setting rig visualization state:', error);
+		}
+	}
+
 	static dispose_instance() {
 		if (AssetHandler.#instance) {
 			AssetHandler.#instance.dispose();

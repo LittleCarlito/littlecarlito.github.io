@@ -617,30 +617,33 @@ export function createDebugUI() {
 	displayDivider.style.margin = isDisplayMeshVisible ? '10px 0' : '5px 0 10px 0'; // Adjusted margin
 	displayDivider.style.transition = 'margin 0.3s ease-in-out';
 	debugUI.appendChild(displayDivider);
+
 	// Create a container for the debug toggles section (keep this visible)
 	const debugTogglesTitle = document.createElement('div');
 	debugTogglesTitle.textContent = 'Debug Toggles';
 	debugTogglesTitle.style.fontWeight = 'bold';
 	debugTogglesTitle.style.marginBottom = '8px';
 	debugUI.appendChild(debugTogglesTitle);
+
+	// Add rig visualization toggle (NEW - above collision debug)
+	addToggle(debugUI, 'RIG_VISUALIZATION', 'Rig Visualization', FLAGS.RIG_VISUALIZATION, (checked) => {
+		FLAGS.RIG_VISUALIZATION = checked;
+		toggleRigVisualization(checked);
+		console.log(`Rig visualization ${checked ? 'enabled' : 'disabled'}`);
+	});
+
 	// Add debug toggles (these remain visible)
 	addToggle(debugUI, 'COLLISION_VISUAL_DEBUG', 'Collision Debug', FLAGS.COLLISION_VISUAL_DEBUG, (checked) => {
-		// Update flags
 		FLAGS.COLLISION_VISUAL_DEBUG = checked;
-		// Also update SIGN_VISUAL_DEBUG to match COLLISION_VISUAL_DEBUG
 		FLAGS.SIGN_VISUAL_DEBUG = checked;
-		// Update sign debug visualizations
 		if (window.background_container) {
 			background_container.updateSignDebugVisualizations();
 		}
-		// Update collision debug in the asset spawner if available
 		if (window.asset_handler) {
 			console.log(`Setting collision debug to ${checked}`);
 			asset_handler.set_collision_debug(checked);
 		}
-		// Update label wireframes
 		updateLabelWireframes();
-		// Log the change for debugging
 		console.log(`Collision and Sign debug visualization ${checked ? 'enabled' : 'disabled'}`);
 		console.log(`All collision wireframes will be ${checked ? 'shown' : 'hidden'}`);
 	});
@@ -1729,3 +1732,37 @@ function addToggle(parent, flagName, label, initialState, onChange) {
 	toggleContainer.appendChild(toggle);
 	parent.appendChild(toggleContainer);
 } 
+
+function toggleRigVisualization(enabled) {
+    console.log(`Rig visualization ${enabled ? 'enabled' : 'disabled'}`);
+    
+    // Update rig config and state through asset handler
+    if (window.asset_handler) {
+        window.asset_handler.updateRigConfig({ displayRig: enabled });
+        window.asset_handler.setRigVisualizationEnabled(enabled);
+    }
+    
+    if (sceneRef) {
+        sceneRef.traverse((object) => {
+            if (object.name === "RigVisualization") {
+                object.visible = enabled;
+            }
+            if (object.name === "RigControlHandle") {
+                object.visible = enabled;
+            }
+        });
+    }
+
+    if (window.asset_handler && window.asset_handler.activeRigVisualizations) {
+        window.asset_handler.activeRigVisualizations.forEach((rigData) => {
+            if (rigData.visualization && rigData.visualization.group) {
+                rigData.visualization.group.visible = enabled;
+            }
+            if (rigData.visualization && rigData.visualization.handles) {
+                rigData.visualization.handles.forEach(handle => {
+                    handle.visible = enabled;
+                });
+            }
+        });
+    }
+}
