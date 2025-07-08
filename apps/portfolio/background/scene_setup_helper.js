@@ -3,6 +3,7 @@ import { THREE, BLORKPACK_FLAGS } from '@littlecarlito/blorkpack';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 
 const BACKGROUND_PATH = 'images/orbit_sunset.exr';
+const LIGHTING_PATH = 'images/brown_studio.exr';
 
 // HDRI Background Rotation Controls (in degrees)
 const HDRI_ROTATION_X_DEG = 0;      // Pitch rotation
@@ -60,14 +61,14 @@ export const SceneSetupHelper = {
 	},
 
 	/**
-	 * Creates HDRI background and environment lighting
+	 * Creates HDRI background using orbit_sunset.exr
 	 * @private
 	 * @param {THREE.Scene} scene - The Three.js scene to configure
 	 * @param {Function} progressCallback - Optional callback for loading progress updates
 	 * @returns {Promise} Promise that resolves when HDRI is loaded
 	 */
 	_create_hdri_background(scene, progressCallback) {
-		console.log('Loading HDRI environment map from:', BACKGROUND_PATH);
+		console.log('Loading HDRI background from:', BACKGROUND_PATH);
 		
 		return new Promise((resolve, reject) => {
 			const loader = new EXRLoader();
@@ -98,10 +99,7 @@ export const SceneSetupHelper = {
 					// Store reference for cleanup
 					scene.userData.backgroundSphere = backgroundSphere;
 					
-					// Still set environment for lighting
-					scene.environment = texture;
-					
-					console.log('HDRI background and environment loaded successfully');
+					console.log('HDRI background loaded successfully');
 					resolve(texture);
 				},
 				(progress) => {
@@ -111,7 +109,7 @@ export const SceneSetupHelper = {
 					}
 				},
 				(error) => {
-					console.error('Error loading HDRI file:', error);
+					console.error('Error loading HDRI background file:', error);
 					reject(error);
 				}
 			);
@@ -119,38 +117,21 @@ export const SceneSetupHelper = {
 	},
 
 	/**
-	 * Creates HDRI environment lighting
+	 * Creates HDRI environment lighting using brown_studio.exr
 	 * @private
 	 * @param {THREE.Scene} scene - The Three.js scene to configure
 	 * @param {Function} progressCallback - Optional callback for loading progress updates
 	 * @returns {Promise} Promise that resolves when HDRI lighting is loaded
 	 */
 	_create_hdri_lighting(scene, progressCallback) {
-		console.log('Configuring HDRI environment lighting from:', BACKGROUND_PATH);
+		console.log('Configuring HDRI environment lighting from:', LIGHTING_PATH);
 		
 		return new Promise((resolve, reject) => {
 			const loader = new EXRLoader();
 			
-			loader.load(BACKGROUND_PATH,
+			loader.load(LIGHTING_PATH,
 				(texture) => {
 					texture.mapping = THREE.EquirectangularReflectionMapping;
-					
-					// Convert degrees to radians (same as background)
-					const rotX = THREE.MathUtils.degToRad(HDRI_ROTATION_X_DEG);
-					const rotY = THREE.MathUtils.degToRad(HDRI_ROTATION_Y_DEG);
-					const rotZ = THREE.MathUtils.degToRad(HDRI_ROTATION_Z_DEG);
-					
-					// Apply same rotation transformations to environment lighting
-					texture.center.set(0.5, 0.5);
-					texture.rotation = rotZ;
-					
-					if (rotX !== 0 || rotY !== 0) {
-						const offsetU = rotY / (2 * Math.PI);
-						const offsetV = rotX / (2 * Math.PI);
-						texture.offset.set(offsetU, offsetV);
-						texture.repeat.set(1, 1);
-					}
-					
 					scene.environment = texture;
 					console.log('HDRI environment lighting configured');
 					resolve(texture);
