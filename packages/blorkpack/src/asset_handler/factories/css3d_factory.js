@@ -523,12 +523,10 @@ export class CSS3DFactory {
         .content-wrapper {
             width: 100%;
             height: 100%;
-            overflow-y: auto;
-            overflow-x: hidden;
+            overflow: hidden;
             box-sizing: border-box;
             word-wrap: break-word;
             overflow-wrap: break-word;
-            scroll-behavior: smooth;
         }
         
         .content-wrapper > * {
@@ -553,136 +551,12 @@ export class CSS3DFactory {
             max-width: 100%;
             height: auto;
         }
-        
-        .scroll-enable-delay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: transparent;
-            z-index: 10000;
-            pointer-events: auto;
-            opacity: 1;
-            transition: opacity 0.3s ease;
-        }
-        
-        .scroll-enable-delay.fade-out {
-            opacity: 0;
-            pointer-events: none;
-        }
-        
-        .virtual-spacer {
-            height: 200vh;
-            width: 1px;
-            position: absolute;
-            top: 0;
-            right: 0;
-            pointer-events: none;
-            visibility: hidden;
-            z-index: -1;
-        }
     </style>
 </head>
 <body>
-    <div class="scroll-enable-delay" id="scrollDelay"></div>
     <div class="content-wrapper" id="contentWrapper">
-        <div class="virtual-spacer"></div>
         ${content}
     </div>
-    
-    <script>
-        (function() {
-            let contentStabilized = false;
-            let lastContentHeight = 0;
-            let autoScrollEnabled = true;
-            let userScrolled = false;
-            let scrollTimeout = null;
-            
-            const contentWrapper = document.getElementById('contentWrapper');
-            const scrollDelay = document.getElementById('scrollDelay');
-            
-            function enableScrolling() {
-                if (contentStabilized) return;
-                contentStabilized = true;
-                scrollDelay.classList.add('fade-out');
-                setTimeout(() => {
-                    if (scrollDelay && scrollDelay.parentNode) {
-                        scrollDelay.parentNode.removeChild(scrollDelay);
-                    }
-                }, 300);
-            }
-            
-            function checkContentHeight() {
-                const currentHeight = contentWrapper.scrollHeight;
-                if (currentHeight > lastContentHeight) {
-                    const scrollPosition = contentWrapper.scrollTop + contentWrapper.clientHeight;
-                    const wasNearBottom = scrollPosition >= lastContentHeight - 100;
-                    const heightDiff = currentHeight - lastContentHeight;
-                    
-                    const shouldAutoScroll = heightDiff < 200 || wasNearBottom || lastContentHeight === 0;
-                    
-                    if (shouldAutoScroll) {
-                        setTimeout(() => {
-                            contentWrapper.scrollTop = currentHeight - contentWrapper.clientHeight;
-                            if (heightDiff < 200) {
-                                userScrolled = false;
-                                autoScrollEnabled = true;
-                            }
-                        }, 30);
-                    }
-                }
-                lastContentHeight = currentHeight;
-            }
-            
-            function handleUserScroll() {
-                if (!contentStabilized) return;
-                
-                clearTimeout(scrollTimeout);
-                const scrollPosition = contentWrapper.scrollTop + contentWrapper.clientHeight;
-                const isAtBottom = scrollPosition >= contentWrapper.scrollHeight - 30;
-                
-                if (isAtBottom) {
-                    userScrolled = false;
-                    autoScrollEnabled = true;
-                } else {
-                    const scrollDistance = Math.abs(contentWrapper.scrollTop - (contentWrapper.scrollHeight - contentWrapper.clientHeight));
-                    if (scrollDistance > 100) {
-                        userScrolled = true;
-                        autoScrollEnabled = false;
-                    }
-                }
-                
-                scrollTimeout = setTimeout(() => {
-                    const currentScrollPosition = contentWrapper.scrollTop + contentWrapper.clientHeight;
-                    const currentIsAtBottom = currentScrollPosition >= contentWrapper.scrollHeight - 30;
-                    if (currentIsAtBottom) {
-                        userScrolled = false;
-                        autoScrollEnabled = true;
-                    }
-                }, 1500);
-            }
-            
-            contentWrapper.addEventListener('scroll', handleUserScroll);
-            
-            const observer = new MutationObserver(checkContentHeight);
-            observer.observe(contentWrapper, {
-                childList: true,
-                subtree: true,
-                attributes: true,
-                characterData: true
-            });
-            
-            setInterval(checkContentHeight, 100);
-            
-            setTimeout(() => {
-                enableScrolling();
-                checkContentHeight();
-                userScrolled = false;
-                autoScrollEnabled = true;
-            }, 1000);
-        })();
-    </script>
 </body>
 </html>`;
     }
