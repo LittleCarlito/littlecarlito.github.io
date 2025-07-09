@@ -24,6 +24,7 @@ export class TextContainer {
 	css3d_factory;
 	business_card_asset = null;
 	business_card_flipped = false;
+	projects_frames_played = false;
 
 	constructor(incoming_parent, incoming_camera) {
 		this.parent = incoming_parent;
@@ -392,7 +393,9 @@ export class TextContainer {
 				}
 
 				const currentCss3dFrames = this.getCss3dFramesForCategory(currentCategory);
-				currentCss3dFrames.forEach(frame => frame.reset());
+				if (currentCategory !== CATEGORIES.PROJECTS.value) {
+					currentCss3dFrames.forEach(frame => frame.reset());
+				}
 
 				this.lose_focus_text_box(SOUTH);
 			}
@@ -401,7 +404,7 @@ export class TextContainer {
 			const frame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${category}`);
 			
 			const css3dFrames = this.getCss3dFramesForCategory(category);
-			if (category === CATEGORIES.PROJECTS.value && css3dFrames.length === 2) {
+			if (category === CATEGORIES.PROJECTS.value && css3dFrames.length === 2 && !this.projects_frames_played) {
 				const leftFrame = css3dFrames.find(f => f.mesh && f.mesh.name && f.mesh.name.includes('left_notebook_open'));
 				const rightFrame = css3dFrames.find(f => f.mesh && f.mesh.name && f.mesh.name.includes('right_notebook_open'));
 				
@@ -409,11 +412,13 @@ export class TextContainer {
 					leftFrame.play();
 					setTimeout(() => {
 						rightFrame.play();
+						this.projects_frames_played = true;
 					}, PROJECTS_FRAME_DELAY);
 				} else {
 					css3dFrames.forEach(frame => frame.play());
+					this.projects_frames_played = true;
 				}
-			} else {
+			} else if (category !== CATEGORIES.PROJECTS.value) {
 				css3dFrames.forEach(frame => frame.play());
 			}
 
@@ -537,7 +542,9 @@ export class TextContainer {
 				}
 
 				const css3dFrames = this.getCss3dFramesForCategory(category);
-				css3dFrames.forEach(frame => frame.reset());
+				if (category !== CATEGORIES.PROJECTS.value) {
+					css3dFrames.forEach(frame => frame.reset());
+				}
 
 				if (move_direction == "") {
 					existing_focus_box.position.x = get_associated_position(WEST, this.camera);

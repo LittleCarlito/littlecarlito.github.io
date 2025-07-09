@@ -116,12 +116,24 @@
             height: 25px;
             z-index: 1000;
             pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .construction-tape.show {
+            opacity: 1;
         }
 
         .tape-interceptor {
             position: absolute;
             z-index: 999;
             cursor: not-allowed;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .tape-interceptor.show {
+            opacity: 1;
         }
 
         .fallback-text {
@@ -219,6 +231,7 @@
         let animationPlayed = false;
         let fontLoaded = false;
         let useFallback = false;
+        let threejsTextAnimated = false;
 
         const debugContainer = document.createElement('div');
         debugContainer.style.position = 'absolute';
@@ -292,6 +305,13 @@
             
             document.body.appendChild(tape);
             document.body.appendChild(interceptor);
+        }
+
+        function showTape() {
+            if (tape && interceptor) {
+                tape.classList.add('show');
+                interceptor.classList.add('show');
+            }
         }
 
         function createClickableLinks() {
@@ -447,6 +467,10 @@
                     setTimeout(() => {
                         charText.style.transition = 'opacity 0.1s ease';
                         charText.style.opacity = '1';
+                        if (projectIndex === 0 && i === projectChars.length - 1) {
+                            threejsTextAnimated = true;
+                            showTape();
+                        }
                     }, totalDelay + i * 25);
                     
                     projectX += char === ' ' ? 8 : 16;
@@ -503,8 +527,18 @@
                 currentY += PROJECT_SPACING;
             });
 
-            for (let charInfo of allCharacters) {
+            let threejsTextLength = titleText.text.length;
+            let threejsProjectTextLength = PROJECTS[0].text.length;
+            let threejsTextEndIndex = threejsTextLength + threejsProjectTextLength;
+
+            for (let i = 0; i < allCharacters.length; i++) {
+                const charInfo = allCharacters[i];
                 await animateCharacter(charInfo.char, charInfo.x, charInfo.y, charInfo.fontSize);
+                
+                if (i === threejsTextEndIndex - 1) {
+                    threejsTextAnimated = true;
+                    showTape();
+                }
             }
         }
 
@@ -548,6 +582,11 @@
 
                 projectY += PROJECT_SPACING;
             });
+            
+            if (!threejsTextAnimated) {
+                threejsTextAnimated = true;
+                showTape();
+            }
         }
 
         function updateBoxPositions() {
@@ -592,6 +631,11 @@
             const svg = document.querySelector('#title_svg');
             svg.innerHTML = '';
             animationPlayed = false;
+            threejsTextAnimated = false;
+            if (tape && interceptor) {
+                tape.classList.remove('show');
+                interceptor.classList.remove('show');
+            }
         }
 
         window.addEventListener('message', (event) => {
