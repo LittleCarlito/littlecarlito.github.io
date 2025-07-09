@@ -11,6 +11,8 @@ import {
 	BLORKPACK_FLAGS, 
 }  from '@littlecarlito/blorkpack';
 
+const PROJECTS_FRAME_DELAY = 3500;
+
 export class TextContainer {
 	container_width;
 	container_height;
@@ -398,7 +400,21 @@ export class TextContainer {
 			const frame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${category}`);
 			
 			const css3dFrames = this.getCss3dFramesForCategory(category);
-			css3dFrames.forEach(frame => frame.play());
+			if (category === CATEGORIES.PROJECTS.value && css3dFrames.length === 2) {
+				const leftFrame = css3dFrames.find(f => f.mesh && f.mesh.name && f.mesh.name.includes('left_notebook_open'));
+				const rightFrame = css3dFrames.find(f => f.mesh && f.mesh.name && f.mesh.name.includes('right_notebook_open'));
+				
+				if (leftFrame && rightFrame) {
+					leftFrame.play();
+					setTimeout(() => {
+						rightFrame.play();
+					}, PROJECTS_FRAME_DELAY);
+				} else {
+					css3dFrames.forEach(frame => frame.play());
+				}
+			} else {
+				css3dFrames.forEach(frame => frame.play());
+			}
 
 			if (frame && frame.iframe && frame.iframe.contentWindow) {
 				try {
