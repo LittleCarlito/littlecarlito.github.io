@@ -38,12 +38,14 @@ export class TextContainer {
 			const box_geometry = new THREE.BoxGeometry(this.container_width, this.container_height, .01);
 			const box_material = new THREE.MeshBasicMaterial({
 				color: incoming_category.color,
-				depthTest: false,
-				transparent: true
+				depthTest: true,
+				depthWrite: false,
+				transparent: true,
+				renderOrder: 999
 			});
 			const text_box_background = new THREE.Mesh(box_geometry, box_material);
 			text_box_background.name = `${TYPES.BACKGROUND}${incoming_category.value}`;
-			text_box_background.renderOrder = 1000;
+			text_box_background.renderOrder = 999;
 			incoming_box.add(text_box_background);
 		};
 
@@ -69,6 +71,27 @@ export class TextContainer {
 					}
 					else if (child.name.startsWith('col_')) {
 						child.visible = false;
+					}
+				}
+			});
+		};
+
+		const setProperRenderOrders = (asset, baseOrder = 1000) => {
+			asset.traverse((child) => {
+				if (child.isMesh) {
+					if (child.name.startsWith('col_')) {
+						child.visible = false;
+					} else if (child.name.startsWith('display_')) {
+						child.renderOrder = baseOrder + 50;
+					} else if (child.name.includes('background') || child.name.includes('page')) {
+						child.renderOrder = baseOrder + 10;
+					} else {
+						child.renderOrder = baseOrder + 100;
+						
+						if (child.material) {
+							child.material.depthTest = true;
+							child.material.depthWrite = true;
+						}
 					}
 				}
 			});
@@ -149,9 +172,16 @@ export class TextContainer {
 					child.renderOrder = config.renderOrder;
 					
 					if (child.material) {
-						child.material.transparent = true;
-						child.material.depthTest = false;
-						child.material.side = THREE.DoubleSide;
+						child.material.depthTest = true;
+						child.material.depthWrite = true;
+						
+						if (child.material.opacity < 1.0 || child.material.transparent) {
+							child.material.transparent = true;
+						}
+						
+						if (!child.material.transparent) {
+							child.material.side = THREE.FrontSide;
+						}
 					}
 				}
 			});
@@ -245,14 +275,32 @@ export class TextContainer {
 			case CATEGORIES.PROJECTS.value:
 				(async () => {
 					const ASSET_TYPES = CustomTypeManager.getTypes();
-					await create_asset_background(text_box, ASSET_TYPES.NOTEBOOK_OPENED, {
+					
+					const notebookAsset = await create_asset_background(text_box, ASSET_TYPES.NOTEBOOK_OPENED, {
 						horizontalStretch: 1.5,
 						verticalStretch: 1.5,
 						positionOffsetX: 5,
 						positionOffsetY: 0,
 						positionOffsetZ: 0,
-						rotation: new THREE.Euler(Math.PI / 2, -Math.PI / 2, 0, 'XYZ')
+						rotation: new THREE.Euler(Math.PI / 2, -Math.PI / 2, 0, 'XYZ'),
+						contentPath: 'pages/projects.html',
+						renderOrder: 1000
 					});
+					
+					setProperRenderOrders(notebookAsset, 1000);
+					
+					const displayMeshes = [];
+					notebookAsset.traverse((child) => {
+						if (child.isMesh && child.name.startsWith('display_')) {
+							displayMeshes.push(child);
+						}
+					});
+					
+					if (displayMeshes.length !== 2) {
+						throw new Error(`Projects section requires exactly 2 display meshes, found ${displayMeshes.length}. Display meshes found: ${displayMeshes.map(m => m.name).join(', ')}`);
+					}
+					
+					console.log(`[TextContainer] Created CSS3D frames for Projects section with display meshes: ${displayMeshes.map(m => m.name).join(', ')}`);
 				})();
 				break;
 			default:
@@ -443,6 +491,8 @@ export class TextContainer {
 				return ASSET_TYPES.MONITOR;
 			case CATEGORIES.ABOUT.value:
 				return ASSET_TYPES.BUSINESS_CARD;
+			case CATEGORIES.PROJECTS.value:
+				return ASSET_TYPES.NOTEBOOK_OPENED;
 			default:
 				return null;
 		}

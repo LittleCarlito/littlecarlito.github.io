@@ -59,6 +59,17 @@ export class CSS3DFactory {
         }
     }
 
+    isProjectsFrame(mesh) {
+        let current = mesh;
+        while (current) {
+            if (current.name && (current.name.toLowerCase().includes('notebook') || current.name.toLowerCase().includes('projects'))) {
+                return true;
+            }
+            current = current.parent;
+        }
+        return false;
+    }
+
     calculateDisplayMeshDimensions(mesh) {
         if (!mesh || !mesh.geometry) {
             throw new Error('Display mesh or geometry not found');
@@ -87,8 +98,15 @@ export class CSS3DFactory {
             throw new Error('Could not determine rectangular face dimensions from display mesh');
         }
         
-        const faceWidth = dimensions[0].size;
-        const faceHeight = dimensions[1].size;
+        let faceWidth, faceHeight;
+        
+        if (this.isProjectsFrame(mesh)) {
+            faceWidth = dimensions[1].size;
+            faceHeight = dimensions[0].size;
+        } else {
+            faceWidth = dimensions[0].size;
+            faceHeight = dimensions[1].size;
+        }
         
         return { 
             width: Math.max(50, faceWidth * 1000),

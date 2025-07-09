@@ -1,9 +1,17 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="../js/opentype.min.js"></script>
+    <!-- <script src="../js/opentype.min.js"></script> -->
     <!-- Global configuration script -->
     <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #b6b4af;
+            min-height: 100vh;
+        }
+
+        /*
         body {
             margin: 0;
             padding: 0;
@@ -12,15 +20,15 @@
             align-items: flex-start;
             min-height: 100vh;
             background: transparent;
-            overflow-x: auto;  /* Add horizontal scroll when needed */
+            overflow-x: auto;
         }
 
         .writing-container {
-            width: 800px;     /* Fixed width */
+            width: 800px;
             position: relative;
             opacity: 0;
             padding-left: 30px;
-            min-width: 800px; /* Prevent container shrinking */
+            min-width: 800px;
         }
 
         .writing-container.show {
@@ -73,7 +81,7 @@
             width: 800px;
             height: auto;
             display: block;
-            min-width: 800px; /* Prevent SVG shrinking */
+            min-width: 800px;
         }
 
         .letter-path {
@@ -85,7 +93,6 @@
         }
 
         .letter-path.animate {
-            /* Controls letter animation speed: 0.6s = faster, 1.2s = slower */
             animation: drawLetter .025s forwards;
         }
 
@@ -131,17 +138,17 @@
             z-index: 999;
             cursor: not-allowed;
         }
+        */
     </style>
 </head>
 <body>
+    <!--
     <div class="writing-container">
         <svg id="title_svg" width="800" height="800" viewBox="0 0 800 800">
-            <!-- SVG content will be added here via JavaScript -->
         </svg>
     </div>
 
     <script type="module">
-        // Set the font path based on hostname
         document.documentElement.style.setProperty(
             '--font-path',
             window.location.hostname === 'littlecarlito.github.io' 
@@ -149,14 +156,12 @@
                 : '../fonts/TokyoRockstar.ttf'
         );
 
-        // Configuration constants
         const VISUAL_DEBUG = false;
         const ORIGINAL_SVG_WIDTH = 800;
         const LINK_LEFT_MARGIN = 60;
         const BASE_Y = 180;
         const Y_SPACING = 80;
         
-        // Single source of truth for all projects
         const PROJECTS = [
             {
                 text: 'ThreeJS tutorials',
@@ -209,7 +214,6 @@
             }
         ];
 
-        // Generate PROJECT_LINKS dynamically
         const PROJECT_LINKS = PROJECTS.map((project, index) => ({
             y: BASE_Y + (index * Y_SPACING),
             height: project.height,
@@ -218,7 +222,6 @@
             url: project.url
         }));
 
-        // Generate projectElements dynamically
         const projectElements = PROJECTS.map(project => ({
             text: project.text,
             duration: 600,
@@ -228,7 +231,6 @@
         let font = null;
         let tape, interceptor;
 
-        // Move debugContainer creation outside of font loading
         const debugContainer = document.createElement('div');
         debugContainer.style.position = 'absolute';
         debugContainer.style.top = '0';
@@ -238,7 +240,6 @@
         debugContainer.style.zIndex = '100';
         document.body.appendChild(debugContainer);
 
-        // Determine the correct font path based on the hostname
         const fontPath = window.location.hostname === 'littlecarlito.github.io' 
             ? '/threejs_site/fonts/TokyoRockstar.ttf'
             : '../fonts/TokyoRockstar.ttf';
@@ -251,7 +252,6 @@
             }
             font = loadedFont;
 
-            // Create tape after font is loaded
             tape = document.createElement('div');
             tape.className = 'construction-tape';
             tape.textContent = 'COMING SOON';
@@ -262,9 +262,8 @@
             document.body.appendChild(tape);
             document.body.appendChild(interceptor);
 
-            // Y positions, heights, widths, and offsets tuned for each item
             const boxConfigs = [
-                { y: 180, height: 35, width: 285, yOffset: -40, url: 'https://www.youtube.com/@Blooooork' },  // ThreeJS tutorials
+                { y: 180, height: 35, width: 285, yOffset: -40, url: 'https://www.youtube.com/@Blooooork' },
                 { y: 260, height: 35, width: 200, yOffset: -42, url: '#' },
                 { y: 340, height: 35, width: 144, yOffset: -42, url: 'https://github.com/LittleCarlito/Recipeat' },
                 { y: 420, height: 35, width: 234, yOffset: -45, url: 'https://github.com/LittleCarlito/SaveScummer' },
@@ -290,10 +289,8 @@
                 debugContainer.appendChild(link);
             });
             
-            // After creating the debug container and links, call updateBoxPositions
             updateBoxPositions();
 
-            // Calculate and update SVG viewBox
             const TITLE_HEIGHT = 100;
             const TOTAL_PROJECTS = PROJECTS.length;
             const TOTAL_HEIGHT = TITLE_HEIGHT + (TOTAL_PROJECTS * Y_SPACING) + 100;
@@ -303,12 +300,11 @@
             svg.setAttribute('height', TOTAL_HEIGHT);
         });
 
-        // Constants for positioning
-        const TITLE_X = 30;  // Keep this value for left margin
+        const TITLE_X = 30;
         const TITLE_Y = 100;
         const TITLE_FONT_SIZE = 96;
         
-        const PROJECT_START_X = 60;  // Adjust this to be closer to TITLE_X
+        const PROJECT_START_X = 60;
         const PROJECT_START_Y = 180;
         const PROJECT_FONT_SIZE = 48;
         const PROJECT_SPACING = 80;
@@ -326,10 +322,8 @@
         container.style.width = '100%';
         container.style.maxWidth = '800px';
         
-        // Separate title and project elements
         const titleText = { text: 'Projects', duration: 800, class: 'title-text' };
         
-        // Remove localStorage state for testing
         localStorage.removeItem('projects_has_played');
 
         function createCharacterPath(char, x, y, className, fontSize) {
@@ -338,10 +332,9 @@
             const pathData = getPathDataForChar(char, x, y, fontSize);
             path.setAttribute("d", pathData);
             
-            // Get the path length for animation
             const length = path.getTotalLength();
             path.style.strokeDasharray = length;
-            path.style.strokeDashoffset = length;  // Start hidden
+            path.style.strokeDashoffset = length;
             
             return path;
         }
@@ -379,7 +372,6 @@
             let currentX = TITLE_X;
             let currentY = TITLE_Y;
 
-            // Collect title characters
             titleText.text.split('').forEach(char => {
                 allCharacters.push({
                     char,
@@ -391,7 +383,6 @@
                 currentX += font.getAdvanceWidth(char, TITLE_FONT_SIZE);
             });
 
-            // Collect project characters
             currentY = PROJECT_START_Y;
             projectElements.forEach(item => {
                 currentX = PROJECT_START_X;
@@ -408,8 +399,7 @@
                 currentY += PROJECT_SPACING;
             });
 
-            // Animate one at a time, waiting for each to finish
-            const charDuration = 10; // Duration per character
+            const charDuration = 10;
             
             for (let charInfo of allCharacters) {
                 const charPath = createCharacterPath(
@@ -425,10 +415,9 @@
         }
 
         function showAllText() {
-            // Show title
             const titleChars = titleText.text.split('');
             let currentX = TITLE_X;
-            let titleY = TITLE_Y;  // Renamed to avoid duplicate declaration
+            let titleY = TITLE_Y;
             
             titleChars.forEach(char => {
                 const charPath = createCharacterPath(char, currentX, titleY, titleText.class, TITLE_FONT_SIZE);
@@ -437,8 +426,7 @@
                 currentX += font.getAdvanceWidth(char, TITLE_FONT_SIZE);
             });
 
-            // Show projects
-            let projectY = PROJECT_START_Y;  // Renamed to be unique
+            let projectY = PROJECT_START_Y;
             projectElements.forEach((item) => {
                 const chars = item.text.split('');
                 let currentX = PROJECT_START_X;
@@ -460,33 +448,28 @@
             if (!state) {
                 localStorage.setItem('animationPlayed', 'true');
                 
-                // Create array of characters to animate
                 const chars = ['P', 'r', 'o', 'j', 'e', 'c', 't', 's'];
                 const fontSize = 96;
                 let xOffset = 30;
                 const yPos = 100;
                 
-                // Second row
                 const chars2 = ['P', 'r', 'o', 'j'];
                 const fontSize2 = 48;
                 let xOffset2 = 100;
                 const yPos2 = 180;
 
-                // Animate first row
                 for (let char of chars) {
                     await animateCharacter(char, xOffset, yPos, fontSize);
-                    xOffset += font.getAdvanceWidth(char, fontSize) * 0.768; // Adjust spacing between characters
+                    xOffset += font.getAdvanceWidth(char, fontSize) * 0.768;
                 }
 
-                // Animate second row
                 for (let char of chars2) {
                     await animateCharacter(char, xOffset2, yPos2, fontSize2);
-                    xOffset2 += font.getAdvanceWidth(char, fontSize2) * 0.768; // Adjust spacing between characters
+                    xOffset2 += font.getAdvanceWidth(char, fontSize2) * 0.768;
                 }
             }
         }
 
-        // Update updateBoxPositions function with safety checks
         function updateBoxPositions() {
             const svg = document.querySelector('#title_svg');
             if (!svg) return;
@@ -509,17 +492,14 @@
                 }
             });
 
-            // Update tape position only if all elements exist
             if (tape && interceptor) {
                 const youtubeLink = document.querySelector('a[href*="youtube"]');
                 if (youtubeLink) {
-                    // Position the tape
                     const linkBox = youtubeLink.getBoundingClientRect();
                     tape.style.left = `${linkBox.left}px`;
                     tape.style.top = `${linkBox.top + (linkBox.height / 2) - 12.5}px`;
                     tape.style.transform = 'rotate(-5deg)';
 
-                    // Position the interceptor exactly like the debug box
                     interceptor.style.left = youtubeLink.style.left;
                     interceptor.style.top = youtubeLink.style.top;
                     interceptor.style.width = youtubeLink.style.width;
@@ -528,7 +508,6 @@
             }
         }
 
-        // Update trigger_frame_animation with font check
         window.trigger_frame_animation = function() {
             if (!font) {
                 console.warn('Font not loaded yet, retrying in 100ms');
@@ -546,12 +525,12 @@
             }
         };
 
-        // Use ResizeObserver for more accurate size change detection
         const resizeObserver = new ResizeObserver(() => {
             requestAnimationFrame(updateBoxPositions);
         });
 
         resizeObserver.observe(document.querySelector('#title_svg'));
     </script>
+    -->
 </body>
 </html>
