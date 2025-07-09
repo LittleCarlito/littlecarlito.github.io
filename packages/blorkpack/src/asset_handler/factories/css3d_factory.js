@@ -27,7 +27,7 @@ export class CSS3DFactory {
         return this.debugMode;
     }
 
-    async createFrameOnDisplay(displayMesh, sceneCamera, parentElement, assetType = null, filePath = null) {
+    async createFrameOnDisplay(displayMesh, sceneCamera, parentElement, assetType = null, filePath = null, backgroundColor = null) {
         if (!this.isInitialized) {
             this.initializeCSS3D(parentElement || document.body);
         }
@@ -35,7 +35,7 @@ export class CSS3DFactory {
         
         this.validateDisplayMesh(displayMesh);
         
-        const frameTracker = await this.createCSS3DFrame(500, 400, filePath, displayMesh, assetType);
+        const frameTracker = await this.createCSS3DFrame(500, 400, filePath, displayMesh, assetType, backgroundColor);
         return frameTracker;
     }
 
@@ -224,7 +224,7 @@ export class CSS3DFactory {
         return false;
     }
 
-    async createCSS3DFrame(width, height, filePath = null, displayMesh = null, assetType = null) {
+    async createCSS3DFrame(width, height, filePath = null, displayMesh = null, assetType = null, backgroundColor = null) {
         if (!this.isInitialized) {
             this.initializeCSS3D(document.body);
         }
@@ -246,6 +246,7 @@ export class CSS3DFactory {
             visible: true,
             assetType: assetType,
             filePath: filePath,
+            backgroundColor: backgroundColor,
             isPlaying: false,
             pendingContent: null,
             play: () => this.playFrame(frameTracker),
@@ -269,7 +270,7 @@ export class CSS3DFactory {
         setTimeout(() => {
             if (iframe.contentDocument) {
                 iframe.contentDocument.open();
-                iframe.contentDocument.write(this.getLoadingHTML());
+                iframe.contentDocument.write(this.getLoadingHTML(backgroundColor));
                 iframe.contentDocument.close();
             }
         }, 100);
@@ -327,35 +328,26 @@ export class CSS3DFactory {
         const iframe = frameTracker.frame.element;
         
         if (this.debugMode) {
-            iframe.src = 'about:blank';
-            setTimeout(() => {
+            if (iframe.contentDocument) {
+                iframe.contentDocument.open();
+                iframe.contentDocument.write(this.getDebugHTML());
+                iframe.contentDocument.close();
+            }
+        } else {
+            if (frameTracker.pendingContent) {
+                if (iframe.contentDocument) {
+                    iframe.contentDocument.open();
+                    iframe.contentDocument.write(this.wrapContentWithScrollControl(frameTracker.pendingContent));
+                    iframe.contentDocument.close();
+                }
+            } else if (frameTracker.filePath) {
+                this.loadExternalContentDeferred(iframe, frameTracker.filePath, frameTracker.assetType, frameTracker.backgroundColor);
+            } else {
                 if (iframe.contentDocument) {
                     iframe.contentDocument.open();
                     iframe.contentDocument.write(this.getDebugHTML());
                     iframe.contentDocument.close();
                 }
-            }, 150);
-        } else {
-            if (frameTracker.pendingContent) {
-                iframe.src = 'about:blank';
-                setTimeout(() => {
-                    if (iframe.contentDocument) {
-                        iframe.contentDocument.open();
-                        iframe.contentDocument.write(this.wrapContentWithScrollControl(frameTracker.pendingContent));
-                        iframe.contentDocument.close();
-                    }
-                }, 150);
-            } else if (frameTracker.filePath) {
-                this.loadExternalContentDeferred(iframe, frameTracker.filePath, frameTracker.assetType);
-            } else {
-                iframe.src = 'about:blank';
-                setTimeout(() => {
-                    if (iframe.contentDocument) {
-                        iframe.contentDocument.open();
-                        iframe.contentDocument.write(this.getDebugHTML());
-                        iframe.contentDocument.close();
-                    }
-                }, 150);
             }
         }
     }
@@ -368,14 +360,11 @@ export class CSS3DFactory {
         frameTracker.pendingContent = null;
         
         const iframe = frameTracker.frame.element;
-        iframe.src = 'about:blank';
-        setTimeout(() => {
-            if (iframe.contentDocument) {
-                iframe.contentDocument.open();
-                iframe.contentDocument.write(this.getLoadingHTML());
-                iframe.contentDocument.close();
-            }
-        }, 150);
+        if (iframe.contentDocument) {
+            iframe.contentDocument.open();
+            iframe.contentDocument.write(this.getLoadingHTML(frameTracker.backgroundColor));
+            iframe.contentDocument.close();
+        }
     }
 
     initializeCSS3D(parentElement) {
@@ -391,7 +380,7 @@ export class CSS3DFactory {
         this.isInitialized = true;
     }
 
-    async loadExternalContentDeferred(iframe, filePath, assetType) {
+    async loadExternalContentDeferred(iframe, filePath, assetType, backgroundColor = null) {
         try {
             const response = await fetch(filePath);
             if (!response.ok) {
@@ -399,23 +388,17 @@ export class CSS3DFactory {
             }
             const htmlContent = await response.text();
             const wrappedContent = this.wrapContentWithScrollControl(htmlContent);
-            iframe.src = 'about:blank';
-            setTimeout(() => {
-                if (iframe.contentDocument) {
-                    iframe.contentDocument.open();
-                    iframe.contentDocument.write(wrappedContent);
-                    iframe.contentDocument.close();
-                }
-            }, 150);
+            if (iframe.contentDocument) {
+                iframe.contentDocument.open();
+                iframe.contentDocument.write(wrappedContent);
+                iframe.contentDocument.close();
+            }
         } catch (error) {
-            iframe.src = 'about:blank';
-            setTimeout(() => {
-                if (iframe.contentDocument) {
-                    iframe.contentDocument.open();
-                    iframe.contentDocument.write(this.getErrorHTML(filePath, error.message));
-                    iframe.contentDocument.close();
-                }
-            }, 150);
+            if (iframe.contentDocument) {
+                iframe.contentDocument.open();
+                iframe.contentDocument.write(this.getErrorHTML(filePath, error.message));
+                iframe.contentDocument.close();
+            }
         }
     }
 
@@ -434,7 +417,27 @@ export class CSS3DFactory {
         animate();
     }
 
-    getLoadingHTML() {
+    getLoadingHTML(backgroundColor = null) {
+        if (backgroundColor) {
+            return `<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: ${backgroundColor};
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+</body>
+</html>`;
+        }
+
         return `<!DOCTYPE html>
 <html>
 <head>

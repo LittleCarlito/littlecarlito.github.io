@@ -65,7 +65,7 @@ export class TextContainer {
 						const displayIdentifier = child.name.replace('display_', '');
 						const contentPath = options.contentPaths?.[displayIdentifier] || options.contentPath;
 						
-						this.css3d_factory.createFrameOnDisplay(child, this.camera, document.body, asset_type, contentPath)
+						this.css3d_factory.createFrameOnDisplay(child, this.camera, document.body, asset_type, contentPath, options.backgroundColor)
 							.then(frameTracker => {
 								const frameKey = `${asset_type}_${displayIdentifier}`;
 								this.css3d_frames.set(frameKey, frameTracker);
@@ -289,7 +289,8 @@ export class TextContainer {
 							'right_notebook_open': 'pages/projects2.html',
 							'left_notebook_open': 'pages/projects.html'
 						},
-						renderOrder: 1000
+						renderOrder: 1000,
+						backgroundColor: '#b6b4af'
 					});
 					
 					setProperRenderOrders(notebookAsset, 1000);
