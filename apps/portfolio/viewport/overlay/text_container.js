@@ -283,7 +283,10 @@ export class TextContainer {
 						positionOffsetY: 0,
 						positionOffsetZ: 0,
 						rotation: new THREE.Euler(Math.PI / 2, -Math.PI / 2, 0, 'XYZ'),
-						contentPath: 'pages/projects.html',
+						contentPaths: {
+							'right_notebook_open': 'pages/projects2.html',
+							'left_notebook_open': 'pages/projects.html'
+						},
 						renderOrder: 1000
 					});
 					
