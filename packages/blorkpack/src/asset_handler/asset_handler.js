@@ -79,29 +79,22 @@ export class AssetHandler {
 		}
 
 		try {
-			// Get the original GLTF data from storage to analyze
 			const storage = AssetStorage.get_instance();
 			const customTypeKey = CustomTypeManager.getType(assetType);
 			
-			// Check if we have cached GLTF data
 			if (storage.cached_models && storage.cached_models.has(customTypeKey)) {
 				const gltfData = storage.cached_models.get(customTypeKey);
 				const rigDetails = this.rigAnalyzer.analyze(gltfData, customTypeKey);
 				
-				if (rigDetails) {
-					// Initialize joints array if not present
+				if (rigDetails && rigDetails.hasRig && rigDetails.bones.length > 0) {
 					if (!rigDetails.joints) {
 						rigDetails.joints = [];
 					}
 					
-					// Store rig details in the spawned mesh
 					spawnResult.mesh.userData.rigDetails = rigDetails;
 					spawnResult.mesh.userData.hasRig = true;
-					
-					// Add rig details to the spawn result
 					spawnResult.rigDetails = rigDetails;
 					
-					// LOG SUCCESS
 					console.log(`[AssetHandler] 🎯 RIG DETECTED in ${assetType}:`, {
 						instanceId: spawnResult.instance_id,
 						bones: rigDetails.bones.length,
@@ -110,7 +103,6 @@ export class AssetHandler {
 						armature: rigDetails.armature ? rigDetails.armature.name : 'none'
 					});
 					
-					// Detailed bone logging if we have bones
 					if (rigDetails.bones.length > 0) {
 						console.log(`[AssetHandler] Bone Details:`, rigDetails.bones.map(b => ({
 							name: b.name,
@@ -119,10 +111,8 @@ export class AssetHandler {
 						})));
 					}
 					
-					// CREATE RIG VISUALIZATION WITH JOINTS
 					this.createRigForAsset(spawnResult, rigDetails, assetType);
 					
-					// Log joint creation results
 					if (rigDetails.joints && rigDetails.joints.length > 0) {
 						console.log(`[AssetHandler] 🔗 JOINTS CREATED: ${rigDetails.joints.length} joints`, 
 							rigDetails.joints.map(j => ({

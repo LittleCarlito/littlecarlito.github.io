@@ -4,11 +4,11 @@ import {
     zoom_object_in,
     zoom_object_out,
     release_object,
-    grab_object,
-    shove_object
+    grab_object
 } from "./physics";
 import { DiplomaInteractionHandler } from './diploma_interaction_handler';
 import { ActivationInteractionHandler } from './activation_interaction_handler';
+import { BackgroundInteractionHandler } from './background_interaction_handler';
 
 const LogLevel = {
     DEBUG: 'debug',
@@ -38,9 +38,9 @@ export class InteractionManager {
         this.resize_timeout = null;
         this.resize_move = false;
         this.zoom_event = false;
-        this.is_hovering_room = false;
         this.diploma_handler = new DiplomaInteractionHandler();
         this.activation_interaction_handler = new ActivationInteractionHandler();
+        this.background_interaction_handler = new BackgroundInteractionHandler();
         InteractionManager.instance = this;
     }
 
@@ -55,6 +55,7 @@ export class InteractionManager {
         this.window = incomingWindow;
         await this.#waitForDependencies();
         this.activation_interaction_handler.initialize(incomingWindow);
+        this.background_interaction_handler.initialize(incomingWindow);
         this.abortController = new AbortController();
         const abortSignal = this.abortController.signal;
         this.listening = true;
@@ -78,6 +79,9 @@ export class InteractionManager {
         }
         if (this.activation_interaction_handler) {
             this.activation_interaction_handler.dispose();
+        }
+        if (this.background_interaction_handler) {
+            this.background_interaction_handler.dispose();
         }
         this.#resetCursor();
         this.window = null;
@@ -113,7 +117,11 @@ export class InteractionManager {
         
         this.diploma_handler.update_mouse_position(e.clientX, e.clientY);
         
-        this.#handle_rotation(e);
+        if (this.background_interaction_handler.handleMouseMove(e)) {
+            return;
+        }
+        
+        this.#handle_rotation_and_pan(e);
         this.handle_intersections(e);
     }
 
@@ -124,6 +132,12 @@ export class InteractionManager {
         }
         if(e.button === 0) {
             this.left_mouse_down = true;
+            this.background_interaction_handler.setMouseState(true);
+            
+            if (this.background_interaction_handler.handleMouseDown(e)) {
+                return;
+            }
+            
             if(this.window.viewable_container.is_overlay_hidden()) {
                 this.window.viewable_container.detect_rotation = true;
             }
@@ -133,24 +147,9 @@ export class InteractionManager {
             if(this.grabbed_object) {
                 release_object(this.grabbed_object);
                 this.grabbed_object = null;
+            } else if(this.window.viewable_container.is_overlay_hidden()) {
+                this.window.viewable_container.detect_pan = true;
             }
-        }
-        if(this.window.viewable_container.is_overlay_hidden() && e.button === 2) {
-            const found_intersections = this.get_intersect_list(e, this.window.viewable_container.get_camera(), this.window.scene);
-            found_intersections.forEach(i => {
-                switch(extract_type(i.object)) {
-                case BTYPES.INTERACTABLE:
-                    if(this.left_mouse_down) {
-                        this.grabbed_object = i.object;
-                        grab_object(this.grabbed_object, this.window.viewable_container.get_camera());
-                    } else {
-                        shove_object(i.object, this.window.viewable_container.get_camera());
-                    }
-                    break;
-                default:
-                    break;
-                }
-            });
         }
     }
 
@@ -163,6 +162,9 @@ export class InteractionManager {
             release_object(this.grabbed_object, this.window.background_container);
             this.grabbed_object = null;
         }
+        
+        this.background_interaction_handler.handleMouseUp();
+        
         const intersections = this.get_intersect_list(
             e, 
             this.window.viewable_container.get_camera(), 
@@ -172,9 +174,11 @@ export class InteractionManager {
         if (e.button === 0) {
             this.window.viewable_container.detect_rotation = false;
             this.left_mouse_down = false;
+            this.background_interaction_handler.setMouseState(false);
         }
         if (e.button === 2) {
             this.window.viewable_container.detect_rotation = false;
+            this.window.viewable_container.detect_pan = false;
             this.right_mouse_down = false;
         }
     }
@@ -229,10 +233,15 @@ export class InteractionManager {
         });
     }
 
-    #handle_rotation(e) {
+    #handle_rotation_and_pan(e) {
         update_mouse_position(e);
         if(this.window.viewable_container.detect_rotation && this.left_mouse_down) {
             this.window.viewable_container.get_camera_manager().rotate(
+                e.movementX * InteractionManager.mouse_sensitivity,
+                e.movementY * InteractionManager.mouse_sensitivity
+            );
+        } else if(this.window.viewable_container.detect_pan && this.right_mouse_down) {
+            this.window.viewable_container.get_camera_manager().pan(
                 e.movementX * InteractionManager.mouse_sensitivity,
                 e.movementY * InteractionManager.mouse_sensitivity
             );
@@ -254,7 +263,7 @@ export class InteractionManager {
             });
         }
         
-        this.#checkRoomHover(found_intersections);
+        this.background_interaction_handler.checkRoomHover(found_intersections);
         
         if(relevant_intersections.length > 0 && !this.window.viewable_container.get_overlay().is_swapping_sides()) {
             const intersected_object = relevant_intersections[0].object;
@@ -283,52 +292,6 @@ export class InteractionManager {
             if (is_overlay_hidden) {
                 this.hovered_interactable_name = "";
             }
-        }
-    }
-
-    #checkRoomHover(intersections) {
-        const wasHoveringRoom = this.is_hovering_room;
-        this.is_hovering_room = false;
-        
-        // Only check for room hover if no higher priority interactions are active
-        const hasHigherPriorityInteraction = intersections.some(intersection => {
-            const objectName = intersection.object.name || '';
-            const nameType = objectName.split("_")[0] + "_";
-            
-            // Check for higher priority objects
-            return (
-                nameType === BTYPES.LABEL ||
-                objectName.includes('RigControlHandle') ||
-                objectName.includes('Rig') ||
-                intersection.object.userData?.isControlHandle ||
-                intersection.object.userData?.bonePart ||
-                intersection.object.userData?.isVisualBone ||
-                (nameType === BTYPES.INTERACTABLE && !objectName.includes('ROOM'))
-            );
-        });
-        
-        // Only set room hover if no higher priority interactions
-        if (!hasHigherPriorityInteraction) {
-            for (const intersection of intersections) {
-                if (intersection.object.name && intersection.object.name.includes('ROOM')) {
-                    this.is_hovering_room = true;
-                    break;
-                }
-            }
-        }
-        
-        if (this.is_hovering_room !== wasHoveringRoom) {
-            if (this.is_hovering_room) {
-                this.#setCursorGrab();
-            } else {
-                this.#resetCursor();
-            }
-        }
-    }
-
-    #setCursorGrab() {
-        if (this.window && this.window.document && this.window.document.body) {
-            this.window.document.body.style.cursor = 'grab';
         }
     }
 

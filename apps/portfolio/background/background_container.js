@@ -11,7 +11,6 @@ const GLOBAL_ROTATION_X = 7;
 const GLOBAL_ROTATION_Y = -25;
 const GLOBAL_ROTATION_Z = 0;
 
-// Asset to category mapping
 const ASSET_CATEGORY_MAP = {
 	DIPLOMA_BOT: CATEGORIES.EDUCATION.value,
 	DIPLOMA_TOP: CATEGORIES.EDUCATION.value,
@@ -35,6 +34,10 @@ export class BackgroundContainer {
 	loading_promise;
 	is_spawning_secondary = false;
 	is_spawning_primary = false;
+	is_mouse_rotating = false;
+	last_mouse_x = 0;
+	last_mouse_y = 0;
+	rotation_sensitivity = 0.01;
 
 	constructor(incoming_parent, incoming_camera, incoming_world) {
 		this.parent = incoming_parent;
@@ -534,6 +537,37 @@ export class BackgroundContainer {
 			
 			animate();
 		});
+	}
+
+	startMouseRotation(clientX, clientY) {
+		this.is_mouse_rotating = true;
+		this.last_mouse_x = clientX;
+		this.last_mouse_y = clientY;
+	}
+
+	updateMouseRotation(clientX, clientY) {
+		if (!this.is_mouse_rotating) return;
+		
+		const deltaX = clientX - this.last_mouse_x;
+		const deltaY = clientY - this.last_mouse_y;
+		
+		this.asset_container.rotation.y += deltaX * this.rotation_sensitivity;
+		this.asset_container.rotation.x -= deltaY * this.rotation_sensitivity;
+		
+		this.last_mouse_x = clientX;
+		this.last_mouse_y = clientY;
+	}
+
+	stopMouseRotation() {
+		this.is_mouse_rotating = false;
+	}
+
+	isMouseRotating() {
+		return this.is_mouse_rotating;
+	}
+
+	setRotationSensitivity(sensitivity) {
+		this.rotation_sensitivity = sensitivity;
 	}
 
 	async is_loading_complete() {
