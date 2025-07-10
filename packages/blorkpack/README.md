@@ -121,7 +121,6 @@ pnpm install @littlecarlito/blorkpack
 import { 
   AssetStorage, 
   AssetHandler, 
-  AssetActivator,
   ManifestManager,
   THREE,
   RAPIER 
@@ -137,7 +136,6 @@ const scene = new THREE.Scene();
 // Initialize core systems
 const storage = AssetStorage.get_instance();
 const spawner = AssetHandler.get_instance(scene, world);
-const activator = AssetActivator.get_instance(camera, renderer);
 ```
 
 ### Asset Management

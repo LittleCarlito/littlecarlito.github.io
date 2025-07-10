@@ -171,7 +171,7 @@ export class TextContainer {
 			}
 			
 			asset.traverse((child) => {
-				if (child.isMesh && !child.name.startsWith('col_') && !child.name.startsWith('display_')) {
+				if (child.isMesh && !child.name.startsWith('col_') && !child.name.startsWith('display_') && !child.name.startsWith('activate_')) {
 					child.renderOrder = config.renderOrder;
 					
 					if (child.material) {
@@ -186,6 +186,9 @@ export class TextContainer {
 							child.material.side = THREE.FrontSide;
 						}
 					}
+				} else if (child.isMesh && child.name.startsWith('activate_')) {
+					// Hide activate meshes by default in UI assets
+					child.visible = false;
 				}
 			});
 

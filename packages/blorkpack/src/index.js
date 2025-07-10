@@ -27,7 +27,6 @@ export async function initThree() {
 export { Easing, Tween };
 // Re-export asset management components
 export * from './asset_storage.js';
-export * from './asset_activator.js';
 export * from './asset_handler/asset_handler.js';
 export * from './btype_helper.js';
 export * from './manifest_manager.js';
@@ -40,7 +39,6 @@ import { BTYPES } from './BTYPES.js';
 import { MaterialFactory } from './asset_handler/index.js';
 import { InteractionManager } from './interaction_manager.js';
 import { CSS3DFactory } from './asset_handler/index.js';
-import { AssetActivator } from './asset_activator.js';
 import { ManifestManager } from './manifest_manager.js';
 import { AppRenderer } from './app_renderer.js';
 import CustomTypeManager from './custom_type_manager.js';
@@ -58,7 +56,6 @@ export {
 	MaterialFactory,
 	CSS3DFactory,
 	AssetStorage,
-	AssetActivator,
 	AppRenderer,
 	CustomTypeManager,
 	BLORKPACK_FLAGS,

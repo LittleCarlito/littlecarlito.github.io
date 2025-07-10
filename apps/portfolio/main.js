@@ -8,7 +8,6 @@ import { extract_type, get_intersect_list, TYPES } from './viewport/overlay/over
 import { AppRenderer } from './common/index.js';
 import { 
 	AssetStorage, 
-	AssetActivator, 
 	AssetHandler, 
 	ManifestManager, 
 	BLORKPACK_FLAGS, 
@@ -164,7 +163,6 @@ async function init() {
 		
 		window.app_renderer = new AppRenderer(window.scene, window.viewable_container.get_camera());
 		window.renderer = window.app_renderer.get_renderer();
-		window.asset_activator = AssetActivator.get_instance(window.viewable_container.get_camera(), window.app_renderer.get_renderer());
 		
 		await interactionManager.startListening(window);
 		window.addEventListener('keydown', toggle_debug_ui);
@@ -318,16 +316,8 @@ function animate() {
 		toggle_physics_pause();
 	}
 	window.previousTextContainerState = isTextActive;
-	if(window.viewable_container.get_overlay().is_intersected() != null) {
-		window.asset_activator.activate_object(window.viewable_container.get_intersected_name());
-	} else if(interactionManager.grabbed_object) {
+	if(interactionManager.grabbed_object) {
 		translate_object(interactionManager.grabbed_object, window.viewable_container.get_camera());
-	} else if(interactionManager.hovered_interactable_name != "" && window.viewable_container.is_overlay_hidden()) {
-		window.asset_activator.activate_object(interactionManager.hovered_interactable_name);
-	} else if(window.viewable_container.is_text_active()) {
-		window.asset_activator.activate_object(window.viewable_container.get_active_name());
-	} else {
-		window.asset_activator.deactivate_all_objects();
 	}
 	window.world.timestep = Math.min(delta, 0.1);
 	if (!is_physics_paused) {
