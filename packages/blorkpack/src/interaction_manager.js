@@ -38,6 +38,7 @@ export class InteractionManager {
         this.resize_timeout = null;
         this.resize_move = false;
         this.zoom_event = false;
+        this.is_hovering_room = false;
         this.diploma_handler = new DiplomaInteractionHandler();
         this.activation_interaction_handler = new ActivationInteractionHandler();
         InteractionManager.instance = this;
@@ -78,6 +79,7 @@ export class InteractionManager {
         if (this.activation_interaction_handler) {
             this.activation_interaction_handler.dispose();
         }
+        this.#resetCursor();
         this.window = null;
         this.abortController = null;
         this.listening = false;
@@ -88,9 +90,6 @@ export class InteractionManager {
             this.#logString("Cannot handle resize. Not listening...", LogLevel.ERROR, true);
             return;
         }
-        this.#logString(`Resize event: ${e.target.innerWidth}x${e.target.innerHeight} 
-            (was ${e.target.previousWidth || 'unknown'}x${e.target.previousHeight || 'unknown'})`, 
-            LogLevel.DEBUG);
         if (this.resize_timeout) {
             clearTimeout(this.resize_timeout);
         }
@@ -109,12 +108,8 @@ export class InteractionManager {
             return;
         }
         if(this.window.viewable_container.is_animating()) {
-            this.#logString("Ignoring mouse movement due to ongoing animation...", LogLevel.WARN);
             return;
         }
-        this.#logString(`Mouse move event: position ${e.clientX}x${e.clientY}, 
-            movement ${e.movementX}x${e.movementY}`, 
-            LogLevel.DEBUG);
         
         this.diploma_handler.update_mouse_position(e.clientX, e.clientY);
         
@@ -196,8 +191,7 @@ export class InteractionManager {
             this.zoom_event = true;
             this.resize_move = true;
         } else if(this.window.viewable_container.is_overlay_hidden()) {
-            // Camera zoom controls when overlay is hidden and no object grabbed
-            const zoom_delta = e.deltaY * 0.01; // Adjust sensitivity as needed
+            const zoom_delta = e.deltaY * 0.01;
             this.window.viewable_container.get_camera_manager().zoom(zoom_delta);
             this.zoom_event = true;
             this.resize_move = true;
@@ -259,6 +253,9 @@ export class InteractionManager {
                 return name_type === BTYPES.LABEL;
             });
         }
+        
+        this.#checkRoomHover(found_intersections);
+        
         if(relevant_intersections.length > 0 && !this.window.viewable_container.get_overlay().is_swapping_sides()) {
             const intersected_object = relevant_intersections[0].object;
             const object_name = intersected_object.name;
@@ -274,7 +271,6 @@ export class InteractionManager {
                 break;
             case BTYPES.INTERACTABLE:
                 this.hovered_interactable_name = object_name;
-                this.#logString("Hover detected on interactable:", LogLevel.DEBUG);
                 break;
             default:
                 this.window.viewable_container.get_overlay().reset_hover();
@@ -287,6 +283,58 @@ export class InteractionManager {
             if (is_overlay_hidden) {
                 this.hovered_interactable_name = "";
             }
+        }
+    }
+
+    #checkRoomHover(intersections) {
+        const wasHoveringRoom = this.is_hovering_room;
+        this.is_hovering_room = false;
+        
+        // Only check for room hover if no higher priority interactions are active
+        const hasHigherPriorityInteraction = intersections.some(intersection => {
+            const objectName = intersection.object.name || '';
+            const nameType = objectName.split("_")[0] + "_";
+            
+            // Check for higher priority objects
+            return (
+                nameType === BTYPES.LABEL ||
+                objectName.includes('RigControlHandle') ||
+                objectName.includes('Rig') ||
+                intersection.object.userData?.isControlHandle ||
+                intersection.object.userData?.bonePart ||
+                intersection.object.userData?.isVisualBone ||
+                (nameType === BTYPES.INTERACTABLE && !objectName.includes('ROOM'))
+            );
+        });
+        
+        // Only set room hover if no higher priority interactions
+        if (!hasHigherPriorityInteraction) {
+            for (const intersection of intersections) {
+                if (intersection.object.name && intersection.object.name.includes('ROOM')) {
+                    this.is_hovering_room = true;
+                    break;
+                }
+            }
+        }
+        
+        if (this.is_hovering_room !== wasHoveringRoom) {
+            if (this.is_hovering_room) {
+                this.#setCursorGrab();
+            } else {
+                this.#resetCursor();
+            }
+        }
+    }
+
+    #setCursorGrab() {
+        if (this.window && this.window.document && this.window.document.body) {
+            this.window.document.body.style.cursor = 'grab';
+        }
+    }
+
+    #resetCursor() {
+        if (this.window && this.window.document && this.window.document.body) {
+            this.window.document.body.style.cursor = 'default';
         }
     }
 

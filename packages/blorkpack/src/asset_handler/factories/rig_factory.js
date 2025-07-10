@@ -47,24 +47,25 @@ export function setRigVisualizationEnabled(enabled) {
  * @returns {Object} Created rig visualization data
  */
 export function createRigVisualization(rigDetails, scene, asset) {
+    if (!rigDetails || !rigDetails.hasRig || rigDetails.bones.length === 0) {
+        console.log('[RigFactory] No actual rig to visualize (bones required)');
+        return null;
+    }
+    
     console.log('[RigFactory] Creating rig visualization for:', rigDetails);
     
-    // Clear any existing rig visualization
     clearRigVisualization(scene);
     
-    // Initialize rigDetails.joints if needed
     if (!rigDetails.joints) {
         rigDetails.joints = [];
     }
     
-    // Find the asset container that the asset belongs to
     let targetContainer = scene;
     let currentParent = asset.parent;
     console.log('[RigFactory] Looking for asset container, asset parent:', asset.parent?.name);
     
     while (currentParent && currentParent !== scene) {
         console.log('[RigFactory] Checking parent:', currentParent.name, 'userData:', currentParent.userData);
-        // Look for the asset_container or background container
         if (currentParent.name === 'asset_container' || 
             currentParent.userData && currentParent.userData.isAssetContainer) {
             targetContainer = currentParent;
@@ -77,13 +78,11 @@ export function createRigVisualization(rigDetails, scene, asset) {
     console.log('[RigFactory] Using target container:', targetContainer.name || 'scene');
     console.log('[RigFactory] Target container rotation:', targetContainer.rotation);
     
-    // Create main rig group and add to the same container as the asset
     rigVisualsGroup = new THREE.Group();
     rigVisualsGroup.name = "RigVisualization";
     rigVisualsGroup.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
-    targetContainer.add(rigVisualsGroup);  // Add to asset container instead of scene
+    targetContainer.add(rigVisualsGroup);
     
-    // Extract bones from the asset
     bones = [];
     asset.traverse(node => {
         if (node.isBone || node.name.toLowerCase().includes('bone')) {
@@ -98,29 +97,24 @@ export function createRigVisualization(rigDetails, scene, asset) {
         return null;
     }
     
-    // Calculate model scale for appropriate bone visualization size
     const bbox = new THREE.Box3().setFromObject(asset);
     const size = new THREE.Vector3();
     bbox.getSize(size);
     const modelScale = size.length() * 0.02;
     const boneRadius = Math.max(0.02, modelScale * 0.3);
     
-    // Group bones by parent for easier bone pair creation
     const bonesByParent = new Map();
     
-    // Filter out control bones that we don't want to visualize
     const visualizableBones = bones.filter(bone => 
         !(bone.name.toLowerCase().includes('control') || 
           bone.name.toLowerCase().includes('ctrl') || 
           bone.name.toLowerCase().includes('handle'))
     );
     
-    // Identify root bones
     const rootBones = visualizableBones.filter(bone => 
         bone.name.toLowerCase().includes('root')
     );
     
-    // Group bones by parent
     visualizableBones.forEach(bone => {
         if (bone.parent && bone.parent.isBone) {
             const parentId = bone.parent.uuid;
@@ -131,24 +125,19 @@ export function createRigVisualization(rigDetails, scene, asset) {
         }
     });
     
-    // Create bone structure visualization with joints
     createBoneStructureWithJoints(visualizableBones, bonesByParent, boneRadius, rigDetails);
     
-    // Create root bone visualizations with joints
     createRootBoneVisualizationsWithJoints(rootBones, boneRadius, rigDetails);
     
-    // Create control handle at furthest bone - add to same container as rig
     const furthestBone = findFarthestBone(bones);
     if (furthestBone) {
-        createControlHandle(furthestBone, targetContainer, modelScale);  // Pass container instead of scene
+        createControlHandle(furthestBone, targetContainer, modelScale);
     }
     
-    // Apply Force Z settings if enabled
     if (RIG_CONFIG.forceZ) {
         applyForceZSettings();
     }
     
-    // Set up interaction handling for control handles
     if (controlHandles.length > 0) {
         setupRigInteractionHandling(controlHandles, scene);
     }
