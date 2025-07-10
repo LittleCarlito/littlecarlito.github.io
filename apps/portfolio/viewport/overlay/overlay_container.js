@@ -40,9 +40,17 @@ export class OverlayContainer {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
 		this.overlay_container = new THREE.Object3D();
-		this.overlay_container.renderOrder = 999;
+		this.overlay_container.renderOrder = 1000;
 		this.overlay_container.traverse((child) => {
-			child.renderOrder = 999;
+			child.renderOrder = 1000;
+			if (child.isMesh && child.material) {
+				const materials = Array.isArray(child.material) ? child.material : [child.material];
+				materials.forEach(material => {
+					material.depthTest = false;
+					material.depthWrite = false;
+					material.transparent = true;
+				});
+			}
 		});
 		this.title_block = new TitleBlock(this.overlay_container, this.camera, this);
 		this.text_box_container = new TextContainer(this.overlay_container, this.camera);
@@ -50,8 +58,59 @@ export class OverlayContainer {
 		this.link_container = new LinkContainer(this.overlay_container, this.camera);
 		this.artist_block = new ArtistBlock(this.overlay_container, this.camera, this);
 		this.hide_button = new HideButton(this.overlay_container, this.camera);
+		this.applyOverlayRenderingSettings();
 		this.overlay_container.position.z = this.camera.position.z - 15;
 		this.parent.add(this.overlay_container);
+	}
+
+	applyOverlayRenderingSettings() {
+		const components = [
+			this.title_block,
+			this.text_box_container,
+			this.label_container,
+			this.link_container,
+			this.artist_block,
+			this.hide_button
+		];
+		components.forEach(component => {
+			if (component && component.traverse) {
+				component.traverse((child) => {
+					child.renderOrder = 1000;
+					if (child.isMesh && child.material) {
+						this.setMaterialOverlayProperties(child.material);
+					}
+				});
+			} else if (component) {
+				this.traverseComponentProperties(component);
+			}
+		});
+	}
+
+	setMaterialOverlayProperties(material) {
+		const materials = Array.isArray(material) ? material : [material];
+		materials.forEach(mat => {
+			mat.depthTest = false;
+			mat.depthWrite = false;
+			mat.transparent = true;
+			if (mat.opacity === undefined) {
+				mat.opacity = 1.0;
+			}
+		});
+	}
+
+	traverseComponentProperties(component) {
+		Object.keys(component).forEach(key => {
+			const prop = component[key];
+			if (prop && prop.isObject3D) {
+				prop.renderOrder = 1000;
+				prop.traverse((child) => {
+					child.renderOrder = 1000;
+					if (child.isMesh && child.material) {
+						this.setMaterialOverlayProperties(child.material);
+					}
+				});
+			}
+		});
 	}
 
 	get_text_colors() {
@@ -93,7 +152,7 @@ export class OverlayContainer {
 				);
 				particle.position.copy(offset_position);
 				this.parent.add(particle);
-				particle.renderOrder = 999;
+				particle.renderOrder = 1001;
 				const spread = (Math.random() - 0.5) * SPREAD_ANGLE * Math.PI / 180;
 				const angle = base_angle + spread;
 				const direction = new THREE.Vector3();

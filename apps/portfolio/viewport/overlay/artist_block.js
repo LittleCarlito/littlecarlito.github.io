@@ -22,7 +22,7 @@ export class ArtistBlock {
 		
 		this.artist_container = new THREE.Group();
 		this.artist_container.name = `${ARTIST}`;
-		this.artist_container.renderOrder = 999;
+		this.artist_container.renderOrder = 1000;
 		this.parent.add(this.artist_container);
 		
 		this.letter_containers = [];
@@ -53,6 +53,7 @@ export class ArtistBlock {
 			const letter_container = new THREE.Group();
 			letter_container.name = `${ARTIST}letter_${i}`;
 			letter_container.position.x = start_x + (i * char_width);
+			letter_container.renderOrder = 1000;
 			
 			const solid_letter = new Text();
 			solid_letter.text = char;
@@ -62,6 +63,10 @@ export class ArtistBlock {
 			solid_letter.anchorX = 'center';
 			solid_letter.anchorY = 'middle';
 			solid_letter.name = `${ARTIST}solid_${i}`;
+			solid_letter.renderOrder = 1000;
+			solid_letter.material.depthTest = false;
+			solid_letter.material.depthWrite = false;
+			solid_letter.material.transparent = true;
 			solid_letter.sync();
 			letter_container.add(solid_letter);
 			
@@ -75,6 +80,10 @@ export class ArtistBlock {
 				inline_letter.anchorY = 'middle';
 				inline_letter.name = `${ARTIST}inline_${i}`;
 				inline_letter.position.z = 0.01;
+				inline_letter.renderOrder = 1000;
+				inline_letter.material.depthTest = false;
+				inline_letter.material.depthWrite = false;
+				inline_letter.material.transparent = true;
 				inline_letter.sync();
 				letter_container.add(inline_letter);
 			}

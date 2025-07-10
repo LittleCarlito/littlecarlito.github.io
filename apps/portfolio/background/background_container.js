@@ -447,6 +447,8 @@ export class BackgroundContainer {
 				this.addToCategory(ASSET_CATEGORY_MAP.DIPLOMA_TOP, mesh, body);
 				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma Top with name: ${mesh.name}, category: ${mesh.userData.category}`);
 				
+				this.setBackgroundRenderOrder();
+				
 				if (FLAGS.PHYSICS_LOGS) {
 					console.log('All assets initialized successfully');
 				}
@@ -457,6 +459,21 @@ export class BackgroundContainer {
 				throw error;
 			}
 		})();
+	}
+
+	setBackgroundRenderOrder() {
+		this.asset_container.traverse((child) => {
+			if (child.isMesh) {
+				child.renderOrder = 0;
+				if (child.material) {
+					const materials = Array.isArray(child.material) ? child.material : [child.material];
+					materials.forEach(material => {
+						material.depthTest = true;
+						material.depthWrite = true;
+					});
+				}
+			}
+		});
 	}
 
 	addToCategory(category, mesh, body) {

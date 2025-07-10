@@ -18,15 +18,20 @@ export class HideButton {
 		this.hide_button.position.y = this.get_hide_button_y(this.camera);
 		this.hide_button.position.x = this.get_hide_button_x(true, this.camera);
 		this.hide_button.name = `${TYPES.HIDE}${this.#ASSET_TYPE.UNIQUE}`;
+		this.hide_button.renderOrder = 1000;
 		this.hide_button.layers.set(0);
 		this.parent.add(this.hide_button);
 	}
 
 	get_hide_button_material() {
-		return new THREE.MeshBasicMaterial({ 
+		const material = new THREE.MeshBasicMaterial({ 
 			color: this.is_overlay_hidden ? 0x689f38 : 0x777981,
-			toneMapped: false
+			toneMapped: false,
+			depthTest: false,
+			depthWrite: false,
+			transparent: true
 		});
+		return material;
 	}
 
 	get_hide_button_x(is_column_left) {

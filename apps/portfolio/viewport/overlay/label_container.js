@@ -26,6 +26,7 @@ export class LabelContainer {
 		this.overlay_container = overlay_container;
 		this.container_column = new THREE.Object3D();
 		this.container_column.name = `${TYPES.CONATINER}column`
+		this.container_column.renderOrder = 1000;
 		this.parent.add(this.container_column);
 		this.createLabels();
 		this.container_column.position.x = this.get_column_x_position(true);
@@ -43,27 +44,14 @@ export class LabelContainer {
 			const button_container = new THREE.Object3D();
 			button_container.simple_name = category.value;
 			button_container.name = `${TYPES.CONATINER}${category.value}`;
+			button_container.renderOrder = 1000;
 			this.container_column.add(button_container);
 			button_container.position.y = aboutOriginalPosition + (i - aboutIndex) * LABEL_SPACING;
 
-			const textMesh = new Text();
-			textMesh.text = category.value.toUpperCase();
-			textMesh.fontSize = 1.0;
-			textMesh.color = colors.PRIMARY;
-			textMesh.strokeColor = colors.TERTIARY;
-			textMesh.strokeWidth = 0.02;
-			textMesh.anchorX = 'center';
-			textMesh.anchorY = 'middle';
-			textMesh.position.z = 0.1;
-			textMesh.renderOrder = 2;
-			textMesh.depthTest = false;
-			textMesh.simple_name = category.value;
-			textMesh.name = `${TYPES.LABEL}${category.value}`;
-			
-			const fontPath = window.location.hostname === 'littlecarlito.github.io' 
-				? '/threejs_site/fonts/russo-one.woff'
-				: '/fonts/russo-one.woff';
-			textMesh.font = fontPath;
+			const textGroup = new THREE.Group();
+			textGroup.simple_name = category.value;
+			textGroup.name = `${TYPES.LABEL}${category.value}`;
+			textGroup.renderOrder = 1000;
 
 			const outerTextMesh = new Text();
 			outerTextMesh.text = category.value.toUpperCase();
@@ -74,12 +62,36 @@ export class LabelContainer {
 			outerTextMesh.anchorX = 'center';
 			outerTextMesh.anchorY = 'middle';
 			outerTextMesh.position.set(0.02, -0.02, -0.01);
-			outerTextMesh.renderOrder = 1;
-			outerTextMesh.depthTest = false;
+			outerTextMesh.renderOrder = 1000;
+			outerTextMesh.material.depthTest = false;
+			outerTextMesh.material.depthWrite = false;
+			outerTextMesh.material.transparent = true;
+			
+			const fontPath = window.location.hostname === 'littlecarlito.github.io' 
+				? '/threejs_site/fonts/russo-one.woff'
+				: '/fonts/russo-one.woff';
 			outerTextMesh.font = fontPath;
+
+			const textMesh = new Text();
+			textMesh.text = category.value.toUpperCase();
+			textMesh.fontSize = 1.0;
+			textMesh.color = colors.PRIMARY;
+			textMesh.strokeColor = colors.TERTIARY;
+			textMesh.strokeWidth = 0.02;
+			textMesh.anchorX = 'center';
+			textMesh.anchorY = 'middle';
+			textMesh.position.z = 0.1;
+			textMesh.renderOrder = 1001;
+			textMesh.material.depthTest = false;
+			textMesh.material.depthWrite = false;
+			textMesh.material.transparent = true;
+			textMesh.simple_name = category.value;
+			textMesh.name = `${TYPES.LABEL}${category.value}`;
+			textMesh.font = fontPath;
 			
-			textMesh.add(outerTextMesh);
-			
+			textGroup.add(outerTextMesh);
+			textGroup.add(textMesh);
+			button_container.add(textGroup);
 			textMesh.sync(() => {
 				const textWidth = Math.max(5, textMesh.textRenderInfo.blockBounds[2] - textMesh.textRenderInfo.blockBounds[0] + 1);
 				
@@ -94,6 +106,7 @@ export class LabelContainer {
 				const collisionBox = new THREE.Mesh(boxGeometry, collisionMaterial);
 				collisionBox.simple_name = category.value;
 				collisionBox.name = `${TYPES.LABEL}${category.value}_collision`;
+				collisionBox.renderOrder = 999;
 				button_container.add(collisionBox);
 
 				if (FLAGS.COLLISION_VISUAL_DEBUG) {
@@ -107,12 +120,11 @@ export class LabelContainer {
 					const wireframe_box = new THREE.Mesh(boxGeometry, wireframe_material);
 					wireframe_box.raycast = () => null;
 					wireframe_box.visible = true;
+					wireframe_box.renderOrder = 1002;
 					button_container.add(wireframe_box);
 					this.wireframe_boxes.push(wireframe_box);
 				}
 			});
-			
-			button_container.add(textMesh);
 		});
 	}
 
@@ -279,6 +291,7 @@ export class LabelContainer {
 					const wireframe_box = new THREE.Mesh(collisionBox.geometry, wireframe_material);
 					wireframe_box.raycast = () => null;
 					wireframe_box.visible = FLAGS.COLLISION_VISUAL_DEBUG;
+					wireframe_box.renderOrder = 1002;
 					button_container.add(wireframe_box);
 					this.wireframe_boxes.push(wireframe_box);
 				}

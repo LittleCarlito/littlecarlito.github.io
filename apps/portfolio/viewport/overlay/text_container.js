@@ -30,6 +30,7 @@ export class TextContainer {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
 		this.text_box_container = new THREE.Object3D();
+		this.text_box_container.renderOrder = 1000;
 		this.material_factory = new MaterialFactory();
 		this.css3d_factory = new CSS3DFactory();
 		this.asset_handler = AssetHandler.get_instance(this.parent, null);
@@ -41,14 +42,14 @@ export class TextContainer {
 			const box_geometry = new THREE.BoxGeometry(this.container_width, this.container_height, .01);
 			const box_material = new THREE.MeshBasicMaterial({
 				color: incoming_category.color,
-				depthTest: true,
+				depthTest: false,
 				depthWrite: false,
 				transparent: true,
-				renderOrder: 999
+				renderOrder: 1000
 			});
 			const text_box_background = new THREE.Mesh(box_geometry, box_material);
 			text_box_background.name = `${TYPES.BACKGROUND}${incoming_category.value}`;
-			text_box_background.renderOrder = 999;
+			text_box_background.renderOrder = 1000;
 			incoming_box.add(text_box_background);
 		};
 
@@ -86,14 +87,24 @@ export class TextContainer {
 						child.visible = false;
 					} else if (child.name.startsWith('display_')) {
 						child.renderOrder = baseOrder + 50;
+						if (child.material) {
+							child.material.depthTest = false;
+							child.material.depthWrite = false;
+							child.material.transparent = true;
+						}
 					} else if (child.name.includes('background') || child.name.includes('page')) {
 						child.renderOrder = baseOrder + 10;
+						if (child.material) {
+							child.material.depthTest = false;
+							child.material.depthWrite = false;
+							child.material.transparent = true;
+						}
 					} else {
 						child.renderOrder = baseOrder + 100;
-						
 						if (child.material) {
-							child.material.depthTest = true;
-							child.material.depthWrite = true;
+							child.material.depthTest = false;
+							child.material.depthWrite = false;
+							child.material.transparent = true;
 						}
 					}
 				}
@@ -110,7 +121,7 @@ export class TextContainer {
 				positionOffsetZ: 0,
 				scaleFactor: 0.12,
 				useFixedScale: false,
-				renderOrder: 998,
+				renderOrder: 1000,
 				...options
 			};
 
@@ -120,6 +131,7 @@ export class TextContainer {
 			}
 			const gltf = await AssetStorage.get_instance().loader.loadAsync(asset_config.PATH);
 			const asset = gltf.scene.clone();
+			asset.renderOrder = config.renderOrder;
 
 			if (config.useFixedScale) {
 				const scale = asset_config.ui_scale || asset_config.scale || 1.0;
@@ -175,19 +187,15 @@ export class TextContainer {
 					child.renderOrder = config.renderOrder;
 					
 					if (child.material) {
-						child.material.depthTest = true;
-						child.material.depthWrite = true;
+						child.material.depthTest = false;
+						child.material.depthWrite = false;
+						child.material.transparent = true;
 						
-						if (child.material.opacity < 1.0 || child.material.transparent) {
-							child.material.transparent = true;
-						}
-						
-						if (!child.material.transparent) {
-							child.material.side = THREE.FrontSide;
+						if (child.material.opacity === undefined) {
+							child.material.opacity = 1.0;
 						}
 					}
 				} else if (child.isMesh && child.name.startsWith('activate_')) {
-					// Hide activate meshes by default in UI assets
 					child.visible = false;
 				}
 			});
@@ -203,6 +211,7 @@ export class TextContainer {
 			text_box.position.y = this.get_text_box_y();
 			text_box.simple_name = category.value;
 			text_box.name = `${TYPES.TEXT}${category.value}`;
+			text_box.renderOrder = 1000;
 			if (FLAGS.LAYER) {
 				text_box.layers.set(1);
 			}
@@ -238,7 +247,8 @@ export class TextContainer {
 						horizontalStretch: 1.1,
 						verticalStretch: 0.6,
 						rotation: new THREE.Euler(-Math.PI / 2, 0, Math.PI, 'XYZ'),
-						contentPath: 'pages/contact.html'
+						contentPath: 'pages/contact.html',
+						renderOrder: 1002
 					});
 				})();
 				break;
@@ -252,7 +262,8 @@ export class TextContainer {
 						positionOffsetY: 0,
 						positionOffsetZ: 0,
 						rotation: new THREE.Euler(Math.PI / 2, 0, 0, 'XYZ'),
-						contentPath: 'pages/about.html'
+						contentPath: 'pages/about.html',
+						renderOrder: 1002
 					});
 					this.business_card_asset = businessCardAsset;
 				})();
@@ -267,7 +278,8 @@ export class TextContainer {
 						positionOffsetY: -9.27,
 						positionOffsetZ: 0,
 						rotation: new THREE.Euler(Math.PI, Math.PI, Math.PI, 'XYZ'),
-						contentPath: 'pages/work.html'
+						contentPath: 'pages/work.html',
+						renderOrder: 1002
 					});
 
 					setTimeout(() => {

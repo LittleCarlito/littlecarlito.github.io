@@ -18,6 +18,7 @@ export class TitleBlock {
 		this.title_container.name = `${TITLE}`;
 		this.title_container.position.y = TITLE_Y;
 		this.title_container.position.x = TITLE_X;
+		this.title_container.renderOrder = 1000;
 		this.parent.add(this.title_container);
 		
 		this.letter_containers = [];
@@ -46,6 +47,7 @@ export class TitleBlock {
 			const letter_container = new THREE.Group();
 			letter_container.name = `${TITLE}letter_${i}`;
 			letter_container.position.x = start_x + (i * char_width);
+			letter_container.renderOrder = 1000;
 			
 			const solid_letter = new Text();
 			solid_letter.text = char;
@@ -55,6 +57,10 @@ export class TitleBlock {
 			solid_letter.anchorX = 'center';
 			solid_letter.anchorY = 'middle';
 			solid_letter.name = `${TITLE}solid_${i}`;
+			solid_letter.renderOrder = 1000;
+			solid_letter.material.depthTest = false;
+			solid_letter.material.depthWrite = false;
+			solid_letter.material.transparent = true;
 			solid_letter.sync();
 			letter_container.add(solid_letter);
 			
@@ -68,6 +74,10 @@ export class TitleBlock {
 				inline_letter.anchorY = 'middle';
 				inline_letter.name = `${TITLE}inline_${i}`;
 				inline_letter.position.z = 0.01;
+				inline_letter.renderOrder = 1000;
+				inline_letter.material.depthTest = false;
+				inline_letter.material.depthWrite = false;
+				inline_letter.material.transparent = true;
 				inline_letter.sync();
 				letter_container.add(inline_letter);
 			}
