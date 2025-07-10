@@ -214,6 +214,7 @@ export class CustomFactory {
 
 			const collisionMeshes = [];
 			const displayMeshes = [];
+			const activateMeshes = [];
 			model.traverse((child) => {
 				if (child.isMesh) {
 					if (child.name.startsWith('col_')) {
@@ -232,6 +233,10 @@ export class CustomFactory {
 							}
 							displayMeshes.push(child);
 						}
+					} else if (child.name.startsWith('activate_')) {
+						// Initialize activate meshes as hidden by default
+						child.visible = false;
+						activateMeshes.push(child);
 					} else {
 						const childId = child.id || Math.floor(Math.random() * 10000);
 						child.name = `interactable_${customTypeKey}_${child.name || 'part'}_${childId}`;
@@ -257,6 +262,97 @@ export class CustomFactory {
 							texture.needsUpdate = true;
 						}
 					});
+				};
+			}
+
+			// Add activate mesh functionality
+			if (activateMeshes.length > 0) {
+				model.userData.activateMeshes = activateMeshes;
+				
+				// Add show/hide activate mesh methods
+				model.userData.showActivateMesh = (meshName = null) => {
+					if (meshName) {
+						// Show specific activate mesh by name
+						const targetMesh = activateMeshes.find(mesh => 
+							mesh.name === meshName || 
+							mesh.name === `activate_${meshName}` ||
+							mesh.name.endsWith(`_${meshName}`)
+						);
+						if (targetMesh) {
+							targetMesh.visible = true;
+						} else {
+							console.warn(`Activate mesh "${meshName}" not found`);
+						}
+					} else {
+						// Show all activate meshes
+						activateMeshes.forEach(mesh => {
+							mesh.visible = true;
+						});
+					}
+				};
+
+				model.userData.hideActivateMesh = (meshName = null) => {
+					if (meshName) {
+						// Hide specific activate mesh by name
+						const targetMesh = activateMeshes.find(mesh => 
+							mesh.name === meshName || 
+							mesh.name === `activate_${meshName}` ||
+							mesh.name.endsWith(`_${meshName}`)
+						);
+						if (targetMesh) {
+							targetMesh.visible = false;
+						} else {
+							console.warn(`Activate mesh "${meshName}" not found`);
+						}
+					} else {
+						// Hide all activate meshes
+						activateMeshes.forEach(mesh => {
+							mesh.visible = false;
+						});
+					}
+				};
+
+				model.userData.toggleActivateMesh = (meshName = null) => {
+					if (meshName) {
+						// Toggle specific activate mesh by name
+						const targetMesh = activateMeshes.find(mesh => 
+							mesh.name === meshName || 
+							mesh.name === `activate_${meshName}` ||
+							mesh.name.endsWith(`_${meshName}`)
+						);
+						if (targetMesh) {
+							targetMesh.visible = !targetMesh.visible;
+						} else {
+							console.warn(`Activate mesh "${meshName}" not found`);
+						}
+					} else {
+						// Toggle all activate meshes
+						activateMeshes.forEach(mesh => {
+							mesh.visible = !mesh.visible;
+						});
+					}
+				};
+
+				model.userData.getActivateMeshes = () => {
+					return activateMeshes.map(mesh => ({
+						name: mesh.name,
+						visible: mesh.visible,
+						mesh: mesh
+					}));
+				};
+
+				model.userData.isActivateMeshVisible = (meshName = null) => {
+					if (meshName) {
+						const targetMesh = activateMeshes.find(mesh => 
+							mesh.name === meshName || 
+							mesh.name === `activate_${meshName}` ||
+							mesh.name.endsWith(`_${meshName}`)
+						);
+						return targetMesh ? targetMesh.visible : false;
+					} else {
+						// Return true if any activate mesh is visible
+						return activateMeshes.some(mesh => mesh.visible);
+					}
 				};
 			}
 
@@ -327,7 +423,7 @@ export class CustomFactory {
 			}
 
 			const instance_id = this.storage.add_object(model, physicsBody);
-			return {
+			const result = {
 				mesh: model,
 				body: physicsBody,
 				instance_id,
@@ -336,6 +432,17 @@ export class CustomFactory {
 				stopRotation: model.userData.stopRotation,
 				isRotating: model.userData.isRotating
 			};
+
+			// Add activate mesh methods to the return object if activate meshes exist
+			if (activateMeshes.length > 0) {
+				result.showActivateMesh = model.userData.showActivateMesh;
+				result.hideActivateMesh = model.userData.hideActivateMesh;
+				result.toggleActivateMesh = model.userData.toggleActivateMesh;
+				result.getActivateMeshes = model.userData.getActivateMeshes;
+				result.isActivateMeshVisible = model.userData.isActivateMeshVisible;
+			}
+
+			return result;
 		} catch (error) {
 			console.error(`Error spawning custom asset ${asset_type}:`, error);
 			throw error;

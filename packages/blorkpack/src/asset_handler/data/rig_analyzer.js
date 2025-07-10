@@ -52,22 +52,31 @@ export class RigAnalyzer {
             rigs: [],
             roots: [],
             constraints: [],
-            joints: [],          // Initialize joints array here
+            joints: [],
+            activators: [],
             hasRig: false,
+            hasActivators: false,
             boneHierarchy: new Map(),
             armature: null
         };
 
         const bones = [];
+        const activators = [];
         let armature = null;
 
-        // First pass: Find armature and collect bones
+        // First pass: Find armature, collect bones, and find activators
         this.traverseForRigElements(gltfData.scene, bones, rigDetails, (node) => {
             // Check for armature
             if (this.isArmature(node) && !armature) {
                 armature = node;
                 rigDetails.armature = node;
                 rigDetails.rigs.push(this.createRigData(node));
+            }
+            
+            // Check for activator meshes
+            if (this.isActivator(node)) {
+                activators.push(node);
+                rigDetails.activators.push(this.createActivatorData(node));
             }
         });
 
@@ -76,19 +85,29 @@ export class RigAnalyzer {
             this.processBones(bones, rigDetails);
             this.buildBoneHierarchy(bones, rigDetails);
             rigDetails.hasRig = true;
+        }
 
-            if (RIG_LOGS) {
-                console.log(`[RigAnalyzer] Found rig in ${assetType || 'model'} with ${bones.length} bones`);
+        // Process activators if found
+        if (activators.length > 0) {
+            rigDetails.hasActivators = true;
+        }
+
+        // Log results
+        if (RIG_LOGS) {
+            if (rigDetails.hasRig || rigDetails.hasActivators) {
+                console.log(`[RigAnalyzer] Analysis complete for ${assetType || 'model'}`);
                 this.logRigSummary(rigDetails);
+            } else {
+                console.log(`[RigAnalyzer] No rig or activator meshes found in ${assetType || 'model'}`);
             }
         }
 
-        // Cache the result
-        if (assetType && rigDetails.hasRig) {
+        // Cache the result if it contains rig or activator data
+        if (assetType && (rigDetails.hasRig || rigDetails.hasActivators)) {
             this.analysisCache.set(assetType, rigDetails);
         }
 
-        return rigDetails.hasRig ? rigDetails : null;
+        return (rigDetails.hasRig || rigDetails.hasActivators) ? rigDetails : null;
     }
 
     /**
@@ -134,6 +153,15 @@ export class RigAnalyzer {
         return name.includes('rig') || 
                name.includes('armature') || 
                name.includes('skeleton');
+    }
+
+    /**
+     * Checks if a node is an activator mesh
+     * @param {Object} node - Three.js object
+     * @returns {boolean} True if node is an activator mesh
+     */
+    isActivator(node) {
+        return node.isMesh && node.name.toLowerCase().startsWith('activate_');
     }
 
     /**
@@ -196,7 +224,7 @@ export class RigAnalyzer {
             parentName: (bone.parent && this.isBone(bone.parent)) ? bone.parent.name : null,
             constraintType: 'none',
             uuid: bone.uuid,
-            node: bone // Direct reference for visualization
+            node: bone
         };
     }
 
@@ -224,6 +252,23 @@ export class RigAnalyzer {
             name: root.name,
             position: root.position ? [root.position.x, root.position.y, root.position.z] : null,
             node: root
+        };
+    }
+
+    /**
+     * Creates activator data object
+     * @param {Object} activator - Activator mesh node
+     * @returns {Object} Activator data object
+     */
+    createActivatorData(activator) {
+        return {
+            name: activator.name,
+            position: activator.position ? [activator.position.x, activator.position.y, activator.position.z] : null,
+            rotation: activator.rotation ? [activator.rotation.x, activator.rotation.y, activator.rotation.z] : null,
+            scale: activator.scale ? [activator.scale.x, activator.scale.y, activator.scale.z] : null,
+            visible: activator.visible,
+            uuid: activator.uuid,
+            node: activator
         };
     }
 
@@ -316,10 +361,17 @@ export class RigAnalyzer {
      * @param {Object} rigDetails - Rig details to log
      */
     logRigSummary(rigDetails) {
-        console.log(`[RigAnalyzer] Rig Summary:`);
+        console.log(`[RigAnalyzer] Analysis Summary:`);
         console.log(`  - Bones: ${rigDetails.bones.length}`);
         console.log(`  - Roots: ${rigDetails.roots.length}`);
         console.log(`  - Constraints: ${rigDetails.constraints.length}`);
+        console.log(`  - Activators: ${rigDetails.activators.length}`);
+        console.log(`  - Has Rig: ${rigDetails.hasRig}`);
+        console.log(`  - Has Activators: ${rigDetails.hasActivators}`);
+        
+        if (rigDetails.activators.length > 0) {
+            console.log(`  - Activator Names: ${rigDetails.activators.map(a => a.name).join(', ')}`);
+        }
         
         if (rigDetails.constraints.length > 0) {
             const constraintTypes = {};
@@ -342,29 +394,39 @@ export class RigAnalyzer {
             errors: []
         };
 
-        if (!rigDetails || !rigDetails.hasRig) {
+        if (!rigDetails || (!rigDetails.hasRig && !rigDetails.hasActivators)) {
             validation.valid = false;
-            validation.errors.push('No rig structure found');
+            validation.errors.push('No rig structure or activator meshes found');
             return validation;
         }
 
-        // Check for orphaned bones
-        const orphanedBones = rigDetails.bones.filter(bone => 
-            bone.parentName && !rigDetails.bones.find(b => b.name === bone.parentName)
-        );
-        
-        if (orphanedBones.length > 0) {
-            validation.warnings.push(`Found ${orphanedBones.length} orphaned bones`);
+        // Check for orphaned bones (only if rig exists)
+        if (rigDetails.hasRig) {
+            const orphanedBones = rigDetails.bones.filter(bone => 
+                bone.parentName && !rigDetails.bones.find(b => b.name === bone.parentName)
+            );
+            
+            if (orphanedBones.length > 0) {
+                validation.warnings.push(`Found ${orphanedBones.length} orphaned bones`);
+            }
+
+            // Check for missing root
+            if (rigDetails.roots.length === 0) {
+                validation.warnings.push('No root bone identified');
+            }
+
+            // Check for bone hierarchy issues
+            if (rigDetails.boneHierarchy.size !== rigDetails.bones.length) {
+                validation.warnings.push('Bone hierarchy mapping incomplete');
+            }
         }
 
-        // Check for missing root
-        if (rigDetails.roots.length === 0) {
-            validation.warnings.push('No root bone identified');
-        }
-
-        // Check for bone hierarchy issues
-        if (rigDetails.boneHierarchy.size !== rigDetails.bones.length) {
-            validation.warnings.push('Bone hierarchy mapping incomplete');
+        // Validate activators
+        if (rigDetails.hasActivators) {
+            const hiddenActivators = rigDetails.activators.filter(a => !a.visible);
+            if (hiddenActivators.length > 0) {
+                validation.warnings.push(`Found ${hiddenActivators.length} hidden activator meshes`);
+            }
         }
 
         return validation;
