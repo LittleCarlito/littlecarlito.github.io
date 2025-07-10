@@ -129,6 +129,9 @@ export class InteractionManager {
         }
         if(e.button === 0) {
             this.left_mouse_down = true;
+            if(this.window.viewable_container.is_overlay_hidden()) {
+                this.window.viewable_container.detect_rotation = true;
+            }
         }
         if(e.button === 2) {
             this.right_mouse_down = true;
@@ -137,9 +140,7 @@ export class InteractionManager {
                 this.grabbed_object = null;
             }
         }
-        if(this.left_mouse_down && this.right_mouse_down && this.window.viewable_container.is_overlay_hidden()) {
-            this.window.viewable_container.detect_rotation = true;
-        } else if(this.window.viewable_container.is_overlay_hidden()) {
+        if(this.window.viewable_container.is_overlay_hidden() && e.button === 2) {
             const found_intersections = this.get_intersect_list(e, this.window.viewable_container.get_camera(), this.window.scene);
             found_intersections.forEach(i => {
                 switch(extract_type(i.object)) {
@@ -194,6 +195,12 @@ export class InteractionManager {
             }
             this.zoom_event = true;
             this.resize_move = true;
+        } else if(this.window.viewable_container.is_overlay_hidden()) {
+            // Camera zoom controls when overlay is hidden and no object grabbed
+            const zoom_delta = e.deltaY * 0.01; // Adjust sensitivity as needed
+            this.window.viewable_container.get_camera_manager().zoom(zoom_delta);
+            this.zoom_event = true;
+            this.resize_move = true;
         }
     }
 
@@ -230,7 +237,7 @@ export class InteractionManager {
 
     #handle_rotation(e) {
         update_mouse_position(e);
-        if(this.window.viewable_container.detect_rotation) {
+        if(this.window.viewable_container.detect_rotation && this.left_mouse_down) {
             this.window.viewable_container.get_camera_manager().rotate(
                 e.movementX * InteractionManager.mouse_sensitivity,
                 e.movementY * InteractionManager.mouse_sensitivity
