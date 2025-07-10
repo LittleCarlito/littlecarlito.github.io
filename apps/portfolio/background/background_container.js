@@ -11,6 +11,16 @@ const GLOBAL_ROTATION_X = 7;
 const GLOBAL_ROTATION_Y = -25;
 const GLOBAL_ROTATION_Z = 0;
 
+// Asset to category mapping
+const ASSET_CATEGORY_MAP = {
+	DIPLOMA_BOT: CATEGORIES.EDUCATION.value,
+	DIPLOMA_TOP: CATEGORIES.EDUCATION.value,
+	NOTEBOOK_OPENED: CATEGORIES.PROJECTS.value,
+	MONITOR: CATEGORIES.WORK.value,
+	DESKPHOTO: CATEGORIES.ABOUT.value,
+	TABLET: CATEGORIES.CONTACT.value
+};
+
 export class BackgroundContainer {
 	name = "[BackgroundContainer]"
 	parent;
@@ -20,6 +30,7 @@ export class BackgroundContainer {
 	asset_container;
 	dynamic_bodies = [];
 	asset_manifest = new Set();
+	categorized_assets = new Map();
 	loading_complete = false;
 	loading_promise;
 	is_spawning_secondary = false;
@@ -59,6 +70,8 @@ export class BackgroundContainer {
 					throw new Error(`${this.name} No custom asset types found. Assets will not spawn correctly.`);
 				}
 				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Loaded custom types:`, Object.keys(ASSET_TYPE));
+				
+				// Room
 				const roomPosition = new THREE.Vector3(0, FLOOR_HEIGHT, 0);
 				const roomAtlas = ASSET_CONFIGS[ASSET_TYPE.ROOM].materials.default;
 				const roomResult = await asset_loader.spawn_asset(
@@ -78,6 +91,8 @@ export class BackgroundContainer {
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.ROOM}`;
 				this.asset_manifest.add(mesh.name);
 				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Room with name: ${mesh.name}`);
+				
+				// Desk
 				const deskPosition = new THREE.Vector3(-.5, FLOOR_HEIGHT, -.75);
 				const deskAtlas = ASSET_CONFIGS[ASSET_TYPE.DESK].materials.default;
 				const deskResult = await asset_loader.spawn_asset(
@@ -97,6 +112,8 @@ export class BackgroundContainer {
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DESK}`;
 				this.asset_manifest.add(mesh.name);
 				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk with name: ${mesh.name}`);
+				
+				// Chair
 				const chairPosition = new THREE.Vector3(-1, FLOOR_HEIGHT, -1.5);
 				const chairAtlas = ASSET_CONFIGS[ASSET_TYPE.CHAIR].materials.default;
 				const chairResult = await asset_loader.spawn_asset(
@@ -116,6 +133,8 @@ export class BackgroundContainer {
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.CHAIR}`;
 				this.asset_manifest.add(mesh.name);
 				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Chair with name: ${mesh.name}`);
+				
+				// Cat
 				const catPosition = new THREE.Vector3(5.5, FLOOR_HEIGHT, -6);
 				const catAtlas = ASSET_CONFIGS[ASSET_TYPE.CAT].materials.default;
 				const catResult = await asset_loader.spawn_asset(
@@ -135,6 +154,8 @@ export class BackgroundContainer {
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.CAT}`;
 				this.asset_manifest.add(mesh.name);
 				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Cat with name: ${mesh.name}`);
+				
+				// Plant
 				const plantPosition = new THREE.Vector3(-6, FLOOR_HEIGHT, 6);
 				const plantAtlas = ASSET_CONFIGS[ASSET_TYPE.PLANT].materials.default;
 				const plantResult = await asset_loader.spawn_asset(
@@ -154,6 +175,8 @@ export class BackgroundContainer {
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.PLANT}`;
 				this.asset_manifest.add(mesh.name);
 				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Plant with name: ${mesh.name}`);
+				
+				// Computer
 				const computerPosition = new THREE.Vector3(-4, FLOOR_HEIGHT, 2.5);
 				const computerAtlas = ASSET_CONFIGS[ASSET_TYPE.COMPUTER].materials.default;
 				const computerResult = await asset_loader.spawn_asset(
@@ -173,6 +196,8 @@ export class BackgroundContainer {
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.COMPUTER}`;
 				this.asset_manifest.add(mesh.name);
 				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Computer with name: ${mesh.name}`);
+				
+				// Monitor - WORK category
 				const monitorPosition = new THREE.Vector3(-4.5, DESK_HEIGHT, -5);
 				const monitorAtlas = ASSET_CONFIGS[ASSET_TYPE.MONITOR].materials.default;
 				const monitorResult = await asset_loader.spawn_asset(
@@ -190,8 +215,12 @@ export class BackgroundContainer {
 				mesh = monitorResult.mesh;
 				body = monitorResult.body;
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.MONITOR}`;
+				mesh.userData.category = ASSET_CATEGORY_MAP.MONITOR;
 				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Monitor with name: ${mesh.name}`);
+				this.addToCategory(ASSET_CATEGORY_MAP.MONITOR, mesh, body);
+				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Monitor with name: ${mesh.name}, category: ${mesh.userData.category}`);
+				
+				// Keyboard
 				const keyboardPosition = new THREE.Vector3(-4, DESK_HEIGHT, -3);
 				const keyboardAtlas = ASSET_CONFIGS[ASSET_TYPE.KEYBOARD].materials.default;
 				const keyboardResult = await asset_loader.spawn_asset(
@@ -211,6 +240,8 @@ export class BackgroundContainer {
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.KEYBOARD}`;
 				this.asset_manifest.add(mesh.name);
 				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Keyboard with name: ${mesh.name}`);
+				
+				// Mousepad
 				const mousepadPosition = new THREE.Vector3(-2, DESK_HEIGHT, -5);
 				const mousepadAtlas = ASSET_CONFIGS[ASSET_TYPE.MOUSEPAD].materials.default;
 				const mousepadResult = await asset_loader.spawn_asset(
@@ -230,6 +261,8 @@ export class BackgroundContainer {
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.MOUSEPAD}`;
 				this.asset_manifest.add(mesh.name);
 				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Mousepad with name: ${mesh.name}`);
+				
+				// Mouse
 				const mousePosition = new THREE.Vector3(-2, DESK_HEIGHT, -5);
 				const mouseAtlas = ASSET_CONFIGS[ASSET_TYPE.MOUSE].materials.default;
 				const mouseResult = await asset_loader.spawn_asset(
@@ -249,6 +282,8 @@ export class BackgroundContainer {
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.MOUSE}`;
 				this.asset_manifest.add(mesh.name);
 				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Mouse with name: ${mesh.name}`);
+				
+				// Desk Photo - ABOUT category
 				const deskPhotoPosition = new THREE.Vector3(0, DESK_HEIGHT, -7);
 				const deskPhotoAtlas = ASSET_CONFIGS[ASSET_TYPE.DESKPHOTO].materials.default;
 				const deskPhotoResult = await asset_loader.spawn_asset(
@@ -266,8 +301,12 @@ export class BackgroundContainer {
 				mesh = deskPhotoResult.mesh;
 				body = deskPhotoResult.body;
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DESKPHOTO}`;
+				mesh.userData.category = ASSET_CATEGORY_MAP.DESKPHOTO;
 				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk photo with name: ${mesh.name}`);
+				this.addToCategory(ASSET_CATEGORY_MAP.DESKPHOTO, mesh, body);
+				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk photo with name: ${mesh.name}, category: ${mesh.userData.category}`);
+				
+				// Tablet - CONTACT category
 				const tabletPosition = new THREE.Vector3(2, DESK_HEIGHT, -5);
 				const tabletAtlas = ASSET_CONFIGS[ASSET_TYPE.TABLET].materials.default;
 				const tabletResult = await asset_loader.spawn_asset(
@@ -285,8 +324,12 @@ export class BackgroundContainer {
 				mesh = tabletResult.mesh;
 				body = tabletResult.body;
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.TABLET}`;
+				mesh.userData.category = ASSET_CATEGORY_MAP.TABLET;
 				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Tablet with name: ${mesh.name}`);
+				this.addToCategory(ASSET_CATEGORY_MAP.TABLET, mesh, body);
+				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Tablet with name: ${mesh.name}, category: ${mesh.userData.category}`);
+				
+				// Notebook Closed
 				const notebookClosedPosition = new THREE.Vector3(-6, DESK_HEIGHT, 2.5);
 				const notebookClosedAtlas = ASSET_CONFIGS[ASSET_TYPE.NOTEBOOK_CLOSED].materials.default;
 				const notebookClosedResult = await asset_loader.spawn_asset(
@@ -306,6 +349,8 @@ export class BackgroundContainer {
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.NOTEBOOK_CLOSED}`;
 				this.asset_manifest.add(mesh.name);
 				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Notebook closed with name: ${mesh.name}`);
+				
+				// Book
 				const bookPosition = new THREE.Vector3(-6, DESK_HEIGHT + .25, 2.5);
 				const bookAtlas = ASSET_CONFIGS[ASSET_TYPE.BOOK].materials.default;
 				const result = await asset_loader.spawn_asset(
@@ -325,6 +370,8 @@ export class BackgroundContainer {
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.BOOK}`;
 				this.asset_manifest.add(mesh.name);
 				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Book with name: ${mesh.name}`);
+				
+				// Notebook Opened - PROJECTS category
 				const notebookOpenedPosition = new THREE.Vector3(-5, DESK_HEIGHT, 0);
 				const notebookOpenedAtlas = ASSET_CONFIGS[ASSET_TYPE.NOTEBOOK_OPENED].materials.default;
 				const notebookOpenedResult = await asset_loader.spawn_asset(
@@ -342,8 +389,12 @@ export class BackgroundContainer {
 				mesh = notebookOpenedResult.mesh;
 				body = notebookOpenedResult.body;
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.NOTEBOOK_OPENED}`;
+				mesh.userData.category = ASSET_CATEGORY_MAP.NOTEBOOK_OPENED;
 				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Notebook opened with name: ${mesh.name}`);
+				this.addToCategory(ASSET_CATEGORY_MAP.NOTEBOOK_OPENED, mesh, body);
+				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Notebook opened with name: ${mesh.name}, category: ${mesh.userData.category}`);
+				
+				// Diploma Bot - EDUCATION category
 				const diplomaBotPosition = new THREE.Vector3(DIPLOMA_X, 1.5, DIPLOMA_Z);
 				const diplomaBotAtlas = ASSET_CONFIGS[ASSET_TYPE.DIPLOMA_BOT].materials.default;
 				const diplomaBotResult = await asset_loader.spawn_asset(
@@ -363,8 +414,12 @@ export class BackgroundContainer {
 				mesh = diplomaBotResult.mesh;
 				body = diplomaBotResult.body;
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DIPLOMA_BOT}`;
+				mesh.userData.category = ASSET_CATEGORY_MAP.DIPLOMA_BOT;
 				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma Bot with name: ${mesh.name}`);
+				this.addToCategory(ASSET_CATEGORY_MAP.DIPLOMA_BOT, mesh, body);
+				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma Bot with name: ${mesh.name}, category: ${mesh.userData.category}`);
+				
+				// Diploma Top - EDUCATION category
 				const diplomaTopPosition = new THREE.Vector3(DIPLOMA_X, -1.5, DIPLOMA_Z);
 				const diplomaTopAtlas = ASSET_CONFIGS[ASSET_TYPE.DIPLOMA_TOP].materials.default;
 				const diplomaTopResult = await asset_loader.spawn_asset(
@@ -384,8 +439,11 @@ export class BackgroundContainer {
 				mesh = diplomaTopResult.mesh;
 				body = diplomaTopResult.body;
 				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DIPLOMA_TOP}`;
+				mesh.userData.category = ASSET_CATEGORY_MAP.DIPLOMA_TOP;
 				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma Top with name: ${mesh.name}`);
+				this.addToCategory(ASSET_CATEGORY_MAP.DIPLOMA_TOP, mesh, body);
+				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma Top with name: ${mesh.name}, category: ${mesh.userData.category}`);
+				
 				if (FLAGS.PHYSICS_LOGS) {
 					console.log('All assets initialized successfully');
 				}
@@ -396,6 +454,33 @@ export class BackgroundContainer {
 				throw error;
 			}
 		})();
+	}
+
+	addToCategory(category, mesh, body) {
+		if (!this.categorized_assets.has(category)) {
+			this.categorized_assets.set(category, []);
+		}
+		this.categorized_assets.get(category).push({ mesh, body });
+	}
+
+	getAssetsByCategory(category) {
+		return this.categorized_assets.get(category) || [];
+	}
+
+	getAllCategorizedAssets() {
+		const result = {};
+		this.categorized_assets.forEach((assets, category) => {
+			result[category] = assets;
+		});
+		return result;
+	}
+
+	getCategoryForAsset(assetName) {
+		for (const [category, assets] of this.categorized_assets.entries()) {
+			const found = assets.find(asset => asset.mesh.name === assetName);
+			if (found) return category;
+		}
+		return null;
 	}
 
 	setGlobalRotation(x, y, z) {
