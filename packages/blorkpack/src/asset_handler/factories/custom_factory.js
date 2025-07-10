@@ -6,6 +6,7 @@ import { BLORKPACK_FLAGS } from "../../blorkpack_flags.js";
 import { CollisionFactory } from "./collision_factory.js";
 import { MaterialFactory } from "./material_factory.js";
 import { AssetRotator } from "../common/asset_rotator.js";
+import { ActivateMeshHandler } from "./activate_mesh_handler.js";
 
 export class CustomFactory {
 	static #instance = null;
@@ -214,14 +215,12 @@ export class CustomFactory {
 
 			const collisionMeshes = [];
 			const displayMeshes = [];
-			const activateMeshes = [];
 			model.traverse((child) => {
 				if (child.isMesh) {
 					if (child.name.startsWith('col_')) {
 						child.visible = false;
 						collisionMeshes.push(child);
 					} else if (child.name.startsWith('display_')) {
-						// Check if we should hide display meshes (for background assets)
 						if (options.hideDisplayMeshes) {
 							child.visible = false;
 						} else {
@@ -233,22 +232,20 @@ export class CustomFactory {
 							}
 							displayMeshes.push(child);
 						}
-					} else if (child.name.startsWith('activate_')) {
-						// Initialize activate meshes as hidden by default
-						child.visible = false;
-						activateMeshes.push(child);
-					} else {
+					} else if (!child.name.startsWith('activate_')) {
 						const childId = child.id || Math.floor(Math.random() * 10000);
 						child.name = `interactable_${customTypeKey}_${child.name || 'part'}_${childId}`;
 					}
 				}
 			});
 
+			const activateMeshes = ActivateMeshHandler.processActivateMeshes(model);
+
 			if (options.atlasConfig) {
-				this.material_factory.applyPbrMaterial(model, options.atlasConfig);
+				await this.material_factory.applyPbrMaterial(model, options.atlasConfig);
+				ActivateMeshHandler.reapplyActivatorMaterials(activateMeshes);
 			}
 
-			// Only add display functionality if display meshes are not hidden
 			if (displayMeshes.length > 0 && !options.hideDisplayMeshes) {
 				model.userData.displayMeshes = displayMeshes;
 				model.userData.switchDisplayImage = (imageIndex) => {
@@ -265,96 +262,7 @@ export class CustomFactory {
 				};
 			}
 
-			// Add activate mesh functionality
-			if (activateMeshes.length > 0) {
-				model.userData.activateMeshes = activateMeshes;
-				
-				// Add show/hide activate mesh methods
-				model.userData.showActivateMesh = (meshName = null) => {
-					if (meshName) {
-						// Show specific activate mesh by name
-						const targetMesh = activateMeshes.find(mesh => 
-							mesh.name === meshName || 
-							mesh.name === `activate_${meshName}` ||
-							mesh.name.endsWith(`_${meshName}`)
-						);
-						if (targetMesh) {
-							targetMesh.visible = true;
-						} else {
-							console.warn(`Activate mesh "${meshName}" not found`);
-						}
-					} else {
-						// Show all activate meshes
-						activateMeshes.forEach(mesh => {
-							mesh.visible = true;
-						});
-					}
-				};
-
-				model.userData.hideActivateMesh = (meshName = null) => {
-					if (meshName) {
-						// Hide specific activate mesh by name
-						const targetMesh = activateMeshes.find(mesh => 
-							mesh.name === meshName || 
-							mesh.name === `activate_${meshName}` ||
-							mesh.name.endsWith(`_${meshName}`)
-						);
-						if (targetMesh) {
-							targetMesh.visible = false;
-						} else {
-							console.warn(`Activate mesh "${meshName}" not found`);
-						}
-					} else {
-						// Hide all activate meshes
-						activateMeshes.forEach(mesh => {
-							mesh.visible = false;
-						});
-					}
-				};
-
-				model.userData.toggleActivateMesh = (meshName = null) => {
-					if (meshName) {
-						// Toggle specific activate mesh by name
-						const targetMesh = activateMeshes.find(mesh => 
-							mesh.name === meshName || 
-							mesh.name === `activate_${meshName}` ||
-							mesh.name.endsWith(`_${meshName}`)
-						);
-						if (targetMesh) {
-							targetMesh.visible = !targetMesh.visible;
-						} else {
-							console.warn(`Activate mesh "${meshName}" not found`);
-						}
-					} else {
-						// Toggle all activate meshes
-						activateMeshes.forEach(mesh => {
-							mesh.visible = !mesh.visible;
-						});
-					}
-				};
-
-				model.userData.getActivateMeshes = () => {
-					return activateMeshes.map(mesh => ({
-						name: mesh.name,
-						visible: mesh.visible,
-						mesh: mesh
-					}));
-				};
-
-				model.userData.isActivateMeshVisible = (meshName = null) => {
-					if (meshName) {
-						const targetMesh = activateMeshes.find(mesh => 
-							mesh.name === meshName || 
-							mesh.name === `activate_${meshName}` ||
-							mesh.name.endsWith(`_${meshName}`)
-						);
-						return targetMesh ? targetMesh.visible : false;
-					} else {
-						// Return true if any activate mesh is visible
-						return activateMeshes.some(mesh => mesh.visible);
-					}
-				};
-			}
+			ActivateMeshHandler.addActivateMeshMethods(model, activateMeshes);
 
 			model.userData.rotate = (axis, radians, duration, rotationOptions = {}) => {
 				return this.rotateAsset(model, axis, radians, duration, rotationOptions);
@@ -433,14 +341,7 @@ export class CustomFactory {
 				isRotating: model.userData.isRotating
 			};
 
-			// Add activate mesh methods to the return object if activate meshes exist
-			if (activateMeshes.length > 0) {
-				result.showActivateMesh = model.userData.showActivateMesh;
-				result.hideActivateMesh = model.userData.hideActivateMesh;
-				result.toggleActivateMesh = model.userData.toggleActivateMesh;
-				result.getActivateMeshes = model.userData.getActivateMeshes;
-				result.isActivateMeshVisible = model.userData.isActivateMeshVisible;
-			}
+			ActivateMeshHandler.addActivateMeshMethodsToResult(result, activateMeshes);
 
 			return result;
 		} catch (error) {

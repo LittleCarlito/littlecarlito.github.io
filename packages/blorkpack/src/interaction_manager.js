@@ -8,6 +8,7 @@ import {
     shove_object
 } from "./physics";
 import { DiplomaInteractionHandler } from './diploma_interaction_handler';
+import { ActivationInteractionHandler } from './activation_interaction_handler';
 
 const LogLevel = {
     DEBUG: 'debug',
@@ -38,6 +39,7 @@ export class InteractionManager {
         this.resize_move = false;
         this.zoom_event = false;
         this.diploma_handler = new DiplomaInteractionHandler();
+        this.activation_interaction_handler = new ActivationInteractionHandler();
         InteractionManager.instance = this;
     }
 
@@ -51,6 +53,7 @@ export class InteractionManager {
     async startListening(incomingWindow) {
         this.window = incomingWindow;
         await this.#waitForDependencies();
+        this.activation_interaction_handler.initialize(incomingWindow);
         this.abortController = new AbortController();
         const abortSignal = this.abortController.signal;
         this.listening = true;
@@ -71,6 +74,9 @@ export class InteractionManager {
         }
         if (this.diploma_handler) {
             this.diploma_handler.dispose();
+        }
+        if (this.activation_interaction_handler) {
+            this.activation_interaction_handler.dispose();
         }
         this.window = null;
         this.abortController = null;
@@ -253,9 +259,11 @@ export class InteractionManager {
             switch(name_type) {
             case BTYPES.LABEL:
                 this.window.viewable_container.get_overlay().handle_hover(intersected_object);
+                this.activation_interaction_handler.handle_category_hover(object_name);
                 break;
             case BTYPES.FLOOR:
                 this.window.viewable_container.get_overlay().reset_hover();
+                this.activation_interaction_handler.handle_category_hover_exit();
                 break;
             case BTYPES.INTERACTABLE:
                 this.hovered_interactable_name = object_name;
@@ -263,10 +271,12 @@ export class InteractionManager {
                 break;
             default:
                 this.window.viewable_container.get_overlay().reset_hover();
+                this.activation_interaction_handler.handle_category_hover_exit();
                 break;
             }
         } else {
             this.window.viewable_container.get_overlay().reset_hover();
+            this.activation_interaction_handler.handle_category_hover_exit();
             if (is_overlay_hidden) {
                 this.hovered_interactable_name = "";
             }
