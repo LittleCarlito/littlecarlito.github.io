@@ -1,13 +1,37 @@
 import * as THREE from 'three';
 
+// ACTIVATE MESH CONTROLS
+const ACTIVATE_MESH_CONFIG = {
+	DEFAULT_COLOR: 0x00ff88,
+	DEFAULT_EMISSIVE_INTENSITY: 2.5,
+	DEFAULT_LIGHT_INTENSITY: 20,
+	DEFAULT_LIGHT_DISTANCE: 15,
+	INTENSITY_MULTIPLIER: 5
+};
+
 export class ActivateMeshHandler {
 	static createActivatorMaterial() {
 		return new THREE.MeshStandardMaterial({
-			color: 0xffffff,
-			roughness: 0.8,
+			color: ACTIVATE_MESH_CONFIG.DEFAULT_COLOR,
+			emissive: ACTIVATE_MESH_CONFIG.DEFAULT_COLOR,
+			emissiveIntensity: ACTIVATE_MESH_CONFIG.DEFAULT_EMISSIVE_INTENSITY,
+			roughness: 0.0,
 			metalness: 0.0,
-			side: THREE.DoubleSide
+			side: THREE.DoubleSide,
+			transparent: true,
+			opacity: 1.0
 		});
+	}
+
+	static createLightMaterial(mesh) {
+		const light = new THREE.PointLight(ACTIVATE_MESH_CONFIG.DEFAULT_COLOR, ACTIVATE_MESH_CONFIG.DEFAULT_LIGHT_INTENSITY, ACTIVATE_MESH_CONFIG.DEFAULT_LIGHT_DISTANCE);
+		light.position.copy(mesh.position);
+		light.userData.isActivatorLight = true;
+		light.userData.targetMesh = mesh;
+		light.castShadow = true;
+		light.shadow.mapSize.width = 512;
+		light.shadow.mapSize.height = 512;
+		return light;
 	}
 
 	static processActivateMeshes(model) {
@@ -18,6 +42,12 @@ export class ActivateMeshHandler {
 				child.visible = false;
 				const activatorMaterial = this.createActivatorMaterial();
 				child.material = activatorMaterial;
+				
+				const light = this.createLightMaterial(child);
+				light.visible = false;
+				child.userData.activatorLight = light;
+				child.parent.add(light);
+				
 				activateMeshes.push(child);
 			}
 		});
@@ -29,6 +59,11 @@ export class ActivateMeshHandler {
 		activateMeshes.forEach(mesh => {
 			const activatorMaterial = this.createActivatorMaterial();
 			mesh.material = activatorMaterial;
+			
+			if (mesh.userData.activatorLight) {
+				mesh.userData.activatorLight.color.setHex(ACTIVATE_MESH_CONFIG.DEFAULT_COLOR);
+				mesh.userData.activatorLight.intensity = ACTIVATE_MESH_CONFIG.DEFAULT_LIGHT_INTENSITY;
+			}
 		});
 	}
 
@@ -46,12 +81,16 @@ export class ActivateMeshHandler {
 				);
 				if (targetMesh) {
 					targetMesh.visible = true;
-				} else {
-					console.warn(`Activate mesh "${meshName}" not found`);
+					if (targetMesh.userData.activatorLight) {
+						targetMesh.userData.activatorLight.visible = true;
+					}
 				}
 			} else {
 				activateMeshes.forEach(mesh => {
 					mesh.visible = true;
+					if (mesh.userData.activatorLight) {
+						mesh.userData.activatorLight.visible = true;
+					}
 				});
 			}
 		};
@@ -65,12 +104,16 @@ export class ActivateMeshHandler {
 				);
 				if (targetMesh) {
 					targetMesh.visible = false;
-				} else {
-					console.warn(`Activate mesh "${meshName}" not found`);
+					if (targetMesh.userData.activatorLight) {
+						targetMesh.userData.activatorLight.visible = false;
+					}
 				}
 			} else {
 				activateMeshes.forEach(mesh => {
 					mesh.visible = false;
+					if (mesh.userData.activatorLight) {
+						mesh.userData.activatorLight.visible = false;
+					}
 				});
 			}
 		};
@@ -84,12 +127,16 @@ export class ActivateMeshHandler {
 				);
 				if (targetMesh) {
 					targetMesh.visible = !targetMesh.visible;
-				} else {
-					console.warn(`Activate mesh "${meshName}" not found`);
+					if (targetMesh.userData.activatorLight) {
+						targetMesh.userData.activatorLight.visible = targetMesh.visible;
+					}
 				}
 			} else {
 				activateMeshes.forEach(mesh => {
 					mesh.visible = !mesh.visible;
+					if (mesh.userData.activatorLight) {
+						mesh.userData.activatorLight.visible = mesh.visible;
+					}
 				});
 			}
 		};
@@ -114,6 +161,56 @@ export class ActivateMeshHandler {
 				return activateMeshes.some(mesh => mesh.visible);
 			}
 		};
+
+		model.userData.setActivateMeshColor = (color, meshName = null) => {
+			const colorHex = typeof color === 'string' ? parseInt(color.replace('#', ''), 16) : color;
+			
+			if (meshName) {
+				const targetMesh = activateMeshes.find(mesh => 
+					mesh.name === meshName || 
+					mesh.name === `activate_${meshName}` ||
+					mesh.name.endsWith(`_${meshName}`)
+				);
+				if (targetMesh) {
+					targetMesh.material.color.setHex(colorHex);
+					targetMesh.material.emissive.setHex(colorHex);
+					if (targetMesh.userData.activatorLight) {
+						targetMesh.userData.activatorLight.color.setHex(colorHex);
+					}
+				}
+			} else {
+				activateMeshes.forEach(mesh => {
+					mesh.material.color.setHex(colorHex);
+					mesh.material.emissive.setHex(colorHex);
+					if (mesh.userData.activatorLight) {
+						mesh.userData.activatorLight.color.setHex(colorHex);
+					}
+				});
+			}
+		};
+
+		model.userData.setActivateMeshIntensity = (intensity, meshName = null) => {
+			if (meshName) {
+				const targetMesh = activateMeshes.find(mesh => 
+					mesh.name === meshName || 
+					mesh.name === `activate_${meshName}` ||
+					mesh.name.endsWith(`_${meshName}`)
+				);
+				if (targetMesh) {
+					targetMesh.material.emissiveIntensity = intensity;
+					if (targetMesh.userData.activatorLight) {
+						targetMesh.userData.activatorLight.intensity = intensity * ACTIVATE_MESH_CONFIG.INTENSITY_MULTIPLIER;
+					}
+				}
+			} else {
+				activateMeshes.forEach(mesh => {
+					mesh.material.emissiveIntensity = intensity;
+					if (mesh.userData.activatorLight) {
+						mesh.userData.activatorLight.intensity = intensity * ACTIVATE_MESH_CONFIG.INTENSITY_MULTIPLIER;
+					}
+				});
+			}
+		};
 	}
 
 	static addActivateMeshMethodsToResult(result, activateMeshes) {
@@ -124,5 +221,7 @@ export class ActivateMeshHandler {
 		result.toggleActivateMesh = result.mesh.userData.toggleActivateMesh;
 		result.getActivateMeshes = result.mesh.userData.getActivateMeshes;
 		result.isActivateMeshVisible = result.mesh.userData.isActivateMeshVisible;
+		result.setActivateMeshColor = result.mesh.userData.setActivateMeshColor;
+		result.setActivateMeshIntensity = result.mesh.userData.setActivateMeshIntensity;
 	}
 }
