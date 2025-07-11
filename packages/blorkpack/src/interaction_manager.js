@@ -42,6 +42,7 @@ export class InteractionManager {
         this.activation_interaction_handler = new ActivationInteractionHandler();
         this.background_interaction_handler = new BackgroundInteractionHandler();
         this.rig_interaction_active = false;
+        this.current_hovered_label = null;
         InteractionManager.instance = this;
     }
 
@@ -171,7 +172,15 @@ export class InteractionManager {
             this.window.viewable_container.get_camera(), 
             this.window.scene
         );
-        this.window.viewable_container.handle_mouse_up(intersections);
+        
+        let handled = false;
+        if (e.button === 0) {
+            handled = this.#handle_click(intersections);
+        }
+        
+        if (!handled) {
+            this.window.viewable_container.handle_mouse_up(intersections);
+        }
         if (e.button === 0) {
             this.window.viewable_container.detect_rotation = false;
             this.left_mouse_down = false;
@@ -249,6 +258,22 @@ export class InteractionManager {
         }
     }
 
+    #handle_click(intersections) {
+        const relevant_intersections = intersections.filter(intersection => {
+            const object_name = intersection.object.name;
+            return object_name.includes('artist_');
+        });
+        
+        if (relevant_intersections.length > 0) {
+            const overlay = this.window.viewable_container.get_overlay();
+            if (overlay && overlay.artist_block) {
+                overlay.artist_block.handle_click();
+                return true;
+            }
+        }
+        return false;
+    }
+
     handle_intersections(e) {
         const found_intersections = this.get_intersect_list(e, this.window.viewable_container.get_camera(), this.window.scene);       
         const is_overlay_hidden = this.window.viewable_container.is_overlay_hidden();
@@ -268,7 +293,7 @@ export class InteractionManager {
             relevant_intersections = found_intersections.filter(intersection => {
                 const object_name = intersection.object.name;
                 const name_type = object_name.split("_")[0] + "_";
-                return name_type === BTYPES.LABEL;
+                return name_type === BTYPES.LABEL || object_name.includes('artist_') || object_name.includes('link_') || object_name.includes('hide_');
             });
         }
         
@@ -280,23 +305,78 @@ export class InteractionManager {
             const name_type = object_name.split("_")[0] + "_";
             switch(name_type) {
             case BTYPES.LABEL:
+                this.#setCursor('pointer');
+                this.#logLabelInformation(intersected_object);
                 this.window.viewable_container.get_overlay().handle_hover(intersected_object);
                 this.activation_interaction_handler.handle_category_hover(object_name);
                 break;
+            case 'artist_':
+                this.#setCursor('pointer');
+                break;
+            case 'link_':
+                this.#setCursor('pointer');
+                break;
+            case 'hide_':
+                this.#setCursor('pointer');
+                break;
             case BTYPES.FLOOR:
+                this.#clearLabelHover();
                 this.window.viewable_container.get_overlay().reset_hover();
                 this.activation_interaction_handler.handle_category_hover_exit();
                 break;
             case BTYPES.INTERACTABLE:
                 break;
             default:
+                this.#clearLabelHover();
                 this.window.viewable_container.get_overlay().reset_hover();
                 this.activation_interaction_handler.handle_category_hover_exit();
                 break;
             }
         } else {
+            this.#clearLabelHover();
             this.window.viewable_container.get_overlay().reset_hover();
             this.activation_interaction_handler.handle_category_hover_exit();
+        }
+    }
+
+    #logLabelInformation(intersected_object) {
+        if (this.current_hovered_label === intersected_object.name) {
+            return;
+        }
+        
+        this.current_hovered_label = intersected_object.name;
+        
+        const labelInfo = {
+            name: intersected_object.name,
+            simple_name: intersected_object.simple_name,
+            position: {
+                x: intersected_object.position.x,
+                y: intersected_object.position.y,
+                z: intersected_object.position.z
+            },
+            rotation: {
+                x: intersected_object.rotation.x,
+                y: intersected_object.rotation.y,
+                z: intersected_object.rotation.z
+            },
+            parent_name: intersected_object.parent?.name,
+            render_order: intersected_object.renderOrder
+        };
+        
+        console.log("Label Hover Info:", labelInfo);
+    }
+
+    #clearLabelHover() {
+        if (this.current_hovered_label) {
+            console.log("Label hover cleared:", this.current_hovered_label);
+            this.current_hovered_label = null;
+            this.#setCursor('default');
+        }
+    }
+
+    #setCursor(cursorType) {
+        if (this.window && this.window.document && this.window.document.body) {
+            this.window.document.body.style.cursor = cursorType;
         }
     }
 
@@ -316,6 +396,10 @@ export class InteractionManager {
                 return 'label';
             }
             
+            if (objectName.includes('artist_') || objectName.includes('link_') || objectName.includes('hide_')) {
+                return 'overlay';
+            }
+            
             if (objectName.includes('interactable_') && !objectName.includes('ROOM')) {
                 return 'asset';
             }
@@ -331,9 +415,7 @@ export class InteractionManager {
     }
 
     #resetCursor() {
-        if (this.window && this.window.document && this.window.document.body) {
-            this.window.document.body.style.cursor = 'default';
-        }
+        this.#setCursor('default');
     }
 
     get_intersect_list(e, incoming_camera, incoming_scene) {

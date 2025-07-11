@@ -3,6 +3,7 @@ import { Easing, FLAGS, THREE, Tween, TYPES } from '../../common';
 import { clamp } from 'three/src/math/MathUtils.js';
 import { Text } from 'troika-three-text';
 
+const ARTIST_URL = "https://www.artgram.co/bennettmeier";
 const artist_name = "Bennett Meier";
 export const ARTIST = "artist_"
 const ARTIST_BLOCK = {
@@ -91,6 +92,10 @@ export class ArtistBlock {
 			this.artist_container.add(letter_container);
 			this.letter_containers.push(letter_container);
 		}
+	}
+
+	handle_click() {
+		window.open(ARTIST_URL, '_blank');
 	}
 
 	get_artist_y() {
