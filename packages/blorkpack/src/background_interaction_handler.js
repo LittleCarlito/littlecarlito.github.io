@@ -4,6 +4,7 @@ export class BackgroundInteractionHandler {
         this.is_hovering_room = false;
         this.left_mouse_down = false;
         this.hovered_asset_name = "";
+        this.is_hovering_grabbable_asset = false;
     }
 
     initialize(incomingWindow) {
@@ -16,10 +17,12 @@ export class BackgroundInteractionHandler {
         this.is_hovering_room = false;
         this.left_mouse_down = false;
         this.hovered_asset_name = "";
+        this.is_hovering_grabbable_asset = false;
     }
 
     setMouseState(leftMouseDown) {
         this.left_mouse_down = leftMouseDown;
+        this.#updateCursor(this.is_hovering_room);
     }
 
     handleMouseDown(e) {
@@ -65,6 +68,7 @@ export class BackgroundInteractionHandler {
 
         const wasHoveringRoom = this.is_hovering_room;
         this.is_hovering_room = false;
+        this.is_hovering_grabbable_asset = false;
         
         for (const intersection of intersections) {
             const object = intersection.object;
@@ -74,6 +78,7 @@ export class BackgroundInteractionHandler {
                 if (this.hovered_asset_name !== object_name) {
                     this.hovered_asset_name = object_name;
                 }
+                this.is_hovering_grabbable_asset = this.#isGrabbableAsset(object_name);
                 this.#updateCursor(wasHoveringRoom);
                 return;
             }
@@ -127,6 +132,26 @@ export class BackgroundInteractionHandler {
         );
     }
 
+    #isGrabbableAsset(assetName) {
+        if (!assetName) return false;
+        
+        const assetType = assetName.replace('interactable_', '').split('_')[0];
+        const grabbableTypes = [
+            'NOTEBOOK',
+            'BOOK',
+            'TABLET',
+            'KEYBOARD',
+            'PLANT',
+            'MOUSEPAD',
+            'MOUSE',
+            'DESKPHOTO',
+            'COMPUTER',
+            'CHAIR'
+        ];
+        
+        return grabbableTypes.includes(assetType);
+    }
+
     #updateCursor(wasHoveringRoom) {
         if (!this.window || !this.window.viewable_container) {
             return;
@@ -145,7 +170,11 @@ export class BackgroundInteractionHandler {
                 case 'DESKPHOTO':
                 case 'COMPUTER':
                 case 'CHAIR':
-                    this.#setCursorGrab();
+                    if (this.left_mouse_down) {
+                        this.#setCursorGrabbing();
+                    } else {
+                        this.#setCursorGrab();
+                    }
                     return;
                 case 'DIPLOMA':
                 case 'CAT':
