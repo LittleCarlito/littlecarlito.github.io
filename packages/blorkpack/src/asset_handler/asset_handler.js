@@ -8,7 +8,6 @@ import {
 	CustomFactory, 
 	IdGenerator
 } from "./index.js";
-import { CollisionFactory } from "./factories/collision_factory.js";
 import { DebugFactory } from "./factories/debug_factory.js";
 import { AssetRotator } from "./common/asset_rotator.js";
 import { RigAnalyzer } from './data/rig_analyzer.js';
@@ -158,7 +157,6 @@ export class AssetHandler {
 			const rigVisualization = createRigVisualization(rigDetails, this.scene, spawnResult.mesh);
 			
 			if (rigVisualization) {
-				// Store the visualization reference
 				this.activeRigVisualizations.set(spawnResult.instance_id, {
 					visualization: rigVisualization,
 					assetType: assetType,
@@ -372,7 +370,6 @@ export class AssetHandler {
 	 * Core cleanup of essential resources.
 	 */
 	cleanup() {
-		// Clear all rig visualizations
 		this.activeRigVisualizations.forEach((rigData, instanceId) => {
 			try {
 				if (this.scene) {
@@ -424,7 +421,6 @@ export class AssetHandler {
 	 * Delegates to DebugFactory.
 	 */
 	update_visualizations() {
-		// Update rig visualizations
 		this.updateRigVisualizations();
 		
 		if (!this.debugFactory) {
@@ -656,7 +652,6 @@ export class AssetHandler {
 	dispose() {
 		if (!AssetHandler.#instance) return;
 		CustomFactory.dispose_instance();
-		CollisionFactory.dispose_instance();
 		DebugFactory.dispose_instance();
 		AssetRotator.dispose_instance();
 		if (this.rigAnalyzer) {
@@ -679,7 +674,6 @@ export class AssetHandler {
 	 */
 	updateRigConfig(newConfig) {
 		try {
-			// Import and call the rig factory updateRigConfig function
 			import('./factories/rig_factory.js').then(({ updateRigConfig }) => {
 				updateRigConfig(newConfig);
 			}).catch(error => {
@@ -696,7 +690,6 @@ export class AssetHandler {
 	 */
 	setRigVisualizationEnabled(enabled) {
 		try {
-			// Import and call the rig factory setRigVisualizationEnabled function
 			import('./factories/rig_factory.js').then(({ setRigVisualizationEnabled }) => {
 				setRigVisualizationEnabled(enabled);
 			}).catch(error => {

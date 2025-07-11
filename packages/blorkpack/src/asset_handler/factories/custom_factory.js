@@ -3,7 +3,6 @@ import { AssetUtils } from "../../index.js";
 import CustomTypeManager from "../../custom_type_manager.js";
 import { AssetStorage } from "../../asset_storage.js";
 import { BLORKPACK_FLAGS } from "../../blorkpack_flags.js";
-import { CollisionFactory } from "./collision_factory.js";
 import { MaterialFactory } from "./material_factory.js";
 import { AssetRotator } from "../common/asset_rotator.js";
 import { ActivateMeshHandler } from "./activate_mesh_handler.js";
@@ -177,6 +176,87 @@ export class CustomFactory {
 		return this.rotator.isRotating(asset);
 	}
 
+	/**
+	 * Creates colliders for collision meshes or default colliders
+	 * @param {THREE.Mesh[]} collisionMeshes - Array of collision meshes
+	 * @param {RAPIER.RigidBody} physicsBody - The physics body to attach colliders to
+	 * @param {Object} asset_config - Asset configuration
+	 * @param {Object} options - Spawn options
+	 */
+	createColliders(collisionMeshes, physicsBody, asset_config, options) {
+		if (collisionMeshes.length > 0) {
+			for (const collisionMesh of collisionMeshes) {
+				this.createColliderFromMesh(collisionMesh, physicsBody, asset_config, options);
+			}
+		} else {
+			const halfScale = asset_config.scale / 2;
+			let collider_desc;
+			if (options.colliderType === 'sphere') {
+				collider_desc = RAPIER.ColliderDesc.ball(halfScale);
+			} else if (options.colliderType === 'capsule') {
+				collider_desc = RAPIER.ColliderDesc.capsule(halfScale, halfScale * 0.5);
+			} else {
+				collider_desc = RAPIER.ColliderDesc.cuboid(halfScale, halfScale, halfScale);
+			}
+			collider_desc.setRestitution(asset_config.restitution || 0.5);
+			collider_desc.setFriction(asset_config.friction || 0.5);
+			this.world.createCollider(collider_desc, physicsBody);
+		}
+	}
+
+	/**
+	 * Creates a collider from a mesh (replaces CollisionFactory functionality)
+	 * @param {THREE.Mesh} mesh - The mesh to create a collider from
+	 * @param {RAPIER.RigidBody} body - The rigid body to attach the collider to
+	 * @param {Object} asset_config - Asset configuration data
+	 * @param {Object} options - Additional options for collider creation
+	 */
+	createColliderFromMesh(mesh, body, asset_config, options = {}) {
+		const geometry = mesh.geometry;
+		geometry.computeBoundingBox();
+		const boundingBox = geometry.boundingBox;
+		
+		const width = boundingBox.max.x - boundingBox.min.x;
+		const height = boundingBox.max.y - boundingBox.min.y;
+		const depth = boundingBox.max.z - boundingBox.min.z;
+		
+		let shape_type = 'box';
+		if (mesh.name.includes('sphere') || mesh.name.includes('ball')) {
+			shape_type = 'sphere';
+		} else if (mesh.name.includes('capsule')) {
+			shape_type = 'capsule';
+		} else if (options.shape_type) {
+			shape_type = options.shape_type;
+		}
+
+		let colliderDesc;
+		switch (shape_type) {
+		case 'sphere':
+			const radius = Math.max(width, height, depth) / 2;
+			colliderDesc = RAPIER.ColliderDesc.ball(radius);
+			break;
+		case 'capsule':
+			const capsuleRadius = Math.max(width, depth) / 2;
+			const capsuleHeight = height;
+			colliderDesc = RAPIER.ColliderDesc.capsule(capsuleHeight / 2, capsuleRadius);
+			break;
+		case 'box':
+		default:
+			colliderDesc = RAPIER.ColliderDesc.cuboid(width / 2, height / 2, depth / 2);
+			break;
+		}
+
+		colliderDesc.setRestitution(asset_config.restitution || 0.5);
+		colliderDesc.setFriction(asset_config.friction || 0.5);
+
+		const position = mesh.position;
+		const rotation = mesh.quaternion;
+		colliderDesc.setTranslation(position.x, position.y, position.z);
+		colliderDesc.setRotation(rotation);
+
+		return this.world.createCollider(colliderDesc, body);
+	}
+
 	async spawn_custom_asset(asset_type, position = new THREE.Vector3(), rotation = new THREE.Quaternion(), options = {}) {
 		try {
 			if (!CustomTypeManager.hasLoadedCustomTypes()) {
@@ -296,36 +376,20 @@ export class CustomFactory {
 				}
 				physicsBody = this.world.createRigidBody(rigidBodyDesc);
 
-				if (collisionMeshes.length > 0) {
-					for (const collisionMesh of collisionMeshes) {
-						await CollisionFactory.get_instance(this.world).create_collider_from_mesh(collisionMesh, physicsBody, asset_config, options);
-					}
-				} else {
-					const halfScale = asset_config.scale / 2;
-					let collider_desc;
-					if (options.colliderType === 'sphere') {
-						collider_desc = RAPIER.ColliderDesc.ball(halfScale);
-					} else if (options.colliderType === 'capsule') {
-						collider_desc = RAPIER.ColliderDesc.capsule(halfScale, halfScale * 0.5);
-					} else {
-						collider_desc = RAPIER.ColliderDesc.cuboid(halfScale, halfScale, halfScale);
-					}
-					collider_desc.setRestitution(asset_config.restitution || 0.5);
-					collider_desc.setFriction(asset_config.friction || 0.5);
-					this.world.createCollider(collider_desc, physicsBody);
+				this.createColliders(collisionMeshes, physicsBody, asset_config, options);
 
-					if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
-						try {
-							await this.create_debug_wireframe(
-								'box',
-								{ width: halfScale * 2, height: halfScale * 2, depth: halfScale * 2 },
-								position,
-								rotation,
-								{ color: 0x00ff00, opacity: 0.3, body: physicsBody }
-							);
-						} catch (error) {
-							console.warn('Failed to create debug wireframe:', error);
-						}
+				if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG && collisionMeshes.length === 0) {
+					try {
+						const halfScale = asset_config.scale / 2;
+						await this.create_debug_wireframe(
+							'box',
+							{ width: halfScale * 2, height: halfScale * 2, depth: halfScale * 2 },
+							position,
+							rotation,
+							{ color: 0x00ff00, opacity: 0.3, body: physicsBody }
+						);
+					} catch (error) {
+						console.warn('Failed to create debug wireframe:', error);
 					}
 				}
 			}

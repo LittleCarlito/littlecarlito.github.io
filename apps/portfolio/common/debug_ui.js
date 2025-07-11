@@ -624,38 +624,11 @@ export function createDebugUI() {
 	debugTogglesTitle.style.fontWeight = 'bold';
 	debugTogglesTitle.style.marginBottom = '8px';
 	debugUI.appendChild(debugTogglesTitle);
-
-	// Add rig visualization toggle (NEW - above collision debug)
+	// Create toggles
 	addToggle(debugUI, 'RIG_VISUALIZATION', 'Rig Visualization', FLAGS.RIG_VISUALIZATION, (checked) => {
 		FLAGS.RIG_VISUALIZATION = checked;
 		toggleRigVisualization(checked);
 		console.log(`Rig visualization ${checked ? 'enabled' : 'disabled'}`);
-	});
-
-	// Add debug toggles (these remain visible)
-	addToggle(debugUI, 'COLLISION_VISUAL_DEBUG', 'Collision Debug', FLAGS.COLLISION_VISUAL_DEBUG, (checked) => {
-		FLAGS.COLLISION_VISUAL_DEBUG = checked;
-		FLAGS.SIGN_VISUAL_DEBUG = checked;
-		if (window.background_container) {
-			background_container.updateSignDebugVisualizations();
-		}
-		if (window.asset_handler) {
-			console.log(`Setting collision debug to ${checked}`);
-			asset_handler.set_collision_debug(checked);
-		}
-		updateLabelWireframes();
-		console.log(`Collision and Sign debug visualization ${checked ? 'enabled' : 'disabled'}`);
-		console.log(`All collision wireframes will be ${checked ? 'shown' : 'hidden'}`);
-	});
-	addToggle(debugUI, 'SPOTLIGHT_VISUAL_DEBUG', 'Spotlight Debug', undefined, function(checked) {
-		// Update flag to control visibility
-		BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG = checked;
-		console.log(`Spotlight debug helpers visibility set to ${checked ? 'visible' : 'hidden'}`);
-		// Force update of spotlight debug visualizations to apply the change
-		if (window.asset_handler && window.asset_handler.forceDebugMeshUpdate) {
-			window.asset_handler.forceDebugMeshUpdate();
-			window.asset_handler.update_debug_meshes();
-		}
 	});
 	// Add divider
 	const divider4 = document.createElement('div');
@@ -1659,11 +1632,7 @@ function addToggle(parent, flagName, label, initialState, onChange) {
 	checkbox.type = 'checkbox';
 	// Use provided initial state or get from FLAGS or BLORKPACK_FLAGS
 	let isChecked = initialState !== undefined ? initialState : false;
-	if (flagName === 'SPOTLIGHT_VISUAL_DEBUG') {
-		isChecked = BLORKPACK_FLAGS[flagName] || false;
-	} else {
-		isChecked = FLAGS[flagName] || false;
-	}
+	isChecked = FLAGS[flagName] || false;
 	checkbox.checked = isChecked;
 	checkbox.style.opacity = '0';
 	checkbox.style.width = '0';
@@ -1695,31 +1664,15 @@ function addToggle(parent, flagName, label, initialState, onChange) {
 		const checked = this.checked;
 		slider.style.backgroundColor = checked ? '#4CAF50' : '#ccc';
 		circle.style.left = checked ? '13px' : '2px';
-		// Special case for SPOTLIGHT_VISUAL_DEBUG which now uses BLORKPACK_FLAGS
-		if (flagName === 'SPOTLIGHT_VISUAL_DEBUG') {
-			// Skip the default FLAG update
-			if (onChange && typeof onChange === 'function') {
-				onChange(checked);
-			}
-			return;
-		}
 		// For all other flags, update FLAGS as before
 		if (flagName in FLAGS) {
 			FLAGS[flagName] = checked;
 			console.log(`${flagName} set to ${checked}`);
 			// Call specific update functions based on the flag
-			if (flagName === 'SIGN_VISUAL_DEBUG' && flagName !== 'COLLISION_VISUAL_DEBUG') {
-				// Only handle SIGN_VISUAL_DEBUG here if it's not being controlled by COLLISION_VISUAL_DEBUG
+			if (flagName === 'SIGN_VISUAL_DEBUG') {
 				if (backgroundContainer) {
 					backgroundContainer.updateSignDebugVisualizations();
 				}
-			} else if (flagName === 'COLLISION_VISUAL_DEBUG') {
-				// For collision debug, we need to refresh the scene to show/hide wireframes
-				// The wireframes will be created/updated in the next frame if the flag is enabled
-				console.log(`Collision debug visualization ${checked ? 'enabled' : 'disabled'}`);
-				// The visibility of wireframes is controlled in the update_debug_wireframes method
-				// which is called every frame during the physics update
-				console.log(`All collision wireframes will be ${checked ? 'shown' : 'hidden'}`);
 			}
 		}
 		// Call onChange callback if provided
