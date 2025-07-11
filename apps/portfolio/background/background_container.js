@@ -464,6 +464,15 @@ export class BackgroundContainer {
 	setBackgroundRenderOrder() {
 		this.asset_container.traverse((child) => {
 			if (child.isMesh) {
+				// Skip rig visualization elements
+				if (child.userData.bonePart || 
+					child.userData.isControlHandle || 
+					child.userData.isVisualBone ||
+					child.name === "RigControlHandle" ||
+					(child.parent && child.parent.name === "RigVisualization")) {
+					return; // Don't modify rig visualization materials
+				}
+				
 				child.renderOrder = 0;
 				if (child.material) {
 					const materials = Array.isArray(child.material) ? child.material : [child.material];

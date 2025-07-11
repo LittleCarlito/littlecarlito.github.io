@@ -41,6 +41,7 @@ export class InteractionManager {
         this.diploma_handler = new DiplomaInteractionHandler();
         this.activation_interaction_handler = new ActivationInteractionHandler();
         this.background_interaction_handler = new BackgroundInteractionHandler();
+        this.rig_interaction_active = false;
         InteractionManager.instance = this;
     }
 
@@ -254,6 +255,14 @@ export class InteractionManager {
         
         this.diploma_handler.check_diploma_hover(found_intersections, this.window.scene);
         
+        const interaction_priority = this.#determineInteractionPriority(found_intersections);
+        
+        this.rig_interaction_active = (interaction_priority === 'rig');
+        
+        if (interaction_priority === 'rig') {
+            return;
+        }
+        
         let relevant_intersections = found_intersections;
         if(!is_overlay_hidden) {
             relevant_intersections = found_intersections.filter(intersection => {
@@ -263,7 +272,7 @@ export class InteractionManager {
             });
         }
         
-        this.background_interaction_handler.checkRoomHover(found_intersections);
+        this.background_interaction_handler.checkRoomHover(found_intersections, this.rig_interaction_active);
         
         if(relevant_intersections.length > 0 && !this.window.viewable_container.get_overlay().is_swapping_sides()) {
             const intersected_object = relevant_intersections[0].object;
@@ -279,7 +288,6 @@ export class InteractionManager {
                 this.activation_interaction_handler.handle_category_hover_exit();
                 break;
             case BTYPES.INTERACTABLE:
-                this.hovered_interactable_name = object_name;
                 break;
             default:
                 this.window.viewable_container.get_overlay().reset_hover();
@@ -289,10 +297,37 @@ export class InteractionManager {
         } else {
             this.window.viewable_container.get_overlay().reset_hover();
             this.activation_interaction_handler.handle_category_hover_exit();
-            if (is_overlay_hidden) {
-                this.hovered_interactable_name = "";
+        }
+    }
+
+    #determineInteractionPriority(intersections) {
+        for (const intersection of intersections) {
+            const objectName = intersection.object.name || '';
+            
+            if (objectName.includes('RigControlHandle') || 
+                intersection.object.userData?.isControlHandle ||
+                intersection.object.userData?.bonePart ||
+                intersection.object.userData?.isVisualBone) {
+                return 'rig';
+            }
+            
+            const nameType = objectName.split("_")[0] + "_";
+            if (nameType === 'label_') {
+                return 'label';
+            }
+            
+            if (objectName.includes('interactable_') && !objectName.includes('ROOM')) {
+                return 'asset';
             }
         }
+        
+        for (const intersection of intersections) {
+            if (intersection.object.name && intersection.object.name.includes('ROOM')) {
+                return 'room';
+            }
+        }
+        
+        return 'none';
     }
 
     #resetCursor() {

@@ -3,6 +3,7 @@ export class BackgroundInteractionHandler {
         this.window = null;
         this.is_hovering_room = false;
         this.left_mouse_down = false;
+        this.hovered_asset_name = "";
     }
 
     initialize(incomingWindow) {
@@ -14,6 +15,7 @@ export class BackgroundInteractionHandler {
         this.window = null;
         this.is_hovering_room = false;
         this.left_mouse_down = false;
+        this.hovered_asset_name = "";
     }
 
     setMouseState(leftMouseDown) {
@@ -64,6 +66,27 @@ export class BackgroundInteractionHandler {
         const wasHoveringRoom = this.is_hovering_room;
         this.is_hovering_room = false;
         
+        for (const intersection of intersections) {
+            const object = intersection.object;
+            const object_name = object.name;
+            
+            if (object_name && object_name.includes('interactable_')) {
+                if (this.hovered_asset_name !== object_name) {
+                    this.hovered_asset_name = object_name;
+                }
+                this.#updateCursor(wasHoveringRoom);
+                return;
+            }
+        }
+        
+        if (!intersections.some(intersection => 
+            intersection.object.name && intersection.object.name.includes('interactable_')
+        )) {
+            if (this.hovered_asset_name !== "") {
+                this.hovered_asset_name = "";
+            }
+        }
+        
         const hasHigherPriorityInteraction = intersections.some(intersection => {
             const objectName = intersection.object.name || '';
             const nameType = objectName.split("_")[0] + "_";
@@ -109,18 +132,36 @@ export class BackgroundInteractionHandler {
             return;
         }
 
-        if (this.is_hovering_room !== wasHoveringRoom) {
-            if (this.is_hovering_room && this.window.viewable_container.is_overlay_hidden()) {
-                if (!this.window.background_container.isMouseRotating()) {
+        if (this.hovered_asset_name) {
+            const assetType = this.hovered_asset_name.replace('interactable_', '').split('_')[0];
+            switch (assetType) {
+                case 'NOTEBOOK':
+                case 'BOOK':
+                case 'TABLET':
+                case 'KEYBOARD':
+                case 'PLANT':
+                case 'MOUSEPAD':
+                case 'MOUSE':
+                case 'DESKPHOTO':
+                case 'COMPUTER':
+                case 'CHAIR':
                     this.#setCursorGrab();
-                }
-            } else {
-                this.#resetCursor();
+                    return;
+                case 'DIPLOMA':
+                case 'CAT':
+                    this.#setCursorPointer();
+                    return;
+                default:
+                    break;
             }
         }
-        
+
         if (this.window.background_container.isMouseRotating() && this.is_hovering_room && this.window.viewable_container.is_overlay_hidden()) {
             this.#setCursorGrabbing();
+        } else if (this.is_hovering_room && this.window.viewable_container.is_overlay_hidden()) {
+            this.#setCursorGrab();
+        } else {
+            this.#resetCursor();
         }
     }
 
@@ -133,6 +174,12 @@ export class BackgroundInteractionHandler {
     #setCursorGrabbing() {
         if (this.window && this.window.document && this.window.document.body) {
             this.window.document.body.style.cursor = 'grabbing';
+        }
+    }
+
+    #setCursorPointer() {
+        if (this.window && this.window.document && this.window.document.body) {
+            this.window.document.body.style.cursor = 'pointer';
         }
     }
 
