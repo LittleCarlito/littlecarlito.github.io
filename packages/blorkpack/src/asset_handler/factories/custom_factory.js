@@ -407,6 +407,21 @@ export class CustomFactory {
 
 			ActivateMeshHandler.addActivateMeshMethodsToResult(result, activateMeshes);
 
+			// Add collision wireframe methods to the result if wireframes exist
+			if (model.userData.collisionWireframes && model.userData.collisionWireframes.length > 0) {
+				result.enableCollisionWireframes = model.userData.enableCollisionWireframes;
+				result.disableCollisionWireframes = model.userData.disableCollisionWireframes;
+				result.toggleCollisionWireframes = model.userData.toggleCollisionWireframes;
+				result.areCollisionWireframesEnabled = model.userData.areCollisionWireframesEnabled;
+				result.getCollisionWireframeCount = model.userData.getCollisionWireframeCount;
+				result.updateCollisionWireframes = model.userData.updateCollisionWireframes;
+				result.setCollisionWireframeColor = model.userData.setCollisionWireframeColor;
+				result.setCollisionWireframeOpacity = model.userData.setCollisionWireframeOpacity;
+				result.disposeCollisionWireframes = model.userData.disposeCollisionWireframes;
+				
+				console.log(`[CustomFactory] Added collision wireframe methods to spawn result for ${asset_type}`);
+			}
+
 			return result;
 		} catch (error) {
 			console.error(`Error spawning custom asset ${asset_type}:`, error);

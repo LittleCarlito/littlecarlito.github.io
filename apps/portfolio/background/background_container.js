@@ -85,7 +85,7 @@ export class BackgroundContainer {
 						enablePhysics: false,
 						atlasConfig: roomAtlas,
 						hideDisplayMeshes: true
-					}				);
+					});
 				if (!roomResult) {
 					throw new Error(`${this.name} Failed to spawn ROOM, result is null`);
 				}
@@ -464,13 +464,12 @@ export class BackgroundContainer {
 	setBackgroundRenderOrder() {
 		this.asset_container.traverse((child) => {
 			if (child.isMesh) {
-				// Skip rig visualization elements
 				if (child.userData.bonePart || 
 					child.userData.isControlHandle || 
 					child.userData.isVisualBone ||
 					child.name === "RigControlHandle" ||
 					(child.parent && child.parent.name === "RigVisualization")) {
-					return; // Don't modify rig visualization materials
+					return;
 				}
 				
 				child.renderOrder = 0;
@@ -621,6 +620,11 @@ export class BackgroundContainer {
 				mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
 			}
 		});
+		
+		const assetHandler = AssetHandler.get_instance();
+		if (assetHandler) {
+			assetHandler.updateAllCollisionWireframes();
+		}
 	}
 
 	contains_object(incoming_name) {

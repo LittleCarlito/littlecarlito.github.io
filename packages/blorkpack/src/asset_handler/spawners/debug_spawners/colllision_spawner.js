@@ -87,13 +87,6 @@ export class CollisionSpawner {
 		return color;
 	}
 
-	/**
-	 * Creates wireframe visualization for collision meshes
-	 * @param {Object} collisionDetails - Collision analysis results from CollisionAnalyzer
-	 * @param {THREE.Object3D} parentMesh - The parent mesh that contains collision meshes
-	 * @param {string} assetType - The asset type for identification
-	 * @returns {Promise<Array>} Array of created wireframe meshes
-	 */
 	async createWireframeForCollisionMeshes(collisionDetails, parentMesh, assetType) {
 		if (!collisionDetails || !collisionDetails.hasCollisionMeshes) {
 			return [];
@@ -117,8 +110,15 @@ export class CollisionSpawner {
 			}
 			
 			if (wireframes.length > 0) {
+				if (!parentMesh.userData.collisionWireframes) {
+					parentMesh.userData.collisionWireframes = [];
+				}
+				parentMesh.userData.collisionWireframes.push(...wireframes);
+				
+				this.addWireframeMethodsToAsset(parentMesh);
 				this.collisionWireframes.set(parentMesh.uuid, wireframes);
-				console.log(`[CollisionSpawner] ✅ Created ${wireframes.length} wireframes for ${assetType}`);
+				
+				console.log(`[CollisionSpawner] ✅ Created ${wireframes.length} wireframes for ${assetType} and stored in asset`);
 			}
 		} catch (error) {
 			console.error(`[CollisionSpawner] Error creating wireframes for ${assetType}:`, error);
@@ -127,222 +127,310 @@ export class CollisionSpawner {
 		return wireframes;
 	}
 
-	/**
-	 * Creates wireframe for a single collision mesh
-	 * @param {Object} collisionMeshInfo - Information about the collision mesh
-	 * @param {THREE.Object3D} parentMesh - The parent mesh
-	 * @param {string} assetType - The asset type
-	 * @returns {Promise<THREE.Mesh>} The created wireframe mesh
-	 */
-    async createWireframeForMesh(collisionMeshInfo, parentMesh, assetType) {
-        try {
-            const wireframeGeometry = collisionMeshInfo.geometry.clone();
-            
-            const randomColor = this.getRandomDebugColor();
-            const wireframeMaterial = new THREE.MeshBasicMaterial({
-                color: randomColor,
-                wireframe: true,
-                transparent: true,
-                opacity: 0.7,
-                side: THREE.DoubleSide
-            });
+	addWireframeMethodsToAsset(asset) {
+		asset.userData.enableCollisionWireframes = () => {
+			if (asset.userData.collisionWireframes) {
+				asset.userData.collisionWireframes.forEach(wireframe => {
+					wireframe.visible = true;
+					if (!wireframe.parent) {
+						this.scene.add(wireframe);
+					}
+				});
+				asset.userData.collisionWireframesEnabled = true;
+				console.log(`[Asset] Enabled collision wireframes for ${asset.name}`);
+			}
+		};
 
-            const wireframeMesh = new THREE.Mesh(wireframeGeometry, wireframeMaterial);
-            
-            // Find the actual collision mesh in the hierarchy to get its world transform
-            let actualCollisionMesh = null;
-            parentMesh.traverse((child) => {
-                if (child.isMesh && child.name === collisionMeshInfo.name) {
-                    actualCollisionMesh = child;
-                }
-            });
+		asset.userData.disableCollisionWireframes = () => {
+			if (asset.userData.collisionWireframes) {
+				asset.userData.collisionWireframes.forEach(wireframe => {
+					wireframe.visible = false;
+				});
+				asset.userData.collisionWireframesEnabled = false;
+				console.log(`[Asset] Disabled collision wireframes for ${asset.name}`);
+			}
+		};
 
-            if (actualCollisionMesh) {
-                // Use the actual collision mesh's world transform
-                actualCollisionMesh.updateMatrixWorld(true);
-                wireframeMesh.position.copy(actualCollisionMesh.getWorldPosition(new THREE.Vector3()));
-                wireframeMesh.quaternion.copy(actualCollisionMesh.getWorldQuaternion(new THREE.Quaternion()));
-                wireframeMesh.scale.copy(actualCollisionMesh.getWorldScale(new THREE.Vector3()));
-            } else {
-                // Fallback: manually calculate world transform
-                // Get the parent mesh's world transform
-                parentMesh.updateMatrixWorld(true);
-                const parentWorldMatrix = parentMesh.matrixWorld.clone();
-                
-                // Create a matrix for the collision mesh's local transform
-                const collisionMatrix = new THREE.Matrix4();
-                collisionMatrix.compose(
-                    collisionMeshInfo.position,
-                    new THREE.Quaternion().setFromEuler(collisionMeshInfo.rotation),
-                    collisionMeshInfo.scale
-                );
-                
-                // Combine transforms: parent world * collision local
-                const worldMatrix = parentWorldMatrix.clone().multiply(collisionMatrix);
-                
-                // Decompose the final world matrix
-                const worldPosition = new THREE.Vector3();
-                const worldQuaternion = new THREE.Quaternion();
-                const worldScale = new THREE.Vector3();
-                worldMatrix.decompose(worldPosition, worldQuaternion, worldScale);
-                
-                wireframeMesh.position.copy(worldPosition);
-                wireframeMesh.quaternion.copy(worldQuaternion);
-                wireframeMesh.scale.copy(worldScale);
-            }
-            
-            wireframeMesh.renderOrder = 999;
-            
-            wireframeMesh.userData.isCollisionWireframe = true;
-            wireframeMesh.userData.parentAsset = parentMesh;
-            wireframeMesh.userData.assetType = assetType;
-            wireframeMesh.userData.collisionMeshName = collisionMeshInfo.name;
-            wireframeMesh.userData.collisionType = collisionMeshInfo.type;
-            wireframeMesh.userData.debugColor = randomColor;
-            wireframeMesh.userData.actualCollisionMesh = actualCollisionMesh;
+		asset.userData.toggleCollisionWireframes = () => {
+			if (asset.userData.collisionWireframesEnabled) {
+				asset.userData.disableCollisionWireframes();
+			} else {
+				asset.userData.enableCollisionWireframes();
+			}
+			return asset.userData.collisionWireframesEnabled;
+		};
 
-            // Add to scene directly since we're using world coordinates
-            this.scene.add(wireframeMesh);
+		asset.userData.areCollisionWireframesEnabled = () => {
+			return asset.userData.collisionWireframesEnabled || false;
+		};
 
-            console.log(`[CollisionSpawner] Created wireframe for collision mesh: ${collisionMeshInfo.name} (type: ${collisionMeshInfo.type}, color: 0x${randomColor.toString(16)})`);
-            
-            return wireframeMesh;
-        } catch (error) {
-            console.error(`[CollisionSpawner] Error creating wireframe for mesh ${collisionMeshInfo.name}:`, error);
-            return null;
-        }
-    }
+		asset.userData.getCollisionWireframeCount = () => {
+			return asset.userData.collisionWireframes ? asset.userData.collisionWireframes.length : 0;
+		};
 
-	/**
-	 * Removes wireframes for a specific asset
-	 * @param {THREE.Object3D} parentMesh - The parent mesh whose wireframes should be removed
-	 */
-	removeWireframesForAsset(parentMesh) {
-		const wireframes = this.collisionWireframes.get(parentMesh.uuid);
-		if (wireframes) {
-			wireframes.forEach(wireframe => {
-				if (wireframe.parent) {
-					wireframe.parent.remove(wireframe);
-				}
-				if (wireframe.geometry) {
-					wireframe.geometry.dispose();
-				}
-				if (wireframe.material) {
-					wireframe.material.dispose();
+		// FIXED UPDATE METHOD
+		asset.userData.updateCollisionWireframes = () => {
+			if (asset.userData.collisionWireframes) {
+				asset.userData.collisionWireframes.forEach(wireframe => {
+					if (wireframe.userData.actualCollisionMesh) {
+						const collisionMesh = wireframe.userData.actualCollisionMesh;
+						
+						// Force matrix updates through the entire hierarchy
+						let current = collisionMesh;
+						while (current) {
+							current.updateMatrixWorld(true);
+							current = current.parent;
+						}
+						
+						// Get the actual world transform
+						const worldPosition = new THREE.Vector3();
+						const worldQuaternion = new THREE.Quaternion();
+						const worldScale = new THREE.Vector3();
+						
+						collisionMesh.matrixWorld.decompose(worldPosition, worldQuaternion, worldScale);
+						
+						wireframe.position.copy(worldPosition);
+						wireframe.quaternion.copy(worldQuaternion);
+						wireframe.scale.copy(worldScale);
+					}
+				});
+			}
+		};
+
+		asset.userData.setCollisionWireframeColor = (color) => {
+			if (asset.userData.collisionWireframes) {
+				asset.userData.collisionWireframes.forEach(wireframe => {
+					if (wireframe.material) {
+						wireframe.material.color.setHex(color);
+						wireframe.userData.debugColor = color;
+					}
+				});
+				console.log(`[Asset] Set collision wireframe color to 0x${color.toString(16)} for ${asset.name}`);
+			}
+		};
+
+		asset.userData.setCollisionWireframeOpacity = (opacity) => {
+			if (asset.userData.collisionWireframes) {
+				asset.userData.collisionWireframes.forEach(wireframe => {
+					if (wireframe.material) {
+						wireframe.material.opacity = Math.max(0, Math.min(1, opacity));
+					}
+				});
+				console.log(`[Asset] Set collision wireframe opacity to ${opacity} for ${asset.name}`);
+			}
+		};
+
+		asset.userData.disposeCollisionWireframes = () => {
+			if (asset.userData.collisionWireframes) {
+				asset.userData.collisionWireframes.forEach(wireframe => {
+					if (wireframe.parent) {
+						wireframe.parent.remove(wireframe);
+					}
+					if (wireframe.geometry) {
+						wireframe.geometry.dispose();
+					}
+					if (wireframe.material) {
+						wireframe.material.dispose();
+					}
+				});
+				asset.userData.collisionWireframes = [];
+				asset.userData.collisionWireframesEnabled = false;
+				console.log(`[Asset] Disposed collision wireframes for ${asset.name}`);
+			}
+		};
+
+		asset.userData.collisionWireframesEnabled = false;
+	}
+
+	async createWireframeForMesh(collisionMeshInfo, parentMesh, assetType) {
+		try {
+			const wireframeGeometry = collisionMeshInfo.geometry.clone();
+			
+			const randomColor = this.getRandomDebugColor();
+			const wireframeMaterial = new THREE.MeshBasicMaterial({
+				color: randomColor,
+				wireframe: true,
+				transparent: true,
+				opacity: 0.7,
+				side: THREE.DoubleSide
+			});
+
+			const wireframeMesh = new THREE.Mesh(wireframeGeometry, wireframeMaterial);
+			
+			let actualCollisionMesh = null;
+			parentMesh.traverse((child) => {
+				if (child.isMesh && child.name === collisionMeshInfo.name) {
+					actualCollisionMesh = child;
 				}
 			});
-			this.collisionWireframes.delete(parentMesh.uuid);
-			console.log(`[CollisionSpawner] Removed ${wireframes.length} wireframes for asset`);
+
+			if (actualCollisionMesh) {
+				// Force matrix updates through hierarchy
+				let current = actualCollisionMesh;
+				while (current) {
+					current.updateMatrixWorld(true);
+					current = current.parent;
+				}
+				
+				const worldPosition = new THREE.Vector3();
+				const worldQuaternion = new THREE.Quaternion();
+				const worldScale = new THREE.Vector3();
+				
+				actualCollisionMesh.matrixWorld.decompose(worldPosition, worldQuaternion, worldScale);
+				
+				wireframeMesh.position.copy(worldPosition);
+				wireframeMesh.quaternion.copy(worldQuaternion);
+				wireframeMesh.scale.copy(worldScale);
+			} else {
+				parentMesh.updateMatrixWorld(true);
+				const parentWorldMatrix = parentMesh.matrixWorld.clone();
+				
+				const collisionMatrix = new THREE.Matrix4();
+				collisionMatrix.compose(
+					collisionMeshInfo.position,
+					new THREE.Quaternion().setFromEuler(collisionMeshInfo.rotation),
+					collisionMeshInfo.scale
+				);
+				
+				const worldMatrix = parentWorldMatrix.clone().multiply(collisionMatrix);
+				
+				const worldPosition = new THREE.Vector3();
+				const worldQuaternion = new THREE.Quaternion();
+				const worldScale = new THREE.Vector3();
+				worldMatrix.decompose(worldPosition, worldQuaternion, worldScale);
+				
+				wireframeMesh.position.copy(worldPosition);
+				wireframeMesh.quaternion.copy(worldQuaternion);
+				wireframeMesh.scale.copy(worldScale);
+			}
+			
+			wireframeMesh.renderOrder = 999;
+			wireframeMesh.visible = false;
+			
+			wireframeMesh.userData.isCollisionWireframe = true;
+			wireframeMesh.userData.parentAsset = parentMesh;
+			wireframeMesh.userData.assetType = assetType;
+			wireframeMesh.userData.collisionMeshName = collisionMeshInfo.name;
+			wireframeMesh.userData.collisionType = collisionMeshInfo.type;
+			wireframeMesh.userData.debugColor = randomColor;
+			wireframeMesh.userData.actualCollisionMesh = actualCollisionMesh;
+
+			console.log(`[CollisionSpawner] Created wireframe for collision mesh: ${collisionMeshInfo.name} (type: ${collisionMeshInfo.type}, color: 0x${randomColor.toString(16)})`);
+			
+			return wireframeMesh;
+		} catch (error) {
+			console.error(`[CollisionSpawner] Error creating wireframe for mesh ${collisionMeshInfo.name}:`, error);
+			return null;
 		}
 	}
 
-	/**
-	 * Updates wireframe positions to match their parent meshes
-	 */
-    updateWireframes() {
-        this.collisionWireframes.forEach((wireframes, parentUuid) => {
-            wireframes.forEach(wireframe => {
-                if (wireframe.userData.actualCollisionMesh) {
-                    // Use the actual collision mesh's current world transform
-                    const collisionMesh = wireframe.userData.actualCollisionMesh;
-                    collisionMesh.updateMatrixWorld(true);
-                    
-                    wireframe.position.copy(collisionMesh.getWorldPosition(new THREE.Vector3()));
-                    wireframe.quaternion.copy(collisionMesh.getWorldQuaternion(new THREE.Quaternion()));
-                    wireframe.scale.copy(collisionMesh.getWorldScale(new THREE.Vector3()));
-                } else if (wireframe.userData.parentAsset) {
-                    // Fallback to manual calculation
-                    const parent = wireframe.userData.parentAsset;
-                    parent.updateMatrixWorld(true);
-                    
-                    // This would need the original collision mesh info stored
-                    // For now, keep the wireframe static relative to parent
-                    console.warn('[CollisionSpawner] No collision mesh reference found for wireframe update');
-                }
-            });
-        });
-    }
-
-	/**
-	 * Gets all wireframes for a specific asset
-	 * @param {THREE.Object3D} parentMesh - The parent mesh
-	 * @returns {Array} Array of wireframe meshes
-	 */
-	getWireframesForAsset(parentMesh) {
-		return this.collisionWireframes.get(parentMesh.uuid) || [];
+	removeWireframesForAsset(parentMesh) {
+		if (parentMesh.userData.disposeCollisionWireframes) {
+			parentMesh.userData.disposeCollisionWireframes();
+		}
+		this.collisionWireframes.delete(parentMesh.uuid);
 	}
 
-	/**
-	 * Sets the visibility of all collision wireframes
-	 * @param {boolean} visible - Whether wireframes should be visible
-	 */
-	setWireframeVisibility(visible) {
-		this.collisionWireframes.forEach(wireframes => {
+	// FIXED GLOBAL UPDATE METHOD
+	updateWireframes() {
+		this.collisionWireframes.forEach((wireframes, parentUuid) => {
 			wireframes.forEach(wireframe => {
-				wireframe.visible = visible;
+				const parentAsset = wireframe.userData.parentAsset;
+				if (parentAsset && parentAsset.userData.updateCollisionWireframes) {
+					parentAsset.userData.updateCollisionWireframes();
+				}
+			});
+		});
+	}
+
+	getWireframesForAsset(parentMesh) {
+		return parentMesh.userData.collisionWireframes || [];
+	}
+
+	setWireframeVisibility(visible) {
+		this.collisionWireframes.forEach((wireframes, parentUuid) => {
+			wireframes.forEach(wireframe => {
+				const parentAsset = wireframe.userData.parentAsset;
+				if (parentAsset) {
+					if (visible) {
+						parentAsset.userData.enableCollisionWireframes();
+					} else {
+						parentAsset.userData.disableCollisionWireframes();
+					}
+				}
 			});
 		});
 		console.log(`[CollisionSpawner] Set wireframe visibility to: ${visible}`);
 	}
 
-	/**
-	 * Regenerates random colors for all existing wireframes
-	 */
+	enableAllCollisionWireframes() {
+		this.collisionWireframes.forEach((wireframes, parentUuid) => {
+			wireframes.forEach(wireframe => {
+				const parentAsset = wireframe.userData.parentAsset;
+				if (parentAsset && parentAsset.userData.enableCollisionWireframes) {
+					parentAsset.userData.enableCollisionWireframes();
+				}
+			});
+		});
+		console.log('[CollisionSpawner] Enabled wireframes for all assets');
+	}
+
+	disableAllCollisionWireframes() {
+		this.collisionWireframes.forEach((wireframes, parentUuid) => {
+			wireframes.forEach(wireframe => {
+				const parentAsset = wireframe.userData.parentAsset;
+				if (parentAsset && parentAsset.userData.disableCollisionWireframes) {
+					parentAsset.userData.disableCollisionWireframes();
+				}
+			});
+		});
+		console.log('[CollisionSpawner] Disabled wireframes for all assets');
+	}
+
 	regenerateWireframeColors() {
 		this.shuffleColors();
-		this.collisionWireframes.forEach(wireframes => {
+		this.collisionWireframes.forEach((wireframes, parentUuid) => {
 			wireframes.forEach(wireframe => {
-				if (wireframe.material) {
+				const parentAsset = wireframe.userData.parentAsset;
+				if (parentAsset && parentAsset.userData.setCollisionWireframeColor) {
 					const newColor = this.getRandomDebugColor();
-					wireframe.material.color.setHex(newColor);
-					wireframe.userData.debugColor = newColor;
+					parentAsset.userData.setCollisionWireframeColor(newColor);
 				}
 			});
 		});
 		console.log(`[CollisionSpawner] Regenerated random colors for all wireframes`);
 	}
 
-	/**
-	 * Sets the color of all collision wireframes
-	 * @param {number} color - Hex color value (e.g., 0xff0000 for red)
-	 */
 	setWireframeColor(color) {
-		this.collisionWireframes.forEach(wireframes => {
+		this.collisionWireframes.forEach((wireframes, parentUuid) => {
 			wireframes.forEach(wireframe => {
-				if (wireframe.material) {
-					wireframe.material.color.setHex(color);
-					wireframe.userData.debugColor = color;
+				const parentAsset = wireframe.userData.parentAsset;
+				if (parentAsset && parentAsset.userData.setCollisionWireframeColor) {
+					parentAsset.userData.setCollisionWireframeColor(color);
 				}
 			});
 		});
 		console.log(`[CollisionSpawner] Set wireframe color to: 0x${color.toString(16)}`);
 	}
 
-	/**
-	 * Sets the opacity of all collision wireframes
-	 * @param {number} opacity - Opacity value between 0 and 1
-	 */
 	setWireframeOpacity(opacity) {
-		this.collisionWireframes.forEach(wireframes => {
+		this.collisionWireframes.forEach((wireframes, parentUuid) => {
 			wireframes.forEach(wireframe => {
-				if (wireframe.material) {
-					wireframe.material.opacity = Math.max(0, Math.min(1, opacity));
+				const parentAsset = wireframe.userData.parentAsset;
+				if (parentAsset && parentAsset.userData.setCollisionWireframeOpacity) {
+					parentAsset.userData.setCollisionWireframeOpacity(opacity);
 				}
 			});
 		});
 		console.log(`[CollisionSpawner] Set wireframe opacity to: ${opacity}`);
 	}
 
-	/**
-	 * Gets statistics about current wireframes
-	 * @returns {Object} Statistics object
-	 */
 	getWireframeStats() {
 		let totalWireframes = 0;
 		let assetsWithWireframes = 0;
 		const colorDistribution = {};
 		
-		this.collisionWireframes.forEach(wireframes => {
+		this.collisionWireframes.forEach((wireframes, parentUuid) => {
 			totalWireframes += wireframes.length;
 			assetsWithWireframes++;
 			
@@ -363,21 +451,13 @@ export class CollisionSpawner {
 		};
 	}
 
-	/**
-	 * Clears all wireframes from the scene
-	 */
 	clearAllWireframes() {
 		let totalCleared = 0;
-		this.collisionWireframes.forEach(wireframes => {
+		this.collisionWireframes.forEach((wireframes, parentUuid) => {
 			wireframes.forEach(wireframe => {
-				if (wireframe.parent) {
-					wireframe.parent.remove(wireframe);
-				}
-				if (wireframe.geometry) {
-					wireframe.geometry.dispose();
-				}
-				if (wireframe.material) {
-					wireframe.material.dispose();
+				const parentAsset = wireframe.userData.parentAsset;
+				if (parentAsset && parentAsset.userData.disposeCollisionWireframes) {
+					parentAsset.userData.disposeCollisionWireframes();
 				}
 				totalCleared++;
 			});
@@ -386,9 +466,6 @@ export class CollisionSpawner {
 		console.log(`[CollisionSpawner] Cleared ${totalCleared} wireframes`);
 	}
 
-	/**
-	 * Disposes of the spawner instance
-	 */
 	dispose() {
 		this.clearAllWireframes();
 		this.scene = null;

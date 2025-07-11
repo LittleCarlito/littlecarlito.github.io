@@ -625,6 +625,11 @@ export function createDebugUI() {
 	debugTogglesTitle.style.marginBottom = '8px';
 	debugUI.appendChild(debugTogglesTitle);
 	// Create toggles
+	addToggle(debugUI, 'COLLISION_VISUALIZATION', 'Collision Visualization', FLAGS.COLLISION_VISUALIZATION || false, (checked) => {
+		FLAGS.COLLISION_VISUALIZATION = checked;
+		toggleCollisionVisualization(checked);
+		console.log(`Collision visualization ${checked ? 'enabled' : 'disabled'}`);
+	});
 	addToggle(debugUI, 'RIG_VISUALIZATION', 'Rig Visualization', FLAGS.RIG_VISUALIZATION, (checked) => {
 		FLAGS.RIG_VISUALIZATION = checked;
 		toggleRigVisualization(checked);
@@ -1717,5 +1722,30 @@ function toggleRigVisualization(enabled) {
                 });
             }
         });
+    }
+}
+
+function toggleCollisionVisualization(enabled) {
+    console.log(`Collision visualization ${enabled ? 'enabled' : 'disabled'}`);
+    
+    // Get the collision spawner instance
+    if (window.CollisionSpawner) {
+        const collisionSpawner = window.CollisionSpawner.get_instance();
+        if (collisionSpawner) {
+            if (enabled) {
+                collisionSpawner.enableAllCollisionWireframes();
+            } else {
+                collisionSpawner.disableAllCollisionWireframes();
+            }
+        }
+    }
+    
+    // Alternative approach: if CollisionSpawner is not on window, try getting it through asset handler
+    if (window.asset_handler && window.asset_handler.collisionSpawner) {
+        if (enabled) {
+            window.asset_handler.collisionSpawner.enableAllCollisionWireframes();
+        } else {
+            window.asset_handler.collisionSpawner.disableAllCollisionWireframes();
+        }
     }
 }
