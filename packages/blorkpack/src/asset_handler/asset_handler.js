@@ -12,6 +12,7 @@ import { DebugFactory } from "./factories/debug_factory.js";
 import { AssetRotator } from "./common/asset_rotator.js";
 import { RigAnalyzer } from './data/rig_analyzer.js';
 import { CollisionAnalyzer } from './data/collision_analyzer.js';
+import { CollisionSpawner } from './spawners/debug_spawners/colllision_spawner.js';
 import { createRigVisualization, updateRigVisualization, clearRigVisualization } from './factories/rig_factory.js';
 
 /**
@@ -31,6 +32,7 @@ export class AssetHandler {
 	rotator;
 	rigAnalyzer;
 	collisionAnalyzer;
+	collisionSpawner;
 	activeRigVisualizations = new Map();
 
 	constructor(target_container = null, target_world = null) {
@@ -45,6 +47,7 @@ export class AssetHandler {
 		this.rotator = AssetRotator.get_instance();
 		this.rigAnalyzer = RigAnalyzer.get_instance();
 		this.collisionAnalyzer = CollisionAnalyzer.get_instance();
+		this.collisionSpawner = CollisionSpawner.get_instance(target_container, target_world);
 		this.activeRigVisualizations = new Map();
 		AssetHandler.#instance = this;
 		AssetHandler.#disposed = false;
@@ -84,13 +87,18 @@ export class AssetHandler {
 			const collisionDetails = this.collisionAnalyzer.analyze(spawnResult.mesh, assetType);
 			
 			if (collisionDetails) {
-				// Store collision details in mesh userData
 				spawnResult.mesh.userData.collisionDetails = collisionDetails;
 				spawnResult.mesh.userData.hasCollisionMeshes = collisionDetails.hasCollisionMeshes;
 				spawnResult.collisionDetails = collisionDetails;
-
-				// Log the results
 				this.collisionAnalyzer.logResults(collisionDetails, assetType);
+				
+				if (collisionDetails.hasCollisionMeshes) {
+					this.collisionSpawner.createWireframeForCollisionMeshes(
+						collisionDetails, 
+						spawnResult.mesh, 
+						assetType
+					);
+				}
 				
 				return collisionDetails;
 			}
@@ -697,6 +705,9 @@ export class AssetHandler {
 		if (this.collisionAnalyzer) {
 			this.collisionAnalyzer.dispose();
 		}
+		if (this.collisionSpawner) {
+			this.collisionSpawner.dispose();
+		}
 		this.scene = null;
 		this.world = null;
 		this.storage = null;
@@ -705,6 +716,7 @@ export class AssetHandler {
 		this.rotator = null;
 		this.rigAnalyzer = null;
 		this.collisionAnalyzer = null;
+		this.collisionSpawner = null;
 		AssetHandler.#disposed = true;
 		AssetHandler.#instance = null;
 	}
