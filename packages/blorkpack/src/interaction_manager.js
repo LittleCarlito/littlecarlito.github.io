@@ -9,17 +9,10 @@ import {
 import { DiplomaInteractionHandler } from './diploma_interaction_handler';
 import { ActivationInteractionHandler } from './activation_interaction_handler';
 import { BackgroundInteractionHandler } from './background_interaction_handler';
-
-const LogLevel = {
-    DEBUG: 'debug',
-    WARN: 'warn',
-    INFO: 'info',
-    ERROR: 'error'
-};
+import { UIInteractionHandler } from './ui_interaction_handler';
 
 export class InteractionManager {
     static instance = null;
-    static LOG_FLAG = true;
     static mouse_sensitivity = 0.02;
 
     constructor() {
@@ -41,8 +34,8 @@ export class InteractionManager {
         this.diploma_handler = new DiplomaInteractionHandler();
         this.activation_interaction_handler = new ActivationInteractionHandler();
         this.background_interaction_handler = new BackgroundInteractionHandler();
+        this.ui_interaction_handler = new UIInteractionHandler();
         this.rig_interaction_active = false;
-        this.current_hovered_label = null;
         InteractionManager.instance = this;
     }
 
@@ -58,6 +51,8 @@ export class InteractionManager {
         await this.#waitForDependencies();
         this.activation_interaction_handler.initialize(incomingWindow);
         this.background_interaction_handler.initialize(incomingWindow);
+        this.ui_interaction_handler.initialize(incomingWindow);
+        this.window.activation_interaction_handler = this.activation_interaction_handler;
         this.abortController = new AbortController();
         const abortSignal = this.abortController.signal;
         this.listening = true;
@@ -70,9 +65,6 @@ export class InteractionManager {
     }
 
     stopListening() {
-        if(!this.listening) {
-            this.#logString("Wasn't listening anyways...", LogLevel.WARN)
-        }
         if (this.abortController) {
             this.abortController.abort();
         }
@@ -85,6 +77,9 @@ export class InteractionManager {
         if (this.background_interaction_handler) {
             this.background_interaction_handler.dispose();
         }
+        if (this.ui_interaction_handler) {
+            this.ui_interaction_handler.dispose();
+        }
         this.#resetCursor();
         this.window = null;
         this.abortController = null;
@@ -92,10 +87,6 @@ export class InteractionManager {
     }
 
     handle_resize(e) {
-        if(!this.listening) {
-            this.#logString("Cannot handle resize. Not listening...", LogLevel.ERROR, true);
-            return;
-        }
         if (this.resize_timeout) {
             clearTimeout(this.resize_timeout);
         }
@@ -109,10 +100,6 @@ export class InteractionManager {
     }
 
     handle_mouse_move(e) {
-        if(!this.listening) {
-            this.#logString("Cannot handle mouse move. Not listening...", LogLevel.ERROR, true);
-            return;
-        }
         if(this.window.viewable_container.is_animating()) {
             return;
         }
@@ -128,10 +115,6 @@ export class InteractionManager {
     }
 
     handle_mouse_down(e) {
-        if(!this.listening) {
-            this.#logString("Cannot handle mouse down. Not listening...", LogLevel.ERROR, true);
-            return;
-        }
         if(e.button === 0) {
             this.left_mouse_down = true;
             this.background_interaction_handler.setMouseState(true);
@@ -156,10 +139,6 @@ export class InteractionManager {
     }
 
     handle_mouse_up(e) {
-        if(!this.listening) {
-            this.#logString("Cannot handle mouse up. Not listening...", LogLevel.ERROR, true);
-            return;
-        }
         if(this.grabbed_object) {
             release_object(this.grabbed_object, this.window.background_container);
             this.grabbed_object = null;
@@ -175,7 +154,7 @@ export class InteractionManager {
         
         let handled = false;
         if (e.button === 0) {
-            handled = this.#handle_click(intersections);
+            handled = this.ui_interaction_handler.handleUIClick(intersections);
         }
         
         if (!handled) {
@@ -258,22 +237,6 @@ export class InteractionManager {
         }
     }
 
-    #handle_click(intersections) {
-        const relevant_intersections = intersections.filter(intersection => {
-            const object_name = intersection.object.name;
-            return object_name.includes('artist_');
-        });
-        
-        if (relevant_intersections.length > 0) {
-            const overlay = this.window.viewable_container.get_overlay();
-            if (overlay && overlay.artist_block) {
-                overlay.artist_block.handle_click();
-                return true;
-            }
-        }
-        return false;
-    }
-
     handle_intersections(e) {
         const found_intersections = this.get_intersect_list(e, this.window.viewable_container.get_camera(), this.window.scene);       
         const is_overlay_hidden = this.window.viewable_container.is_overlay_hidden();
@@ -288,96 +251,9 @@ export class InteractionManager {
             return;
         }
         
-        let relevant_intersections = found_intersections;
-        if(!is_overlay_hidden) {
-            relevant_intersections = found_intersections.filter(intersection => {
-                const object_name = intersection.object.name;
-                const name_type = object_name.split("_")[0] + "_";
-                return name_type === BTYPES.LABEL || object_name.includes('artist_') || object_name.includes('link_') || object_name.includes('hide_');
-            });
-        }
-        
         this.background_interaction_handler.checkRoomHover(found_intersections, this.rig_interaction_active);
         
-        if(relevant_intersections.length > 0 && !this.window.viewable_container.get_overlay().is_swapping_sides()) {
-            const intersected_object = relevant_intersections[0].object;
-            const object_name = intersected_object.name;
-            const name_type = object_name.split("_")[0] + "_";
-            switch(name_type) {
-            case BTYPES.LABEL:
-                this.#setCursor('pointer');
-                this.#logLabelInformation(intersected_object);
-                this.window.viewable_container.get_overlay().handle_hover(intersected_object);
-                this.activation_interaction_handler.handle_category_hover(object_name);
-                break;
-            case 'artist_':
-                this.#setCursor('pointer');
-                break;
-            case 'link_':
-                this.#setCursor('pointer');
-                break;
-            case 'hide_':
-                this.#setCursor('pointer');
-                break;
-            case BTYPES.FLOOR:
-                this.#clearLabelHover();
-                this.window.viewable_container.get_overlay().reset_hover();
-                this.activation_interaction_handler.handle_category_hover_exit();
-                break;
-            case BTYPES.INTERACTABLE:
-                break;
-            default:
-                this.#clearLabelHover();
-                this.window.viewable_container.get_overlay().reset_hover();
-                this.activation_interaction_handler.handle_category_hover_exit();
-                break;
-            }
-        } else {
-            this.#clearLabelHover();
-            this.window.viewable_container.get_overlay().reset_hover();
-            this.activation_interaction_handler.handle_category_hover_exit();
-        }
-    }
-
-    #logLabelInformation(intersected_object) {
-        if (this.current_hovered_label === intersected_object.name) {
-            return;
-        }
-        
-        this.current_hovered_label = intersected_object.name;
-        
-        const labelInfo = {
-            name: intersected_object.name,
-            simple_name: intersected_object.simple_name,
-            position: {
-                x: intersected_object.position.x,
-                y: intersected_object.position.y,
-                z: intersected_object.position.z
-            },
-            rotation: {
-                x: intersected_object.rotation.x,
-                y: intersected_object.rotation.y,
-                z: intersected_object.rotation.z
-            },
-            parent_name: intersected_object.parent?.name,
-            render_order: intersected_object.renderOrder
-        };
-        
-        console.log("Label Hover Info:", labelInfo);
-    }
-
-    #clearLabelHover() {
-        if (this.current_hovered_label) {
-            console.log("Label hover cleared:", this.current_hovered_label);
-            this.current_hovered_label = null;
-            this.#setCursor('default');
-        }
-    }
-
-    #setCursor(cursorType) {
-        if (this.window && this.window.document && this.window.document.body) {
-            this.window.document.body.style.cursor = cursorType;
-        }
+        this.ui_interaction_handler.handleUIIntersections(found_intersections, is_overlay_hidden);
     }
 
     #determineInteractionPriority(intersections) {
@@ -415,7 +291,9 @@ export class InteractionManager {
     }
 
     #resetCursor() {
-        this.#setCursor('default');
+        if (this.window && this.window.document && this.window.document.body) {
+            this.window.document.body.style.cursor = 'default';
+        }
     }
 
     get_intersect_list(e, incoming_camera, incoming_scene) {
@@ -459,24 +337,5 @@ export class InteractionManager {
             this.raycaster = new THREE.Raycaster();
         }
         return this.raycaster;
-    }
-
-    #logString(incomingString, incomingLevel, forceLog = false) {
-        if(InteractionManager.LOG_FLAG || forceLog) {
-            switch(incomingLevel) {
-                case LogLevel.DEBUG:
-                    console.debug(incomingString);
-                    break;
-                case LogLevel.WARN:
-                    console.warn(incomingString);
-                    break;
-                case LogLevel.INFO:
-                    console.info(incomingString);
-                    break;
-                case LogLevel.ERROR:
-                    console.error(incomingString);
-                    break;
-            }
-        }
     }
 }
