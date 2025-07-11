@@ -11,6 +11,7 @@ import {
 import { DebugFactory } from "./factories/debug_factory.js";
 import { AssetRotator } from "./common/asset_rotator.js";
 import { RigAnalyzer } from './data/rig_analyzer.js';
+import { CollisionAnalyzer } from './data/collision_analyzer.js';
 import { createRigVisualization, updateRigVisualization, clearRigVisualization } from './factories/rig_factory.js';
 
 /**
@@ -29,6 +30,7 @@ export class AssetHandler {
 	debugFactory = null;
 	rotator;
 	rigAnalyzer;
+	collisionAnalyzer;
 	activeRigVisualizations = new Map();
 
 	constructor(target_container = null, target_world = null) {
@@ -42,6 +44,7 @@ export class AssetHandler {
 		this.#assetConfigs = CustomTypeManager.getConfigs();
 		this.rotator = AssetRotator.get_instance();
 		this.rigAnalyzer = RigAnalyzer.get_instance();
+		this.collisionAnalyzer = CollisionAnalyzer.get_instance();
 		this.activeRigVisualizations = new Map();
 		AssetHandler.#instance = this;
 		AssetHandler.#disposed = false;
@@ -64,6 +67,39 @@ export class AssetHandler {
 		}
 		
 		return AssetHandler.#instance;
+	}
+
+	/**
+	 * Analyzes an asset for collision meshes with "col_" prefix
+	 * @param {Object} spawnResult - Result from spawn_asset containing mesh and other data
+	 * @param {string} assetType - The asset type for logging
+	 * @returns {Object|null} Collision details if found, null otherwise
+	 */
+	analyzeAssetCollision(spawnResult, assetType) {
+		if (!spawnResult || !spawnResult.mesh) {
+			return null;
+		}
+
+		try {
+			const collisionDetails = this.collisionAnalyzer.analyze(spawnResult.mesh, assetType);
+			
+			if (collisionDetails) {
+				// Store collision details in mesh userData
+				spawnResult.mesh.userData.collisionDetails = collisionDetails;
+				spawnResult.mesh.userData.hasCollisionMeshes = collisionDetails.hasCollisionMeshes;
+				spawnResult.collisionDetails = collisionDetails;
+
+				// Log the results
+				this.collisionAnalyzer.logResults(collisionDetails, assetType);
+				
+				return collisionDetails;
+			}
+		} catch (error) {
+			console.error(`[AssetHandler] Error analyzing collision meshes for ${assetType}:`, error);
+			spawnResult.mesh.userData.hasCollisionMeshes = false;
+		}
+		
+		return null;
 	}
 
 	/**
@@ -211,6 +247,7 @@ export class AssetHandler {
 					const spawnResult = await custom_factory.spawn_custom_asset(type_value, position, rotation, options);
 					
 					if (spawnResult) {
+						this.analyzeAssetCollision(spawnResult, type_value);
 						this.analyzeAssetRig(spawnResult, type_value);
 					}
 					
@@ -657,6 +694,9 @@ export class AssetHandler {
 		if (this.rigAnalyzer) {
 			this.rigAnalyzer.dispose();
 		}
+		if (this.collisionAnalyzer) {
+			this.collisionAnalyzer.dispose();
+		}
 		this.scene = null;
 		this.world = null;
 		this.storage = null;
@@ -664,6 +704,7 @@ export class AssetHandler {
 		this.debugFactory = null;
 		this.rotator = null;
 		this.rigAnalyzer = null;
+		this.collisionAnalyzer = null;
 		AssetHandler.#disposed = true;
 		AssetHandler.#instance = null;
 	}
@@ -700,9 +741,4 @@ export class AssetHandler {
 		}
 	}
 
-	static dispose_instance() {
-		if (AssetHandler.#instance) {
-			AssetHandler.#instance.dispose();
-		}
-	}
 }
