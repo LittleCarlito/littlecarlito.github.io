@@ -106,11 +106,15 @@ export class InteractionManager {
         
         this.diploma_handler.update_mouse_position(e.clientX, e.clientY);
         
+        // Priority 1: Handle background interactions (including precise object dragging)
         if (this.background_interaction_handler.handleMouseMove(e)) {
             return;
         }
         
+        // Priority 2: Handle camera rotation and pan
         this.#handle_rotation_and_pan(e);
+        
+        // Priority 3: Handle intersections
         this.handle_intersections(e);
     }
 
@@ -119,6 +123,8 @@ export class InteractionManager {
             this.left_mouse_down = true;
             this.background_interaction_handler.setMouseState(true);
             
+            // Background handler now handles both object dragging and room rotation
+            // NO early return check - let background handler decide
             if (this.background_interaction_handler.handleMouseDown(e)) {
                 return;
             }
@@ -129,7 +135,12 @@ export class InteractionManager {
         }
         if(e.button === 2) {
             this.right_mouse_down = true;
-            if(this.grabbed_object) {
+            // Release any objects being dragged by background handler
+            if(this.background_interaction_handler.isDraggingObject()) {
+                // Background handler will handle this in handleMouseUp
+            }
+            // Handle existing grabbed_object system
+            else if(this.grabbed_object) {
                 release_object(this.grabbed_object);
                 this.grabbed_object = null;
             } else if(this.window.viewable_container.is_overlay_hidden()) {
@@ -139,11 +150,13 @@ export class InteractionManager {
     }
 
     handle_mouse_up(e) {
+        // Handle any existing grabbed objects first
         if(this.grabbed_object) {
             release_object(this.grabbed_object, this.window.background_container);
             this.grabbed_object = null;
         }
         
+        // Handle background interactions (object dragging and room rotation)
         this.background_interaction_handler.handleMouseUp();
         
         const intersections = this.get_intersect_list(
@@ -173,6 +186,23 @@ export class InteractionManager {
     }
 
     handle_wheel(e) {
+        // Check if background handler is dragging an object
+        if(this.background_interaction_handler.isDraggingObject()) {
+            const draggedObject = this.background_interaction_handler.getDraggedObject();
+            if(draggedObject) {
+                // Apply zoom to the dragged object
+                if(e.deltaY < 0) {
+                    this.#zoomDraggedObjectIn(draggedObject);
+                } else {
+                    this.#zoomDraggedObjectOut(draggedObject);
+                }
+                this.zoom_event = true;
+                this.resize_move = true;
+                return;
+            }
+        }
+        
+        // Handle existing grabbed object system
         if(this.grabbed_object) {
             if(e.deltaY < 0) {
                 this.window.background_container.break_secondary_chains();
@@ -224,6 +254,12 @@ export class InteractionManager {
 
     #handle_rotation_and_pan(e) {
         update_mouse_position(e);
+        
+        // Don't handle camera rotation/pan if background handler is dragging an object
+        if (this.background_interaction_handler.isDraggingObject()) {
+            return;
+        }
+        
         if(this.window.viewable_container.detect_rotation && this.left_mouse_down) {
             this.window.viewable_container.get_camera_manager().rotate(
                 e.movementX * InteractionManager.mouse_sensitivity,
@@ -251,6 +287,7 @@ export class InteractionManager {
             return;
         }
         
+        // Pass rig interaction state to background handler
         this.background_interaction_handler.checkRoomHover(found_intersections, this.rig_interaction_active);
         
         this.ui_interaction_handler.handleUIIntersections(found_intersections, is_overlay_hidden);
@@ -293,6 +330,35 @@ export class InteractionManager {
     #resetCursor() {
         if (this.window && this.window.document && this.window.document.body) {
             this.window.document.body.style.cursor = 'default';
+        }
+    }
+
+    // Enhanced zoom methods for dragged objects
+    #zoomDraggedObjectIn(draggedObject) {
+        if (!draggedObject) return;
+        
+        const currentScale = draggedObject.scale.x;
+        const newScale = Math.min(currentScale * 1.1, 3.0); // Max scale of 3x
+        draggedObject.scale.setScalar(newScale);
+        
+        // Update physics body scale if present
+        if (draggedObject.userData.physicsBody) {
+            // Note: Physics body scaling might need special handling depending on your physics system
+            console.log(`Scaled dragged object ${draggedObject.name} to ${newScale.toFixed(2)}x`);
+        }
+    }
+
+    #zoomDraggedObjectOut(draggedObject) {
+        if (!draggedObject) return;
+        
+        const currentScale = draggedObject.scale.x;
+        const newScale = Math.max(currentScale * 0.9, 0.1); // Min scale of 0.1x
+        draggedObject.scale.setScalar(newScale);
+        
+        // Update physics body scale if present
+        if (draggedObject.userData.physicsBody) {
+            // Note: Physics body scaling might need special handling depending on your physics system
+            console.log(`Scaled dragged object ${draggedObject.name} to ${newScale.toFixed(2)}x`);
         }
     }
 

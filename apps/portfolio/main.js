@@ -289,10 +289,11 @@ function toggle_physics_pause() {
 
 window.toggle_physics_pause = toggle_physics_pause;
 
-/** Primary animation function run every frame by renderer */
+/** Enhanced animation function with direct mesh manipulation support */
 function animate() {
 	const delta = window.clock.getDelta();
 	updateTween();
+	
 	if(interactionManager.resize_move) {
 		if(!interactionManager.zoom_event) {
 			window.viewable_container.resize_reposition();
@@ -301,6 +302,7 @@ function animate() {
 		}
 		interactionManager.resize_move = false;
 	}
+	
 	const isTextActive = window.viewable_container.is_text_active();
 	if (!window.previousTextContainerState && isTextActive && !is_physics_paused) {
 		if (FLAGS.SELECT_LOGS) {
@@ -316,16 +318,26 @@ function animate() {
 		toggle_physics_pause();
 	}
 	window.previousTextContainerState = isTextActive;
+	
+	// Handle existing grabbed object system
 	if(interactionManager.grabbed_object) {
 		translate_object(interactionManager.grabbed_object, window.viewable_container.get_camera());
 	}
+	
+	// Background container objects are moved directly via mesh position
+	// No physics involvement needed since they have enablePhysics: false
+	
 	window.world.timestep = Math.min(delta, 0.1);
 	if (!is_physics_paused) {
 		window.world.step();
 	}
+	
 	if (window.background_container) {
+		// Background container update handles dynamic bodies only
+		// Dragged objects are handled directly via position manipulation
 		window.background_container.update(interactionManager.grabbed_object, window.viewable_container);
 	}
+	
 	if (AssetStorage.get_instance()) {
 		if (!is_physics_paused) {
 			AssetStorage.get_instance().update();
@@ -340,13 +352,16 @@ function animate() {
 			}
 		}
 	}
+	
 	window.viewable_container.get_overlay().update_confetti();
+	
 	if (window.asset_handler) {
 		window.asset_handler.update_visualizations();
 		if (window.asset_handler.update_debug_meshes) {
 			window.asset_handler.update_debug_meshes();
 		}
 	}
+	
 	window.app_renderer.render();
 }
 

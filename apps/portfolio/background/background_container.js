@@ -630,4 +630,168 @@ export class BackgroundContainer {
 	contains_object(incoming_name) {
 		return AssetStorage.get_instance().contains_object(incoming_name);
 	}
+
+	getDraggedObjectByName(objectName) {
+		let foundObject = null;
+		this.asset_container.traverse((child) => {
+			if (child.name === objectName) {
+				foundObject = child;
+			}
+		});
+		return foundObject;
+	}
+
+	// Get all grabbable objects in the container
+	getGrabbableObjects() {
+		const grabbableObjects = [];
+		const grabbableTypes = [
+			'NOTEBOOK',
+			'BOOK', 
+			'TABLET',
+			'KEYBOARD',
+			'PLANT',
+			'MOUSEPAD',
+			'MOUSE',
+			'DESKPHOTO',
+			'COMPUTER',
+			'CHAIR'
+		];
+		
+		this.asset_container.traverse((child) => {
+			if (child.name && child.name.includes('interactable_')) {
+				const assetType = child.name.replace('interactable_', '').split('_')[0];
+				if (grabbableTypes.includes(assetType)) {
+					grabbableObjects.push(child);
+				}
+			}
+		});
+		
+		return grabbableObjects;
+	}
+
+	// Enhanced method to get object bounds for precise manipulation
+	getObjectBounds(objectName) {
+		const object = this.getDraggedObjectByName(objectName);
+		if (!object) return null;
+		
+		const box = new THREE.Box3().setFromObject(object);
+		const size = new THREE.Vector3();
+		const center = new THREE.Vector3();
+		
+		box.getSize(size);
+		box.getCenter(center);
+		
+		return {
+			box: box,
+			size: size,
+			center: center,
+			min: box.min.clone(),
+			max: box.max.clone()
+		};
+	}
+
+	// Method to validate object movement bounds (optional constraint system)
+	isValidObjectPosition(objectName, newPosition) {
+		// Basic bounds checking - you can enhance this with more sophisticated constraints
+		const bounds = this.getObjectBounds(objectName);
+		if (!bounds) return true;
+		
+		// Example: Keep objects within reasonable bounds of the desk/room
+		const maxDistance = 20; // Adjust based on your scene scale
+		const origin = new THREE.Vector3(0, FLOOR_HEIGHT, 0);
+		const distance = newPosition.distanceTo(origin);
+		
+		return distance <= maxDistance;
+	}
+
+	// Method to snap objects to surface/desk when released
+	snapObjectToSurface(objectName) {
+		const object = this.getDraggedObjectByName(objectName);
+		if (!object) return false;
+		
+		// Simple desk snapping - adjust Y position to desk height for appropriate objects
+		const assetType = objectName.replace('interactable_', '').split('_')[0];
+		const deskObjects = ['NOTEBOOK', 'BOOK', 'TABLET', 'KEYBOARD', 'MOUSEPAD', 'MOUSE', 'DESKPHOTO'];
+		
+		if (deskObjects.includes(assetType)) {
+			object.position.y = DESK_HEIGHT;
+			console.log(`Snapped ${objectName} to desk surface`);
+			return true;
+		}
+		
+		return false;
+	}
+
+	// Enhanced update method to handle dragged objects
+	update(grabbed_object, viewable_container, dragged_object = null) {
+		// Update dynamic bodies as before
+		this.dynamic_bodies.forEach(entry => {
+			const mesh = Array.isArray(entry) ? entry[0] : entry.mesh;
+			const body = Array.isArray(entry) ? entry[1] : entry.body;
+			if(body != null) {
+				// Skip physics update for dragged object to prevent conflicts
+				if (dragged_object && mesh === dragged_object) {
+					return;
+				}
+				
+				const position = body.translation();
+				mesh.position.set(position.x, position.y, position.z);
+				const rotation = body.rotation();
+				mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+			}
+		});
+		
+		const assetHandler = AssetHandler.get_instance();
+		if (assetHandler) {
+			assetHandler.updateAllCollisionWireframes();
+		}
+	}
+
+	// Method to temporarily disable physics for dragged objects
+	disablePhysicsForObject(objectName) {
+		const object = this.getDraggedObjectByName(objectName);
+		if (object && object.userData.physicsBody) {
+			// Store original physics state
+			if (!object.userData.originalPhysicsState) {
+				object.userData.originalPhysicsState = {
+					bodyType: object.userData.physicsBody.bodyType(),
+					isEnabled: object.userData.physicsBody.isEnabled()
+				};
+			}
+			
+			// Make kinematic during dragging to prevent physics interference
+			object.userData.physicsBody.setBodyType(2); // Kinematic
+			console.log(`Disabled physics for dragged object: ${objectName}`);
+			return true;
+		}
+		return false;
+	}
+
+	// Method to re-enable physics for released objects
+	enablePhysicsForObject(objectName) {
+		const object = this.getDraggedObjectByName(objectName);
+		if (object && object.userData.physicsBody && object.userData.originalPhysicsState) {
+			// Restore original physics state
+			object.userData.physicsBody.setBodyType(object.userData.originalPhysicsState.bodyType);
+			
+			// Sync final position/rotation to physics body
+			const pos = object.position;
+			const rot = object.quaternion;
+			object.userData.physicsBody.setTranslation({ x: pos.x, y: pos.y, z: pos.z });
+			object.userData.physicsBody.setRotation({ x: rot.x, y: rot.y, z: rot.z, w: rot.w });
+			
+			// Clear stored state
+			delete object.userData.originalPhysicsState;
+			
+			console.log(`Re-enabled physics for released object: ${objectName}`);
+			return true;
+		}
+		return false;
+	}
+
+	// Method to check if an object is currently being manipulated
+	isObjectBeingManipulated(objectName) {
+		const object = this.getDraggedObjectByName(objectName);
+		return object && object.userData.originalPhysicsState !== undefined;
+	}
 }
