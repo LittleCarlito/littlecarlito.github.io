@@ -37,7 +37,7 @@ import { AssetStorage } from './asset_storage.js';
 import { AssetHandler } from './asset_handler/asset_handler.js';
 import { BTYPES } from './BTYPES.js';
 import { MaterialFactory } from './asset_handler/index.js';
-import { InteractionManager } from './interaction_manager.js';
+import { InteractionManager } from './interaction/interaction_manager.js';
 import { CSS3DFactory } from './asset_handler/index.js';
 import { ManifestManager } from './manifest_manager.js';
 import { AppRenderer } from './app_renderer.js';

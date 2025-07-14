@@ -1,5 +1,5 @@
 import { THREE } from '../../index';
-import { setupRigInteractionHandling, cleanupRigInteractionHandling } from '../../rig_interaction_handler';
+import { setupRigInteractionHandling, cleanupRigInteractionHandling } from '../../interaction/handler/rig_interaction_handler'
 
 let RIG_VISUALIZATION_ENABLED = false;
 

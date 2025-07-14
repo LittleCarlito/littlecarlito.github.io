@@ -3,6 +3,10 @@ import { AssetHandler }  from '@littlecarlito/blorkpack';
 import { BLORKPACK_FLAGS } from "@littlecarlito/blorkpack";
 import { SystemAssetType } from "@littlecarlito/blorkpack";
 
+// Initial camera rotation constants (in degrees)
+const INITIAL_PHI_DEGREES = 18;     // Vertical rotation (polar angle)
+const INITIAL_THETA_DEGREES = 30;   // Horizontal rotation (azimuthal angle)
+
 const ANGLES = {
 	toRadians: degrees => degrees * (Math.PI / 180),
 	toDegrees: radians => radians * (180 / Math.PI)
@@ -21,6 +25,7 @@ export class CameraManager {
 		const camera_config = window.manifest_manager.get_camera_config();
 		const controls_config = camera_config.controls;
 		
+		// Initialize angles to 0 first
 		this.phi = 0;
 		this.theta = 0;
 		
@@ -40,6 +45,13 @@ export class CameraManager {
 		this.on_update_callbacks = new Set();
 		this.overlay_container = null;
 		
+		// Apply initial rotation using the proper rotation method
+		if (INITIAL_PHI_DEGREES !== 0 || INITIAL_THETA_DEGREES !== 0) {
+			this.phi = INITIAL_PHI_DEGREES;
+			this.theta = INITIAL_THETA_DEGREES;
+		}
+		
+		// Initial camera update with rotation applied - but overlay_container is null at this point
 		this.update_camera();
 		
 		if (camera_config.shoulder_lights && camera_config.shoulder_lights.enabled) {
@@ -164,6 +176,10 @@ export class CameraManager {
 
 	set_overlay_container(container) {
 		this.overlay_container = container;
+		// Apply initial rotation after overlay container is set
+		if (INITIAL_PHI_DEGREES !== 0 || INITIAL_THETA_DEGREES !== 0) {
+			this.update_camera();
+		}
 	}
 
 	async cleanupDebugMeshes() {

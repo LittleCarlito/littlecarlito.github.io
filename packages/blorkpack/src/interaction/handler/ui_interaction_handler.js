@@ -1,4 +1,4 @@
-import { BTYPES } from './index';
+import { BTYPES } from '../../index';
 
 export class UIInteractionHandler {
     constructor() {

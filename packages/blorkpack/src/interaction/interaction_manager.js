@@ -1,15 +1,14 @@
-import { BTYPES, extract_type, THREE } from './index';
+import { BTYPES, extract_type, THREE } from '../index';
 import { 
     update_mouse_position,
     zoom_object_in,
     zoom_object_out,
-    release_object,
-    grab_object
-} from "./physics";
-import { DiplomaInteractionHandler } from './diploma_interaction_handler';
-import { ActivationInteractionHandler } from './activation_interaction_handler';
-import { BackgroundInteractionHandler } from './background_interaction_handler';
-import { UIInteractionHandler } from './ui_interaction_handler';
+    release_object
+} from "../physics";
+import { DiplomaInteractionHandler } from './handler/diploma_interaction_handler';
+import { ActivationInteractionHandler } from './handler/activation_interaction_handler';
+import { BackgroundInteractionHandler } from './handler/background_interaction_handler';
+import { UIInteractionHandler } from './handler/ui_interaction_handler';
 
 export class InteractionManager {
     static instance = null;
@@ -36,7 +35,6 @@ export class InteractionManager {
         this.background_interaction_handler = new BackgroundInteractionHandler();
         this.ui_interaction_handler = new UIInteractionHandler();
         this.rig_interaction_active = false;
-        this.depth_movement_sensitivity = 0.5;
         InteractionManager.instance = this;
     }
 
@@ -131,10 +129,7 @@ export class InteractionManager {
         }
         if(e.button === 2) {
             this.right_mouse_down = true;
-            if(this.background_interaction_handler.isDraggingObject()) {
-                
-            }
-            else if(this.grabbed_object) {
+            if(this.grabbed_object) {
                 release_object(this.grabbed_object);
                 this.grabbed_object = null;
             } else if(this.window.viewable_container.is_overlay_hidden()) {
@@ -178,20 +173,6 @@ export class InteractionManager {
     }
 
     handle_wheel(e) {
-        if(this.background_interaction_handler.isDraggingObject()) {
-            const draggedObject = this.background_interaction_handler.getDraggedObject();
-            if(draggedObject) {
-                if(e.deltaY < 0) {
-                    this.#moveDraggedObjectTowardCamera(draggedObject);
-                } else {
-                    this.#moveDraggedObjectAwayFromCamera(draggedObject);
-                }
-                this.zoom_event = true;
-                this.resize_move = true;
-                return;
-            }
-        }
-        
         if(this.grabbed_object) {
             if(e.deltaY < 0) {
                 this.window.background_container.break_secondary_chains();
@@ -243,10 +224,6 @@ export class InteractionManager {
 
     #handle_rotation_and_pan(e) {
         update_mouse_position(e);
-        
-        if (this.background_interaction_handler.isDraggingObject()) {
-            return;
-        }
         
         if(this.window.viewable_container.detect_rotation && this.left_mouse_down) {
             this.window.viewable_container.get_camera_manager().rotate(
@@ -320,62 +297,6 @@ export class InteractionManager {
         }
     }
 
-    #moveDraggedObjectTowardCamera(draggedObject) {
-        if (!draggedObject || !this.window?.viewable_container) return;
-        
-        const camera = this.window.viewable_container.get_camera();
-        const cameraDirection = new THREE.Vector3();
-        camera.getWorldDirection(cameraDirection);
-        
-        const moveVector = cameraDirection.clone().multiplyScalar(this.depth_movement_sensitivity);
-        const newPosition = draggedObject.position.clone().add(moveVector);
-        
-        draggedObject.position.copy(newPosition);
-        
-        const physicsBody = this.background_interaction_handler.grabbed_physics_body;
-        if (physicsBody) {
-            physicsBody.setNextKinematicTranslation({
-                x: newPosition.x,
-                y: newPosition.y,
-                z: newPosition.z
-            });
-        }
-        
-        console.log(`Moved dragged object ${draggedObject.name} toward camera`);
-    }
-
-    #moveDraggedObjectAwayFromCamera(draggedObject) {
-        if (!draggedObject || !this.window?.viewable_container) return;
-        
-        const camera = this.window.viewable_container.get_camera();
-        const cameraDirection = new THREE.Vector3();
-        camera.getWorldDirection(cameraDirection);
-        
-        const moveVector = cameraDirection.clone().multiplyScalar(-this.depth_movement_sensitivity);
-        const newPosition = draggedObject.position.clone().add(moveVector);
-        
-        draggedObject.position.copy(newPosition);
-        
-        const physicsBody = this.background_interaction_handler.grabbed_physics_body;
-        if (physicsBody) {
-            physicsBody.setNextKinematicTranslation({
-                x: newPosition.x,
-                y: newPosition.y,
-                z: newPosition.z
-            });
-        }
-        
-        console.log(`Moved dragged object ${draggedObject.name} away from camera`);
-    }
-
-    setDepthMovementSensitivity(sensitivity) {
-        this.depth_movement_sensitivity = sensitivity;
-    }
-
-    getDepthMovementSensitivity() {
-        return this.depth_movement_sensitivity;
-    }
-
     get_intersect_list(e, incoming_camera, incoming_scene) {
         const ndc = this.#get_ndc_from_event(e);
         const mousePos = this.#getMouseLocation();
@@ -406,6 +327,15 @@ export class InteractionManager {
     }
 
     #get_ndc_from_event(e) {
+        const renderer = this.window.app_renderer?.get_renderer() || this.window.app_renderer?.webgl_renderer;
+        if (renderer && renderer.domElement) {
+            const rect = renderer.domElement.getBoundingClientRect();
+            return {
+                x: ((e.clientX - rect.left) / rect.width) * 2 - 1,
+                y: -((e.clientY - rect.top) / rect.height) * 2 + 1
+            };
+        }
+        // Fallback to original method
         return {
             x: (e.clientX / this.window.innerWidth) * 2 - 1,
             y: -(e.clientY / this.window.innerHeight) * 2 + 1
