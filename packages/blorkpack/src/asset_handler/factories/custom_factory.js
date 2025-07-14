@@ -314,14 +314,23 @@ export class CustomFactory {
 			let physicsBody = null;
 
 			if (options.enablePhysics !== false && this.world) {
-				const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
-					.setTranslation(position.x, position.y, position.z)
-					.setLinearDamping(0.5)
-					.setAngularDamping(0.6);
-				rigidBodyDesc.setGravityScale(1.0);
+				let rigidBodyDesc;
+				
+				if (options.kinematic === true) {
+					rigidBodyDesc = RAPIER.RigidBodyDesc.kinematicPositionBased()
+						.setTranslation(position.x, position.y, position.z);
+				} else {
+					rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
+						.setTranslation(position.x, position.y, position.z)
+						.setLinearDamping(0.5)
+						.setAngularDamping(0.6);
+					rigidBodyDesc.setGravityScale(1.0);
+				}
+				
 				if (rotation) {
 					rigidBodyDesc.setRotation(rotation);
 				}
+				
 				physicsBody = this.world.createRigidBody(rigidBodyDesc);
 
 				this.createColliders(collisionMeshes, physicsBody, asset_config, options);
@@ -355,7 +364,6 @@ export class CustomFactory {
 
 			ActivateMeshHandler.addActivateMeshMethodsToResult(result, activateMeshes);
 
-			// Add collision wireframe methods to the result if wireframes exist
 			if (model.userData.collisionWireframes && model.userData.collisionWireframes.length > 0) {
 				result.enableCollisionWireframes = model.userData.enableCollisionWireframes;
 				result.disableCollisionWireframes = model.userData.disableCollisionWireframes;

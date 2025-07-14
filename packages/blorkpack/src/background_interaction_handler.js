@@ -8,6 +8,7 @@ export class BackgroundInteractionHandler {
         this.hovered_asset_name = "";
         this.is_hovering_grabbable_asset = false;
         this.grabbed_object = null;
+        this.grabbed_physics_body = null;
         this.is_dragging_object = false;
         this.last_mouse_x = 0;
         this.last_mouse_y = 0;
@@ -28,6 +29,7 @@ export class BackgroundInteractionHandler {
         this.hovered_asset_name = "";
         this.is_hovering_grabbable_asset = false;
         this.grabbed_object = null;
+        this.grabbed_physics_body = null;
         this.is_dragging_object = false;
         console.log("[BackgroundInteractionHandler] Disposed");
     }
@@ -115,11 +117,8 @@ export class BackgroundInteractionHandler {
             return;
         }
         
-        // Check for grabbable assets first - FIX: Find the root asset object
         for (const intersection of intersections) {
             const object = intersection.object;
-            
-            // Find the root asset object that has the interactable_ name
             const rootAsset = this.#findRootAssetObject(object);
             
             if (rootAsset) {
@@ -172,11 +171,9 @@ export class BackgroundInteractionHandler {
         this.#updateCursor(wasHoveringRoom);
     }
 
-    // NEW METHOD: Find the root asset object by traversing up the hierarchy
     #findRootAssetObject(object) {
         let current = object;
         
-        // Traverse up the hierarchy until we find an object with interactable_ name
         while (current) {
             if (current.name && current.name.includes('interactable_')) {
                 return current;
@@ -207,7 +204,6 @@ export class BackgroundInteractionHandler {
             return;
         }
 
-        // Find the ROOT object in the background container, not a child mesh
         this.grabbed_object = this.window.background_container.getDraggedObjectByName(this.hovered_asset_name);
         
         if (!this.grabbed_object) {
@@ -215,22 +211,29 @@ export class BackgroundInteractionHandler {
             return;
         }
 
+        this.grabbed_physics_body = this.#getPhysicsBodyForObject(this.grabbed_object);
+        
+        if (!this.grabbed_physics_body) {
+            console.error(`[BackgroundInteractionHandler] Could not find physics body for object: ${this.hovered_asset_name}`);
+            return;
+        }
+
         this.is_dragging_object = true;
         this.last_mouse_x = clientX;
         this.last_mouse_y = clientY;
 
-        console.log(`[BackgroundInteractionHandler] Started dragging ROOT object: ${this.hovered_asset_name} at position:`, this.grabbed_object.position);
+        console.log(`[BackgroundInteractionHandler] Started dragging kinematic object: ${this.hovered_asset_name} at position:`, this.grabbed_object.position);
     }
 
     #updateObjectDrag(clientX, clientY) {
-        if (!this.is_dragging_object || !this.grabbed_object) {
+        if (!this.is_dragging_object || !this.grabbed_object || !this.grabbed_physics_body) {
             return;
         }
 
         const deltaX = clientX - this.last_mouse_x;
         const deltaY = clientY - this.last_mouse_y;
 
-        this.#translateObjectFromMouseDelta(deltaX, deltaY);
+        this.#translateKinematicObjectFromMouseDelta(deltaX, deltaY);
 
         this.last_mouse_x = clientX;
         this.last_mouse_y = clientY;
@@ -239,12 +242,12 @@ export class BackgroundInteractionHandler {
     #stopObjectDrag() {
         if (this.is_dragging_object && this.grabbed_object) {
             console.log(`[BackgroundInteractionHandler] Stopped dragging object: ${this.grabbed_object.name} at final position:`, this.grabbed_object.position);
-            
             this.window.background_container.snapObjectToSurface(this.grabbed_object.name);
         }
         
         this.is_dragging_object = false;
         this.grabbed_object = null;
+        this.grabbed_physics_body = null;
     }
 
     #releaseGrabbedObject() {
@@ -253,24 +256,46 @@ export class BackgroundInteractionHandler {
         }
     }
 
-    #translateObjectFromMouseDelta(deltaX, deltaY) {
-        if (!this.grabbed_object || !this.window.viewable_container) {
+    #translateKinematicObjectFromMouseDelta(deltaX, deltaY) {
+        if (!this.grabbed_object || !this.grabbed_physics_body || !this.window.viewable_container) {
             return;
         }
 
         const camera = this.window.viewable_container.get_camera();
-
         const cameraMatrix = camera.matrixWorld;
         const right = new THREE.Vector3().setFromMatrixColumn(cameraMatrix, 0);
         const up = new THREE.Vector3().setFromMatrixColumn(cameraMatrix, 1);
-
         const scaleFactor = this.drag_sensitivity;
-
         const rightMovement = right.clone().multiplyScalar(deltaX * scaleFactor);
         const upMovement = up.clone().multiplyScalar(-deltaY * scaleFactor);
 
-        this.grabbed_object.position.add(rightMovement);
-        this.grabbed_object.position.add(upMovement);
+        const newPosition = this.grabbed_object.position.clone();
+        newPosition.add(rightMovement);
+        newPosition.add(upMovement);
+
+        this.grabbed_object.position.copy(newPosition);
+        
+        this.grabbed_physics_body.setNextKinematicTranslation({
+            x: newPosition.x,
+            y: newPosition.y,
+            z: newPosition.z
+        });
+    }
+
+    #getPhysicsBodyForObject(meshObject) {
+        if (meshObject.userData && meshObject.userData.physicsBody) {
+            return meshObject.userData.physicsBody;
+        }
+        
+        const assetStorage = this.window.AssetStorage ? this.window.AssetStorage.get_instance() : null;
+        if (assetStorage) {
+            const bodyPair = assetStorage.get_body_pair_by_mesh(meshObject);
+            if (bodyPair && bodyPair[1]) {
+                return bodyPair[1];
+            }
+        }
+        
+        return null;
     }
 
     setDragSensitivity(sensitivity) {

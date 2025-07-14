@@ -36,6 +36,7 @@ export class InteractionManager {
         this.background_interaction_handler = new BackgroundInteractionHandler();
         this.ui_interaction_handler = new UIInteractionHandler();
         this.rig_interaction_active = false;
+        this.depth_movement_sensitivity = 0.5;
         InteractionManager.instance = this;
     }
 
@@ -106,15 +107,12 @@ export class InteractionManager {
         
         this.diploma_handler.update_mouse_position(e.clientX, e.clientY);
         
-        // Priority 1: Handle background interactions (including precise object dragging)
         if (this.background_interaction_handler.handleMouseMove(e)) {
             return;
         }
         
-        // Priority 2: Handle camera rotation and pan
         this.#handle_rotation_and_pan(e);
         
-        // Priority 3: Handle intersections
         this.handle_intersections(e);
     }
 
@@ -123,8 +121,6 @@ export class InteractionManager {
             this.left_mouse_down = true;
             this.background_interaction_handler.setMouseState(true);
             
-            // Background handler now handles both object dragging and room rotation
-            // NO early return check - let background handler decide
             if (this.background_interaction_handler.handleMouseDown(e)) {
                 return;
             }
@@ -135,11 +131,9 @@ export class InteractionManager {
         }
         if(e.button === 2) {
             this.right_mouse_down = true;
-            // Release any objects being dragged by background handler
             if(this.background_interaction_handler.isDraggingObject()) {
-                // Background handler will handle this in handleMouseUp
+                
             }
-            // Handle existing grabbed_object system
             else if(this.grabbed_object) {
                 release_object(this.grabbed_object);
                 this.grabbed_object = null;
@@ -150,13 +144,11 @@ export class InteractionManager {
     }
 
     handle_mouse_up(e) {
-        // Handle any existing grabbed objects first
         if(this.grabbed_object) {
             release_object(this.grabbed_object, this.window.background_container);
             this.grabbed_object = null;
         }
         
-        // Handle background interactions (object dragging and room rotation)
         this.background_interaction_handler.handleMouseUp();
         
         const intersections = this.get_intersect_list(
@@ -186,15 +178,13 @@ export class InteractionManager {
     }
 
     handle_wheel(e) {
-        // Check if background handler is dragging an object
         if(this.background_interaction_handler.isDraggingObject()) {
             const draggedObject = this.background_interaction_handler.getDraggedObject();
             if(draggedObject) {
-                // Apply zoom to the dragged object
                 if(e.deltaY < 0) {
-                    this.#zoomDraggedObjectIn(draggedObject);
+                    this.#moveDraggedObjectTowardCamera(draggedObject);
                 } else {
-                    this.#zoomDraggedObjectOut(draggedObject);
+                    this.#moveDraggedObjectAwayFromCamera(draggedObject);
                 }
                 this.zoom_event = true;
                 this.resize_move = true;
@@ -202,7 +192,6 @@ export class InteractionManager {
             }
         }
         
-        // Handle existing grabbed object system
         if(this.grabbed_object) {
             if(e.deltaY < 0) {
                 this.window.background_container.break_secondary_chains();
@@ -255,7 +244,6 @@ export class InteractionManager {
     #handle_rotation_and_pan(e) {
         update_mouse_position(e);
         
-        // Don't handle camera rotation/pan if background handler is dragging an object
         if (this.background_interaction_handler.isDraggingObject()) {
             return;
         }
@@ -287,7 +275,6 @@ export class InteractionManager {
             return;
         }
         
-        // Pass rig interaction state to background handler
         this.background_interaction_handler.checkRoomHover(found_intersections, this.rig_interaction_active);
         
         this.ui_interaction_handler.handleUIIntersections(found_intersections, is_overlay_hidden);
@@ -333,33 +320,60 @@ export class InteractionManager {
         }
     }
 
-    // Enhanced zoom methods for dragged objects
-    #zoomDraggedObjectIn(draggedObject) {
-        if (!draggedObject) return;
+    #moveDraggedObjectTowardCamera(draggedObject) {
+        if (!draggedObject || !this.window?.viewable_container) return;
         
-        const currentScale = draggedObject.scale.x;
-        const newScale = Math.min(currentScale * 1.1, 3.0); // Max scale of 3x
-        draggedObject.scale.setScalar(newScale);
+        const camera = this.window.viewable_container.get_camera();
+        const cameraDirection = new THREE.Vector3();
+        camera.getWorldDirection(cameraDirection);
         
-        // Update physics body scale if present
-        if (draggedObject.userData.physicsBody) {
-            // Note: Physics body scaling might need special handling depending on your physics system
-            console.log(`Scaled dragged object ${draggedObject.name} to ${newScale.toFixed(2)}x`);
+        const moveVector = cameraDirection.clone().multiplyScalar(this.depth_movement_sensitivity);
+        const newPosition = draggedObject.position.clone().add(moveVector);
+        
+        draggedObject.position.copy(newPosition);
+        
+        const physicsBody = this.background_interaction_handler.grabbed_physics_body;
+        if (physicsBody) {
+            physicsBody.setNextKinematicTranslation({
+                x: newPosition.x,
+                y: newPosition.y,
+                z: newPosition.z
+            });
         }
+        
+        console.log(`Moved dragged object ${draggedObject.name} toward camera`);
     }
 
-    #zoomDraggedObjectOut(draggedObject) {
-        if (!draggedObject) return;
+    #moveDraggedObjectAwayFromCamera(draggedObject) {
+        if (!draggedObject || !this.window?.viewable_container) return;
         
-        const currentScale = draggedObject.scale.x;
-        const newScale = Math.max(currentScale * 0.9, 0.1); // Min scale of 0.1x
-        draggedObject.scale.setScalar(newScale);
+        const camera = this.window.viewable_container.get_camera();
+        const cameraDirection = new THREE.Vector3();
+        camera.getWorldDirection(cameraDirection);
         
-        // Update physics body scale if present
-        if (draggedObject.userData.physicsBody) {
-            // Note: Physics body scaling might need special handling depending on your physics system
-            console.log(`Scaled dragged object ${draggedObject.name} to ${newScale.toFixed(2)}x`);
+        const moveVector = cameraDirection.clone().multiplyScalar(-this.depth_movement_sensitivity);
+        const newPosition = draggedObject.position.clone().add(moveVector);
+        
+        draggedObject.position.copy(newPosition);
+        
+        const physicsBody = this.background_interaction_handler.grabbed_physics_body;
+        if (physicsBody) {
+            physicsBody.setNextKinematicTranslation({
+                x: newPosition.x,
+                y: newPosition.y,
+                z: newPosition.z
+            });
         }
+        
+        console.log(`Moved dragged object ${draggedObject.name} away from camera`);
+    }
+
+    setDepthMovementSensitivity(sensitivity) {
+        this.depth_movement_sensitivity = sensitivity;
+    }
+
+    getDepthMovementSensitivity() {
+        return this.depth_movement_sensitivity;
     }
 
     get_intersect_list(e, incoming_camera, incoming_scene) {
