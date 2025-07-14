@@ -1,6 +1,29 @@
 import * as THREE from 'three';
 
 export class MaterialFactory {
+    static #colorPool = [
+        0xFF0080, // Hot Pink
+        0x00FF80, // Spring Green
+        0x8000FF, // Electric Purple
+        0xFF8000, // Orange
+        0x0080FF, // Dodger Blue
+        0xFF0040, // Deep Pink
+        0x40FF00, // Lime Green
+        0x0040FF, // Blue
+        0xFF4000, // Red Orange
+        0x4000FF, // Blue Violet
+        0x00FF40, // Green
+        0xFF00C0, // Magenta
+        0xC0FF00, // Yellow Green
+        0x00C0FF, // Sky Blue
+        0xFF00FF, // Fuchsia
+        0xFFFF00, // Yellow
+        0x00FFFF, // Cyan
+        0xFF4080, // Rose
+        0x80FF40, // Light Green
+        0x4080FF  // Cornflower Blue
+    ];
+    static #usedColors = new Set();
 
     async applyPbrMaterial(incomingAsset, atlasConfig) {
         if (!atlasConfig) {
@@ -54,6 +77,54 @@ export class MaterialFactory {
         return this.#createAtlasMaterial(textureObjects, 'pbr');
     }
 
+    createCollisionWireframeMaterial() {
+        const color = this.#getNextDebugColor();
+        
+        return new THREE.MeshBasicMaterial({
+            color: color,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.6,
+            side: THREE.DoubleSide,
+            depthTest: true,
+            depthWrite: false
+        });
+    }
+
+    #getNextDebugColor() {
+        if (MaterialFactory.#usedColors.size >= MaterialFactory.#colorPool.length) {
+            MaterialFactory.#usedColors.clear();
+        }
+        
+        let availableColors = MaterialFactory.#colorPool.filter(color => 
+            !MaterialFactory.#usedColors.has(color)
+        );
+        
+        if (availableColors.length === 0) {
+            availableColors = [...MaterialFactory.#colorPool];
+            MaterialFactory.#usedColors.clear();
+        }
+        
+        const randomIndex = Math.floor(Math.random() * availableColors.length);
+        const selectedColor = availableColors[randomIndex];
+        
+        MaterialFactory.#usedColors.add(selectedColor);
+        
+        return selectedColor;
+    }
+
+    static resetColorPool() {
+        MaterialFactory.#usedColors.clear();
+    }
+
+    static getUsedColorsCount() {
+        return MaterialFactory.#usedColors.size;
+    }
+
+    static getTotalColorsCount() {
+        return MaterialFactory.#colorPool.length;
+    }
+
     #resolveTexturePath(path) {
         if (!path) return null;
         if (path.startsWith('http://') || path.startsWith('https://')) {
@@ -105,10 +176,16 @@ export class MaterialFactory {
         };
 
         const meshes = [];
+        const collisionMeshes = [];
         scene.traverse(node => {
             if (node.isMesh) {
                 if (node.name.startsWith('col_')) {
+                    node.material = this.createCollisionWireframeMaterial();
                     node.visible = false;
+                    node.userData.meshId = meshes.length;
+                    node.userData.isCollisionMesh = true;
+                    collisionMeshes.push(node);
+                    meshes.push(node);
                     return;
                 }
 
@@ -131,10 +208,84 @@ export class MaterialFactory {
             }
         });
 
+        if (collisionMeshes.length > 0) {
+            this.#addCollisionWireframeMethods(scene, collisionMeshes);
+        }
+
         return {
             asset: scene,
             meshes: meshes,
             textureObjects: textureObjects
+        };
+    }
+
+    #addCollisionWireframeMethods(asset, collisionMeshes) {
+        asset.userData.collisionWireframes = collisionMeshes;
+        asset.userData.collisionWireframesEnabled = false;
+
+        asset.userData.enableCollisionWireframes = () => {
+            collisionMeshes.forEach(mesh => {
+                mesh.visible = true;
+            });
+            asset.userData.collisionWireframesEnabled = true;
+        };
+
+        asset.userData.disableCollisionWireframes = () => {
+            collisionMeshes.forEach(mesh => {
+                mesh.visible = false;
+            });
+            asset.userData.collisionWireframesEnabled = false;
+        };
+
+        asset.userData.toggleCollisionWireframes = () => {
+            if (asset.userData.collisionWireframesEnabled) {
+                asset.userData.disableCollisionWireframes();
+            } else {
+                asset.userData.enableCollisionWireframes();
+            }
+        };
+
+        asset.userData.areCollisionWireframesEnabled = () => {
+            return asset.userData.collisionWireframesEnabled;
+        };
+
+        asset.userData.getCollisionWireframeCount = () => {
+            return collisionMeshes.length;
+        };
+
+        asset.userData.updateCollisionWireframes = () => {
+            collisionMeshes.forEach(mesh => {
+                if (mesh.material && mesh.material.needsUpdate) {
+                    mesh.material.needsUpdate = true;
+                }
+            });
+        };
+
+        asset.userData.setCollisionWireframeColor = (color) => {
+            collisionMeshes.forEach(mesh => {
+                if (mesh.material) {
+                    mesh.material.color.setHex(color);
+                }
+            });
+        };
+
+        asset.userData.setCollisionWireframeOpacity = (opacity) => {
+            collisionMeshes.forEach(mesh => {
+                if (mesh.material) {
+                    mesh.material.opacity = Math.max(0, Math.min(1, opacity));
+                }
+            });
+        };
+
+        asset.userData.disposeCollisionWireframes = () => {
+            collisionMeshes.forEach(mesh => {
+                if (mesh.material) {
+                    mesh.material.dispose();
+                }
+                if (mesh.geometry) {
+                    mesh.geometry.dispose();
+                }
+            });
         };
     }
 
@@ -196,7 +347,6 @@ export class MaterialFactory {
                 baseConfig.metalness = 0.2;
             }
             
-            // Enable transparency and alpha testing for glass materials
             if (textureObjects.baseColor) {
                 baseConfig.transparent = true;
                 baseConfig.alphaTest = 0.01;

@@ -620,11 +620,6 @@ export class BackgroundContainer {
 				mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
 			}
 		});
-		
-		const assetHandler = AssetHandler.get_instance();
-		if (assetHandler) {
-			assetHandler.updateAllCollisionWireframes();
-		}
 	}
 
 	contains_object(incoming_name) {
@@ -740,11 +735,6 @@ export class BackgroundContainer {
 				mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
 			}
 		});
-		
-		const assetHandler = AssetHandler.get_instance();
-		if (assetHandler) {
-			assetHandler.updateAllCollisionWireframes();
-		}
 	}
 
 	// Method to temporarily disable physics for dragged objects

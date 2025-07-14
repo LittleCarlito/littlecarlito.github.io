@@ -11,8 +11,6 @@ import {
 import { DebugFactory } from "./factories/debug_factory.js";
 import { AssetRotator } from "./common/asset_rotator.js";
 import { RigAnalyzer } from './data/rig_analyzer.js';
-import { CollisionAnalyzer } from './data/collision_analyzer.js';
-import { CollisionSpawner } from './spawners/debug_spawners/colllision_spawner.js';
 import { createRigVisualization, updateRigVisualization, clearRigVisualization } from './factories/rig_factory.js';
 
 export class AssetHandler {
@@ -22,13 +20,9 @@ export class AssetHandler {
 	container;
 	world;
 	scene;
-	#assetTypes = null;
-	#assetConfigs = null;
 	debugFactory = null;
 	rotator;
 	rigAnalyzer;
-	collisionAnalyzer;
-	collisionSpawner;
 	activeRigVisualizations = new Map();
 
 	constructor(target_container = null, target_world = null) {
@@ -38,12 +32,8 @@ export class AssetHandler {
 		this.storage = AssetStorage.get_instance();
 		this.container = target_container;
 		this.world = target_world;
-		this.#assetTypes = CustomTypeManager.getTypes();
-		this.#assetConfigs = CustomTypeManager.getConfigs();
 		this.rotator = AssetRotator.get_instance();
 		this.rigAnalyzer = RigAnalyzer.get_instance();
-		this.collisionAnalyzer = CollisionAnalyzer.get_instance();
-		this.collisionSpawner = CollisionSpawner.get_instance(target_container, target_world);
 		this.activeRigVisualizations = new Map();
 		AssetHandler.#instance = this;
 		AssetHandler.#disposed = false;
@@ -66,38 +56,6 @@ export class AssetHandler {
 		}
 		
 		return AssetHandler.#instance;
-	}
-
-	analyzeAssetCollision(spawnResult, assetType) {
-		if (!spawnResult || !spawnResult.mesh) {
-			return null;
-		}
-
-		try {
-			const collisionDetails = this.collisionAnalyzer.analyze(spawnResult.mesh, assetType);
-			
-			if (collisionDetails) {
-				spawnResult.mesh.userData.collisionDetails = collisionDetails;
-				spawnResult.mesh.userData.hasCollisionMeshes = collisionDetails.hasCollisionMeshes;
-				spawnResult.collisionDetails = collisionDetails;
-				this.collisionAnalyzer.logResults(collisionDetails, assetType);
-				
-				if (collisionDetails.hasCollisionMeshes) {
-					this.collisionSpawner.createWireframeForCollisionMeshes(
-						collisionDetails, 
-						spawnResult.mesh, 
-						assetType
-					);
-				}
-				
-				return collisionDetails;
-			}
-		} catch (error) {
-			console.error(`[AssetHandler] Error analyzing collision meshes for ${assetType}:`, error);
-			spawnResult.mesh.userData.hasCollisionMeshes = false;
-		}
-		
-		return null;
 	}
 
 	analyzeAssetRig(spawnResult, assetType) {
@@ -202,18 +160,6 @@ export class AssetHandler {
 		});
 	}
 
-	// NEW METHOD: Update all collision wireframes
-	updateAllCollisionWireframes() {
-		if (!this.storage) return;
-		
-		const allAssets = this.storage.get_all_assets();
-		allAssets.forEach(asset => {
-			if (asset && asset.mesh && asset.mesh.userData.updateCollisionWireframes) {
-				asset.mesh.userData.updateCollisionWireframes();
-			}
-		});
-	}
-
 	async spawn_asset(asset_type, position = new THREE.Vector3(), rotation = new THREE.Quaternion(), options = {}) {
 		let type_value = typeof asset_type === 'object' && asset_type.value ? asset_type.value : asset_type;
 		try {
@@ -234,7 +180,6 @@ export class AssetHandler {
 					const spawnResult = await custom_factory.spawn_custom_asset(type_value, position, rotation, options);
 					
 					if (spawnResult) {
-						this.analyzeAssetCollision(spawnResult, type_value);
 						this.analyzeAssetRig(spawnResult, type_value);
 					}
 					
@@ -278,11 +223,6 @@ export class AssetHandler {
 
 		const result = await this.rotator.rotateAsset(asset, axis, radians, duration, options);
 		
-		// Update collision wireframes after rotation
-		if (asset.userData.updateCollisionWireframes) {
-			asset.userData.updateCollisionWireframes();
-		}
-		
 		return result;
 	}
 
@@ -296,11 +236,6 @@ export class AssetHandler {
 			asset = assetData ? assetData.mesh : null;
 		} else if (assetOrInstanceId && assetOrInstanceId.isObject3D) {
 			asset = assetOrInstanceId;
-		}
-		
-		// Update collision wireframes after flip
-		if (asset && asset.userData.updateCollisionWireframes) {
-			asset.userData.updateCollisionWireframes();
 		}
 		
 		return result;
@@ -398,8 +333,6 @@ export class AssetHandler {
 		this.storage = null;
 		this.container = null;
 		this.world = null;
-		this.#assetTypes = null;
-		this.#assetConfigs = null;
 	}
 
 	cleanup_debug() {
@@ -411,19 +344,11 @@ export class AssetHandler {
 
 	update_visualizations() {
 		this.updateRigVisualizations();
-		this.updateAllCollisionWireframes();
 		
 		if (!this.debugFactory) {
 			this.debugFactory = DebugFactory.get_instance(this.scene, this.world);
 		}
 		return this.debugFactory.update_visualizations();
-	}
-
-	async set_collision_debug(enabled) {
-		if (!this.debugFactory) {
-			this.debugFactory = DebugFactory.get_instance(this.scene, this.world);
-		}
-		return this.debugFactory.set_collision_debug(enabled);
 	}
 
 	async create_debug_wireframes_for_all_bodies() {
@@ -590,12 +515,6 @@ export class AssetHandler {
 		if (this.rigAnalyzer) {
 			this.rigAnalyzer.dispose();
 		}
-		if (this.collisionAnalyzer) {
-			this.collisionAnalyzer.dispose();
-		}
-		if (this.collisionSpawner) {
-			this.collisionSpawner.dispose();
-		}
 		this.scene = null;
 		this.world = null;
 		this.storage = null;
@@ -603,8 +522,6 @@ export class AssetHandler {
 		this.debugFactory = null;
 		this.rotator = null;
 		this.rigAnalyzer = null;
-		this.collisionAnalyzer = null;
-		this.collisionSpawner = null;
 		AssetHandler.#disposed = true;
 		AssetHandler.#instance = null;
 	}

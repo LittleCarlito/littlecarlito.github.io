@@ -625,10 +625,10 @@ export function createDebugUI() {
 	debugTogglesTitle.style.marginBottom = '8px';
 	debugUI.appendChild(debugTogglesTitle);
 	// Create toggles
-	addToggle(debugUI, 'COLLISION_VISUALIZATION', 'Collision Visualization', FLAGS.COLLISION_VISUALIZATION || false, (checked) => {
-		FLAGS.COLLISION_VISUALIZATION = checked;
-		toggleCollisionVisualization(checked);
-		console.log(`Collision visualization ${checked ? 'enabled' : 'disabled'}`);
+	addToggle(debugUI, 'COLLISION_WIREFRAMES', 'Collision Wireframes', false, (checked) => {
+		FLAGS.COLLISION_WIREFRAMES = checked;
+		toggleCollisionWireframes(checked);
+		console.log(`Collision wireframes ${checked ? 'enabled' : 'disabled'}`);
 	});
 	addToggle(debugUI, 'RIG_VISUALIZATION', 'Rig Visualization', FLAGS.RIG_VISUALIZATION, (checked) => {
 		FLAGS.RIG_VISUALIZATION = checked;
@@ -1725,27 +1725,64 @@ function toggleRigVisualization(enabled) {
     }
 }
 
-function toggleCollisionVisualization(enabled) {
-    console.log(`Collision visualization ${enabled ? 'enabled' : 'disabled'}`);
-    
-    // Get the collision spawner instance
-    if (window.CollisionSpawner) {
-        const collisionSpawner = window.CollisionSpawner.get_instance();
-        if (collisionSpawner) {
-            if (enabled) {
-                collisionSpawner.enableAllCollisionWireframes();
-            } else {
-                collisionSpawner.disableAllCollisionWireframes();
-            }
-        }
-    }
-    
-    // Alternative approach: if CollisionSpawner is not on window, try getting it through asset handler
-    if (window.asset_handler && window.asset_handler.collisionSpawner) {
-        if (enabled) {
-            window.asset_handler.collisionSpawner.enableAllCollisionWireframes();
-        } else {
-            window.asset_handler.collisionSpawner.disableAllCollisionWireframes();
-        }
-    }
+function toggleCollisionWireframes(enabled) {
+	console.log(`Collision wireframes ${enabled ? 'enabled' : 'disabled'}`);
+	
+	// Update all assets in the scene that have collision wireframes
+	if (sceneRef) {
+		sceneRef.traverse((object) => {
+			// Check if this object has collision wireframe methods
+			if (object.userData && object.userData.collisionWireframes) {
+				if (enabled) {
+					object.userData.enableCollisionWireframes();
+				} else {
+					object.userData.disableCollisionWireframes();
+				}
+			}
+		});
+	}
+	
+	// Also check background container if it exists
+	if (backgroundContainer) {
+		// Get all categorized assets
+		const allAssets = backgroundContainer.getAllCategorizedAssets();
+		Object.values(allAssets).forEach(categoryAssets => {
+			categoryAssets.forEach(assetData => {
+				if (assetData.mesh && assetData.mesh.userData && assetData.mesh.userData.collisionWireframes) {
+					if (enabled) {
+						assetData.mesh.userData.enableCollisionWireframes();
+					} else {
+						assetData.mesh.userData.disableCollisionWireframes();
+					}
+				}
+			});
+		});
+		
+		// Also check the main asset container
+		if (backgroundContainer.asset_container) {
+			backgroundContainer.asset_container.traverse((object) => {
+				if (object.userData && object.userData.collisionWireframes) {
+					if (enabled) {
+						object.userData.enableCollisionWireframes();
+					} else {
+						object.userData.disableCollisionWireframes();
+					}
+				}
+			});
+		}
+	}
+	
+	// Update AssetHandler managed assets if available
+	if (window.asset_handler && window.asset_handler.storage) {
+		const allAssets = window.asset_handler.storage.get_all_assets();
+		allAssets.forEach(asset => {
+			if (asset.mesh && asset.mesh.userData && asset.mesh.userData.collisionWireframes) {
+				if (enabled) {
+					asset.mesh.userData.enableCollisionWireframes();
+				} else {
+					asset.mesh.userData.disableCollisionWireframes();
+				}
+			}
+		});
+	}
 }

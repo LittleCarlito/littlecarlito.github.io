@@ -13,16 +13,7 @@ export class CustomFactory {
 	storage;
 	scene;
 	world;
-	#assetTypes = null;
 	#assetConfigs = null;
-	#randomColors = [
-		0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff,
-		0xff8000, 0x8000ff, 0xff0080, 0x80ff00, 0x0080ff, 0xff8080,
-		0x80ff80, 0x8080ff, 0xffff80, 0xff80ff, 0x80ffff, 0xffc080,
-		0xc080ff, 0x80ffc0
-	];
-	#colorIndex = 0;
-	#shuffledColors = [];
 	debugMeshes = new Map();
 	rotator;
 
@@ -33,9 +24,7 @@ export class CustomFactory {
 		this.storage = AssetStorage.get_instance();
 		this.scene = scene;
 		this.world = world;
-		this.#assetTypes = CustomTypeManager.getTypes();
 		this.#assetConfigs = CustomTypeManager.getConfigs();
-		this.shuffleColors();
 		this.material_factory = new MaterialFactory();
 		this.rotator = AssetRotator.get_instance();
 		CustomFactory.#instance = this;
@@ -64,7 +53,6 @@ export class CustomFactory {
 		this.scene = null;
 		this.world = null;
 		this.storage = null;
-		this.#assetTypes = null;
 		this.#assetConfigs = null;
 		CustomFactory.#disposed = true;
 		CustomFactory.#instance = null;
@@ -74,46 +62,6 @@ export class CustomFactory {
 		if (CustomFactory.#instance) {
 			CustomFactory.#instance.dispose();
 		}
-	}
-
-	shuffleColors() {
-		this.#shuffledColors = [...this.#randomColors];
-		for (let i = this.#shuffledColors.length - 1; i > 0; i--) {
-			const j = Math.floor((Math.random() * 1000 + Date.now()) % (i + 1));
-			[this.#shuffledColors[i], this.#shuffledColors[j]] = [this.#shuffledColors[j], this.#shuffledColors[i]];
-		}
-		this.#colorIndex = 0;
-	}
-
-	getRandomColor() {
-		if (this.#colorIndex >= this.#shuffledColors.length) {
-			this.shuffleColors();
-		}
-		const color = this.#shuffledColors[this.#colorIndex];
-		this.#colorIndex++;
-		return color;
-	}
-
-	applyRandomColorToAsset(model) {
-		const randomColor = this.getRandomColor();
-		
-		model.traverse((child) => {
-			if (child.isMesh && child.material) {
-				if (!child.name.startsWith('col_') && !child.name.startsWith('display_')) {
-					if (Array.isArray(child.material)) {
-						child.material.forEach(mat => {
-							if (mat.isMeshStandardMaterial || mat.isMeshBasicMaterial) {
-								mat.color.setHex(randomColor);
-							}
-						});
-					} else {
-						if (child.material.isMeshStandardMaterial || child.material.isMeshBasicMaterial) {
-							child.material.color.setHex(randomColor);
-						}
-					}
-				}
-			}
-		});
 	}
 
 	async rotateAsset(assetOrInstanceId, axis, radians, duration, options = {}) {
@@ -298,7 +246,7 @@ export class CustomFactory {
 			model.traverse((child) => {
 				if (child.isMesh) {
 					if (child.name.startsWith('col_')) {
-						child.visible = false;
+						child.visible = true;
 						collisionMeshes.push(child);
 					} else if (child.name.startsWith('display_')) {
 						if (options.hideDisplayMeshes) {
