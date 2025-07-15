@@ -189,8 +189,10 @@ export class LabelContainer {
 		if (this.swapping_column_sides) {
 			return;
 		}
+		
 		let target_object = intersected_object;
 		let container = intersected_object.parent;
+		
 		if (intersected_object.name.includes('_collision')) {
 			container.children.forEach(child => {
 				if (child.name && child.name.startsWith(TYPES.LABEL) && !child.name.includes('_collision')) {
@@ -198,29 +200,40 @@ export class LabelContainer {
 				}
 			});
 		}
+		
 		const object_name = target_object.name;
+		const simple_name = target_object.simple_name;
+		
+		// Check if we're already hovering this same label (by simple_name, not object reference)
+		const current_simple_name = this.current_intersected?.simple_name;
+		if (current_simple_name === simple_name) {
+			return; // Already hovering this label, don't restart animation
+		}
+		
 		let in_tween = this.in_tween_map.get(object_name);
 		if(in_tween == null) {
-			if(this.current_intersected !== target_object) {
-				this.reset_previous_intersected();
-				this.current_intersected = target_object;
-				if (FLAGS.COLLISION_VISUAL_DEBUG) {
-					container.children.forEach(child => {
-						if (child.material && child.material.wireframe) {
-						}
-					});
-				}
-				let final_rotation = this.is_column_left ? -(FOCUS_ROTATION) : (FOCUS_ROTATION);
-				in_tween = new Tween(this.current_intersected.rotation)
-					.to({ y: final_rotation}, 400)
-					.easing(Easing.Sinusoidal.In)
-					.start()
-					.onComplete(() => {
-						target_object.rotation.y = final_rotation;
-						this.in_tween_map.delete(object_name);
-					});
-				this.in_tween_map.set(object_name, in_tween);
+			// Reset previous intersection before setting new one
+			this.reset_previous_intersected();
+			this.current_intersected = target_object;
+			
+			if (FLAGS.COLLISION_VISUAL_DEBUG) {
+				container.children.forEach(child => {
+					if (child.material && child.material.wireframe) {
+						// Visual debug code here if needed
+					}
+				});
 			}
+			
+			let final_rotation = this.is_column_left ? -(FOCUS_ROTATION) : (FOCUS_ROTATION);
+			in_tween = new Tween(this.current_intersected.rotation)
+				.to({ y: final_rotation}, 400)
+				.easing(Easing.Sinusoidal.In)
+				.start()
+				.onComplete(() => {
+					target_object.rotation.y = final_rotation;
+					this.in_tween_map.delete(object_name);
+				});
+			this.in_tween_map.set(object_name, in_tween);
 		}
 	}
 
