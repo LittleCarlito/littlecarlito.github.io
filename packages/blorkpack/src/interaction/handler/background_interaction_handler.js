@@ -284,7 +284,8 @@ export class BackgroundInteractionHandler {
             'MOUSE',
             'DESKPHOTO',
             'COMPUTER',
-            'CHAIR'
+            'CHAIR',
+            'CAT'
         ];
         
         return grabbableTypes.includes(assetType);
@@ -311,7 +312,7 @@ export class BackgroundInteractionHandler {
 
         if (this.hovered_asset_name) {
             const assetType = this.hovered_asset_name.replace('interactable_', '').split('_')[0];
-            if (assetType === 'DIPLOMA' || assetType === 'CAT') {
+            if (assetType === 'DIPLOMA') {
                 this.#setCursorPointer();
                 return;
             }
