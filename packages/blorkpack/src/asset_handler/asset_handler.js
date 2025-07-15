@@ -26,6 +26,7 @@ export class AssetHandler {
 	rigAnalyzer;
 	animationAnalyzer;
 	activeRigVisualizations = new Map();
+	animationMixers = new Map();
 
 	constructor(target_container = null, target_world = null) {
 		if (AssetHandler.#instance) {
@@ -38,6 +39,7 @@ export class AssetHandler {
 		this.rigAnalyzer = RigAnalyzer.get_instance();
 		this.animationAnalyzer = AnimationAnalyzer.get_instance();
 		this.activeRigVisualizations = new Map();
+		this.animationMixers = new Map();
 		AssetHandler.#instance = this;
 		AssetHandler.#disposed = false;
 	}
@@ -91,6 +93,8 @@ export class AssetHandler {
 								tracks: detail.tracks
 							}))
 						});
+						
+						this.startAnimations(spawnResult, gltfData);
 					}
 				} else {
 					console.log(`[AssetHandler] 🎬 ANIMATION DETECTED in ${assetType}: NO`);
@@ -107,6 +111,157 @@ export class AssetHandler {
 		}
 		
 		return null;
+	}
+
+	startAnimations(spawnResult, gltfData) {
+		if (!gltfData.animations || gltfData.animations.length === 0) {
+			console.log(`[AssetHandler] No animations to start for ${spawnResult.instance_id}`);
+			return;
+		}
+
+		const mixer = new THREE.AnimationMixer(spawnResult.mesh);
+		const actions = [];
+
+		gltfData.animations.forEach((clip, index) => {
+			const action = mixer.clipAction(clip);
+			action.setLoop(THREE.LoopOnce);
+			action.clampWhenFinished = true;
+			actions.push(action);
+		});
+
+		const animationState = {
+			mixer: mixer,
+			actions: actions,
+			mesh: spawnResult.mesh,
+			currentAnimationIndex: 0,
+			isPlaying: false
+		};
+
+		this.startNextAnimation(animationState);
+
+		this.animationMixers.set(spawnResult.instance_id, animationState);
+
+		spawnResult.mesh.userData.animationMixer = mixer;
+		spawnResult.mesh.userData.animationActions = actions;
+		spawnResult.animationMixer = mixer;
+		spawnResult.animationActions = actions;
+
+		spawnResult.playAnimation = (animationIndex = null) => {
+			if (animationIndex !== null && actions[animationIndex]) {
+				this.playSpecificAnimation(animationState, animationIndex);
+			} else {
+				this.startNextAnimation(animationState);
+			}
+		};
+
+		spawnResult.stopAnimation = (animationIndex = null) => {
+			if (animationIndex !== null && actions[animationIndex]) {
+				actions[animationIndex].stop();
+				console.log(`[AssetHandler] 🛑 Stopped animation ${animationIndex} for ${spawnResult.instance_id}`);
+			} else {
+				actions.forEach((action, index) => {
+					action.stop();
+					console.log(`[AssetHandler] 🛑 Stopped animation ${index} for ${spawnResult.instance_id}`);
+				});
+				animationState.isPlaying = false;
+			}
+		};
+
+		spawnResult.pauseAnimation = (animationIndex = null) => {
+			if (animationIndex !== null && actions[animationIndex]) {
+				actions[animationIndex].paused = true;
+			} else {
+				actions.forEach(action => {
+					action.paused = true;
+				});
+			}
+		};
+
+		spawnResult.resumeAnimation = (animationIndex = null) => {
+			if (animationIndex !== null && actions[animationIndex]) {
+				actions[animationIndex].paused = false;
+			} else {
+				actions.forEach(action => {
+					action.paused = false;
+				});
+			}
+		};
+
+		console.log(`[AssetHandler] 🎬 Animation cycling system initialized for ${spawnResult.instance_id} with ${actions.length} animations`);
+	}
+
+	startNextAnimation(animationState) {
+		if (animationState.actions.length === 0) return;
+
+		const currentAction = animationState.actions[animationState.currentAnimationIndex];
+		
+		const onAnimationFinished = () => {
+			console.log(`[AssetHandler] 🔄 Animation ${animationState.currentAnimationIndex} finished, moving to next`);
+			
+			animationState.currentAnimationIndex = (animationState.currentAnimationIndex + 1) % animationState.actions.length;
+			
+			if (animationState.currentAnimationIndex === 0) {
+				console.log(`[AssetHandler] 🔁 Animation cycle completed, restarting from beginning`);
+			}
+			
+			this.startNextAnimation(animationState);
+		};
+
+		currentAction.reset();
+		currentAction.play();
+		animationState.isPlaying = true;
+		
+		animationState.mixer.addEventListener('finished', onAnimationFinished);
+		
+		console.log(`[AssetHandler] 🎬 Playing animation ${animationState.currentAnimationIndex}: ${currentAction.getClip().name || `Animation_${animationState.currentAnimationIndex}`}`);
+	}
+
+	playSpecificAnimation(animationState, animationIndex) {
+		if (animationIndex < 0 || animationIndex >= animationState.actions.length) {
+			console.warn(`[AssetHandler] Invalid animation index: ${animationIndex}`);
+			return;
+		}
+
+		animationState.actions.forEach(action => action.stop());
+		
+		animationState.currentAnimationIndex = animationIndex;
+		const action = animationState.actions[animationIndex];
+		action.reset();
+		action.play();
+		animationState.isPlaying = true;
+		
+		console.log(`[AssetHandler] 🎬 Playing specific animation ${animationIndex}: ${action.getClip().name || `Animation_${animationIndex}`}`);
+	}
+
+	updateAnimations(deltaTime) {
+		this.animationMixers.forEach((animationData, instanceId) => {
+			if (animationData.mixer) {
+				animationData.mixer.update(deltaTime);
+			}
+		});
+	}
+
+	stopAllAnimations() {
+		this.animationMixers.forEach((animationData, instanceId) => {
+			if (animationData.actions) {
+				animationData.actions.forEach(action => {
+					action.stop();
+				});
+			}
+			animationData.isPlaying = false;
+		});
+		console.log(`[AssetHandler] 🛑 Stopped all animations`);
+	}
+
+	removeAnimationMixer(instanceId) {
+		if (this.animationMixers.has(instanceId)) {
+			const animationData = this.animationMixers.get(instanceId);
+			if (animationData.mixer) {
+				animationData.mixer.stopAllAction();
+			}
+			this.animationMixers.delete(instanceId);
+			console.log(`[AssetHandler] 🗑️ Removed animation mixer for ${instanceId}`);
+		}
 	}
 
 	analyzeAssetRig(spawnResult, assetType) {
@@ -364,6 +519,13 @@ export class AssetHandler {
 		});
 		this.activeRigVisualizations.clear();
 		
+		this.animationMixers.forEach((animationData, instanceId) => {
+			if (animationData.mixer) {
+				animationData.mixer.stopAllAction();
+			}
+		});
+		this.animationMixers.clear();
+		
 		AssetHandler.#instance = null;
 		if (this.storage) {
 			const allAssets = this.storage.get_all_assets();
@@ -569,6 +731,12 @@ export class AssetHandler {
 		if (this.animationAnalyzer) {
 			this.animationAnalyzer.dispose();
 		}
+		this.animationMixers.forEach((animationData, instanceId) => {
+			if (animationData.mixer) {
+				animationData.mixer.stopAllAction();
+			}
+		});
+		this.animationMixers.clear();
 		this.scene = null;
 		this.world = null;
 		this.storage = null;

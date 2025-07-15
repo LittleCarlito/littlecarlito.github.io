@@ -272,7 +272,7 @@ export class BackgroundContainer {
 		return this.asset_manifest;
 	}
 
-	update(grabbed_object, viewable_container) {
+	update(grabbed_object, viewable_container, deltaTime) {
 		this.dynamic_bodies.forEach(entry => {
 			const mesh = Array.isArray(entry) ? entry[0] : entry.mesh;
 			const body = Array.isArray(entry) ? entry[1] : entry.body;
@@ -283,6 +283,11 @@ export class BackgroundContainer {
 				mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
 			}
 		});
+		
+		const asset_handler = AssetHandler.get_instance();
+		if (asset_handler && deltaTime !== undefined) {
+			asset_handler.updateAnimations(deltaTime);
+		}
 	}
 
 	contains_object(incoming_name) {

@@ -15,19 +15,19 @@ const RIG_CONFIG = {
     opacity: 0.8
 };
 
-let rigVisualsGroup = null;
-let bones = [];
-let controlHandles = [];
+let rigVisualizationsByAsset = new Map();
 
 export function setRigVisualizationEnabled(enabled) {
     RIG_VISUALIZATION_ENABLED = enabled;
     
-    if (rigVisualsGroup) {
-        rigVisualsGroup.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
-    }
-    
-    controlHandles.forEach(handle => {
-        handle.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
+    rigVisualizationsByAsset.forEach((rigData, assetId) => {
+        if (rigData.group) {
+            rigData.group.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
+        }
+        
+        rigData.handles.forEach(handle => {
+            handle.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
+        });
     });
 }
 
@@ -38,9 +38,6 @@ export function createRigVisualization(rigDetails, scene, asset) {
     }
     
     console.log('[RigFactory] Creating rig visualization for:', rigDetails);
-    
-    // DON'T clear all rig visualizations - each asset should have its own!
-    // clearRigVisualization(scene);
     
     if (!rigDetails.joints) {
         rigDetails.joints = [];
@@ -62,14 +59,13 @@ export function createRigVisualization(rigDetails, scene, asset) {
     }
     
     console.log('[RigFactory] Using target container:', targetContainer.name || 'scene');
-    console.log('[RigFactory] Target container rotation:', targetContainer.rotation);
     
-    rigVisualsGroup = new THREE.Group();
+    const rigVisualsGroup = new THREE.Group();
     rigVisualsGroup.name = "RigVisualization";
     rigVisualsGroup.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
     targetContainer.add(rigVisualsGroup);
     
-    bones = [];
+    const bones = [];
     asset.traverse(node => {
         if (node.isBone || node.name.toLowerCase().includes('bone')) {
             bones.push(node);
@@ -111,53 +107,37 @@ export function createRigVisualization(rigDetails, scene, asset) {
         }
     });
     
-    createBoneStructureWithJoints(visualizableBones, bonesByParent, boneRadius, rigDetails);
+    const controlHandles = [];
     
-    createRootBoneVisualizationsWithJoints(rootBones, boneRadius, rigDetails);
+    createBoneStructureWithJoints(visualizableBones, bonesByParent, boneRadius, rigDetails, rigVisualsGroup);
+    
+    createRootBoneVisualizationsWithJoints(rootBones, boneRadius, rigDetails, rigVisualsGroup);
     
     const furthestBone = findFarthestBone(bones);
     if (furthestBone) {
-        createControlHandle(furthestBone, targetContainer, modelScale);
+        createControlHandle(furthestBone, targetContainer, modelScale, controlHandles);
     }
     
     if (RIG_CONFIG.forceZ) {
-        applyForceZSettings();
+        applyForceZSettings(rigVisualsGroup, controlHandles);
     }
     
     if (controlHandles.length > 0) {
         setupRigInteractionHandling(controlHandles, scene);
     }
     
+    const assetId = asset.uuid;
+    rigVisualizationsByAsset.set(assetId, {
+        group: rigVisualsGroup,
+        bones: bones,
+        handles: controlHandles,
+        joints: rigDetails.joints,
+        asset: asset,
+        targetContainer: targetContainer
+    });
+    
     console.log('[RigFactory] Rig visualization created successfully');
     console.log(`[RigFactory] Created ${rigDetails.joints.length} joints`);
-    
-    // ADD DEBUG AT THE END:
-    console.log(`[RigFactory] FINAL RIG VISUALIZATION DEBUG:`);
-    console.log(`  - rigVisualsGroup:`, rigVisualsGroup);
-    console.log(`  - rigVisualsGroup.children.length:`, rigVisualsGroup ? rigVisualsGroup.children.length : 'null');
-    console.log(`  - rigVisualsGroup.visible:`, rigVisualsGroup ? rigVisualsGroup.visible : 'null');
-    console.log(`  - rigVisualsGroup.parent:`, rigVisualsGroup ? rigVisualsGroup.parent?.name : 'null');
-    console.log(`  - targetContainer:`, targetContainer.name);
-    console.log(`  - targetContainer.children includes rigVisualsGroup:`, targetContainer.children.includes(rigVisualsGroup));
-    
-    // Check each child in rigVisualsGroup
-    if (rigVisualsGroup) {
-        rigVisualsGroup.children.forEach((child, index) => {
-            console.log(`  - Child ${index}:`, child.name || child.type, 'visible:', child.visible, 'children:', child.children?.length || 0);
-            if (child.children && child.children.length > 0) {
-                child.children.forEach((grandchild, gIndex) => {
-                    console.log(`    - Grandchild ${gIndex}:`, grandchild.type, 'visible:', grandchild.visible, 'geometry:', grandchild.geometry?.type);
-                });
-            }
-        });
-    }
-    
-    // Check if asset container has any transform issues
-    console.log(`[RigFactory] Asset container transform debug:`);
-    console.log(`  - Container position:`, targetContainer.position);
-    console.log(`  - Container rotation:`, targetContainer.rotation);
-    console.log(`  - Container scale:`, targetContainer.scale);
-    console.log(`  - Container matrix:`, targetContainer.matrix);
     
     return {
         group: rigVisualsGroup,
@@ -167,17 +147,10 @@ export function createRigVisualization(rigDetails, scene, asset) {
     };
 }
 
-function createBoneStructureWithJoints(bones, bonesByParent, boneRadius, rigDetails) {
+function createBoneStructureWithJoints(bones, bonesByParent, boneRadius, rigDetails, rigVisualsGroup) {
     console.log('[RigFactory] Creating bone structure with', bones.length, 'bones');
     
     bones.forEach(bone => {
-        const bonePos = new THREE.Vector3();
-        bone.getWorldPosition(bonePos);
-        
-        rigVisualsGroup.worldToLocal(bonePos);
-        
-        console.log('[RigFactory] Bone', bone.name, 'local position:', bonePos);
-        
         const childBones = bonesByParent.get(bone.uuid) || [];
         console.log('[RigFactory] Bone', bone.name, 'has', childBones.length, 'children');
         
@@ -189,60 +162,24 @@ function createBoneStructureWithJoints(bones, bonesByParent, boneRadius, rigDeta
                 return;
             }
             
-            const childPos = new THREE.Vector3();
-            childBone.getWorldPosition(childPos);
-            rigVisualsGroup.worldToLocal(childPos);
-            
-            console.log('[RigFactory] Child bone', childBone.name, 'local position:', childPos);
-            
-            const distance = bonePos.distanceTo(childPos);
-            console.log('[RigFactory] Distance between', bone.name, 'and', childBone.name, ':', distance);
-            
-            if (distance > 0.001) {
-                const boneGroup = createBoneConnectionWithJoints(bonePos, childPos, boneRadius, bone, childBone, rigDetails);
-                rigVisualsGroup.add(boneGroup);
-                console.log('[RigFactory] Created bone connection from', bone.name, 'to', childBone.name);
-            }
+            const boneGroup = createBoneConnectionWithJoints(bone, childBone, boneRadius, rigDetails, rigVisualsGroup);
+            rigVisualsGroup.add(boneGroup);
+            console.log('[RigFactory] Created bone connection from', bone.name, 'to', childBone.name);
         });
     });
 }
 
-function createBoneConnectionWithJoints(startPos, endPos, radius, parentBone, childBone, rigDetails) {
+function createBoneConnectionWithJoints(parentBone, childBone, radius, rigDetails, rigVisualsGroup) {
     console.log(`[RigFactory] Creating bone connection from ${parentBone.name} to ${childBone.name}`);
-    console.log(`[RigFactory] Start pos (local):`, startPos);
-    console.log(`[RigFactory] End pos (local):`, endPos);
     
     const boneGroup = new THREE.Group();
     
-    boneGroup.position.copy(startPos);
+    boneGroup.userData.parentBone = parentBone;
+    boneGroup.userData.childBone = childBone;
+    boneGroup.userData.isVisualBone = true;
+    boneGroup.userData.updatePosition = () => updateBonePosition(boneGroup, rigVisualsGroup);
     
-    const direction = new THREE.Vector3().subVectors(endPos, startPos);
-    const distance = direction.length();
-    
-    console.log(`[RigFactory] Direction vector:`, direction);
-    console.log(`[RigFactory] Distance:`, distance);
-    
-    if (distance < 0.001) {
-        console.log(`[RigFactory] Distance too small, skipping bone connection`);
-        return boneGroup;
-    }
-    
-    // ADD DEBUG BLOCK:
-    console.log(`[RigFactory] GEOMETRY DEBUG for ${parentBone.name}->${childBone.name}:`);
-    console.log(`  - Radius: ${radius}`);
-    console.log(`  - Creating cylinder geometry...`);
-    
-    const boneGeometry = new THREE.CylinderGeometry(radius, radius, distance, 8);
-    console.log(`  - Cylinder geometry created:`, boneGeometry);
-    console.log(`  - Geometry bounding sphere:`, boneGeometry.boundingSphere);
-    
-    // Check if geometry is valid
-    if (!boneGeometry.attributes.position) {
-        console.error(`[RigFactory] ERROR: Geometry has no position attribute!`);
-        return boneGroup;
-    }
-    
-    console.log(`  - Position vertices count:`, boneGeometry.attributes.position.count);
+    const distance = 1;
     
     for (let i = 0; i < 8; i++) {
         const segmentGeometry = new THREE.CylinderGeometry(
@@ -267,12 +204,6 @@ function createBoneConnectionWithJoints(startPos, endPos, radius, parentBone, ch
         segment.userData.sideType = (i % 2 === 0) ? 'primary' : 'secondary';
         segment.position.y = distance / 2;
         segment.renderOrder = 10000;
-        
-        // ADD DEBUG:
-        console.log(`  - Created segment ${i}: color=${color.toString(16)}, position.y=${segment.position.y}`);
-        console.log(`  - Segment world matrix:`, segment.matrixWorld);
-        console.log(`  - Segment visible:`, segment.visible);
-        console.log(`  - Material:`, material);
         
         boneGroup.add(segment);
     }
@@ -309,56 +240,28 @@ function createBoneConnectionWithJoints(startPos, endPos, radius, parentBone, ch
     topJoint.renderOrder = 10020;
     boneGroup.add(topJoint);
     
-    const targetDirection = direction.clone().normalize();
-    const upVector = new THREE.Vector3(0, 1, 0);
-    
-    const quaternion = new THREE.Quaternion().setFromUnitVectors(upVector, targetDirection);
-    boneGroup.setRotationFromQuaternion(quaternion);
-    
-    console.log(`[RigFactory] Applied rotation quaternion:`, quaternion);
-    console.log(`[RigFactory] Final bone group position:`, boneGroup.position);
-    console.log(`[RigFactory] Final bone group rotation:`, boneGroup.rotation);
-    
-    // ADD DEBUG FOR FINAL GROUP:
-    console.log(`[RigFactory] Final boneGroup for ${parentBone.name}->${childBone.name}:`);
-    console.log(`  - Position:`, boneGroup.position);
-    console.log(`  - Rotation:`, boneGroup.rotation);
-    console.log(`  - Scale:`, boneGroup.scale);
-    console.log(`  - Children count:`, boneGroup.children.length);
-    console.log(`  - Visible:`, boneGroup.visible);
-    console.log(`  - Parent will be:`, rigVisualsGroup ? rigVisualsGroup.name : 'none');
-    
     if (rigDetails && rigDetails.joints) {
         rigDetails.joints.push({
             name: `Joint_${parentBone.name}_to_${childBone.name}`,
             parentBone: parentBone.name,
             childBone: childBone.name,
-            position: [startPos.x, startPos.y, startPos.z],
+            position: [0, 0, 0],
             count: 1
         });
     }
     
-    boneGroup.userData.parentBone = parentBone;
-    boneGroup.userData.childBone = childBone;
-    boneGroup.userData.isVisualBone = true;
-    boneGroup.userData.updatePosition = () => updateBonePosition(boneGroup);
+    updateBonePosition(boneGroup, rigVisualsGroup);
     
     return boneGroup;
 }
 
-function createRootBoneVisualizationsWithJoints(rootBones, radius, rigDetails) {
+function createRootBoneVisualizationsWithJoints(rootBones, radius, rigDetails, rigVisualsGroup) {
     console.log('[RigFactory] Creating root visualizations for', rootBones.length, 'root bones');
     
     rootBones.forEach(rootBone => {
-        const rootPos = new THREE.Vector3();
-        rootBone.getWorldPosition(rootPos);
-        
-        rigVisualsGroup.worldToLocal(rootPos);
-        
-        console.log(`[RigFactory] Creating root visualization for: ${rootBone.name} at local position:`, rootPos);
+        console.log(`[RigFactory] Creating root visualization for: ${rootBone.name}`);
         
         const rootGroup = new THREE.Group();
-        rootGroup.position.copy(rootPos);
         rigVisualsGroup.add(rootGroup);
         
         const puckRadius = radius * 2.5;
@@ -385,7 +288,7 @@ function createRootBoneVisualizationsWithJoints(rootBones, radius, rigDetails) {
                 name: `Root_Joint_${rootBone.name}`,
                 parentBone: "Scene Root",
                 childBone: rootBone.name,
-                position: [rootPos.x, rootPos.y, rootPos.z],
+                position: [0, 0, 0],
                 count: 1,
                 isRoot: true
             });
@@ -393,13 +296,15 @@ function createRootBoneVisualizationsWithJoints(rootBones, radius, rigDetails) {
         
         rootGroup.userData.rootBone = rootBone;
         rootGroup.userData.isVisualBone = true;
-        rootGroup.userData.updatePosition = () => updateRootPosition(rootGroup);
+        rootGroup.userData.updatePosition = () => updateRootPosition(rootGroup, rigVisualsGroup);
         
-        console.log(`[RigFactory] Created root puck for ${rootBone.name} at position:`, rootGroup.position);
+        updateRootPosition(rootGroup, rigVisualsGroup);
+        
+        console.log(`[RigFactory] Created root puck for ${rootBone.name}`);
     });
 }
 
-function createControlHandle(bone, container, modelScale) {
+function createControlHandle(bone, container, modelScale, controlHandles) {
     const handleSize = modelScale * 2.6;
     const geometry = new THREE.SphereGeometry(handleSize, 16, 16);
     const material = new THREE.MeshBasicMaterial({
@@ -416,22 +321,17 @@ function createControlHandle(bone, container, modelScale) {
     handle.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
     handle.renderOrder = 10030;
     
-    const bonePos = new THREE.Vector3();
-    bone.getWorldPosition(bonePos);
-    
-    container.worldToLocal(bonePos);
-    handle.position.copy(bonePos);
-    
     container.add(handle);
     
-    console.log(`[RigFactory] Created control handle for bone: ${bone.name} at local position:`, handle.position);
-    console.log(`[RigFactory] Container rotation:`, container.rotation);
+    console.log(`[RigFactory] Created control handle for bone: ${bone.name}`);
     
     handle.userData.controlledBone = bone;
     handle.userData.isControlHandle = true;
     handle.userData.updatePosition = () => updateHandlePosition(handle);
     
     controlHandles.push(handle);
+    
+    updateHandlePosition(handle);
 }
 
 function findFarthestBone(bones) {
@@ -461,53 +361,76 @@ function findFarthestBone(bones) {
     return bones[bones.length - 1];
 }
 
-function updateBonePosition(boneGroup) {
-    if (boneGroup.userData.parentBone && boneGroup.userData.childBone) {
-        const parentPos = new THREE.Vector3();
-        const childPos = new THREE.Vector3();
+function updateBonePosition(boneGroup, rigVisualsGroup) {
+    if (!boneGroup.userData.parentBone || !boneGroup.userData.childBone) return;
+    
+    const parentBone = boneGroup.userData.parentBone;
+    const childBone = boneGroup.userData.childBone;
+    
+    parentBone.updateMatrixWorld(true);
+    childBone.updateMatrixWorld(true);
+    
+    const parentPos = new THREE.Vector3();
+    const childPos = new THREE.Vector3();
+    
+    parentBone.getWorldPosition(parentPos);
+    childBone.getWorldPosition(childPos);
+    
+    rigVisualsGroup.worldToLocal(parentPos);
+    rigVisualsGroup.worldToLocal(childPos);
+    
+    boneGroup.position.copy(parentPos);
+    
+    const direction = new THREE.Vector3().subVectors(childPos, parentPos);
+    const distance = direction.length();
+    
+    if (distance > 0.001) {
+        boneGroup.children.forEach(child => {
+            if (child.userData.bonePart === 'side') {
+                child.scale.y = distance;
+                child.position.y = distance / 2;
+            } else if (child.userData.bonePart === 'cap') {
+                if (child.userData.jointType === 'top') {
+                    child.position.y = distance;
+                }
+            }
+        });
         
-        boneGroup.userData.parentBone.getWorldPosition(parentPos);
-        boneGroup.userData.childBone.getWorldPosition(childPos);
+        const targetDirection = direction.clone().normalize();
+        const upVector = new THREE.Vector3(0, 1, 0);
         
-        rigVisualsGroup.worldToLocal(parentPos);
-        rigVisualsGroup.worldToLocal(childPos);
-        
-        boneGroup.position.copy(parentPos);
-        
-        const direction = new THREE.Vector3().subVectors(childPos, parentPos);
-        const distance = direction.length();
-        
-        if (distance > 0.001) {
-            const targetDirection = direction.clone().normalize();
-            const upVector = new THREE.Vector3(0, 1, 0);
-            
-            const quaternion = new THREE.Quaternion().setFromUnitVectors(upVector, targetDirection);
-            boneGroup.setRotationFromQuaternion(quaternion);
-        }
+        const quaternion = new THREE.Quaternion().setFromUnitVectors(upVector, targetDirection);
+        boneGroup.setRotationFromQuaternion(quaternion);
     }
 }
 
-function updateRootPosition(rootGroup) {
-    if (rootGroup.userData.rootBone) {
-        const pos = new THREE.Vector3();
-        rootGroup.userData.rootBone.getWorldPosition(pos);
-        
-        rigVisualsGroup.worldToLocal(pos);
-        rootGroup.position.copy(pos);
-    }
+function updateRootPosition(rootGroup, rigVisualsGroup) {
+    if (!rootGroup.userData.rootBone) return;
+    
+    const rootBone = rootGroup.userData.rootBone;
+    rootBone.updateMatrixWorld(true);
+    
+    const pos = new THREE.Vector3();
+    rootBone.getWorldPosition(pos);
+    
+    rigVisualsGroup.worldToLocal(pos);
+    rootGroup.position.copy(pos);
 }
 
 function updateHandlePosition(handle) {
-    if (handle.userData.controlledBone && handle.parent) {
-        const bonePos = new THREE.Vector3();
-        handle.userData.controlledBone.getWorldPosition(bonePos);
-        
-        handle.parent.worldToLocal(bonePos);
-        handle.position.copy(bonePos);
-    }
+    if (!handle.userData.controlledBone || !handle.parent) return;
+    
+    const bone = handle.userData.controlledBone;
+    bone.updateMatrixWorld(true);
+    
+    const bonePos = new THREE.Vector3();
+    bone.getWorldPosition(bonePos);
+    
+    handle.parent.worldToLocal(bonePos);
+    handle.position.copy(bonePos);
 }
 
-function applyForceZSettings() {
+function applyForceZSettings(rigVisualsGroup, controlHandles) {
     if (!rigVisualsGroup) return;
     
     console.log('[RigFactory] Applying Force Z settings');
@@ -553,48 +476,54 @@ function applyForceZSettings() {
 }
 
 export function updateRigVisualization() {
-    if (!rigVisualsGroup || !RIG_CONFIG.displayRig || !RIG_VISUALIZATION_ENABLED) return;
+    if (!RIG_CONFIG.displayRig || !RIG_VISUALIZATION_ENABLED) return;
     
-    rigVisualsGroup.children.forEach(boneGroup => {
-        if (boneGroup.userData.updatePosition) {
-            boneGroup.userData.updatePosition();
-        }
-    });
-    
-    controlHandles.forEach(handle => {
-        if (handle.userData.updatePosition) {
-            handle.userData.updatePosition();
-        }
+    rigVisualizationsByAsset.forEach((rigData, assetId) => {
+        if (!rigData.group || !rigData.group.parent) return;
+        
+        rigData.group.children.forEach(boneGroup => {
+            if (boneGroup.userData.updatePosition) {
+                boneGroup.userData.updatePosition();
+            }
+        });
+        
+        rigData.handles.forEach(handle => {
+            if (handle.userData.updatePosition) {
+                handle.userData.updatePosition();
+            }
+        });
     });
 }
 
 export function clearRigVisualization(scene) {
     cleanupRigInteractionHandling();
     
-    if (rigVisualsGroup && rigVisualsGroup.parent) {
-        rigVisualsGroup.parent.remove(rigVisualsGroup);
-        rigVisualsGroup = null;
-    }
-    
-    controlHandles.forEach(handle => {
-        if (handle.parent) {
-            handle.parent.remove(handle);
+    rigVisualizationsByAsset.forEach((rigData, assetId) => {
+        if (rigData.group && rigData.group.parent) {
+            rigData.group.parent.remove(rigData.group);
         }
+        
+        rigData.handles.forEach(handle => {
+            if (handle.parent) {
+                handle.parent.remove(handle);
+            }
+        });
     });
-    controlHandles = [];
     
-    bones = [];
+    rigVisualizationsByAsset.clear();
 }
 
 export function updateRigConfig(newConfig) {
     Object.assign(RIG_CONFIG, newConfig);
     console.log('[RigFactory] Rig config updated:', RIG_CONFIG);
     
-    if (rigVisualsGroup) {
-        rigVisualsGroup.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
-    }
-    
-    controlHandles.forEach(handle => {
-        handle.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
+    rigVisualizationsByAsset.forEach((rigData, assetId) => {
+        if (rigData.group) {
+            rigData.group.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
+        }
+        
+        rigData.handles.forEach(handle => {
+            handle.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
+        });
     });
 }

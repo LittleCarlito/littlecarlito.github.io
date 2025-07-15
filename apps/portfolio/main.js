@@ -319,23 +319,23 @@ function animate() {
 	}
 	window.previousTextContainerState = isTextActive;
 	
-	// Handle existing grabbed object system
 	if(interactionManager.grabbed_object) {
 		translate_object(interactionManager.grabbed_object, window.viewable_container.get_camera());
 	}
-	
-	// Background container objects are moved directly via mesh position
-	// No physics involvement needed since they have enablePhysics: false
 	
 	window.world.timestep = Math.min(delta, 0.1);
 	if (!is_physics_paused) {
 		window.world.step();
 	}
 	
+	// CRITICAL: Update animations FIRST, then rig visualizations
 	if (window.background_container) {
-		// Background container update handles dynamic bodies only
-		// Dragged objects are handled directly via position manipulation
-		window.background_container.update(interactionManager.grabbed_object, window.viewable_container);
+		window.background_container.update(interactionManager.grabbed_object, window.viewable_container, delta);
+	}
+	
+	// Update asset handler animations BEFORE rig visualizations
+	if (window.asset_handler) {
+		window.asset_handler.updateAnimations(delta);
 	}
 	
 	if (AssetStorage.get_instance()) {
@@ -356,6 +356,9 @@ function animate() {
 	window.viewable_container.get_overlay().update_confetti();
 	
 	if (window.asset_handler) {
+		// Update rig visualizations AFTER animations have been processed
+		window.asset_handler.updateRigVisualizations();
+		
 		window.asset_handler.update_visualizations();
 		if (window.asset_handler.update_debug_meshes) {
 			window.asset_handler.update_debug_meshes();
