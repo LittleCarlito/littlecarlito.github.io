@@ -11,6 +11,7 @@ import {
 import { DebugFactory } from "./factories/debug_factory.js";
 import { AssetRotator } from "./common/asset_rotator.js";
 import { RigAnalyzer } from './data/rig_analyzer.js';
+import { AnimationAnalyzer } from './data/animation_analyzer.js';
 import { createRigVisualization, updateRigVisualization, clearRigVisualization } from './factories/rig_factory.js';
 
 export class AssetHandler {
@@ -23,6 +24,7 @@ export class AssetHandler {
 	debugFactory = null;
 	rotator;
 	rigAnalyzer;
+	animationAnalyzer;
 	activeRigVisualizations = new Map();
 
 	constructor(target_container = null, target_world = null) {
@@ -34,6 +36,7 @@ export class AssetHandler {
 		this.world = target_world;
 		this.rotator = AssetRotator.get_instance();
 		this.rigAnalyzer = RigAnalyzer.get_instance();
+		this.animationAnalyzer = AnimationAnalyzer.get_instance();
 		this.activeRigVisualizations = new Map();
 		AssetHandler.#instance = this;
 		AssetHandler.#disposed = false;
@@ -56,6 +59,54 @@ export class AssetHandler {
 		}
 		
 		return AssetHandler.#instance;
+	}
+
+	analyzeAssetAnimations(spawnResult, assetType) {
+		if (!spawnResult || !spawnResult.mesh) {
+			return null;
+		}
+
+		try {
+			const storage = AssetStorage.get_instance();
+			const customTypeKey = CustomTypeManager.getType(assetType);
+			
+			if (storage.cached_models && storage.cached_models.has(customTypeKey)) {
+				const gltfData = storage.cached_models.get(customTypeKey);
+				const animationAnalysis = this.animationAnalyzer.analyze(gltfData, assetType);
+				
+				if (animationAnalysis.hasAnimations) {
+					spawnResult.mesh.userData.hasAnimations = true;
+					spawnResult.mesh.userData.animationData = animationAnalysis;
+					spawnResult.hasAnimations = true;
+					spawnResult.animationData = animationAnalysis;
+					
+					console.log(`[AssetHandler] 🎬 ANIMATION DETECTED in ${assetType}: YES`);
+					if (animationAnalysis.animationCount > 0) {
+						console.log(`[AssetHandler] Animation Details:`, {
+							instanceId: spawnResult.instance_id,
+							count: animationAnalysis.animationCount,
+							clips: animationAnalysis.animationDetails.map(detail => ({
+								name: detail.name,
+								duration: detail.duration,
+								tracks: detail.tracks
+							}))
+						});
+					}
+				} else {
+					console.log(`[AssetHandler] 🎬 ANIMATION DETECTED in ${assetType}: NO`);
+					spawnResult.mesh.userData.hasAnimations = false;
+				}
+				
+				return animationAnalysis;
+			} else {
+				console.warn(`[AssetHandler] No cached GLTF data found for ${assetType}, cannot analyze animations`);
+			}
+		} catch (error) {
+			console.error(`[AssetHandler] Error analyzing animations for ${assetType}:`, error);
+			spawnResult.mesh.userData.hasAnimations = false;
+		}
+		
+		return null;
 	}
 
 	analyzeAssetRig(spawnResult, assetType) {
@@ -180,6 +231,7 @@ export class AssetHandler {
 					const spawnResult = await custom_factory.spawn_custom_asset(type_value, position, rotation, options);
 					
 					if (spawnResult) {
+						this.analyzeAssetAnimations(spawnResult, type_value);
 						this.analyzeAssetRig(spawnResult, type_value);
 					}
 					
@@ -229,7 +281,6 @@ export class AssetHandler {
 	async flipAsset(assetOrInstanceId, axis, duration, options = {}) {
 		const result = await this.rotateAsset(assetOrInstanceId, axis, Math.PI, duration, options);
 		
-		// Get the asset to update wireframes
 		let asset;
 		if (typeof assetOrInstanceId === 'string') {
 			const assetData = this.storage.get_object(assetOrInstanceId);
@@ -515,6 +566,9 @@ export class AssetHandler {
 		if (this.rigAnalyzer) {
 			this.rigAnalyzer.dispose();
 		}
+		if (this.animationAnalyzer) {
+			this.animationAnalyzer.dispose();
+		}
 		this.scene = null;
 		this.world = null;
 		this.storage = null;
@@ -522,6 +576,7 @@ export class AssetHandler {
 		this.debugFactory = null;
 		this.rotator = null;
 		this.rigAnalyzer = null;
+		this.animationAnalyzer = null;
 		AssetHandler.#disposed = true;
 		AssetHandler.#instance = null;
 	}

@@ -39,7 +39,8 @@ export function createRigVisualization(rigDetails, scene, asset) {
     
     console.log('[RigFactory] Creating rig visualization for:', rigDetails);
     
-    clearRigVisualization(scene);
+    // DON'T clear all rig visualizations - each asset should have its own!
+    // clearRigVisualization(scene);
     
     if (!rigDetails.joints) {
         rigDetails.joints = [];
@@ -130,6 +131,34 @@ export function createRigVisualization(rigDetails, scene, asset) {
     console.log('[RigFactory] Rig visualization created successfully');
     console.log(`[RigFactory] Created ${rigDetails.joints.length} joints`);
     
+    // ADD DEBUG AT THE END:
+    console.log(`[RigFactory] FINAL RIG VISUALIZATION DEBUG:`);
+    console.log(`  - rigVisualsGroup:`, rigVisualsGroup);
+    console.log(`  - rigVisualsGroup.children.length:`, rigVisualsGroup ? rigVisualsGroup.children.length : 'null');
+    console.log(`  - rigVisualsGroup.visible:`, rigVisualsGroup ? rigVisualsGroup.visible : 'null');
+    console.log(`  - rigVisualsGroup.parent:`, rigVisualsGroup ? rigVisualsGroup.parent?.name : 'null');
+    console.log(`  - targetContainer:`, targetContainer.name);
+    console.log(`  - targetContainer.children includes rigVisualsGroup:`, targetContainer.children.includes(rigVisualsGroup));
+    
+    // Check each child in rigVisualsGroup
+    if (rigVisualsGroup) {
+        rigVisualsGroup.children.forEach((child, index) => {
+            console.log(`  - Child ${index}:`, child.name || child.type, 'visible:', child.visible, 'children:', child.children?.length || 0);
+            if (child.children && child.children.length > 0) {
+                child.children.forEach((grandchild, gIndex) => {
+                    console.log(`    - Grandchild ${gIndex}:`, grandchild.type, 'visible:', grandchild.visible, 'geometry:', grandchild.geometry?.type);
+                });
+            }
+        });
+    }
+    
+    // Check if asset container has any transform issues
+    console.log(`[RigFactory] Asset container transform debug:`);
+    console.log(`  - Container position:`, targetContainer.position);
+    console.log(`  - Container rotation:`, targetContainer.rotation);
+    console.log(`  - Container scale:`, targetContainer.scale);
+    console.log(`  - Container matrix:`, targetContainer.matrix);
+    
     return {
         group: rigVisualsGroup,
         bones: bones,
@@ -198,7 +227,22 @@ function createBoneConnectionWithJoints(startPos, endPos, radius, parentBone, ch
         return boneGroup;
     }
     
+    // ADD DEBUG BLOCK:
+    console.log(`[RigFactory] GEOMETRY DEBUG for ${parentBone.name}->${childBone.name}:`);
+    console.log(`  - Radius: ${radius}`);
+    console.log(`  - Creating cylinder geometry...`);
+    
     const boneGeometry = new THREE.CylinderGeometry(radius, radius, distance, 8);
+    console.log(`  - Cylinder geometry created:`, boneGeometry);
+    console.log(`  - Geometry bounding sphere:`, boneGeometry.boundingSphere);
+    
+    // Check if geometry is valid
+    if (!boneGeometry.attributes.position) {
+        console.error(`[RigFactory] ERROR: Geometry has no position attribute!`);
+        return boneGroup;
+    }
+    
+    console.log(`  - Position vertices count:`, boneGeometry.attributes.position.count);
     
     for (let i = 0; i < 8; i++) {
         const segmentGeometry = new THREE.CylinderGeometry(
@@ -223,6 +267,12 @@ function createBoneConnectionWithJoints(startPos, endPos, radius, parentBone, ch
         segment.userData.sideType = (i % 2 === 0) ? 'primary' : 'secondary';
         segment.position.y = distance / 2;
         segment.renderOrder = 10000;
+        
+        // ADD DEBUG:
+        console.log(`  - Created segment ${i}: color=${color.toString(16)}, position.y=${segment.position.y}`);
+        console.log(`  - Segment world matrix:`, segment.matrixWorld);
+        console.log(`  - Segment visible:`, segment.visible);
+        console.log(`  - Material:`, material);
         
         boneGroup.add(segment);
     }
@@ -268,6 +318,15 @@ function createBoneConnectionWithJoints(startPos, endPos, radius, parentBone, ch
     console.log(`[RigFactory] Applied rotation quaternion:`, quaternion);
     console.log(`[RigFactory] Final bone group position:`, boneGroup.position);
     console.log(`[RigFactory] Final bone group rotation:`, boneGroup.rotation);
+    
+    // ADD DEBUG FOR FINAL GROUP:
+    console.log(`[RigFactory] Final boneGroup for ${parentBone.name}->${childBone.name}:`);
+    console.log(`  - Position:`, boneGroup.position);
+    console.log(`  - Rotation:`, boneGroup.rotation);
+    console.log(`  - Scale:`, boneGroup.scale);
+    console.log(`  - Children count:`, boneGroup.children.length);
+    console.log(`  - Visible:`, boneGroup.visible);
+    console.log(`  - Parent will be:`, rigVisualsGroup ? rigVisualsGroup.name : 'none');
     
     if (rigDetails && rigDetails.joints) {
         rigDetails.joints.push({
