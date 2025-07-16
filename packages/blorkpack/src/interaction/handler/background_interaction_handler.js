@@ -1,6 +1,6 @@
 import { InteractionHelper } from '../interaction_helper';
 import { InteractionManager } from '../interaction_manager';
-import { grab_object, update_mouse_position } from "../../physics";
+import { grab_object, update_mouse_position, release_object } from "../../physics";
 
 export class BackgroundInteractionHandler {
     constructor() {
@@ -12,6 +12,7 @@ export class BackgroundInteractionHandler {
         this.interaction_helper = null;
         this.grabbed_asset = null;
         this.dragging_asset = false;
+        this.original_body_type = null;
     }
 
     initialize(incomingWindow) {
@@ -33,6 +34,7 @@ export class BackgroundInteractionHandler {
         this.interaction_helper = null;
         this.grabbed_asset = null;
         this.dragging_asset = false;
+        this.original_body_type = null;
     }
 
     setMouseState(leftMouseDown) {
@@ -194,6 +196,8 @@ export class BackgroundInteractionHandler {
             this.interaction_helper.updateRaycaster(camera);
         }
 
+        this.#convertToKinematic(asset);
+        
         grab_object(asset, camera);
 
         this.interaction_helper.startDrag(asset, intersection, camera, {
@@ -214,12 +218,93 @@ export class BackgroundInteractionHandler {
                     this.window.interactionManager.grabbed_object = null;
                 }
                 
+                this.#convertToDynamic(draggedObject);
+                
                 this.#updateCursor();
             }
         });
 
+        if (typeof release_object === 'function') {
+            release_object(this.grabbed_asset, this.window.background_container);
+        }
+
         this.grabbed_asset = null;
         this.dragging_asset = false;
+        this.original_body_type = null;
+    }
+
+    #convertToKinematic(asset) {
+        const body = this.#getPhysicsBody(asset);
+        if (!body) return;
+
+        this.original_body_type = body.bodyType();
+        
+        if (body.bodyType() !== 1) {
+            body.setBodyType(1, true);
+        }
+    }
+
+    #convertToDynamic(asset) {
+        const body = this.#getPhysicsBody(asset);
+        if (!body) return;
+
+        // Clear all velocities BEFORE converting to dynamic
+        body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+        body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+        
+        // Wait a frame to ensure velocities are cleared
+        setTimeout(() => {
+            body.setBodyType(0, true);
+            // Clear again after conversion
+            body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+            body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+        }, 16);
+        
+        if (this.window.background_container && this.window.background_container.dynamic_bodies) {
+            const existingEntry = this.window.background_container.dynamic_bodies.find(entry => {
+                const mesh = Array.isArray(entry) ? entry[0] : entry.mesh;
+                return mesh === asset;
+            });
+            
+            if (!existingEntry) {
+                this.window.background_container.dynamic_bodies.push({ mesh: asset, body: body });
+            }
+        }
+    }
+
+    #getPhysicsBody(asset) {
+        let body = null;
+
+        const storage = this.window.asset_handler?.storage;
+        if (storage) {
+            const bodyPair = storage.get_body_pair_by_mesh(asset);
+            if (bodyPair && bodyPair[1]) {
+                body = bodyPair[1];
+            }
+        }
+
+        if (!body && window.AssetStorage) {
+            const assetStorage = window.AssetStorage.get_instance();
+            if (assetStorage) {
+                const bodyPair = assetStorage.get_body_pair_by_mesh(asset);
+                if (bodyPair && bodyPair[1]) {
+                    body = bodyPair[1];
+                }
+            }
+        }
+
+        if (!body && this.window.background_container) {
+            const dynamicEntry = this.window.background_container.dynamic_bodies.find(entry => {
+                const mesh = Array.isArray(entry) ? entry[0] : entry.mesh;
+                return mesh === asset;
+            });
+            
+            if (dynamicEntry) {
+                body = Array.isArray(dynamicEntry) ? dynamicEntry[1] : dynamicEntry.body;
+            }
+        }
+
+        return body;
     }
 
     #updateAssetPhysics(asset, worldPosition) {
@@ -234,26 +319,14 @@ export class BackgroundInteractionHandler {
             asset.position.copy(localPosition);
         }
 
-        const storage = this.window.asset_handler?.storage;
-        if (storage) {
-            const bodyPair = storage.get_body_pair_by_mesh(asset);
-            if (bodyPair && bodyPair[1]) {
-                const body = bodyPair[1];
-                const physicsWorldPos = worldPosition.clone();
-                body.setTranslation({ x: physicsWorldPos.x, y: physicsWorldPos.y, z: physicsWorldPos.z }, true);
-            }
-        }
-
-        if (window.AssetStorage) {
-            const assetStorage = window.AssetStorage.get_instance();
-            if (assetStorage) {
-                const bodyPair = assetStorage.get_body_pair_by_mesh(asset);
-                if (bodyPair && bodyPair[1]) {
-                    const body = bodyPair[1];
-                    const physicsWorldPos = worldPosition.clone();
-                    body.setTranslation({ x: physicsWorldPos.x, y: physicsWorldPos.y, z: physicsWorldPos.z }, true);
-                }
-            }
+        const body = this.#getPhysicsBody(asset);
+        if (body) {
+            const physicsWorldPos = worldPosition.clone();
+            // Use setTranslation with wake=false to prevent velocity accumulation
+            body.setTranslation({ x: physicsWorldPos.x, y: physicsWorldPos.y, z: physicsWorldPos.z }, false);
+            // Clear any accumulated velocities during drag
+            body.setLinvel({ x: 0, y: 0, z: 0 }, false);
+            body.setAngvel({ x: 0, y: 0, z: 0 }, false);
         }
     }
 
