@@ -11,7 +11,7 @@ import {
 import { DebugFactory } from "./factories/debug_factory.js";
 import { AssetRotator } from "./common/asset_rotator.js";
 import { RigAnalyzer } from './data/rig_analyzer.js';
-import { AnimationAnalyzer } from './data/animation_analyzer.js';
+import { AnimationController } from './animation_controller.js';
 import { createRigVisualization, updateRigVisualization, clearRigVisualization } from './factories/rig_factory.js';
 
 export class AssetHandler {
@@ -24,9 +24,8 @@ export class AssetHandler {
 	debugFactory = null;
 	rotator;
 	rigAnalyzer;
-	animationAnalyzer;
+	animationController;
 	activeRigVisualizations = new Map();
-	animationMixers = new Map();
 
 	constructor(target_container = null, target_world = null) {
 		if (AssetHandler.#instance) {
@@ -37,9 +36,8 @@ export class AssetHandler {
 		this.world = target_world;
 		this.rotator = AssetRotator.get_instance();
 		this.rigAnalyzer = RigAnalyzer.get_instance();
-		this.animationAnalyzer = AnimationAnalyzer.get_instance();
+		this.animationController = AnimationController.get_instance();
 		this.activeRigVisualizations = new Map();
-		this.animationMixers = new Map();
 		AssetHandler.#instance = this;
 		AssetHandler.#disposed = false;
 	}
@@ -63,205 +61,16 @@ export class AssetHandler {
 		return AssetHandler.#instance;
 	}
 
-	analyzeAssetAnimations(spawnResult, assetType) {
-		if (!spawnResult || !spawnResult.mesh) {
-			return null;
-		}
-
-		try {
-			const storage = AssetStorage.get_instance();
-			const customTypeKey = CustomTypeManager.getType(assetType);
-			
-			if (storage.cached_models && storage.cached_models.has(customTypeKey)) {
-				const gltfData = storage.cached_models.get(customTypeKey);
-				const animationAnalysis = this.animationAnalyzer.analyze(gltfData, assetType);
-				
-				if (animationAnalysis.hasAnimations) {
-					spawnResult.mesh.userData.hasAnimations = true;
-					spawnResult.mesh.userData.animationData = animationAnalysis;
-					spawnResult.hasAnimations = true;
-					spawnResult.animationData = animationAnalysis;
-					
-					console.log(`[AssetHandler] 🎬 ANIMATION DETECTED in ${assetType}: YES`);
-					if (animationAnalysis.animationCount > 0) {
-						console.log(`[AssetHandler] Animation Details:`, {
-							instanceId: spawnResult.instance_id,
-							count: animationAnalysis.animationCount,
-							clips: animationAnalysis.animationDetails.map(detail => ({
-								name: detail.name,
-								duration: detail.duration,
-								tracks: detail.tracks
-							}))
-						});
-						
-						this.startAnimations(spawnResult, gltfData);
-					}
-				} else {
-					console.log(`[AssetHandler] 🎬 ANIMATION DETECTED in ${assetType}: NO`);
-					spawnResult.mesh.userData.hasAnimations = false;
-				}
-				
-				return animationAnalysis;
-			} else {
-				console.warn(`[AssetHandler] No cached GLTF data found for ${assetType}, cannot analyze animations`);
-			}
-		} catch (error) {
-			console.error(`[AssetHandler] Error analyzing animations for ${assetType}:`, error);
-			spawnResult.mesh.userData.hasAnimations = false;
-		}
-		
-		return null;
-	}
-
-	startAnimations(spawnResult, gltfData) {
-		if (!gltfData.animations || gltfData.animations.length === 0) {
-			console.log(`[AssetHandler] No animations to start for ${spawnResult.instance_id}`);
-			return;
-		}
-
-		const mixer = new THREE.AnimationMixer(spawnResult.mesh);
-		const actions = [];
-
-		gltfData.animations.forEach((clip, index) => {
-			const action = mixer.clipAction(clip);
-			action.setLoop(THREE.LoopOnce);
-			action.clampWhenFinished = true;
-			actions.push(action);
-		});
-
-		const animationState = {
-			mixer: mixer,
-			actions: actions,
-			mesh: spawnResult.mesh,
-			currentAnimationIndex: 0,
-			isPlaying: false
-		};
-
-		this.startNextAnimation(animationState);
-
-		this.animationMixers.set(spawnResult.instance_id, animationState);
-
-		spawnResult.mesh.userData.animationMixer = mixer;
-		spawnResult.mesh.userData.animationActions = actions;
-		spawnResult.animationMixer = mixer;
-		spawnResult.animationActions = actions;
-
-		spawnResult.playAnimation = (animationIndex = null) => {
-			if (animationIndex !== null && actions[animationIndex]) {
-				this.playSpecificAnimation(animationState, animationIndex);
-			} else {
-				this.startNextAnimation(animationState);
-			}
-		};
-
-		spawnResult.stopAnimation = (animationIndex = null) => {
-			if (animationIndex !== null && actions[animationIndex]) {
-				actions[animationIndex].stop();
-				console.log(`[AssetHandler] 🛑 Stopped animation ${animationIndex} for ${spawnResult.instance_id}`);
-			} else {
-				actions.forEach((action, index) => {
-					action.stop();
-					console.log(`[AssetHandler] 🛑 Stopped animation ${index} for ${spawnResult.instance_id}`);
-				});
-				animationState.isPlaying = false;
-			}
-		};
-
-		spawnResult.pauseAnimation = (animationIndex = null) => {
-			if (animationIndex !== null && actions[animationIndex]) {
-				actions[animationIndex].paused = true;
-			} else {
-				actions.forEach(action => {
-					action.paused = true;
-				});
-			}
-		};
-
-		spawnResult.resumeAnimation = (animationIndex = null) => {
-			if (animationIndex !== null && actions[animationIndex]) {
-				actions[animationIndex].paused = false;
-			} else {
-				actions.forEach(action => {
-					action.paused = false;
-				});
-			}
-		};
-
-		console.log(`[AssetHandler] 🎬 Animation cycling system initialized for ${spawnResult.instance_id} with ${actions.length} animations`);
-	}
-
-	startNextAnimation(animationState) {
-		if (animationState.actions.length === 0) return;
-
-		const currentAction = animationState.actions[animationState.currentAnimationIndex];
-		
-		const onAnimationFinished = () => {
-			console.log(`[AssetHandler] 🔄 Animation ${animationState.currentAnimationIndex} finished, moving to next`);
-			
-			animationState.currentAnimationIndex = (animationState.currentAnimationIndex + 1) % animationState.actions.length;
-			
-			if (animationState.currentAnimationIndex === 0) {
-				console.log(`[AssetHandler] 🔁 Animation cycle completed, restarting from beginning`);
-			}
-			
-			this.startNextAnimation(animationState);
-		};
-
-		currentAction.reset();
-		currentAction.play();
-		animationState.isPlaying = true;
-		
-		animationState.mixer.addEventListener('finished', onAnimationFinished);
-		
-		console.log(`[AssetHandler] 🎬 Playing animation ${animationState.currentAnimationIndex}: ${currentAction.getClip().name || `Animation_${animationState.currentAnimationIndex}`}`);
-	}
-
-	playSpecificAnimation(animationState, animationIndex) {
-		if (animationIndex < 0 || animationIndex >= animationState.actions.length) {
-			console.warn(`[AssetHandler] Invalid animation index: ${animationIndex}`);
-			return;
-		}
-
-		animationState.actions.forEach(action => action.stop());
-		
-		animationState.currentAnimationIndex = animationIndex;
-		const action = animationState.actions[animationIndex];
-		action.reset();
-		action.play();
-		animationState.isPlaying = true;
-		
-		console.log(`[AssetHandler] 🎬 Playing specific animation ${animationIndex}: ${action.getClip().name || `Animation_${animationIndex}`}`);
-	}
-
 	updateAnimations(deltaTime) {
-		this.animationMixers.forEach((animationData, instanceId) => {
-			if (animationData.mixer) {
-				animationData.mixer.update(deltaTime);
-			}
-		});
+		this.animationController.updateAnimations(deltaTime);
 	}
 
 	stopAllAnimations() {
-		this.animationMixers.forEach((animationData, instanceId) => {
-			if (animationData.actions) {
-				animationData.actions.forEach(action => {
-					action.stop();
-				});
-			}
-			animationData.isPlaying = false;
-		});
-		console.log(`[AssetHandler] 🛑 Stopped all animations`);
+		this.animationController.stopAllAnimations();
 	}
 
 	removeAnimationMixer(instanceId) {
-		if (this.animationMixers.has(instanceId)) {
-			const animationData = this.animationMixers.get(instanceId);
-			if (animationData.mixer) {
-				animationData.mixer.stopAllAction();
-			}
-			this.animationMixers.delete(instanceId);
-			console.log(`[AssetHandler] 🗑️ Removed animation mixer for ${instanceId}`);
-		}
+		this.animationController.removeAnimationMixer(instanceId);
 	}
 
 	analyzeAssetRig(spawnResult, assetType) {
@@ -386,7 +195,7 @@ export class AssetHandler {
 					const spawnResult = await custom_factory.spawn_custom_asset(type_value, position, rotation, options);
 					
 					if (spawnResult) {
-						this.analyzeAssetAnimations(spawnResult, type_value);
+						this.animationController.analyzeAssetAnimations(spawnResult, type_value);
 						this.analyzeAssetRig(spawnResult, type_value);
 					}
 					
@@ -519,12 +328,7 @@ export class AssetHandler {
 		});
 		this.activeRigVisualizations.clear();
 		
-		this.animationMixers.forEach((animationData, instanceId) => {
-			if (animationData.mixer) {
-				animationData.mixer.stopAllAction();
-			}
-		});
-		this.animationMixers.clear();
+		this.animationController.cleanup();
 		
 		AssetHandler.#instance = null;
 		if (this.storage) {
@@ -728,15 +532,9 @@ export class AssetHandler {
 		if (this.rigAnalyzer) {
 			this.rigAnalyzer.dispose();
 		}
-		if (this.animationAnalyzer) {
-			this.animationAnalyzer.dispose();
+		if (this.animationController) {
+			this.animationController.dispose();
 		}
-		this.animationMixers.forEach((animationData, instanceId) => {
-			if (animationData.mixer) {
-				animationData.mixer.stopAllAction();
-			}
-		});
-		this.animationMixers.clear();
 		this.scene = null;
 		this.world = null;
 		this.storage = null;
@@ -744,7 +542,7 @@ export class AssetHandler {
 		this.debugFactory = null;
 		this.rotator = null;
 		this.rigAnalyzer = null;
-		this.animationAnalyzer = null;
+		this.animationController = null;
 		AssetHandler.#disposed = true;
 		AssetHandler.#instance = null;
 	}
