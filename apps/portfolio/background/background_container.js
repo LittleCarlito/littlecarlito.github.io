@@ -152,6 +152,10 @@ export class BackgroundContainer {
 			if (FLAGS.ASSET_LOGS) {
 				console.log(`${this.name} Created ${collisionMeshes.length} collision boxes for ${mesh.name}`);
 			}
+		} else {
+			if (FLAGS.ASSET_LOGS) {
+				console.log(`${this.name} No collision meshes found for ${mesh.name} - no colliders created`);
+			}
 		}
 	}
 
