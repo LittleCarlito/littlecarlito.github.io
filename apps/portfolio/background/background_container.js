@@ -30,6 +30,9 @@ export class BackgroundContainer {
 	loading_promise;
 	is_spawning_secondary = false;
 	is_spawning_primary = false;
+	// Collision tracking
+	active_collisions = new Set();
+	collision_debounce_timeout = 1000; // ms before same collision pair can log again
 
 	constructor(incoming_parent, incoming_camera, incoming_world) {
 		this.parent = incoming_parent;
@@ -42,6 +45,9 @@ export class BackgroundContainer {
 		this.asset_container.name = "asset_container";
 		this.asset_container.userData.isAssetContainer = true;
 		this.object_container.add(this.asset_container);
+		
+		// Setup collision event listeners
+		this.setupCollisionEventListeners();
 		
 		const asset_loader = AssetHandler.get_instance(this.asset_container, this.world);
 		this.loading_promise = (async () => {
@@ -92,9 +98,85 @@ export class BackgroundContainer {
 		})();
 	}
 
+	setupCollisionEventListeners() {
+		if (!this.world) {
+			console.warn(`${this.name} No world available for collision event listeners`);
+			return;
+		}
+
+		this.world.eventQueue = new RAPIER.EventQueue(true);
+		console.log(`${this.name} 🎧 Collision event listeners initialized`);
+		
+		this.collision_check_interval = setInterval(() => {
+			this.checkCollisionEvents();
+		}, 16);
+	}
+
+	checkCollisionEvents() {
+		if (!this.world || !this.world.eventQueue) return;
+
+		this.world.eventQueue.drainCollisionEvents((handle1, handle2, started) => {
+			if (started) {
+				this.handleCollisionStart(handle1, handle2);
+			}
+		});
+	}
+
+	handleCollisionStart(handle1, handle2) {
+		const collider1 = this.world.getCollider(handle1);
+		const collider2 = this.world.getCollider(handle2);
+		
+		if (!collider1 || !collider2) return;
+
+		const body1 = collider1.parent();
+		const body2 = collider2.parent();
+		
+		if (!body1 || !body2) return;
+
+		const pairId = `${Math.min(handle1, handle2)}-${Math.max(handle1, handle2)}`;
+		
+		if (this.active_collisions.has(pairId)) return;
+		
+		this.active_collisions.add(pairId);
+		setTimeout(() => {
+			this.active_collisions.delete(pairId);
+		}, this.collision_debounce_timeout);
+
+		const mesh1Name = this.findMeshForBody(body1);
+		const mesh2Name = this.findMeshForBody(body2);
+
+		console.log(`🔥 COLLISION: ${mesh1Name} <-> ${mesh2Name}`);
+	}
+
+	findMeshForBody(body) {
+		const storage = AssetStorage.get_instance();
+		const allAssets = storage.get_all_assets();
+		
+		for (const asset of allAssets) {
+			if (asset.body === body) {
+				return asset.mesh ? asset.mesh.name : 'Unnamed mesh';
+			}
+		}
+		return 'Unknown mesh';
+	}
+
+	getBodyTypeName(bodyType) {
+		switch(bodyType) {
+			case RAPIER.RigidBodyType.Dynamic: return 'Dynamic';
+			case RAPIER.RigidBodyType.Fixed: return 'Fixed';
+			case RAPIER.RigidBodyType.KinematicPositionBased: return 'Kinematic';
+			case RAPIER.RigidBodyType.KinematicVelocityBased: return 'KinematicVel';
+			default: return 'Unknown';
+		}
+	}
+
 	async spawnAsset(assetType, position, rotation, assetConfigs, category = null) {
 		const asset_loader = AssetHandler.get_instance(this.asset_container, this.world);
 		const atlasConfig = assetConfigs[assetType].materials.default;
+		
+		// Check if this asset might need CCD based on its expected collision properties
+		const config = assetConfigs[assetType];
+		const needsCCD = this.shouldEnableCCD(assetType, config);
 		
 		const result = await asset_loader.spawn_asset(
 			assetType,
@@ -104,7 +186,8 @@ export class BackgroundContainer {
 				enablePhysics: true,
 				kinematic: true,
 				atlasConfig: atlasConfig,
-				hideDisplayMeshes: true
+				hideDisplayMeshes: true,
+				enableCCD: needsCCD  // Pass CCD flag to spawn options
 			}
 		);
 		
@@ -125,12 +208,34 @@ export class BackgroundContainer {
 		this.asset_manifest.add(mesh.name);
 		
 		if (FLAGS.ASSET_LOGS) {
-			console.log(`${this.name} Created ${assetType} with name: ${mesh.name}${category ? `, category: ${category}` : ''}`);
+			console.log(`${this.name} Created ${assetType} with name: ${mesh.name}${category ? `, category: ${category}` : ''}${needsCCD ? ' [CCD ENABLED]' : ''}`);
 		}
 		
 		this.createCollisionBoxes(mesh, body, assetConfigs[assetType]);
 		
 		return result;
+	}
+
+	shouldEnableCCD(assetType, config) {
+		// Enable CCD for known thin objects that might be targets for dynamic collisions
+		const thinAssetTypes = ['DIPLOMA_BOT', 'DIPLOMA_TOP', 'TABLET', 'NOTEBOOK_OPENED', 'DESKPHOTO'];
+		
+		if (thinAssetTypes.includes(assetType)) {
+			if (FLAGS.PHYSICS_LOGS) {
+				console.log(`${this.name} Enabling CCD for potentially thin asset: ${assetType}`);
+			}
+			return true;
+		}
+		
+		// Enable CCD based on scale (very small objects)
+		if (config.scale && config.scale < 0.5) {
+			if (FLAGS.PHYSICS_LOGS) {
+				console.log(`${this.name} Enabling CCD for small scaled asset: ${assetType} (scale: ${config.scale})`);
+			}
+			return true;
+		}
+		
+		return false;
 	}
 
 	createCollisionBoxes(mesh, body, assetConfig) {
@@ -175,6 +280,11 @@ export class BackgroundContainer {
 			shapeType = 'capsule';
 		}
 
+		if (FLAGS.PHYSICS_LOGS) {
+			console.log(`${this.name} Creating ${shapeType} collider for ${mesh.name}:`);
+			console.log(`  Dimensions: ${width.toFixed(3)} × ${height.toFixed(3)} × ${depth.toFixed(3)}`);
+		}
+
 		let colliderDesc;
 		switch (shapeType) {
 		case 'sphere':
@@ -194,6 +304,7 @@ export class BackgroundContainer {
 
 		colliderDesc.setRestitution(assetConfig.restitution || 0.5);
 		colliderDesc.setFriction(assetConfig.friction || 0.5);
+		colliderDesc.setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
 
 		const worldPosition = new THREE.Vector3();
 		const worldQuaternion = new THREE.Quaternion();
@@ -288,6 +399,10 @@ export class BackgroundContainer {
 			}
 		});
 		
+		if (this.world && this.world.eventQueue && deltaTime) {
+			this.world.step(this.world.eventQueue);
+		}
+		
 		const asset_handler = AssetHandler.get_instance();
 		if (asset_handler && deltaTime !== undefined) {
 			asset_handler.updateAnimations(deltaTime);
@@ -296,5 +411,13 @@ export class BackgroundContainer {
 
 	contains_object(incoming_name) {
 		return AssetStorage.get_instance().contains_object(incoming_name);
+	}
+
+	// Cleanup collision event listener
+	dispose() {
+		if (this.collision_check_interval) {
+			clearInterval(this.collision_check_interval);
+		}
+		this.active_collisions.clear();
 	}
 }
