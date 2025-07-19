@@ -1,18 +1,13 @@
 import { THREE, FLAGS, RAPIER } from '../common';
 import { AssetHandler, AssetStorage, CustomTypeManager }  from '@littlecarlito/blorkpack';
 import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
+import { SimpleFloorRectangle } from './simple_floor_rectangle.js';
 
 const FLOOR_HEIGHT = -10;
 const DESK_HEIGHT = FLOOR_HEIGHT/2;
 const DIPLOMA_X = -7.2;
 const DIPLOMA_Z = -.5;
-
-const SIMPLE_FLOOR_WIDTH = 15;
-const SIMPLE_FLOOR_HEIGHT = 0.5;
-const SIMPLE_FLOOR_DEPTH = 15;
-const SIMPLE_FLOOR_X = 0;
-const SIMPLE_FLOOR_Y = -10.25;
-const SIMPLE_FLOOR_Z = 0;
+const DESPAWN_Y_THRESHOLD = -50;
 
 const ASSET_CATEGORY_MAP = {
 	DIPLOMA_BOT: CATEGORIES.EDUCATION.value,
@@ -22,120 +17,6 @@ const ASSET_CATEGORY_MAP = {
 	DESKPHOTO: CATEGORIES.ABOUT.value,
 	TABLET: CATEGORIES.CONTACT.value
 };
-
-class SimpleFloorRectangle {
-	constructor(world, parent) {
-		this.world = world;
-		this.parent = parent;
-		this.width = SIMPLE_FLOOR_WIDTH;
-		this.height = SIMPLE_FLOOR_HEIGHT;
-		this.depth = SIMPLE_FLOOR_DEPTH;
-		this.x = SIMPLE_FLOOR_X;
-		this.y = SIMPLE_FLOOR_Y;
-		this.z = SIMPLE_FLOOR_Z;
-		
-		this.mesh = null;
-		this.body = null;
-		this.collider = null;
-		this.transparentMaterial = null;
-		this.debugMaterial = null;
-		
-		console.log(`SimpleFloorRectangle: Creating floor at position (${this.x}, ${this.y}, ${this.z})`);
-		this.createFloor();
-	}
-	
-	createFloor() {
-		const geometry = new THREE.BoxGeometry(this.width, this.height, this.depth);
-		
-		// Create transparent material (default)
-		this.transparentMaterial = new THREE.MeshStandardMaterial({ 
-			color: 0xffffff,
-			transparent: true,
-			opacity: 0.0,
-			roughness: 0.8,
-			metalness: 0.2
-		});
-		
-		// Create debug material (red for collision visualization)
-		this.debugMaterial = new THREE.MeshStandardMaterial({ 
-			color: 0xff0000,
-			transparent: false,
-			opacity: 1.0,
-			roughness: 0.8,
-			metalness: 0.2
-		});
-		
-		this.mesh = new THREE.Mesh(geometry, this.transparentMaterial);
-		this.mesh.position.set(this.x, this.y, this.z);
-		this.mesh.name = "SimpleFloor";
-		this.mesh.receiveShadow = true;
-		
-		// Add collision wireframe methods to userData
-		this.mesh.userData.enableCollisionWireframes = () => {
-			this.mesh.material = this.debugMaterial;
-			this.mesh.material.needsUpdate = true;
-		};
-		
-		this.mesh.userData.disableCollisionWireframes = () => {
-			this.mesh.material = this.transparentMaterial;
-			this.mesh.material.needsUpdate = true;
-		};
-		
-		// Mark this mesh as having collision wireframes
-		this.mesh.userData.collisionWireframes = true;
-		
-		console.log(`SimpleFloorRectangle: Mesh positioned at (${this.mesh.position.x}, ${this.mesh.position.y}, ${this.mesh.position.z})`);
-		
-		this.parent.add(this.mesh);
-		
-		if (this.world) {
-			this.createPhysicsBody();
-		}
-	}
-	
-	createPhysicsBody() {
-		const worldPosition = new THREE.Vector3();
-		this.mesh.getWorldPosition(worldPosition);
-		
-		const bodyDesc = RAPIER.RigidBodyDesc.fixed();
-		bodyDesc.setTranslation(worldPosition.x, worldPosition.y, worldPosition.z);
-		this.body = this.world.createRigidBody(bodyDesc);
-		
-		const colliderDesc = RAPIER.ColliderDesc.cuboid(
-			this.width / 2, 
-			this.height / 2, 
-			this.depth / 2
-		);
-		colliderDesc.setRestitution(0.3);
-		colliderDesc.setFriction(0.8);
-		colliderDesc.setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
-		
-		this.collider = this.world.createCollider(colliderDesc, this.body);
-		
-		const bodyPos = this.body.translation();
-		console.log(`SimpleFloorRectangle: Physics body positioned at (${bodyPos.x}, ${bodyPos.y}, ${bodyPos.z})`);
-		console.log(`Created simple floor: ${SIMPLE_FLOOR_WIDTH}x${SIMPLE_FLOOR_HEIGHT}x${SIMPLE_FLOOR_DEPTH} at (${SIMPLE_FLOOR_X}, ${SIMPLE_FLOOR_Y}, ${SIMPLE_FLOOR_Z})`);
-	}
-	
-	dispose() {
-		if (this.collider) {
-			this.world.removeCollider(this.collider, true);
-		}
-		if (this.body) {
-			this.world.removeRigidBody(this.body);
-		}
-		if (this.mesh) {
-			this.parent.remove(this.mesh);
-			this.mesh.geometry.dispose();
-			if (this.transparentMaterial) {
-				this.transparentMaterial.dispose();
-			}
-			if (this.debugMaterial) {
-				this.debugMaterial.dispose();
-			}
-		}
-	}
-}
 
 export class BackgroundContainer {
 	name = "[BackgroundContainer]"
@@ -152,8 +33,7 @@ export class BackgroundContainer {
 	loading_promise;
 	is_spawning_secondary = false;
 	is_spawning_primary = false;
-	active_collisions = new Set();
-	collision_debounce_timeout = 1000;
+	dropped_asset_colliders = new Map();
 
 	constructor(incoming_parent, incoming_camera, incoming_world) {
 		this.parent = incoming_parent;
@@ -168,8 +48,6 @@ export class BackgroundContainer {
 		this.object_container.add(this.asset_container);
 		
 		this.simple_floor = new SimpleFloorRectangle(this.world, this.object_container);
-		
-		this.setupCollisionEventListeners();
 		
 		const asset_loader = AssetHandler.get_instance(this.asset_container, this.world);
 		this.loading_promise = (async () => {
@@ -220,88 +98,9 @@ export class BackgroundContainer {
 		})();
 	}
 
-	setupCollisionEventListeners() {
-		if (!this.world) {
-			console.warn(`${this.name} No world available for collision event listeners`);
-			return;
-		}
-
-		this.world.eventQueue = new RAPIER.EventQueue(true);
-		console.log(`${this.name} 🎧 Collision event listeners initialized`);
-		
-		this.collision_check_interval = setInterval(() => {
-			this.checkCollisionEvents();
-		}, 16);
-	}
-
-	checkCollisionEvents() {
-		if (!this.world || !this.world.eventQueue) return;
-
-		this.world.eventQueue.drainCollisionEvents((handle1, handle2, started) => {
-			if (started) {
-				this.handleCollisionStart(handle1, handle2);
-			}
-		});
-	}
-
-	handleCollisionStart(handle1, handle2) {
-		const collider1 = this.world.getCollider(handle1);
-		const collider2 = this.world.getCollider(handle2);
-		
-		if (!collider1 || !collider2) return;
-
-		const body1 = collider1.parent();
-		const body2 = collider2.parent();
-		
-		if (!body1 || !body2) return;
-
-		const pairId = `${Math.min(handle1, handle2)}-${Math.max(handle1, handle2)}`;
-		
-		if (this.active_collisions.has(pairId)) return;
-		
-		this.active_collisions.add(pairId);
-		setTimeout(() => {
-			this.active_collisions.delete(pairId);
-		}, this.collision_debounce_timeout);
-
-		const mesh1Name = this.findMeshForBody(body1);
-		const mesh2Name = this.findMeshForBody(body2);
-
-		console.log(`🔥 COLLISION: ${mesh1Name} <-> ${mesh2Name}`);
-	}
-
-	findMeshForBody(body) {
-		if (this.simple_floor && body === this.simple_floor.body) {
-			return 'SimpleFloor';
-		}
-		
-		const storage = AssetStorage.get_instance();
-		const allAssets = storage.get_all_assets();
-		
-		for (const asset of allAssets) {
-			if (asset.body === body) {
-				return asset.mesh ? asset.mesh.name : 'Unnamed mesh';
-			}
-		}
-		return 'Unknown mesh';
-	}
-
-	getBodyTypeName(bodyType) {
-		switch(bodyType) {
-			case RAPIER.RigidBodyType.Dynamic: return 'Dynamic';
-			case RAPIER.RigidBodyType.Fixed: return 'Fixed';
-			case RAPIER.RigidBodyType.KinematicPositionBased: return 'Kinematic';
-			case RAPIER.RigidBodyType.KinematicVelocityBased: return 'KinematicVel';
-			default: return 'Unknown';
-		}
-	}
-
 	async spawnAsset(assetType, position, rotation, assetConfigs, category = null) {
 		const asset_loader = AssetHandler.get_instance(this.asset_container, this.world);
 		const atlasConfig = assetConfigs[assetType].materials.default;
-		
-		const config = assetConfigs[assetType];
-		const needsCCD = this.shouldEnableCCD(assetType, config);
 		
 		const result = await asset_loader.spawn_asset(
 			assetType,
@@ -312,7 +111,7 @@ export class BackgroundContainer {
 				kinematic: true,
 				atlasConfig: atlasConfig,
 				hideDisplayMeshes: true,
-				enableCCD: needsCCD
+				enableCCD: false
 			}
 		);
 		
@@ -333,101 +132,46 @@ export class BackgroundContainer {
 		this.asset_manifest.add(mesh.name);
 		
 		if (FLAGS.ASSET_LOGS) {
-			console.log(`${this.name} Created ${assetType} with name: ${mesh.name}${category ? `, category: ${category}` : ''}${needsCCD ? ' [CCD ENABLED]' : ''}`);
+			console.log(`${this.name} Created ${assetType} with name: ${mesh.name}${category ? `, category: ${category}` : ''} - Body Type: ${body ? 'KINEMATIC' : 'NONE'}`);
 		}
-		
-		this.createCollisionBoxes(mesh, body, assetConfigs[assetType]);
 		
 		return result;
 	}
 
-	shouldEnableCCD(assetType, config) {
-		const thinAssetTypes = ['DIPLOMA_BOT', 'DIPLOMA_TOP', 'TABLET', 'NOTEBOOK_OPENED', 'DESKPHOTO'];
-		
-		if (thinAssetTypes.includes(assetType)) {
+	createCollisionBoxForDroppedAsset(mesh, body, assetConfig) {
+		if (!body || !this.world || !mesh) {
 			if (FLAGS.PHYSICS_LOGS) {
-				console.log(`${this.name} Enabling CCD for potentially thin asset: ${assetType}`);
+				console.warn(`${this.name} Cannot create collision box - missing body, world, or mesh`);
 			}
-			return true;
+			return null;
 		}
-		
-		if (config.scale && config.scale < 0.5) {
+
+		const existingCollider = this.dropped_asset_colliders.get(mesh.name);
+		if (existingCollider) {
 			if (FLAGS.PHYSICS_LOGS) {
-				console.log(`${this.name} Enabling CCD for small scaled asset: ${assetType} (scale: ${config.scale})`);
+				console.log(`${this.name} Removing existing collider for ${mesh.name}`);
 			}
-			return true;
+			this.world.removeCollider(existingCollider, true);
+			this.dropped_asset_colliders.delete(mesh.name);
 		}
-		
-		return false;
-	}
 
-	createCollisionBoxes(mesh, body, assetConfig) {
-		if (!body || !this.world) return;
+		mesh.geometry.computeBoundingBox();
+		const boundingBox = mesh.geometry.boundingBox;
 		
-		const collisionMeshes = [];
-		
-		mesh.traverse((child) => {
-			if (child.isMesh && child.name.startsWith('col_')) {
-				collisionMeshes.push(child);
+		if (!boundingBox) {
+			if (FLAGS.PHYSICS_LOGS) {
+				console.warn(`${this.name} No bounding box for ${mesh.name} - cannot create collider`);
 			}
-		});
-		
-		if (collisionMeshes.length > 0) {
-			collisionMeshes.forEach(collisionMesh => {
-				this.createColliderFromMesh(collisionMesh, body, assetConfig);
-			});
-			
-			if (FLAGS.ASSET_LOGS) {
-				console.log(`${this.name} Created ${collisionMeshes.length} collision boxes for ${mesh.name}`);
-			}
-		} else {
-			if (FLAGS.ASSET_LOGS) {
-				console.log(`${this.name} No collision meshes found for ${mesh.name} - no colliders created`);
-			}
+			return null;
 		}
-	}
-
-	createColliderFromMesh(mesh, body, assetConfig) {
-		const geometry = mesh.geometry;
-		geometry.computeBoundingBox();
-		const boundingBox = geometry.boundingBox;
 		
 		const width = boundingBox.max.x - boundingBox.min.x;
 		const height = boundingBox.max.y - boundingBox.min.y;
 		const depth = boundingBox.max.z - boundingBox.min.z;
-		
-		let shapeType = 'box';
-		if (mesh.name.includes('sphere') || mesh.name.includes('ball')) {
-			shapeType = 'sphere';
-		} else if (mesh.name.includes('capsule')) {
-			shapeType = 'capsule';
-		}
 
-		if (FLAGS.PHYSICS_LOGS) {
-			console.log(`${this.name} Creating ${shapeType} collider for ${mesh.name}:`);
-			console.log(`  Dimensions: ${width.toFixed(3)} × ${height.toFixed(3)} × ${depth.toFixed(3)}`);
-		}
-
-		let colliderDesc;
-		switch (shapeType) {
-		case 'sphere':
-			const radius = Math.max(width, height, depth) / 2;
-			colliderDesc = RAPIER.ColliderDesc.ball(radius);
-			break;
-		case 'capsule':
-			const capsuleRadius = Math.max(width, depth) / 2;
-			const capsuleHeight = height;
-			colliderDesc = RAPIER.ColliderDesc.capsule(capsuleHeight / 2, capsuleRadius);
-			break;
-		case 'box':
-		default:
-			colliderDesc = RAPIER.ColliderDesc.cuboid(width / 2, height / 2, depth / 2);
-			break;
-		}
-
-		colliderDesc.setRestitution(assetConfig.restitution || 0.5);
-		colliderDesc.setFriction(assetConfig.friction || 0.5);
-		colliderDesc.setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+		const colliderDesc = RAPIER.ColliderDesc.cuboid(width / 2, height / 2, depth / 2);
+		colliderDesc.setRestitution(assetConfig?.restitution || 0.3);
+		colliderDesc.setFriction(assetConfig?.friction || 0.7);
 
 		const worldPosition = new THREE.Vector3();
 		const worldQuaternion = new THREE.Quaternion();
@@ -439,11 +183,138 @@ export class BackgroundContainer {
 
 		const collider = this.world.createCollider(colliderDesc, body);
 		
-		if (FLAGS.PHYSICS_LOGS) {
-			console.log(`${this.name} Created ${shapeType} collider for ${mesh.name} at position:`, worldPosition);
+		if (collider) {
+			this.dropped_asset_colliders.set(mesh.name, collider);
+			if (FLAGS.PHYSICS_LOGS) {
+				console.log(`${this.name} Created hack collision box for dropped asset: ${mesh.name}`);
+				console.log(`  Dimensions: ${width.toFixed(3)} × ${height.toFixed(3)} × ${depth.toFixed(3)}`);
+				console.log(`  Position: (${worldPosition.x.toFixed(3)}, ${worldPosition.y.toFixed(3)}, ${worldPosition.z.toFixed(3)})`);
+			}
 		}
 		
 		return collider;
+	}
+
+	removeCollisionBoxForAsset(mesh) {
+		if (!mesh || !mesh.name) return;
+
+		const collider = this.dropped_asset_colliders.get(mesh.name);
+		if (collider && this.world) {
+			this.world.removeCollider(collider, true);
+			this.dropped_asset_colliders.delete(mesh.name);
+			if (FLAGS.PHYSICS_LOGS) {
+				console.log(`${this.name} Removed collision box for ${mesh.name}`);
+			}
+		}
+	}
+
+	despawnAsset(mesh, body) {
+		if (!mesh) return;
+
+		const assetName = mesh.name;
+		
+		console.log(`${this.name} Despawning asset: ${assetName} (fell below Y threshold of ${DESPAWN_Y_THRESHOLD}) - Final position: (${mesh.position.x.toFixed(2)}, ${mesh.position.y.toFixed(2)}, ${mesh.position.z.toFixed(2)})`);
+		console.log(`${this.name} Physics body position: (${body ? body.translation().x.toFixed(2) : 'N/A'}, ${body ? body.translation().y.toFixed(2) : 'N/A'}, ${body ? body.translation().z.toFixed(2) : 'N/A'})`)
+
+		this.removeCollisionBoxForAsset(mesh);
+
+		if (body && this.world) {
+			this.world.removeRigidBody(body);
+		}
+
+		this.dynamic_bodies = this.dynamic_bodies.filter(entry => {
+			const entryMesh = Array.isArray(entry) ? entry[0] : entry.mesh;
+			return entryMesh !== mesh;
+		});
+
+		for (const [category, assets] of this.categorized_assets.entries()) {
+			const filteredAssets = assets.filter(asset => asset.mesh !== mesh);
+			if (filteredAssets.length !== assets.length) {
+				this.categorized_assets.set(category, filteredAssets);
+			}
+		}
+
+		const assetStorage = AssetStorage.get_instance();
+		if (assetStorage) {
+			const bodyPair = assetStorage.get_body_pair_by_mesh(mesh);
+			if (bodyPair) {
+				const instanceId = mesh.userData?.instanceId;
+				if (instanceId && assetStorage.dynamic_bodies?.has(instanceId)) {
+					assetStorage.dynamic_bodies.delete(instanceId);
+				}
+			}
+		}
+
+		if (mesh.parent) {
+			mesh.parent.remove(mesh);
+		}
+
+		if (mesh.geometry) {
+			mesh.geometry.dispose();
+		}
+		if (mesh.material) {
+			if (Array.isArray(mesh.material)) {
+				mesh.material.forEach(material => {
+					if (material.map) material.map.dispose();
+					material.dispose();
+				});
+			} else {
+				if (mesh.material.map) mesh.material.map.dispose();
+				mesh.material.dispose();
+			}
+		}
+	}
+
+	checkForFallenAssets() {
+		const assetsToRemove = [];
+		
+		this.dynamic_bodies.forEach(entry => {
+			const mesh = Array.isArray(entry) ? entry[0] : entry.mesh;
+			const body = Array.isArray(entry) ? entry[1] : entry.body;
+			
+			if (mesh && body) {
+				const bodyPosition = body.translation();
+				const meshY = mesh.position.y;
+				const bodyY = bodyPosition.y;
+				
+				if (bodyY < DESPAWN_Y_THRESHOLD || meshY < DESPAWN_Y_THRESHOLD) {
+					console.log(`${this.name} Asset ${mesh.name} marked for despawn - Mesh Y: ${meshY.toFixed(2)}, Body Y: ${bodyY.toFixed(2)}, Threshold: ${DESPAWN_Y_THRESHOLD}`);
+					assetsToRemove.push({ mesh, body });
+				}
+			} else if (mesh && mesh.position.y < DESPAWN_Y_THRESHOLD) {
+				console.log(`${this.name} Asset ${mesh.name} marked for despawn (no body) - Mesh Y: ${mesh.position.y.toFixed(2)}, Threshold: ${DESPAWN_Y_THRESHOLD}`);
+				assetsToRemove.push({ mesh, body });
+			}
+		});
+
+		const assetStorage = AssetStorage.get_instance();
+		if (assetStorage) {
+			assetStorage.get_all_dynamic_bodies().forEach(([mesh, body]) => {
+				if (mesh && body && mesh.name && mesh.name.includes('interactable_')) {
+					const bodyPosition = body.translation();
+					const meshY = mesh.position.y;
+					const bodyY = bodyPosition.y;
+					
+					if (bodyY < DESPAWN_Y_THRESHOLD || meshY < DESPAWN_Y_THRESHOLD) {
+						const alreadyMarked = assetsToRemove.some(item => item.mesh === mesh);
+						if (!alreadyMarked) {
+							console.log(`${this.name} Asset ${mesh.name} (from AssetStorage) marked for despawn - Mesh Y: ${meshY.toFixed(2)}, Body Y: ${bodyY.toFixed(2)}, Threshold: ${DESPAWN_Y_THRESHOLD}`);
+							assetsToRemove.push({ mesh, body });
+						}
+					}
+				}
+			});
+		}
+
+		assetsToRemove.forEach(({ mesh, body }) => {
+			this.despawnAsset(mesh, body);
+		});
+
+		if (assetsToRemove.length > 0) {
+			console.log(`${this.name} Despawned ${assetsToRemove.length} assets this frame`);
+		}
+
+		return assetsToRemove.length;
 	}
 
 	setBackgroundRenderOrder() {
@@ -511,6 +382,10 @@ export class BackgroundContainer {
 	}
 
 	update(grabbed_object, viewable_container, deltaTime) {
+		if (this.world && this.world.eventQueue && deltaTime) {
+			this.world.step(this.world.eventQueue);
+		}
+		
 		this.dynamic_bodies.forEach(entry => {
 			const mesh = Array.isArray(entry) ? entry[0] : entry.mesh;
 			const body = Array.isArray(entry) ? entry[1] : entry.body;
@@ -522,9 +397,7 @@ export class BackgroundContainer {
 			}
 		});
 		
-		if (this.world && this.world.eventQueue && deltaTime) {
-			this.world.step(this.world.eventQueue);
-		}
+		this.checkForFallenAssets();
 		
 		const asset_handler = AssetHandler.get_instance();
 		if (asset_handler && deltaTime !== undefined) {
@@ -537,10 +410,13 @@ export class BackgroundContainer {
 	}
 
 	dispose() {
-		if (this.collision_check_interval) {
-			clearInterval(this.collision_check_interval);
-		}
-		this.active_collisions.clear();
+		this.dropped_asset_colliders.forEach((collider, assetName) => {
+			if (this.world) {
+				this.world.removeCollider(collider, true);
+			}
+		});
+		this.dropped_asset_colliders.clear();
+		
 		if (this.simple_floor) {
 			this.simple_floor.dispose();
 		}

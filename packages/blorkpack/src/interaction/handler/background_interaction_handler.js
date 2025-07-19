@@ -242,22 +242,31 @@ export class BackgroundInteractionHandler {
         if (body.bodyType() !== 1) {
             body.setBodyType(1, true);
         }
+
+        if (this.window.background_container) {
+            this.window.background_container.removeCollisionBoxForAsset(asset);
+        }
     }
 
     #convertToDynamic(asset) {
         const body = this.#getPhysicsBody(asset);
-        if (!body) return;
+        if (!body) {
+            console.warn('No physics body found for asset:', asset.name);
+            return;
+        }
 
-        // Clear all velocities BEFORE converting to dynamic
         body.setLinvel({ x: 0, y: 0, z: 0 }, true);
         body.setAngvel({ x: 0, y: 0, z: 0 }, true);
         
-        // Wait a frame to ensure velocities are cleared
         setTimeout(() => {
             body.setBodyType(0, true);
-            // Clear again after conversion
             body.setLinvel({ x: 0, y: 0, z: 0 }, true);
             body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+
+            if (this.window.background_container) {
+                const assetConfig = this.#getAssetConfig(asset);
+                this.window.background_container.createCollisionBoxForDroppedAsset(asset, body, assetConfig);
+            }
         }, 16);
         
         if (this.window.background_container && this.window.background_container.dynamic_bodies) {
@@ -270,6 +279,32 @@ export class BackgroundInteractionHandler {
                 this.window.background_container.dynamic_bodies.push({ mesh: asset, body: body });
             }
         }
+    }
+
+    #getAssetConfig(asset) {
+        const defaultConfig = {
+            restitution: 0.3,
+            friction: 0.7
+        };
+
+        if (!asset || !asset.name) {
+            return defaultConfig;
+        }
+
+        const assetType = asset.name.replace('interactable_', '').split('_')[0];
+        
+        const assetSpecificConfigs = {
+            'TABLET': { restitution: 0.1, friction: 0.8 },
+            'BOOK': { restitution: 0.2, friction: 0.9 },
+            'NOTEBOOK': { restitution: 0.2, friction: 0.9 },
+            'DIPLOMA': { restitution: 0.1, friction: 0.8 },
+            'PLANT': { restitution: 0.4, friction: 0.6 },
+            'CAT': { restitution: 0.3, friction: 0.5 },
+            'CHAIR': { restitution: 0.2, friction: 0.8 },
+            'COMPUTER': { restitution: 0.1, friction: 0.9 }
+        };
+
+        return assetSpecificConfigs[assetType] || defaultConfig;
     }
 
     #getPhysicsBody(asset) {
@@ -322,9 +357,7 @@ export class BackgroundInteractionHandler {
         const body = this.#getPhysicsBody(asset);
         if (body) {
             const physicsWorldPos = worldPosition.clone();
-            // Use setTranslation with wake=false to prevent velocity accumulation
             body.setTranslation({ x: physicsWorldPos.x, y: physicsWorldPos.y, z: physicsWorldPos.z }, false);
-            // Clear any accumulated velocities during drag
             body.setLinvel({ x: 0, y: 0, z: 0 }, false);
             body.setAngvel({ x: 0, y: 0, z: 0 }, false);
         }
