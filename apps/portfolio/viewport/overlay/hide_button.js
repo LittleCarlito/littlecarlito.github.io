@@ -3,16 +3,51 @@ import { Easing, THREE, Tween } from '../../common';
 import { CustomTypeManager } from '@littlecarlito/blorkpack';
 import { FLAGS } from '../../common';
 
+const HIDE_BUTTON_IMAGE_ENABLED = 'images/moon_broke.png';
+const HIDE_BUTTON_IMAGE_DISABLED = 'images/moon.png';
+const HIDE_BUTTON_SCALE = 1.0;
+
 export class HideButton {
 	is_overlay_hidden = false;
 	#ASSET_TYPE = CustomTypeManager.getTypes();
+	#texture_loader = new THREE.TextureLoader();
+	#enabled_texture = null;
+	#disabled_texture = null;
+	#base_width = 1.0;
+	#base_height = 1.0;
 
 	constructor(incoming_parent, incoming_camera) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
-		const hide_button_width = HIDE_WIDTH;
-		const hide_button_height = HIDE_HEIGHT;
-		const hide_button_geometry = new THREE.BoxGeometry(hide_button_width, hide_button_height, 0);
+		this.#load_textures();
+	}
+
+	#load_textures() {
+		this.#enabled_texture = this.#texture_loader.load(HIDE_BUTTON_IMAGE_ENABLED, (texture) => {
+			this.#calculate_dimensions(texture);
+			this.#create_button();
+		});
+		this.#disabled_texture = this.#texture_loader.load(HIDE_BUTTON_IMAGE_DISABLED, (texture) => {
+			if (!this.hide_button) {
+				this.#calculate_dimensions(texture);
+				this.#create_button();
+			}
+		});
+	}
+
+	#calculate_dimensions(texture) {
+		const aspect_ratio = texture.image.width / texture.image.height;
+		if (aspect_ratio > 1) {
+			this.#base_width = HIDE_BUTTON_SCALE;
+			this.#base_height = HIDE_BUTTON_SCALE / aspect_ratio;
+		} else {
+			this.#base_width = HIDE_BUTTON_SCALE * aspect_ratio;
+			this.#base_height = HIDE_BUTTON_SCALE;
+		}
+	}
+
+	#create_button() {
+		const hide_button_geometry = new THREE.PlaneGeometry(this.#base_width, this.#base_height);
 		const hide_button_material = this.get_hide_button_material();
 		this.hide_button = new THREE.Mesh(hide_button_geometry, hide_button_material);
 		this.hide_button.position.y = this.get_hide_button_y(this.camera);
@@ -24,8 +59,9 @@ export class HideButton {
 	}
 
 	get_hide_button_material() {
+		const texture = this.is_overlay_hidden ? this.#enabled_texture : this.#disabled_texture;
 		const material = new THREE.MeshBasicMaterial({ 
-			color: this.is_overlay_hidden ? 0x689f38 : 0x777981,
+			map: texture,
 			toneMapped: false,
 			depthTest: false,
 			depthWrite: false,
