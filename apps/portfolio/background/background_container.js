@@ -8,6 +8,7 @@ const DESK_HEIGHT = FLOOR_HEIGHT/2;
 const DIPLOMA_X = -7.2;
 const DIPLOMA_Z = -.5;
 const DESPAWN_Y_THRESHOLD = -50;
+const FALLEN_ASSET_CHECK_INTERVAL = 60; // Only check every 60 frames (~1 second at 60fps)
 
 const ASSET_CATEGORY_MAP = {
 	DIPLOMA_BOT: CATEGORIES.EDUCATION.value,
@@ -34,6 +35,7 @@ export class BackgroundContainer {
 	is_spawning_secondary = false;
 	is_spawning_primary = false;
 	dropped_asset_colliders = new Map();
+	frameCount = 0; // Track frame count for optimizations
 
 	constructor(incoming_parent, incoming_camera, incoming_world) {
 		this.parent = incoming_parent;
@@ -269,6 +271,11 @@ export class BackgroundContainer {
 	checkForFallenAssets() {
 		const assetsToRemove = [];
 		
+		// Only check fallen assets occasionally, not every frame
+		if (this.frameCount % FALLEN_ASSET_CHECK_INTERVAL !== 0) {
+			return 0;
+		}
+		
 		this.dynamic_bodies.forEach(entry => {
 			const mesh = Array.isArray(entry) ? entry[0] : entry.mesh;
 			const body = Array.isArray(entry) ? entry[1] : entry.body;
@@ -383,10 +390,9 @@ export class BackgroundContainer {
 	}
 
 	update(grabbed_object, viewable_container, deltaTime) {
-		if (this.world && this.world.eventQueue && deltaTime) {
-			this.world.step(this.world.eventQueue);
-		}
+		this.frameCount++;
 		
+		// Only sync mesh positions from physics bodies
 		this.dynamic_bodies.forEach(entry => {
 			const mesh = Array.isArray(entry) ? entry[0] : entry.mesh;
 			const body = Array.isArray(entry) ? entry[1] : entry.body;
@@ -398,12 +404,8 @@ export class BackgroundContainer {
 			}
 		});
 		
+		// Only check for fallen assets occasionally to reduce overhead
 		this.checkForFallenAssets();
-		
-		const asset_handler = AssetHandler.get_instance();
-		if (asset_handler && deltaTime !== undefined) {
-			asset_handler.updateAnimations(deltaTime);
-		}
 	}
 
 	contains_object(incoming_name) {

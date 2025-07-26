@@ -29,7 +29,6 @@ import {
 	updateLabelWireframes, setSceneReference 
 } from './common/debug_ui.js';
 
-// Enable HMR for development
 if (import.meta.hot) {
 	import.meta.hot.accept();
 	import.meta.hot.accept(['@littlecarlito/blorkpack'], (updatedModules) => {
@@ -41,23 +40,21 @@ if (import.meta.hot) {
 	});
 }
 
-// ----- Variables
 let is_cleaned_up = false;
 let is_physics_paused = false;
 let interactionManager = null;
 let memoryAnalyzer = null;
+let isPageVisible = !document.hidden;
+let backgroundAnimationFrameId = null;
 
-/** Creates and configures scene background based on manifest settings */
 async function setup_scene_background() {
 	await SceneSetupHelper.setup_background(window.scene, window.manifest_manager, update_loading_progress);
 }
 
-/** Initializes scene lighting based on manifest configuration */
 async function setup_scene_lighting() {
 	await SceneSetupHelper.setup_lighting(window.scene, window.manifest_manager, update_loading_progress);
 }
 
-/** Initializes physics world with manifest settings */
 function setup_physics_world() {
 	const gravityData = window.manifest_manager.get_gravity();
 	if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
@@ -89,7 +86,6 @@ function setup_physics_world() {
 	window.world.integrationParameters.allowedLinearError = physicsOptimization.integration_parameters.allowed_linear_error;
 }
 
-/** Updates the loading progress text */
 function update_loading_progress(text) {
 	const loading_progress = document.getElementById('loading-progress');
 	if (loading_progress) {
@@ -97,7 +93,6 @@ function update_loading_progress(text) {
 	}
 }
 
-/** Shows the loading screen */
 async function show_loading_screen() {
 	const loadingPagePath = 'pages/loading.html'
 	const response = await fetch(loadingPagePath);
@@ -105,7 +100,6 @@ async function show_loading_screen() {
 	document.body.insertAdjacentHTML('beforeend', html);
 }
 
-/** Hides the loading screen */
 function hide_loading_screen() {
 	const loading_screen = document.getElementById('loading-screen');
 	if (loading_screen) {
@@ -113,7 +107,115 @@ function hide_loading_screen() {
 	}
 }
 
-/** Initializes the main scene */
+function handleVisibilityChange() {
+	const wasVisible = isPageVisible;
+	isPageVisible = !document.hidden;
+	
+	if (wasVisible !== isPageVisible) {
+		if (isPageVisible) {
+			console.log('🔄 Page visible - resuming full animation');
+			if (backgroundAnimationFrameId) {
+				cancelAnimationFrame(backgroundAnimationFrameId);
+				backgroundAnimationFrameId = null;
+			}
+			window.app_renderer.set_animation_loop(animate);
+		} else {
+			console.log('🛑 Page hidden - switching to background mode');
+			window.app_renderer.set_animation_loop(null);
+			startBackgroundAnimation();
+		}
+	}
+}
+
+function startBackgroundAnimation() {
+	function animateBackground() {
+		if (!isPageVisible) {
+			const delta = window.clock.getDelta();
+			updateTween();
+			
+			if(interactionManager.resize_move) {
+				if(!interactionManager.zoom_event) {
+					window.viewable_container.resize_reposition();
+				} else {
+					interactionManager.zoom_event = false;
+				}
+				interactionManager.resize_move = false;
+			}
+			
+			const isTextActive = window.viewable_container.is_text_active();
+			if (!window.previousTextContainerState && isTextActive && !is_physics_paused) {
+				if (FLAGS.SELECT_LOGS) {
+					console.log('Pausing physics due to text container activation');
+				}
+				window.textContainerPausedPhysics = true;
+				toggle_physics_pause();
+			} else if (window.previousTextContainerState && !isTextActive && is_physics_paused && window.textContainerPausedPhysics) {
+				if (FLAGS.SELECT_LOGS) {
+					console.log('Resuming physics due to text container deactivation');
+				}
+				window.textContainerPausedPhysics = false;
+				toggle_physics_pause();
+			}
+			window.previousTextContainerState = isTextActive;
+			
+			if(interactionManager.grabbed_object) {
+				translate_object(interactionManager.grabbed_object, window.viewable_container.get_camera());
+			}
+			
+			window.world.timestep = Math.min(delta, 0.1);
+			if (!is_physics_paused) {
+				window.world.step();
+			}
+			
+			if (window.background_container) {
+				window.background_container.update(interactionManager.grabbed_object, window.viewable_container, delta);
+			}
+			
+			if (window.asset_handler) {
+				window.asset_handler.updateAnimations(delta);
+			}
+			
+			if (AssetStorage.get_instance()) {
+				if (!is_physics_paused) {
+					AssetStorage.get_instance().update();
+				} else if (interactionManager.grabbed_object) {
+					const body_pair = AssetStorage.get_instance().get_body_pair_by_mesh(interactionManager.grabbed_object);
+					if (body_pair) {
+						const [mesh, body] = body_pair;
+						const position = body.translation();
+						mesh.position.set(position.x, position.y, position.z);
+						const rotation = body.rotation();
+						mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+					}
+				}
+			}
+			
+			window.viewable_container.get_overlay().update_confetti();
+			
+			if (window.asset_handler) {
+				window.asset_handler.updateRigVisualizations();
+				window.asset_handler.update_visualizations();
+				if (window.asset_handler.update_debug_meshes) {
+					window.asset_handler.update_debug_meshes();
+				}
+			}
+			
+			if (window.css3dFactory) {
+				window.css3dFactory.update();
+			}
+			
+			// Render at reduced frequency (every 10th call)
+			if (Math.random() < 0.1) {
+				window.app_renderer.render();
+			}
+			
+			backgroundAnimationFrameId = requestAnimationFrame(animateBackground);
+		}
+	}
+	
+	backgroundAnimationFrameId = requestAnimationFrame(animateBackground);
+}
+
 async function init() {
 	interactionManager = InteractionManager.getInstance();
 	memoryAnalyzer = new MemoryAnalyzer();
@@ -161,7 +263,6 @@ async function init() {
 		update_loading_progress('Creating UI components...');
 		await setup_scene_lighting();
 		
-		// Ensure custom types are available before creating ViewableContainer
 		const customTypeManager = CustomTypeManager.getInstance();
 		if (!customTypeManager.hasLoadedCustomTypes()) {
 			console.warn('Custom types not yet available, waiting...');
@@ -176,6 +277,7 @@ async function init() {
 		await interactionManager.startListening(window);
 		window.addEventListener('keydown', toggle_debug_ui);
 		window.addEventListener('unload', cleanup);
+		document.addEventListener('visibilitychange', handleVisibilityChange);
 		
 		update_loading_progress('Loading background assets...');
 		window.background_container = new BackgroundContainer(window.scene, window.viewable_container.get_camera(), window.world);
@@ -207,11 +309,9 @@ async function init() {
 		
 		hide_loading_screen();
 		
-		// Initialize memory analyzer after everything is loaded
 		memoryAnalyzer.initialize();
 		window.memoryAnalyzer = memoryAnalyzer;
 		
-		// Configure CSS3D factory if it exists to use external animation loop
 		if (window.css3dFactory) {
 			window.css3dFactory.setExternalAnimationLoop(true);
 			console.log('✅ CSS3D Factory configured for external animation loop');
@@ -236,7 +336,6 @@ async function init() {
 			}
 		}
 		
-		// Add console helper functions for memory analysis
 		window.checkMemory = () => memoryAnalyzer.forceAnalysis();
 		window.getMemoryUsage = () => memoryAnalyzer.getCurrentMemoryUsage();
 		
@@ -250,7 +349,6 @@ async function init() {
 	}
 }
 
-/** Cleans up resources to prevent memory leaks */
 function cleanup() {
 	if (is_cleaned_up) {
 		if(BLORKPACK_FLAGS.DEBUG_LOGS) {
@@ -258,8 +356,17 @@ function cleanup() {
 		}
 		return;
 	}
+	
+	if (backgroundAnimationFrameId) {
+		cancelAnimationFrame(backgroundAnimationFrameId);
+		backgroundAnimationFrameId = null;
+	}
+	
 	interactionManager.stopListening();
 	window.removeEventListener('keydown', toggle_debug_ui);
+	window.removeEventListener('unload', cleanup);
+	document.removeEventListener('visibilitychange', handleVisibilityChange);
+	
 	if (window.app_renderer) {
 		window.app_renderer.dispose();
 		window.app_renderer = null;
@@ -292,7 +399,6 @@ function cleanup() {
 	if (window.world) {
 		window.world = null;
 	}
-	// Cleanup CSS3D factory
 	if (window.css3dFactory) {
 		window.css3dFactory.dispose();
 		window.css3dFactory = null;
@@ -307,7 +413,6 @@ function cleanup() {
 	}
 }
 
-/** Toggle physics simulation pause state */
 function toggle_physics_pause() {
 	is_physics_paused = !is_physics_paused;
 	if (FLAGS.PHYSICS_LOGS) {
@@ -323,7 +428,6 @@ function toggle_physics_pause() {
 
 window.toggle_physics_pause = toggle_physics_pause;
 
-/** Enhanced animation function with consolidated rendering */
 function animate() {
 	const animateStart = performance.now();
 	
@@ -359,7 +463,6 @@ function animate() {
 		translate_object(interactionManager.grabbed_object, window.viewable_container.get_camera());
 	}
 	
-	// Physics update with timing
 	const physicsStart = performance.now();
 	window.world.timestep = Math.min(delta, 0.1);
 	if (!is_physics_paused) {
@@ -367,21 +470,18 @@ function animate() {
 	}
 	const physicsTime = performance.now() - physicsStart;
 	
-	// Background container update
 	const backgroundStart = performance.now();
 	if (window.background_container) {
 		window.background_container.update(interactionManager.grabbed_object, window.viewable_container, delta);
 	}
 	const backgroundTime = performance.now() - backgroundStart;
 	
-	// Asset handler animations
 	const assetStart = performance.now();
 	if (window.asset_handler) {
 		window.asset_handler.updateAnimations(delta);
 	}
 	const assetTime = performance.now() - assetStart;
 	
-	// Asset storage update
 	const storageStart = performance.now();
 	if (AssetStorage.get_instance()) {
 		if (!is_physics_paused) {
@@ -399,12 +499,10 @@ function animate() {
 	}
 	const storageTime = performance.now() - storageStart;
 	
-	// Overlay updates
 	const overlayStart = performance.now();
 	window.viewable_container.get_overlay().update_confetti();
 	const overlayTime = performance.now() - overlayStart;
 	
-	// Rig visualizations
 	const rigStart = performance.now();
 	if (window.asset_handler) {
 		window.asset_handler.updateRigVisualizations();
@@ -415,21 +513,18 @@ function animate() {
 	}
 	const rigTime = performance.now() - rigStart;
 	
-	// CSS3D update (consolidated into main loop)
 	const css3dStart = performance.now();
 	if (window.css3dFactory) {
 		window.css3dFactory.update();
 	}
 	const css3dTime = performance.now() - css3dStart;
 	
-	// Main renderer
 	const renderStart = performance.now();
 	window.app_renderer.render();
 	const renderTime = performance.now() - renderStart;
 	
 	const totalTime = performance.now() - animateStart;
 	
-	// Performance logging when frame time exceeds threshold
 	if (totalTime > 20) {
 		console.warn(`🐌 SLOW FRAME BREAKDOWN (${totalTime.toFixed(2)}ms total):`);
 		console.warn(`  Physics: ${physicsTime.toFixed(2)}ms`);
@@ -443,7 +538,6 @@ function animate() {
 	}
 }
 
-/** Toggle debug UI when 's' key is pressed */
 function toggle_debug_ui(event) {
 	if (event.key === 's') {
 		toggleDebugUI();

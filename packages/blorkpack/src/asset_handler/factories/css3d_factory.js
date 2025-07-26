@@ -12,7 +12,6 @@ export class CSS3DFactory {
         this.mainCamera = null;
         this.materialFactory = new MaterialFactory();
         this.debugMode = false;
-        // NEW: Track if we should use external animation loop
         this.useExternalAnimationLoop = false;
     }
 
@@ -29,20 +28,16 @@ export class CSS3DFactory {
         return this.debugMode;
     }
 
-    // NEW: Allow external animation loop to control updates
     setExternalAnimationLoop(enabled) {
         this.useExternalAnimationLoop = enabled;
         if (enabled && this.animationId) {
-            // Stop internal animation loop
             cancelAnimationFrame(this.animationId);
             this.animationId = null;
         } else if (!enabled && !this.animationId && this.frames.length > 0) {
-            // Start internal animation loop
             this.startAnimationLoop();
         }
     }
 
-    // NEW: Update method to be called by external animation loop
     update() {
         if (!this.useExternalAnimationLoop) return;
         
@@ -265,6 +260,11 @@ export class CSS3DFactory {
         iframe.style.borderRadius = '5px';
         iframe.style.backgroundColor = 'white';
         iframe.style.boxSizing = 'border-box';
+        
+        // Add unique identifier for tracking
+        const frameId = `css3d-frame-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        iframe.id = frameId;
+        
         const css3dObject = new CSS3DObject(iframe);
 
         const frameTracker = {
@@ -278,11 +278,13 @@ export class CSS3DFactory {
             backgroundColor: backgroundColor,
             isPlaying: false,
             pendingContent: null,
+            frameId: frameId,
             play: () => this.playFrame(frameTracker),
             reset: () => this.resetFrame(frameTracker),
             show: () => this.showFrame(frameTracker),
             hide: () => this.hideFrame(frameTracker),
-            toggleVisibility: () => this.toggleFrameVisibility(frameTracker)
+            toggleVisibility: () => this.toggleFrameVisibility(frameTracker),
+            dispose: () => this.disposeFrame(frameTracker)
         };
 
         this.css3dScene.add(css3dObject);
@@ -292,7 +294,6 @@ export class CSS3DFactory {
             this.updateFrameTransform(frameTracker);
         }
 
-        // MODIFIED: Only start internal loop if not using external loop
         if (!this.animationId && !this.useExternalAnimationLoop) {
             this.startAnimationLoop();
         }
@@ -306,6 +307,51 @@ export class CSS3DFactory {
         }, 100);
 
         return frameTracker;
+    }
+
+    disposeFrame(frameTracker) {
+        if (!frameTracker) return;
+        
+        console.log(`🗑️ Disposing CSS3D frame: ${frameTracker.frameId}`);
+        
+        // Clear iframe content first
+        if (frameTracker.frame && frameTracker.frame.element) {
+            const iframe = frameTracker.frame.element;
+            
+            try {
+                if (iframe.contentDocument) {
+                    iframe.contentDocument.open();
+                    iframe.contentDocument.write('');
+                    iframe.contentDocument.close();
+                }
+            } catch (e) {
+                console.warn('Could not clear iframe content (cross-origin):', e);
+            }
+            
+            // Stop any loading by setting blank src
+            iframe.src = 'about:blank';
+            
+            // Remove from DOM
+            if (iframe.parentNode) {
+                iframe.parentNode.removeChild(iframe);
+            }
+        }
+        
+        // Remove from CSS3D scene
+        if (this.css3dScene && frameTracker.frame) {
+            this.css3dScene.remove(frameTracker.frame);
+        }
+        
+        // Remove from frames array
+        const index = this.frames.indexOf(frameTracker);
+        if (index > -1) {
+            this.frames.splice(index, 1);
+        }
+        
+        // Clear all references
+        frameTracker.mesh = null;
+        frameTracker.frame = null;
+        frameTracker.pendingContent = null;
     }
 
     updateFrameTransform(frameTracker) {
@@ -433,7 +479,6 @@ export class CSS3DFactory {
     }
 
     startAnimationLoop() {
-        // MODIFIED: Only start if not using external loop
         if (this.useExternalAnimationLoop) {
             return;
         }
@@ -749,16 +794,57 @@ export class CSS3DFactory {
     }
 
     dispose() {
+        console.log('🗑️ Disposing CSS3D Factory...');
+        
+        // Stop animation loop first
         if (this.animationId) {
             cancelAnimationFrame(this.animationId);
             this.animationId = null;
         }
-        if (this.css3dRenderer && this.css3dRenderer.domElement && this.css3dRenderer.domElement.parentNode) {
-            this.css3dRenderer.domElement.parentNode.removeChild(this.css3dRenderer.domElement);
+        
+        // Dispose all frames with proper cleanup
+        console.log(`📋 Disposing ${this.frames.length} CSS3D frames...`);
+        const framesToDispose = [...this.frames]; // Create copy to avoid mutation during iteration
+        framesToDispose.forEach(frameTracker => {
+            this.disposeFrame(frameTracker);
+        });
+        
+        // Clear frames array
+        this.frames.length = 0;
+        
+        // Dispose CSS3D renderer and its DOM element
+        if (this.css3dRenderer) {
+            console.log('🎬 Disposing CSS3D renderer...');
+            
+            if (this.css3dRenderer.domElement && this.css3dRenderer.domElement.parentNode) {
+                this.css3dRenderer.domElement.parentNode.removeChild(this.css3dRenderer.domElement);
+            }
+            
+            // Clear any internal references if dispose method exists
+            if (this.css3dRenderer.dispose) {
+                this.css3dRenderer.dispose();
+            }
         }
-        this.frames = [];
+        
+        // Clear scene
+        if (this.css3dScene) {
+            this.css3dScene.clear();
+        }
+        
+        // Dispose material factory
+        if (this.materialFactory && this.materialFactory.dispose) {
+            this.materialFactory.dispose();
+        }
+        
+        // Clear all references to prevent memory leaks
         this.css3dRenderer = null;
         this.css3dScene = null;
+        this.mainCamera = null;
+        this.materialFactory = null;
         this.isInitialized = false;
+        this.useExternalAnimationLoop = false;
+        this.debugMode = false;
+        
+        console.log('✅ CSS3D Factory disposal complete');
     }
 }
