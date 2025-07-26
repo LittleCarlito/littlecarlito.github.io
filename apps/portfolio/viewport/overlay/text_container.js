@@ -125,7 +125,7 @@ export class TextContainer {
 				...options
 			};
 
-			const asset_config = CustomTypeManager.getConfigs()[asset_type];
+			const asset_config = CustomTypeManager.getInstance().getConfigs()[asset_type];
 			if (!asset_config) {
 				throw new Error(`No configuration found for asset type: ${asset_type}`);
 			}
@@ -220,7 +220,7 @@ export class TextContainer {
 			switch (category.value) {
 			case CATEGORIES.EDUCATION.value:
 				(async () => {
-					const ASSET_TYPES = CustomTypeManager.getTypes();
+					const ASSET_TYPES = CustomTypeManager.getInstance().getTypes();
 					await create_asset_background(text_box, ASSET_TYPES.DIPLOMA_BOT, {
 						useFixedScale: true,
 						positionOffsetX: 0,
@@ -242,7 +242,7 @@ export class TextContainer {
 				break;
 			case CATEGORIES.CONTACT.value:
 				(async () => {
-					const ASSET_TYPES = CustomTypeManager.getTypes();
+					const ASSET_TYPES = CustomTypeManager.getInstance().getTypes();
 					await create_asset_background(text_box, ASSET_TYPES.TABLET, {
 						horizontalStretch: 1.1,
 						verticalStretch: 0.6,
@@ -254,7 +254,7 @@ export class TextContainer {
 				break;
 			case CATEGORIES.ABOUT.value:
 				(async () => {
-					const ASSET_TYPES = CustomTypeManager.getTypes();
+					const ASSET_TYPES = CustomTypeManager.getInstance().getTypes();
 					const businessCardAsset = await create_asset_background(text_box, ASSET_TYPES.BUSINESS_CARD, {
 						horizontalStretch: 2,
 						verticalStretch: 2,
@@ -270,7 +270,7 @@ export class TextContainer {
 				break;
 			case CATEGORIES.WORK.value:
 				(async () => {
-					const ASSET_TYPES = CustomTypeManager.getTypes();
+					const ASSET_TYPES = CustomTypeManager.getInstance().getTypes();
 					await create_asset_background(text_box, ASSET_TYPES.MONITOR, {
 						horizontalStretch: 2,
 						verticalStretch: 2,
@@ -292,7 +292,7 @@ export class TextContainer {
 				break;
 			case CATEGORIES.PROJECTS.value:
 				(async () => {
-					const ASSET_TYPES = CustomTypeManager.getTypes();
+					const ASSET_TYPES = CustomTypeManager.getInstance().getTypes();
 					
 					const notebookAsset = await create_asset_background(text_box, ASSET_TYPES.NOTEBOOK_OPENED, {
 						horizontalStretch: 1.5,
@@ -373,7 +373,7 @@ export class TextContainer {
 	}
 
 	focus_text_box(incoming_name, is_column_left) {
-		const ASSET_TYPES = CustomTypeManager.getTypes();
+		const ASSET_TYPES = CustomTypeManager.getInstance().getTypes();
 		const found_index = incoming_name.indexOf('_');
 		const new_name = TYPES.TEXT + incoming_name.substring(found_index + 1);
 		const category = incoming_name.substring(found_index + 1);
@@ -523,7 +523,7 @@ export class TextContainer {
 	}
 
 	getCss3dAssetType(category) {
-		const ASSET_TYPES = CustomTypeManager.getTypes();
+		const ASSET_TYPES = CustomTypeManager.getInstance().getTypes();
 		switch (category) {
 			case CATEGORIES.CONTACT.value:
 				return ASSET_TYPES.TABLET;

@@ -52,15 +52,16 @@ export class BackgroundContainer {
 		const asset_loader = AssetHandler.get_instance(this.asset_container, this.world);
 		this.loading_promise = (async () => {
 			try {
-				if (!CustomTypeManager.hasLoadedCustomTypes()) {
+				const customTypeManager = CustomTypeManager.getInstance();
+				if (!customTypeManager.hasLoadedCustomTypes()) {
 					if (FLAGS.ASSET_LOGS) console.warn(`${this.name} Custom types not loaded yet. Waiting for them to load...`);
 					await new Promise(resolve => setTimeout(resolve, 500));
-					if (!CustomTypeManager.hasLoadedCustomTypes()) {
+					if (!customTypeManager.hasLoadedCustomTypes()) {
 						throw new Error(`${this.name} Custom types still not loaded after waiting. Make sure CustomTypeManager.loadCustomTypes() is called before creating BackgroundContainer.`);
 					}
 				}
-				const ASSET_TYPE = CustomTypeManager.getTypes();
-				const ASSET_CONFIGS = CustomTypeManager.getConfigs();
+				const ASSET_TYPE = customTypeManager.getTypes();
+				const ASSET_CONFIGS = customTypeManager.getConfigs();
 				if (Object.keys(ASSET_TYPE).length === 0) {
 					throw new Error(`${this.name} No custom asset types found. Assets will not spawn correctly.`);
 				}

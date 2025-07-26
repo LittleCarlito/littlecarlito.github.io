@@ -1,5 +1,3 @@
-// @ts-nocheck
-// Import the global config first to ensure it's available to all modules
 import { FLAGS, THREE, RAPIER, initThree, updateTween, initRapier } from './common/index.js';
 import { ViewableContainer } from './viewport/viewable_container.js';
 import { BackgroundContainer } from './background/background_container.js';
@@ -20,7 +18,8 @@ import {
 	grab_object, 
 	release_object, 
 	initPhysicsUtil,
-	InteractionManager, 
+	InteractionManager,
+	MemoryAnalyzer
 	} from '@littlecarlito/blorkpack';
 import { 
 	toggleDebugUI, 
@@ -46,6 +45,7 @@ if (import.meta.hot) {
 let is_cleaned_up = false;
 let is_physics_paused = false;
 let interactionManager = null;
+let memoryAnalyzer = null;
 
 /** Creates and configures scene background based on manifest settings */
 async function setup_scene_background() {
@@ -116,6 +116,8 @@ function hide_loading_screen() {
 /** Initializes the main scene */
 async function init() {
 	interactionManager = InteractionManager.getInstance();
+	memoryAnalyzer = new MemoryAnalyzer();
+	
 	try {
 		await show_loading_screen();
 		
@@ -159,6 +161,13 @@ async function init() {
 		update_loading_progress('Creating UI components...');
 		await setup_scene_lighting();
 		
+		// Ensure custom types are available before creating ViewableContainer
+		const customTypeManager = CustomTypeManager.getInstance();
+		if (!customTypeManager.hasLoadedCustomTypes()) {
+			console.warn('Custom types not yet available, waiting...');
+			await new Promise(resolve => setTimeout(resolve, 100));
+		}
+		
 		window.viewable_container = new ViewableContainer(window);
 		
 		window.app_renderer = new AppRenderer(window.scene, window.viewable_container.get_camera());
@@ -197,6 +206,11 @@ async function init() {
 		});
 		
 		hide_loading_screen();
+		
+		// Initialize memory analyzer after everything is loaded
+		memoryAnalyzer.initialize();
+		window.memoryAnalyzer = memoryAnalyzer;
+		
 		window.app_renderer.set_animation_loop(animate);
 		
 		create_debug_UI();
@@ -215,6 +229,15 @@ async function init() {
 				labelContainer.updateDebugVisualizations();
 			}
 		}
+		
+		// Add console helper functions for memory analysis
+		window.checkMemory = () => memoryAnalyzer.forceAnalysis();
+		window.getMemoryUsage = () => memoryAnalyzer.getCurrentMemoryUsage();
+		
+		console.log('🔧 Memory analysis tools available:');
+		console.log('  - window.checkMemory() - Force memory analysis');
+		console.log('  - window.getMemoryUsage() - Get current memory stats');
+		
 	} catch (error) {
 		console.error('Error during initialization:', error);
 		update_loading_progress('Error loading application. Please refresh the page.');
@@ -230,7 +253,6 @@ function cleanup() {
 		return;
 	}
 	interactionManager.stopListening();
-	// TODO Leaving this one in main as its specific to this app
 	window.removeEventListener('keydown', toggle_debug_ui);
 	if (window.app_renderer) {
 		window.app_renderer.dispose();
@@ -267,6 +289,7 @@ function cleanup() {
 	window.viewable_container = null;
 	window.background_container = null;
 	window.clock = null;
+	memoryAnalyzer = null;
 	is_cleaned_up = true;
 	if (BLORKPACK_FLAGS.DEBUG_LOGS) {
 		console.log("Application resources cleaned up");
@@ -289,7 +312,7 @@ function toggle_physics_pause() {
 
 window.toggle_physics_pause = toggle_physics_pause;
 
-/** Enhanced animation function with direct mesh manipulation support */
+/** Enhanced animation function without polling-based memory checks */
 function animate() {
 	const delta = window.clock.getDelta();
 	updateTween();

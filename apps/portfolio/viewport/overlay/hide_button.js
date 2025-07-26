@@ -9,7 +9,7 @@ const HIDE_BUTTON_SCALE = 1.0;
 
 export class HideButton {
 	is_overlay_hidden = false;
-	#ASSET_TYPE = CustomTypeManager.getTypes();
+	#ASSET_TYPE = CustomTypeManager.getInstance().getTypes();
 	#texture_loader = new THREE.TextureLoader();
 	#enabled_texture = null;
 	#disabled_texture = null;

@@ -1,8 +1,6 @@
 /**
  * Custom Type Manager - Loads custom asset types from JSON files
  */
-import { BLORKPACK_FLAGS } from './blorkpack_flags.js';
-
 const SCALE_FACTOR = 5;
 
 class AssetConfig {
@@ -34,7 +32,7 @@ class AssetConfig {
 	}
 }
 
-class CustomTypeManager {
+export class CustomTypeManager {
 	static instance = null;
 
 	constructor() {
