@@ -12,6 +12,8 @@ export class CSS3DFactory {
         this.mainCamera = null;
         this.materialFactory = new MaterialFactory();
         this.debugMode = false;
+        // NEW: Track if we should use external animation loop
+        this.useExternalAnimationLoop = false;
     }
 
     setDebugMode(enabled) {
@@ -25,6 +27,33 @@ export class CSS3DFactory {
 
     getDebugMode() {
         return this.debugMode;
+    }
+
+    // NEW: Allow external animation loop to control updates
+    setExternalAnimationLoop(enabled) {
+        this.useExternalAnimationLoop = enabled;
+        if (enabled && this.animationId) {
+            // Stop internal animation loop
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        } else if (!enabled && !this.animationId && this.frames.length > 0) {
+            // Start internal animation loop
+            this.startAnimationLoop();
+        }
+    }
+
+    // NEW: Update method to be called by external animation loop
+    update() {
+        if (!this.useExternalAnimationLoop) return;
+        
+        for (const frameTracker of this.frames) {
+            if (frameTracker.mesh && frameTracker.frame) {
+                this.updateFrameTransform(frameTracker);
+            }
+        }
+        if (this.css3dRenderer && this.css3dScene && this.mainCamera) {
+            this.css3dRenderer.render(this.css3dScene, this.mainCamera);
+        }
     }
 
     async createFrameOnDisplay(displayMesh, sceneCamera, parentElement, assetType = null, filePath = null, backgroundColor = null) {
@@ -263,7 +292,8 @@ export class CSS3DFactory {
             this.updateFrameTransform(frameTracker);
         }
 
-        if (!this.animationId) {
+        // MODIFIED: Only start internal loop if not using external loop
+        if (!this.animationId && !this.useExternalAnimationLoop) {
             this.startAnimationLoop();
         }
 
@@ -403,6 +433,11 @@ export class CSS3DFactory {
     }
 
     startAnimationLoop() {
+        // MODIFIED: Only start if not using external loop
+        if (this.useExternalAnimationLoop) {
+            return;
+        }
+        
         const animate = () => {
             this.animationId = requestAnimationFrame(animate);
             for (const frameTracker of this.frames) {

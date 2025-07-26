@@ -211,6 +211,12 @@ async function init() {
 		memoryAnalyzer.initialize();
 		window.memoryAnalyzer = memoryAnalyzer;
 		
+		// Configure CSS3D factory if it exists to use external animation loop
+		if (window.css3dFactory) {
+			window.css3dFactory.setExternalAnimationLoop(true);
+			console.log('✅ CSS3D Factory configured for external animation loop');
+		}
+		
 		window.app_renderer.set_animation_loop(animate);
 		
 		create_debug_UI();
@@ -286,6 +292,11 @@ function cleanup() {
 	if (window.world) {
 		window.world = null;
 	}
+	// Cleanup CSS3D factory
+	if (window.css3dFactory) {
+		window.css3dFactory.dispose();
+		window.css3dFactory = null;
+	}
 	window.viewable_container = null;
 	window.background_container = null;
 	window.clock = null;
@@ -312,8 +323,10 @@ function toggle_physics_pause() {
 
 window.toggle_physics_pause = toggle_physics_pause;
 
-/** Enhanced animation function without polling-based memory checks */
+/** Enhanced animation function with consolidated rendering */
 function animate() {
+	const animateStart = performance.now();
+	
 	const delta = window.clock.getDelta();
 	updateTween();
 	
@@ -346,21 +359,30 @@ function animate() {
 		translate_object(interactionManager.grabbed_object, window.viewable_container.get_camera());
 	}
 	
+	// Physics update with timing
+	const physicsStart = performance.now();
 	window.world.timestep = Math.min(delta, 0.1);
 	if (!is_physics_paused) {
 		window.world.step();
 	}
+	const physicsTime = performance.now() - physicsStart;
 	
-	// CRITICAL: Update animations FIRST, then rig visualizations
+	// Background container update
+	const backgroundStart = performance.now();
 	if (window.background_container) {
 		window.background_container.update(interactionManager.grabbed_object, window.viewable_container, delta);
 	}
+	const backgroundTime = performance.now() - backgroundStart;
 	
-	// Update asset handler animations BEFORE rig visualizations
+	// Asset handler animations
+	const assetStart = performance.now();
 	if (window.asset_handler) {
 		window.asset_handler.updateAnimations(delta);
 	}
+	const assetTime = performance.now() - assetStart;
 	
+	// Asset storage update
+	const storageStart = performance.now();
 	if (AssetStorage.get_instance()) {
 		if (!is_physics_paused) {
 			AssetStorage.get_instance().update();
@@ -375,20 +397,50 @@ function animate() {
 			}
 		}
 	}
+	const storageTime = performance.now() - storageStart;
 	
+	// Overlay updates
+	const overlayStart = performance.now();
 	window.viewable_container.get_overlay().update_confetti();
+	const overlayTime = performance.now() - overlayStart;
 	
+	// Rig visualizations
+	const rigStart = performance.now();
 	if (window.asset_handler) {
-		// Update rig visualizations AFTER animations have been processed
 		window.asset_handler.updateRigVisualizations();
-		
 		window.asset_handler.update_visualizations();
 		if (window.asset_handler.update_debug_meshes) {
 			window.asset_handler.update_debug_meshes();
 		}
 	}
+	const rigTime = performance.now() - rigStart;
 	
+	// CSS3D update (consolidated into main loop)
+	const css3dStart = performance.now();
+	if (window.css3dFactory) {
+		window.css3dFactory.update();
+	}
+	const css3dTime = performance.now() - css3dStart;
+	
+	// Main renderer
+	const renderStart = performance.now();
 	window.app_renderer.render();
+	const renderTime = performance.now() - renderStart;
+	
+	const totalTime = performance.now() - animateStart;
+	
+	// Performance logging when frame time exceeds threshold
+	if (totalTime > 20) {
+		console.warn(`🐌 SLOW FRAME BREAKDOWN (${totalTime.toFixed(2)}ms total):`);
+		console.warn(`  Physics: ${physicsTime.toFixed(2)}ms`);
+		console.warn(`  Background: ${backgroundTime.toFixed(2)}ms`);
+		console.warn(`  Assets: ${assetTime.toFixed(2)}ms`);
+		console.warn(`  Storage: ${storageTime.toFixed(2)}ms`);
+		console.warn(`  Overlay: ${overlayTime.toFixed(2)}ms`);
+		console.warn(`  Rigs: ${rigTime.toFixed(2)}ms`);
+		console.warn(`  CSS3D: ${css3dTime.toFixed(2)}ms`);
+		console.warn(`  Render: ${renderTime.toFixed(2)}ms`);
+	}
 }
 
 /** Toggle debug UI when 's' key is pressed */
