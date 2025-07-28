@@ -14,7 +14,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const outputPath = path.resolve(__dirname, 'dist/index.js')
 
 const isGitHubPages = process.env.GITHUB_PAGES === 'true'
-const base = isGitHubPages ? '/littlecarlito.github.io/' : '/'
+// FIXED: Root domain repositories should use '/' as base
+const base = '/'
 
 function copyDirectory(src, dest) {
 	if (!fs.existsSync(src)) {
@@ -174,12 +175,7 @@ export default defineConfig(({ command }) => {
             </script>
           </head>`);
 					
-					if (isGitHubPages) {
-						updatedHtml = updatedHtml.replace(
-							/<script\s+type="module"\s+src="\.\/([^"]+)"/g, 
-							`<script type="module" src="${base}$1"`
-						);
-					}
+					// REMOVED: GitHub Pages script src modification since base is now '/'
 					
 					return updatedHtml;
 				}
