@@ -55,7 +55,6 @@ export class DiplomaInteractionHandler {
         
         const box_rect = this.info_box.getBoundingClientRect();
         const viewport_width = window.innerWidth;
-        const viewport_height = window.innerHeight;
         
         let final_x = this.mouse_x - (box_rect.width / 2);
         let final_y = this.mouse_y - box_rect.height;
@@ -74,7 +73,7 @@ export class DiplomaInteractionHandler {
         this.info_box.style.top = `${final_y}px`;
     }
 
-    show_info_box(diploma_type, asset_info) {
+    show_info_box(diploma_type) {
         if (!this.info_box) return;
         
         const title_text = diploma_type === 'top' ? TOP_DIPLOMA_LOG_MESSAGE : BOTTOM_DIPLOMA_LOG_MESSAGE;
@@ -167,22 +166,13 @@ export class DiplomaInteractionHandler {
         
         if (new_hovered_diploma !== this.current_hovered_diploma) {
             if (this.current_hovered_diploma) {
-                const exit_message = this.current_hovered_diploma === 'top' ? TOP_DIPLOMA_LOG_MESSAGE : BOTTOM_DIPLOMA_LOG_MESSAGE;
-                console.error(`${exit_message} - Exit hover UI diploma ${this.current_hovered_diploma}`);
                 this.hide_info_box();
             }
             
             this.current_hovered_diploma = new_hovered_diploma;
             
             if (new_hovered_diploma) {
-                const enter_message = new_hovered_diploma === 'top' ? TOP_DIPLOMA_LOG_MESSAGE : BOTTOM_DIPLOMA_LOG_MESSAGE;
-                console.error(`${enter_message} - Enter hover UI diploma ${new_hovered_diploma}`);
-                
-                if (diploma_asset_info) {
-                    console.error(`Asset info - Name: ${diploma_asset_info.name}, Position: ${diploma_asset_info.position.x}, ${diploma_asset_info.position.y}, ${diploma_asset_info.position.z}, Distance: ${diploma_asset_info.distance}, Type: UI`);
-                }
-                
-                this.show_info_box(new_hovered_diploma, diploma_asset_info);
+                this.show_info_box(new_hovered_diploma);
             }
         }
     }

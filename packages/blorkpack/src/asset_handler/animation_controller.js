@@ -147,8 +147,6 @@ export class AnimationController {
 			onFinishedListener: null
 		};
 
-		this.startNextAnimation(animationState);
-
 		this.animationMixers.set(spawnResult.instance_id, animationState);
 
 		spawnResult.mesh.userData.animationMixer = mixer;
@@ -201,8 +199,13 @@ export class AnimationController {
 			}
 		};
 
+		spawnResult.mesh.userData.playAnimation = spawnResult.playAnimation;
+		spawnResult.mesh.userData.stopAnimation = spawnResult.stopAnimation;
+		spawnResult.mesh.userData.pauseAnimation = spawnResult.pauseAnimation;
+		spawnResult.mesh.userData.resumeAnimation = spawnResult.resumeAnimation;
+
 		if (ANIMATION_LOGS_ENABLED) {
-			console.log(`[AnimationController] 🎬 Animation cycling system initialized for ${spawnResult.instance_id} with ${actions.length} animations`);
+			console.log(`[AnimationController] 🎬 Animation system initialized for ${spawnResult.instance_id} with ${actions.length} animations (not auto-playing)`);
 		}
 	}
 

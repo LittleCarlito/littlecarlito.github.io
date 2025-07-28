@@ -43,14 +43,31 @@ export class BackgroundInteractionHandler {
     }
 
     handleMouseDown(e) {
+        console.log('[BackgroundInteractionHandler] handleMouseDown called', {
+            button: e.button,
+            hovering_grabbable: this.is_hovering_grabbable_asset,
+            hovered_asset: this.hovered_asset_name
+        });
+
         if (!this.window || !this.window.viewable_container || !this.window.background_container) {
+            console.warn('[BackgroundInteractionHandler] Missing required window dependencies');
             return false;
         }
+
         if (e.button === 0) {
+            // Check if we're clicking on the cat
+            if (this.hovered_asset_name && this.#isCatAsset(this.hovered_asset_name)) {
+                console.log('[BackgroundInteractionHandler] Cat clicked, triggering animation');
+                this.#triggerCatAnimation();
+                return true;
+            }
+
+            // Handle grabbable assets
             if (this.is_hovering_grabbable_asset) {
                 const intersections = this.#getIntersections(e);
                 const grabbableAsset = this.#findGrabbableAsset(intersections);
                 if (grabbableAsset) {
+                    console.log('[BackgroundInteractionHandler] Starting to drag asset:', grabbableAsset.name);
                     this.#startDraggingAsset(grabbableAsset, intersections[0], e);
                     return true;
                 }
@@ -143,6 +160,191 @@ export class BackgroundInteractionHandler {
 
     shouldHandleBackgroundRotation() {
         return false;
+    }
+
+    #isCatAsset(assetName) {
+        if (!assetName) return false;
+        const isCat = assetName.includes('CAT') || assetName.includes('cat');
+        console.log('[BackgroundInteractionHandler] #isCatAsset check:', assetName, '-> result:', isCat);
+        return isCat;
+    }
+
+    #triggerCatAnimation() {
+        console.log('[BackgroundInteractionHandler] #triggerCatAnimation called for asset:', this.hovered_asset_name);
+        
+        if (!this.window.asset_handler) {
+            console.error('[BackgroundInteractionHandler] No asset_handler found on window');
+            return;
+        }
+
+        const animationController = this.window.asset_handler.animationController;
+        if (!animationController) {
+            console.error('[BackgroundInteractionHandler] No animationController found on asset_handler');
+            return;
+        }
+
+        // Find the cat asset in the scene
+        const catAsset = this.#findCatAssetInScene();
+        if (!catAsset) {
+            console.error('[BackgroundInteractionHandler] Could not find cat asset in scene');
+            return;
+        }
+
+        // Get the instance ID for the cat asset
+        const instanceId = this.#getAssetInstanceId(catAsset);
+        console.log('[BackgroundInteractionHandler] Cat asset instance ID:', instanceId);
+        
+        if (!instanceId) {
+            console.error('[BackgroundInteractionHandler] Could not find instance ID for cat asset');
+            return;
+        }
+
+        // Get available animations for the cat
+        const availableAnimations = this.#getAvailableAnimations(animationController, instanceId);
+        console.log('[BackgroundInteractionHandler] Available animations for cat:', availableAnimations);
+        
+        if (!availableAnimations || availableAnimations.length === 0) {
+            console.warn('[BackgroundInteractionHandler] No animations available for cat asset');
+            return;
+        }
+
+        // Pick a random animation
+        const randomIndex = Math.floor(Math.random() * availableAnimations.length);
+        const selectedAnimation = availableAnimations[randomIndex];
+        console.log('[BackgroundInteractionHandler] Selected random animation:', selectedAnimation, 'from index:', randomIndex);
+
+        // Play the animation
+        try {
+            console.log('[BackgroundInteractionHandler] Attempting to play animation...');
+            
+            // Get the mixer data again
+            const mixerData = animationController.animationMixers.get(instanceId);
+            if (mixerData && mixerData.actions && mixerData.actions[selectedAnimation]) {
+                console.log('[BackgroundInteractionHandler] Playing animation via direct action access');
+                const action = mixerData.actions[selectedAnimation];
+                
+                // Stop current animation if playing
+                if (mixerData.isPlaying && mixerData.actions[mixerData.currentAnimationIndex]) {
+                    mixerData.actions[mixerData.currentAnimationIndex].stop();
+                }
+                
+                // Play the selected animation
+                action.reset().play();
+                mixerData.currentAnimationIndex = parseInt(selectedAnimation);
+                mixerData.isPlaying = true;
+                
+                console.log('[BackgroundInteractionHandler] Animation started successfully');
+            } else if (typeof animationController.playAnimation === 'function') {
+                console.log('[BackgroundInteractionHandler] Calling animationController.playAnimation');
+                animationController.playAnimation(instanceId, selectedAnimation);
+            } else if (typeof animationController.play === 'function') {
+                console.log('[BackgroundInteractionHandler] Calling animationController.play');
+                animationController.play(instanceId, selectedAnimation);
+            } else if (typeof animationController.startAnimation === 'function') {
+                console.log('[BackgroundInteractionHandler] Calling animationController.startAnimation');
+                animationController.startAnimation(instanceId, selectedAnimation);
+            } else {
+                console.error('[BackgroundInteractionHandler] No play method found on animation controller. Available methods:', Object.getOwnPropertyNames(animationController));
+            }
+            
+            console.log('[BackgroundInteractionHandler] Animation play request completed');
+        } catch (error) {
+            console.error('[BackgroundInteractionHandler] Error playing cat animation:', error);
+        }
+    }
+
+    #findCatAssetInScene() {
+        if (!this.window.background_container || !this.window.background_container.asset_container) {
+            console.warn('[BackgroundInteractionHandler] No asset container found');
+            return null;
+        }
+
+        const assetContainer = this.window.background_container.asset_container;
+        let catAsset = null;
+        
+        // Find the root cat asset (interactable_CAT)
+        assetContainer.traverse((child) => {
+            if (child.name === 'interactable_CAT') {
+                catAsset = child;
+                return;
+            }
+        });
+
+        console.log('[BackgroundInteractionHandler] Found cat asset in scene:', catAsset?.name);
+        return catAsset;
+    }
+
+    #getAssetInstanceId(asset) {
+        console.log('[BackgroundInteractionHandler] #getAssetInstanceId called for asset:', asset.name);
+        
+        // Try userData first
+        if (asset.userData && asset.userData.instanceId) {
+            console.log('[BackgroundInteractionHandler] Found instanceId in userData:', asset.userData.instanceId);
+            return asset.userData.instanceId;
+        }
+
+        // Try getting from asset storage
+        if (this.window.asset_handler && this.window.asset_handler.storage) {
+            console.log('[BackgroundInteractionHandler] Checking asset storage for instance ID');
+            const storage = this.window.asset_handler.storage;
+            
+            if (typeof storage.get_instance_id_by_mesh === 'function') {
+                const instanceId = storage.get_instance_id_by_mesh(asset);
+                console.log('[BackgroundInteractionHandler] Found instanceId from storage:', instanceId);
+                return instanceId;
+            }
+            
+            if (typeof storage.get_all_assets === 'function') {
+                console.log('[BackgroundInteractionHandler] Searching through all assets');
+                const allAssets = storage.get_all_assets();
+                for (const assetData of allAssets) {
+                    if (assetData.mesh === asset) {
+                        console.log('[BackgroundInteractionHandler] Found matching asset with instanceId:', assetData.instanceId);
+                        return assetData.instanceId;
+                    }
+                }
+            }
+        }
+
+        // Try extracting from asset name if it follows a pattern
+        if (asset.name && asset.name.includes('_')) {
+            const nameParts = asset.name.split('_');
+            const possibleId = nameParts[nameParts.length - 1];
+            console.log('[BackgroundInteractionHandler] Extracted possible ID from name:', possibleId);
+            return possibleId;
+        }
+
+        console.warn('[BackgroundInteractionHandler] Could not determine instance ID for asset');
+        return null;
+    }
+
+    #getAvailableAnimations(animationController, instanceId) {
+        console.log('[BackgroundInteractionHandler] #getAvailableAnimations called for instanceId:', instanceId);
+        
+        try {
+            // Try accessing animationMixers directly since that's what's available
+            if (animationController.animationMixers && animationController.animationMixers.has(instanceId)) {
+                console.log('[BackgroundInteractionHandler] Found mixer for instanceId');
+                const mixerData = animationController.animationMixers.get(instanceId);
+                console.log('[BackgroundInteractionHandler] Mixer object:', mixerData);
+                
+                if (mixerData.actions && Array.isArray(mixerData.actions)) {
+                    console.log('[BackgroundInteractionHandler] Found actions array:', mixerData.actions);
+                    // Return array indices since the actions are indexed by number
+                    return mixerData.actions.map((action, index) => index.toString());
+                }
+            } else {
+                console.log('[BackgroundInteractionHandler] No mixer found for instanceId:', instanceId);
+                console.log('[BackgroundInteractionHandler] Available mixer instances:', Array.from(animationController.animationMixers.keys()));
+            }
+            
+            console.warn('[BackgroundInteractionHandler] Could not find animations. Available controller properties:', Object.getOwnPropertyNames(animationController));
+            
+        } catch (error) {
+            console.error('[BackgroundInteractionHandler] Error getting available animations:', error);
+        }
+        
+        return [];
     }
 
     #getIntersections(e) {
@@ -390,8 +592,7 @@ export class BackgroundInteractionHandler {
             'MOUSE',
             'DESKPHOTO',
             'COMPUTER',
-            'CHAIR',
-            'CAT'
+            'CHAIR'
         ];
         
         return grabbableTypes.includes(assetType);
@@ -418,7 +619,7 @@ export class BackgroundInteractionHandler {
 
         if (this.hovered_asset_name) {
             const assetType = this.hovered_asset_name.replace('interactable_', '').split('_')[0];
-            if (assetType === 'DIPLOMA') {
+            if (assetType === 'DIPLOMA' || assetType === 'CAT') {
                 this.#setCursorPointer();
                 return;
             }
