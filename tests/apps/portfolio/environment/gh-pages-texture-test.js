@@ -101,9 +101,9 @@ async function testGitHubPagesTextureLoading() {
 		});
     
 		// Navigate to the GitHub Pages simulated URL
-		console.log(`Navigating to ${SERVER_URL}/threejs_site/...`);
+		console.log(`Navigating to ${SERVER_URL}/littlecarlito.github.io/...`);
     
-		await page.goto(`${SERVER_URL}/threejs_site/`, {
+		await page.goto(`${SERVER_URL}/littlecarlito.github.io/`, {
 			waitUntil: 'networkidle2',
 			timeout: TIMEOUT
 		});

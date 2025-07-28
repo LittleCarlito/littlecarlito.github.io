@@ -14,7 +14,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const outputPath = path.resolve(__dirname, 'dist/index.js')
 
 const isGitHubPages = process.env.GITHUB_PAGES === 'true'
-const base = isGitHubPages ? '/threejs_site/' : '/'
+const base = isGitHubPages ? '/littlecarlito.github.io/' : '/'
 
 function copyDirectory(src, dest) {
 	if (!fs.existsSync(src)) {

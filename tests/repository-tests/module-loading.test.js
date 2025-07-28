@@ -72,7 +72,7 @@ describe('Vite Configuration Tests', () => {
 			path.resolve(__dirname, '../../apps/portfolio/vite.config.js'),
 			'utf-8'
 		);
-		expect(viteConfigContent).toContain('const base = isGitHubPages ? \'/threejs_site/\' : \'/\'');
+		expect(viteConfigContent).toContain('const base = isGitHubPages ? \'/littlecarlito.github.io/\' : \'/\'');
 	});
 
 	it('should have Three.js properly configured in rollup options', () => {
