@@ -58,9 +58,9 @@ export class ManifestManager {
 		if (this.load_promise) {
 			return this.load_promise;
 		}
-		// Get the base path from the current URL
-		const basePath = window.location.pathname.includes('/littlecarlito.github.io/') ? '/littlecarlito.github.io' : '';
-		const fullPath = `${basePath}/${relativePath}`.replace(/\/+/g, '/');
+		// Since we're now at root domain, no base path needed
+		const basePath = '';
+		const fullPath = `/${relativePath}`.replace(/\/+/g, '/');
 		console.log(`Loading manifest from: ${fullPath}`);
 		try {
 			const response = await fetch(fullPath);
@@ -794,4 +794,4 @@ export class ManifestManager {
 		}
 		return camera_config;
 	}
-} 
+}
