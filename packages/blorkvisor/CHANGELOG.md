@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.47.13 (2025-07-28)</small>
+
+- fix: correcting repo name to root ([4652f6f](https://github.com/littlecarlito/littlecarlito.github.io/commit/4652f6f))
+
 ## <small>0.47.12 (2025-05-04)</small>
 
 **Note:** Version bump only for package @littlecarlito/blorkvisor

@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.51.1 (2025-07-28)</small>
+
+- fix: correcting repo name to root ([4652f6f](https://github.com/littlecarlito/threejs_site/commit/4652f6f))
+
 ## 0.51.0 (2025-07-28)
 
 - refactor(blorkpack): background interaction ([f744615](https://github.com/littlecarlito/threejs_site/commit/f744615))

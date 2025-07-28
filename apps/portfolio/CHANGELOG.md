@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.50.1 (2025-07-28)</small>
+
+- fix: correcting repo name to root ([4652f6f](https://github.com/littlecarlito/threejs_site/commit/4652f6f))
+- fix(portfolio): vite config path ([c4dfef7](https://github.com/littlecarlito/threejs_site/commit/c4dfef7))
+
 ## 0.50.0 (2025-07-28)
 
 - fix(blorkpack): css3d waiting color ([1fb2eaa](https://github.com/littlecarlito/threejs_site/commit/1fb2eaa))
