@@ -44,7 +44,7 @@ describe('MIME Types Configuration', () => {
     
 		// Check that base path is properly configured for GitHub Pages
 		expect(viteConfigContent).toContain("isGitHubPages");
-		expect(viteConfigContent).toContain("/threejs_site/");
+		expect(viteConfigContent).toContain("/littlecarlito.github.io/");
 		expect(viteConfigContent).toContain("base: base");
 	});
 

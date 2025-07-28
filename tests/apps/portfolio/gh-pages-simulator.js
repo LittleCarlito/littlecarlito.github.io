@@ -34,10 +34,10 @@ const server = http.createServer((req, res) => {
 	// Simulate GitHub Pages base path
 	let url = req.url;
   
-	// Strip /threejs_site/ prefix for file lookup but keep it in logs
+	// Strip /littlecarlito.github.io/ prefix for file lookup but keep it in logs
 	// This simulates how GitHub Pages serves files with the repo name in URL
-	if (url.startsWith('/threejs_site/')) {
-		url = url.replace('/threejs_site/', '/');
+	if (url.startsWith('/littlecarlito.github.io/')) {
+		url = url.replace('/littlecarlito.github.io/', '/');
 	}
   
 	// Normalize URL to prevent directory traversal
@@ -47,7 +47,7 @@ const server = http.createServer((req, res) => {
 	let filePath = path.join(REPO_BASE, safePath);
   
 	// Handle root path
-	if (safePath === '/' || safePath === '/threejs_site/') {
+	if (safePath === '/' || safePath === '/littlecarlito.github.io/') {
 		// Instead of serving the full app, serve a minimal test HTML that just loads the gradient image
 		const testHtml = `
 		<!DOCTYPE html>
@@ -57,8 +57,8 @@ const server = http.createServer((req, res) => {
 		</head>
 		<body>
 		  <h1>GitHub Pages Texture Loading Test</h1>
-		  <div>Testing image loading at: /threejs_site/images/gradient.jpg</div>
-		  <img id="testImage" src="/threejs_site/images/gradient.jpg" 
+		  <div>Testing image loading at: /littlecarlito.github.io/images/gradient.jpg</div>
+		  <img id="testImage" src="/littlecarlito.github.io/images/gradient.jpg" 
 			   onload="window.imageLoaded = true; console.log('Image loaded successfully!')" 
 			   onerror="window.imageLoaded = false; console.error('Image failed to load')">
 		  
@@ -128,8 +128,8 @@ const server = http.createServer((req, res) => {
 	}
   
 	// Handle direct access to images that might use the full GitHub Pages URL
-	if (safePath.startsWith('/threejs_site/images/')) {
-		const relativePath = safePath.replace('/threejs_site/', '/');
+	if (safePath.startsWith('/littlecarlito.github.io/images/')) {
+		const relativePath = safePath.replace('/littlecarlito.github.io/', '/');
 		// First try apps/portfolio/images, then try apps/portfolio/public/images
 		const portfolioImagesPath = path.join(REPO_BASE, 'apps/portfolio', relativePath);
 		const publicImagesPath = path.join(REPO_BASE, 'apps/portfolio/public', relativePath);
@@ -143,8 +143,8 @@ const server = http.createServer((req, res) => {
   
 	// Handle blorkpack package files
 	if (safePath.startsWith('/packages/blorkpack/') || 
-		safePath.startsWith('/threejs_site/packages/blorkpack/')) {
-		const normalizedPath = safePath.replace('/threejs_site/', '/');
+		safePath.startsWith('/littlecarlito.github.io/packages/blorkpack/')) {
+		const normalizedPath = safePath.replace('/littlecarlito.github.io/', '/');
 		filePath = path.join(REPO_BASE, normalizedPath);
 	}
   
@@ -227,7 +227,7 @@ function serveFile(filePath, contentType, res) {
 					"imports": {
 						"three": "https://unpkg.com/three@0.161.0/build/three.module.js",
 						"three/addons/": "https://unpkg.com/three@0.161.0/examples/jsm/",
-						"@littlecarlito/blorkpack": "/threejs_site/packages/blorkpack/dist/index.js"
+						"@littlecarlito/blorkpack": "/littlecarlito.github.io/packages/blorkpack/dist/index.js"
 					}
 				}
 				</script>`
@@ -257,8 +257,8 @@ Server running at http://localhost:${PORT}
 Base repo path: ${REPO_BASE}
 
 To test GitHub Pages environment:
-- Visit http://localhost:${PORT}/threejs_site/
-- This simulates https://littlecarlito.github.io/threejs_site/
+- Visit http://localhost:${PORT}/littlecarlito.github.io/
+- This simulates https://littlecarlito.github.io/littlecarlito.github.io/
 
 Assets will be served with proper CORS headers
 from the appropriate directories

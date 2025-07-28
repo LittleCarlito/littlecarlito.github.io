@@ -59,7 +59,7 @@ export class ManifestManager {
 			return this.load_promise;
 		}
 		// Get the base path from the current URL
-		const basePath = window.location.pathname.includes('/threejs_site/') ? '/threejs_site' : '';
+		const basePath = window.location.pathname.includes('/littlecarlito.github.io/') ? '/littlecarlito.github.io' : '';
 		const fullPath = `${basePath}/${relativePath}`.replace(/\/+/g, '/');
 		console.log(`Loading manifest from: ${fullPath}`);
 		try {

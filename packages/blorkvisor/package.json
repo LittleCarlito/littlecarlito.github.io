@@ -27,7 +27,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/littlecarlito/threejs_site.git"
+    "url": "git+https://github.com/littlecarlito/littlecarlito.github.io.git"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com",
