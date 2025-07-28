@@ -1,11 +1,23 @@
 import { THREE, FLAGS, RAPIER } from '../common';
 import { AssetHandler, AssetStorage, CustomTypeManager }  from '@littlecarlito/blorkpack';
 import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
+import { SimpleFloorRectangle } from './simple_floor_rectangle.js';
 
 const FLOOR_HEIGHT = -10;
 const DESK_HEIGHT = FLOOR_HEIGHT/2;
 const DIPLOMA_X = -7.2;
 const DIPLOMA_Z = -.5;
+const DESPAWN_Y_THRESHOLD = -50;
+const FALLEN_ASSET_CHECK_INTERVAL = 60; // Only check every 60 frames (~1 second at 60fps)
+
+const ASSET_CATEGORY_MAP = {
+	DIPLOMA_BOT: CATEGORIES.EDUCATION.value,
+	DIPLOMA_TOP: CATEGORIES.EDUCATION.value,
+	NOTEBOOK_OPENED: CATEGORIES.PROJECTS.value,
+	MONITOR: CATEGORIES.WORK.value,
+	DESKPHOTO: CATEGORIES.ABOUT.value,
+	TABLET: CATEGORIES.CONTACT.value
+};
 
 export class BackgroundContainer {
 	name = "[BackgroundContainer]"
@@ -13,12 +25,17 @@ export class BackgroundContainer {
 	camera;
 	world;
 	object_container;
+	asset_container;
+	simple_floor;
 	dynamic_bodies = [];
 	asset_manifest = new Set();
+	categorized_assets = new Map();
 	loading_complete = false;
 	loading_promise;
 	is_spawning_secondary = false;
 	is_spawning_primary = false;
+	dropped_asset_colliders = new Map();
+	frameCount = 0; // Track frame count for optimizations
 
 	constructor(incoming_parent, incoming_camera, incoming_world) {
 		this.parent = incoming_parent;
@@ -26,332 +43,52 @@ export class BackgroundContainer {
 		this.world = incoming_world;
 		this.object_container = new THREE.Object3D();
 		this.parent.add(this.object_container);
-		const asset_loader = AssetHandler.get_instance(this.object_container, this.world);
+		
+		this.asset_container = new THREE.Object3D();
+		this.asset_container.name = "asset_container";
+		this.asset_container.userData.isAssetContainer = true;
+		this.object_container.add(this.asset_container);
+		
+		this.simple_floor = new SimpleFloorRectangle(this.world, this.object_container);
+		
+		const asset_loader = AssetHandler.get_instance(this.asset_container, this.world);
 		this.loading_promise = (async () => {
 			try {
-				if (!CustomTypeManager.hasLoadedCustomTypes()) {
+				const customTypeManager = CustomTypeManager.getInstance();
+				if (!customTypeManager.hasLoadedCustomTypes()) {
 					if (FLAGS.ASSET_LOGS) console.warn(`${this.name} Custom types not loaded yet. Waiting for them to load...`);
 					await new Promise(resolve => setTimeout(resolve, 500));
-					if (!CustomTypeManager.hasLoadedCustomTypes()) {
+					if (!customTypeManager.hasLoadedCustomTypes()) {
 						throw new Error(`${this.name} Custom types still not loaded after waiting. Make sure CustomTypeManager.loadCustomTypes() is called before creating BackgroundContainer.`);
 					}
 				}
-				const ASSET_TYPE = CustomTypeManager.getTypes();
-				const ASSET_CONFIGS = CustomTypeManager.getConfigs();
+				const ASSET_TYPE = customTypeManager.getTypes();
+				const ASSET_CONFIGS = customTypeManager.getConfigs();
 				if (Object.keys(ASSET_TYPE).length === 0) {
 					throw new Error(`${this.name} No custom asset types found. Assets will not spawn correctly.`);
 				}
 				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Loaded custom types:`, Object.keys(ASSET_TYPE));
-				const roomPosition = new THREE.Vector3(0, FLOOR_HEIGHT, 0);
-				const roomAtlas = ASSET_CONFIGS[ASSET_TYPE.ROOM].materials.default;
-				const roomResult = await asset_loader.spawn_asset(
-					ASSET_TYPE.ROOM,
-					roomPosition,
-					new THREE.Quaternion(),
-					{ 
-						enablePhysics: false,
-						atlasConfig: roomAtlas
-					}				);
-				if (!roomResult) {
-					throw new Error(`${this.name} Failed to spawn ROOM, result is null`);
-				}
-				let mesh = roomResult.mesh;
-				let body = roomResult.body;
-				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.ROOM}`;
-				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Room with name: ${mesh.name}`);
-				const deskPosition = new THREE.Vector3(-.5, FLOOR_HEIGHT, -.75);
-				const deskAtlas = ASSET_CONFIGS[ASSET_TYPE.DESK].materials.default;
-				const deskResult = await asset_loader.spawn_asset(
-					ASSET_TYPE.DESK,
-					deskPosition,
-					new THREE.Quaternion(),
-					{ 
-						enablePhysics: false,
-						atlasConfig: deskAtlas
-					});
-				if (!deskResult) {
-					throw new Error(`${this.name} Failed to spawn DESK, result is null`);
-				}
-				mesh = deskResult.mesh;
-				body = deskResult.body;
-				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DESK}`;
-				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk with name: ${mesh.name}`);
-				const chairPosition = new THREE.Vector3(-1, FLOOR_HEIGHT, -1.5);
-				const chairAtlas = ASSET_CONFIGS[ASSET_TYPE.CHAIR].materials.default;
-				const chairResult = await asset_loader.spawn_asset(
-					ASSET_TYPE.CHAIR,
-					chairPosition,
-					new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2 + Math.PI / 4),
-					{ 
-						enablePhysics: false,
-						atlasConfig: chairAtlas
-					});
-				if (!chairResult) {
-					throw new Error(`${this.name} Failed to spawn CHAIR, result is null`);
-				}
-				mesh = chairResult.mesh;
-				body = chairResult.body;
-				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.CHAIR}`;
-				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Chair with name: ${mesh.name}`);
-				const catPosition = new THREE.Vector3(5.5, FLOOR_HEIGHT, -6);
-				const catAtlas = ASSET_CONFIGS[ASSET_TYPE.CAT].materials.default;
-				const catResult = await asset_loader.spawn_asset(
-					ASSET_TYPE.CAT,
-					catPosition,
-					new THREE.Quaternion(),
-					{ 
-						enablePhysics: false,
-						atlasConfig: catAtlas
-					});
-				if (!catResult) {
-					throw new Error(`${this.name} Failed to spawn CAT, result is null`);
-				}
-				mesh = catResult.mesh;
-				body = catResult.body;
-				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.CAT}`;
-				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Cat with name: ${mesh.name}`);
-				const plantPosition = new THREE.Vector3(-6, FLOOR_HEIGHT, 6);
-				const plantAtlas = ASSET_CONFIGS[ASSET_TYPE.PLANT].materials.default;
-				const plantResult = await asset_loader.spawn_asset(
-					ASSET_TYPE.PLANT,
-					plantPosition,
-					new THREE.Quaternion(),
-					{ 
-						enablePhysics: false,
-						atlasConfig: plantAtlas
-					});
-				if (!plantResult) {
-					throw new Error(`${this.name} Failed to spawn PLANT, result is null`);
-				}
-				mesh = plantResult.mesh;
-				body = plantResult.body;
-				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.PLANT}`;
-				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Plant with name: ${mesh.name}`);
-				const computerPosition = new THREE.Vector3(-4, FLOOR_HEIGHT, 2.5);
-				const computerAtlas = ASSET_CONFIGS[ASSET_TYPE.COMPUTER].materials.default;
-				const computerResult = await asset_loader.spawn_asset(
-					ASSET_TYPE.COMPUTER,
-					computerPosition,
-					new THREE.Quaternion(),
-					{ 
-						enablePhysics: false,
-						atlasConfig: computerAtlas
-					});
-				if (!computerResult) {
-					throw new Error(`${this.name} Failed to spawn COMPUTER, result is null`);
-				}
-				mesh = computerResult.mesh;
-				body = computerResult.body;
-				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.COMPUTER}`;
-				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Computer with name: ${mesh.name}`);
-				const monitorPosition = new THREE.Vector3(-4.5, DESK_HEIGHT, -5);
-				const monitorAtlas = ASSET_CONFIGS[ASSET_TYPE.MONITOR].materials.default;
-				const monitorResult = await asset_loader.spawn_asset(
-					ASSET_TYPE.MONITOR,
-					monitorPosition,
-					new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4),
-					{ 
-						enablePhysics: false,
-						atlasConfig: monitorAtlas
-					});
-				if (!monitorResult) {
-					throw new Error(`${this.name} Failed to spawn MONITOR, result is null`);
-				}
-				mesh = monitorResult.mesh;
-				body = monitorResult.body;
-				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.MONITOR}`;
-				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Monitor with name: ${mesh.name}`);
-				const keyboardPosition = new THREE.Vector3(-4, DESK_HEIGHT, -3);
-				const keyboardAtlas = ASSET_CONFIGS[ASSET_TYPE.KEYBOARD].materials.default;
-				const keyboardResult = await asset_loader.spawn_asset(
-					ASSET_TYPE.KEYBOARD,
-					keyboardPosition,
-					new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 8),
-					{ 
-						enablePhysics: false,
-						atlasConfig: keyboardAtlas
-					});
-				if (!keyboardResult) {
-					throw new Error(`${this.name} Failed to spawn KEYBOARD, result is null`);
-				}
-				mesh = keyboardResult.mesh;
-				body = keyboardResult.body;
-				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.KEYBOARD}`;
-				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Keyboard with name: ${mesh.name}`);
-				const mousepadPosition = new THREE.Vector3(-2, DESK_HEIGHT, -5);
-				const mousepadAtlas = ASSET_CONFIGS[ASSET_TYPE.MOUSEPAD].materials.default;
-				const mousepadResult = await asset_loader.spawn_asset(
-					ASSET_TYPE.MOUSEPAD,
-					mousepadPosition,
-					new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 8),
-					{ 
-						enablePhysics: false,
-						atlasConfig: mousepadAtlas
-					});
-				if (!mousepadResult) {
-					throw new Error(`${this.name} Failed to spawn MOUSEPAD, result is null`);
-				}
-				mesh = mousepadResult.mesh;
-				body = mousepadResult.body;
-				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.MOUSEPAD}`;
-				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Mousepad with name: ${mesh.name}`);
-				const mousePosition = new THREE.Vector3(-2, DESK_HEIGHT, -5);
-				const mouseAtlas = ASSET_CONFIGS[ASSET_TYPE.MOUSE].materials.default;
-				const mouseResult = await asset_loader.spawn_asset(
-					ASSET_TYPE.MOUSE,
-					mousePosition,
-					new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2 + Math.PI / 4),
-					{ 
-						enablePhysics: false,
-						atlasConfig: mouseAtlas 
-					});
-				if (!mouseResult) {
-					throw new Error(`${this.name} Failed to spawn MOUSE, result is null`);
-				}
-				mesh = mouseResult.mesh;
-				body = mouseResult.body;
-				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.MOUSE}`;
-				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Mouse with name: ${mesh.name}`);
-				const deskPhotoPosition = new THREE.Vector3(0, DESK_HEIGHT, -7);
-				const deskPhotoAtlas = ASSET_CONFIGS[ASSET_TYPE.DESKPHOTO].materials.default;
-				const deskPhotoResult = await asset_loader.spawn_asset(
-					ASSET_TYPE.DESKPHOTO,
-					deskPhotoPosition,
-					new THREE.Quaternion(),
-					{ 
-						enablePhysics: false,
-						atlasConfig: deskPhotoAtlas
-					});
-				if (!deskPhotoResult) {
-					throw new Error(`${this.name} Failed to spawn DESKPHOTO, result is null`);
-				}
-				mesh = deskPhotoResult.mesh;
-				body = deskPhotoResult.body;
-				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DESKPHOTO}`;
-				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Desk photo with name: ${mesh.name}`);
-				const tabletPosition = new THREE.Vector3(2, DESK_HEIGHT, -5);
-				const tabletAtlas = ASSET_CONFIGS[ASSET_TYPE.TABLET].materials.default;
-				const tabletResult = await asset_loader.spawn_asset(
-					ASSET_TYPE.TABLET,
-					tabletPosition,
-					new THREE.Quaternion(),
-					{ 
-						enablePhysics: false,
-						atlasConfig: tabletAtlas
-					});
-				if (!tabletResult) {
-					throw new Error(`${this.name} Failed to spawn TABLET, result is null`);
-				}
-				mesh = tabletResult.mesh;
-				body = tabletResult.body;
-				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.TABLET}`;
-				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Tablet with name: ${mesh.name}`);
-				const notebookClosedPosition = new THREE.Vector3(-6, DESK_HEIGHT, 2.5);
-				const notebookClosedAtlas = ASSET_CONFIGS[ASSET_TYPE.NOTEBOOK_CLOSED].materials.default;
-				const notebookClosedResult = await asset_loader.spawn_asset(
-					ASSET_TYPE.NOTEBOOK_CLOSED,
-					notebookClosedPosition,
-					new THREE.Quaternion(),
-					{ 
-						enablePhysics: false,
-						atlasConfig: notebookClosedAtlas
-					});
-				if (!notebookClosedResult) {
-					throw new Error(`${this.name} Failed to spawn NOTEBOOK_CLOSED, result is null`);
-				}
-				mesh = notebookClosedResult.mesh;
-				body = notebookClosedResult.body;
-				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.NOTEBOOK_CLOSED}`;
-				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Notebook closed with name: ${mesh.name}`);
-				const bookPosition = new THREE.Vector3(-6, DESK_HEIGHT + .25, 2.5);
-				const bookAtlas = ASSET_CONFIGS[ASSET_TYPE.BOOK].materials.default;
-				const result = await asset_loader.spawn_asset(
-					ASSET_TYPE.BOOK,
-					bookPosition,
-					new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2),
-					{ 
-						enablePhysics: false,
-						atlasConfig: bookAtlas
-					});
-				if (!result) {
-					throw new Error(`${this.name} Failed to spawn BOOK, result is null`);
-				}
-				mesh = result.mesh;
-				body = result.body;
-				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.BOOK}`;
-				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Book with name: ${mesh.name}`);
-				const notebookOpenedPosition = new THREE.Vector3(-5, DESK_HEIGHT, 0);
-				const notebookOpenedAtlas = ASSET_CONFIGS[ASSET_TYPE.NOTEBOOK_OPENED].materials.default;
-				const notebookOpenedResult = await asset_loader.spawn_asset(
-					ASSET_TYPE.NOTEBOOK_OPENED,
-					notebookOpenedPosition,
-					new THREE.Quaternion(),
-					{ 
-						enablePhysics: false,
-						atlasConfig: notebookOpenedAtlas
-					});
-				if (!notebookOpenedResult) {
-					throw new Error(`${this.name} Failed to spawn NOTEBOOK_OPENED, result is null`);
-				}
-				mesh = notebookOpenedResult.mesh;
-				body = notebookOpenedResult.body;
-				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.NOTEBOOK_OPENED}`;
-				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Notebook opened with name: ${mesh.name}`);
-				const diplomaTopPosition = new THREE.Vector3(DIPLOMA_X, 1.5, DIPLOMA_Z);
-				const diplomaTopAtlas = ASSET_CONFIGS[ASSET_TYPE.DIPLOMA_TOP].materials.default;
-				const diplomaTopResult = await asset_loader.spawn_asset(
-					ASSET_TYPE.DIPLOMA_TOP,
-					diplomaTopPosition,
-					new THREE.Quaternion()
-						.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2)
-						.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2)),
-					{ 
-						enablePhysics: false,
-						atlasConfig: diplomaTopAtlas
-					});
-				if (!diplomaTopResult) {
-					throw new Error(`${this.name} Failed to spawn DIPLOMA_TOP, result is null`);
-				}
-				mesh = diplomaTopResult.mesh;
-				body = diplomaTopResult.body;
-				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DIPLOMA_TOP}`;
-				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma Top with name: ${mesh.name}`);
-				const diplomaBotPosition = new THREE.Vector3(DIPLOMA_X, -1.5, DIPLOMA_Z);
-				const diplomaBotAtlas = ASSET_CONFIGS[ASSET_TYPE.DIPLOMA_BOT].materials.default;
-				const diplomaBotResult = await asset_loader.spawn_asset(
-					ASSET_TYPE.DIPLOMA_BOT,
-					diplomaBotPosition,
-					new THREE.Quaternion()
-						.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2)
-						.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2)),
-					{ 
-						enablePhysics: false,
-						atlasConfig: diplomaBotAtlas
-					});
-				if (!diplomaBotResult) {
-					throw new Error(`${this.name} Failed to spawn DIPLOMA_BOT, result is null`);
-				}
-				mesh = diplomaBotResult.mesh;
-				body = diplomaBotResult.body;
-				mesh.name = `${TYPES.INTERACTABLE}${ASSET_TYPE.DIPLOMA_BOT}`;
-				this.asset_manifest.add(mesh.name);
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Creating Diploma Bot with name: ${mesh.name}`);
+				
+				await this.spawnAsset(ASSET_TYPE.ROOM, new THREE.Vector3(0, FLOOR_HEIGHT, 0), new THREE.Quaternion(), ASSET_CONFIGS);
+				await this.spawnAsset(ASSET_TYPE.DESK, new THREE.Vector3(-.5, FLOOR_HEIGHT, -.75), new THREE.Quaternion(), ASSET_CONFIGS);
+				await this.spawnAsset(ASSET_TYPE.CHAIR, new THREE.Vector3(-1, FLOOR_HEIGHT, -1.5), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2 + Math.PI / 4), ASSET_CONFIGS);
+				await this.spawnAsset(ASSET_TYPE.CAT, new THREE.Vector3(5.5, FLOOR_HEIGHT, -6), new THREE.Quaternion(), ASSET_CONFIGS);
+				await this.spawnAsset(ASSET_TYPE.PLANT, new THREE.Vector3(-6, FLOOR_HEIGHT, 6), new THREE.Quaternion(), ASSET_CONFIGS);
+				await this.spawnAsset(ASSET_TYPE.COMPUTER, new THREE.Vector3(-4, FLOOR_HEIGHT, 2.5), new THREE.Quaternion(), ASSET_CONFIGS);
+				await this.spawnAsset(ASSET_TYPE.MONITOR, new THREE.Vector3(-4.5, DESK_HEIGHT, -5), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4), ASSET_CONFIGS, ASSET_CATEGORY_MAP.MONITOR);
+				await this.spawnAsset(ASSET_TYPE.KEYBOARD, new THREE.Vector3(-4, DESK_HEIGHT, -3), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 8), ASSET_CONFIGS);
+				await this.spawnAsset(ASSET_TYPE.MOUSEPAD, new THREE.Vector3(-2, DESK_HEIGHT, -5), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 8), ASSET_CONFIGS);
+				await this.spawnAsset(ASSET_TYPE.MOUSE, new THREE.Vector3(-2, DESK_HEIGHT, -5), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2 + Math.PI / 4), ASSET_CONFIGS);
+				await this.spawnAsset(ASSET_TYPE.DESKPHOTO, new THREE.Vector3(0, DESK_HEIGHT, -7), new THREE.Quaternion(), ASSET_CONFIGS, ASSET_CATEGORY_MAP.DESKPHOTO);
+				await this.spawnAsset(ASSET_TYPE.TABLET, new THREE.Vector3(2, DESK_HEIGHT, -5), new THREE.Quaternion(), ASSET_CONFIGS, ASSET_CATEGORY_MAP.TABLET);
+				await this.spawnAsset(ASSET_TYPE.NOTEBOOK_CLOSED, new THREE.Vector3(-6, DESK_HEIGHT, 2.5), new THREE.Quaternion(), ASSET_CONFIGS);
+				await this.spawnAsset(ASSET_TYPE.BOOK, new THREE.Vector3(-6, DESK_HEIGHT + .25, 2.5), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2), ASSET_CONFIGS);
+				await this.spawnAsset(ASSET_TYPE.NOTEBOOK_OPENED, new THREE.Vector3(-5, DESK_HEIGHT, 0), new THREE.Quaternion(), ASSET_CONFIGS, ASSET_CATEGORY_MAP.NOTEBOOK_OPENED);
+				await this.spawnAsset(ASSET_TYPE.DIPLOMA_BOT, new THREE.Vector3(DIPLOMA_X, 1.5, DIPLOMA_Z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2)), ASSET_CONFIGS, ASSET_CATEGORY_MAP.DIPLOMA_BOT);
+				await this.spawnAsset(ASSET_TYPE.DIPLOMA_TOP, new THREE.Vector3(DIPLOMA_X, -1.5, DIPLOMA_Z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2)), ASSET_CONFIGS, ASSET_CATEGORY_MAP.DIPLOMA_TOP);
+				
+				this.setBackgroundRenderOrder();
+				
 				if (FLAGS.PHYSICS_LOGS) {
 					console.log('All assets initialized successfully');
 				}
@@ -362,6 +99,280 @@ export class BackgroundContainer {
 				throw error;
 			}
 		})();
+	}
+
+	async spawnAsset(assetType, position, rotation, assetConfigs, category = null) {
+		const asset_loader = AssetHandler.get_instance(this.asset_container, this.world);
+		const atlasConfig = assetConfigs[assetType].materials.default;
+		
+		const result = await asset_loader.spawn_asset(
+			assetType,
+			position,
+			rotation,
+			{ 
+				enablePhysics: true,
+				kinematic: true,
+				atlasConfig: atlasConfig,
+				hideDisplayMeshes: true,
+				enableCCD: false
+			}
+		);
+		
+		if (!result) {
+			throw new Error(`${this.name} Failed to spawn ${assetType}, result is null`);
+		}
+		
+		let mesh = result.mesh;
+		let body = result.body;
+		
+		mesh.name = `${TYPES.INTERACTABLE}${assetType}`;
+		
+		if (category) {
+			mesh.userData.category = category;
+			this.addToCategory(category, mesh, body);
+		}
+		
+		this.asset_manifest.add(mesh.name);
+		
+		if (FLAGS.ASSET_LOGS) {
+			console.log(`${this.name} Created ${assetType} with name: ${mesh.name}${category ? `, category: ${category}` : ''} - Body Type: ${body ? 'KINEMATIC' : 'NONE'}`);
+		}
+		
+		return result;
+	}
+
+	createCollisionBoxForDroppedAsset(mesh, body, assetConfig) {
+		if (!body || !this.world || !mesh) {
+			if (FLAGS.PHYSICS_LOGS) {
+				console.warn(`${this.name} Cannot create collision box - missing body, world, or mesh`);
+			}
+			return null;
+		}
+
+		const existingCollider = this.dropped_asset_colliders.get(mesh.name);
+		if (existingCollider) {
+			if (FLAGS.PHYSICS_LOGS) {
+				console.log(`${this.name} Removing existing collider for ${mesh.name}`);
+			}
+			this.world.removeCollider(existingCollider, true);
+			this.dropped_asset_colliders.delete(mesh.name);
+		}
+
+		mesh.geometry.computeBoundingBox();
+		const boundingBox = mesh.geometry.boundingBox;
+		
+		if (!boundingBox) {
+			if (FLAGS.PHYSICS_LOGS) {
+				console.warn(`${this.name} No bounding box for ${mesh.name} - cannot create collider`);
+			}
+			return null;
+		}
+		
+		const width = boundingBox.max.x - boundingBox.min.x;
+		const height = boundingBox.max.y - boundingBox.min.y;
+		const depth = boundingBox.max.z - boundingBox.min.z;
+
+		const colliderDesc = RAPIER.ColliderDesc.cuboid(width / 2, height / 2, depth / 2);
+		colliderDesc.setRestitution(assetConfig?.restitution || 0.3);
+		colliderDesc.setFriction(assetConfig?.friction || 0.7);
+
+		const worldPosition = new THREE.Vector3();
+		const worldQuaternion = new THREE.Quaternion();
+		mesh.getWorldPosition(worldPosition);
+		mesh.getWorldQuaternion(worldQuaternion);
+		
+		colliderDesc.setTranslation(worldPosition.x, worldPosition.y, worldPosition.z);
+		colliderDesc.setRotation(worldQuaternion);
+
+		const collider = this.world.createCollider(colliderDesc, body);
+		
+		if (collider) {
+			this.dropped_asset_colliders.set(mesh.name, collider);
+			if (FLAGS.PHYSICS_LOGS) {
+				console.log(`${this.name} Created hack collision box for dropped asset: ${mesh.name}`);
+				console.log(`  Dimensions: ${width.toFixed(3)} × ${height.toFixed(3)} × ${depth.toFixed(3)}`);
+				console.log(`  Position: (${worldPosition.x.toFixed(3)}, ${worldPosition.y.toFixed(3)}, ${worldPosition.z.toFixed(3)})`);
+			}
+		}
+		
+		return collider;
+	}
+
+	removeCollisionBoxForAsset(mesh) {
+		if (!mesh || !mesh.name) return;
+
+		const collider = this.dropped_asset_colliders.get(mesh.name);
+		if (collider && this.world) {
+			this.world.removeCollider(collider, true);
+			this.dropped_asset_colliders.delete(mesh.name);
+			if (FLAGS.PHYSICS_LOGS) {
+				console.log(`${this.name} Removed collision box for ${mesh.name}`);
+			}
+		}
+	}
+
+	despawnAsset(mesh, body) {
+		if (!mesh) return;
+
+		const assetName = mesh.name;
+		
+		console.log(`${this.name} Despawning asset: ${assetName} (fell below Y threshold of ${DESPAWN_Y_THRESHOLD}) - Final position: (${mesh.position.x.toFixed(2)}, ${mesh.position.y.toFixed(2)}, ${mesh.position.z.toFixed(2)})`);
+		console.log(`${this.name} Physics body position: (${body ? body.translation().x.toFixed(2) : 'N/A'}, ${body ? body.translation().y.toFixed(2) : 'N/A'}, ${body ? body.translation().z.toFixed(2) : 'N/A'})`)
+
+		this.removeCollisionBoxForAsset(mesh);
+
+		if (body && this.world) {
+			this.world.removeRigidBody(body);
+		}
+
+		this.dynamic_bodies = this.dynamic_bodies.filter(entry => {
+			const entryMesh = Array.isArray(entry) ? entry[0] : entry.mesh;
+			return entryMesh !== mesh;
+		});
+
+		for (const [category, assets] of this.categorized_assets.entries()) {
+			const filteredAssets = assets.filter(asset => asset.mesh !== mesh);
+			if (filteredAssets.length !== assets.length) {
+				this.categorized_assets.set(category, filteredAssets);
+			}
+		}
+
+		const assetStorage = AssetStorage.get_instance();
+		if (assetStorage) {
+			const bodyPair = assetStorage.get_body_pair_by_mesh(mesh);
+			if (bodyPair) {
+				const instanceId = mesh.userData?.instanceId;
+				if (instanceId && assetStorage.dynamic_bodies?.has(instanceId)) {
+					assetStorage.dynamic_bodies.delete(instanceId);
+				}
+			}
+		}
+
+		if (mesh.parent) {
+			mesh.parent.remove(mesh);
+		}
+
+		if (mesh.geometry) {
+			mesh.geometry.dispose();
+		}
+		if (mesh.material) {
+			if (Array.isArray(mesh.material)) {
+				mesh.material.forEach(material => {
+					if (material.map) material.map.dispose();
+					material.dispose();
+				});
+			} else {
+				if (mesh.material.map) mesh.material.map.dispose();
+				mesh.material.dispose();
+			}
+		}
+	}
+
+	checkForFallenAssets() {
+		const assetsToRemove = [];
+		
+		// Only check fallen assets occasionally, not every frame
+		if (this.frameCount % FALLEN_ASSET_CHECK_INTERVAL !== 0) {
+			return 0;
+		}
+		
+		this.dynamic_bodies.forEach(entry => {
+			const mesh = Array.isArray(entry) ? entry[0] : entry.mesh;
+			const body = Array.isArray(entry) ? entry[1] : entry.body;
+			
+			if (mesh && body) {
+				const bodyPosition = body.translation();
+				const meshY = mesh.position.y;
+				const bodyY = bodyPosition.y;
+				
+				if (bodyY < DESPAWN_Y_THRESHOLD || meshY < DESPAWN_Y_THRESHOLD) {
+					console.log(`${this.name} Asset ${mesh.name} marked for despawn - Mesh Y: ${meshY.toFixed(2)}, Body Y: ${bodyY.toFixed(2)}, Threshold: ${DESPAWN_Y_THRESHOLD}`);
+					assetsToRemove.push({ mesh, body });
+				}
+			} else if (mesh && mesh.position.y < DESPAWN_Y_THRESHOLD) {
+				console.log(`${this.name} Asset ${mesh.name} marked for despawn (no body) - Mesh Y: ${mesh.position.y.toFixed(2)}, Threshold: ${DESPAWN_Y_THRESHOLD}`);
+				assetsToRemove.push({ mesh, body });
+			}
+		});
+
+		const assetStorage = AssetStorage.get_instance();
+		if (assetStorage) {
+			assetStorage.get_all_dynamic_bodies().forEach(([mesh, body]) => {
+				if (mesh && body && mesh.name && mesh.name.includes('interactable_')) {
+					const bodyPosition = body.translation();
+					const meshY = mesh.position.y;
+					const bodyY = bodyPosition.y;
+					
+					if (bodyY < DESPAWN_Y_THRESHOLD || meshY < DESPAWN_Y_THRESHOLD) {
+						const alreadyMarked = assetsToRemove.some(item => item.mesh === mesh);
+						if (!alreadyMarked) {
+							console.log(`${this.name} Asset ${mesh.name} (from AssetStorage) marked for despawn - Mesh Y: ${meshY.toFixed(2)}, Body Y: ${bodyY.toFixed(2)}, Threshold: ${DESPAWN_Y_THRESHOLD}`);
+							assetsToRemove.push({ mesh, body });
+						}
+					}
+				}
+			});
+		}
+
+		assetsToRemove.forEach(({ mesh, body }) => {
+			this.despawnAsset(mesh, body);
+		});
+
+		if (assetsToRemove.length > 0) {
+			console.log(`${this.name} Despawned ${assetsToRemove.length} assets this frame`);
+		}
+
+		return assetsToRemove.length;
+	}
+
+	setBackgroundRenderOrder() {
+		this.asset_container.traverse((child) => {
+			if (child.isMesh) {
+				if (child.userData.bonePart || 
+					child.userData.isControlHandle || 
+					child.userData.isVisualBone ||
+					child.name === "RigControlHandle" ||
+					(child.parent && child.parent.name === "RigVisualization")) {
+					return;
+				}
+				
+				child.renderOrder = 0;
+				if (child.material) {
+					const materials = Array.isArray(child.material) ? child.material : [child.material];
+					materials.forEach(material => {
+						material.depthTest = true;
+						material.depthWrite = true;
+					});
+				}
+			}
+		});
+	}
+
+	addToCategory(category, mesh, body) {
+		if (!this.categorized_assets.has(category)) {
+			this.categorized_assets.set(category, []);
+		}
+		this.categorized_assets.get(category).push({ mesh, body });
+	}
+
+	getAssetsByCategory(category) {
+		return this.categorized_assets.get(category) || [];
+	}
+
+	getAllCategorizedAssets() {
+		const result = {};
+		this.categorized_assets.forEach((assets, category) => {
+			result[category] = assets;
+		});
+		return result;
+	}
+
+	getCategoryForAsset(assetName) {
+		for (const [category, assets] of this.categorized_assets.entries()) {
+			const found = assets.find(asset => asset.mesh.name === assetName);
+			if (found) return category;
+		}
+		return null;
 	}
 
 	async is_loading_complete() {
@@ -378,7 +389,10 @@ export class BackgroundContainer {
 		return this.asset_manifest;
 	}
 
-	update(grabbed_object, viewable_container) {
+	update(grabbed_object, viewable_container, deltaTime) {
+		this.frameCount++;
+		
+		// Only sync mesh positions from physics bodies
 		this.dynamic_bodies.forEach(entry => {
 			const mesh = Array.isArray(entry) ? entry[0] : entry.mesh;
 			const body = Array.isArray(entry) ? entry[1] : entry.body;
@@ -389,9 +403,25 @@ export class BackgroundContainer {
 				mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
 			}
 		});
+		
+		// Only check for fallen assets occasionally to reduce overhead
+		this.checkForFallenAssets();
 	}
 
 	contains_object(incoming_name) {
 		return AssetStorage.get_instance().contains_object(incoming_name);
+	}
+
+	dispose() {
+		this.dropped_asset_colliders.forEach((collider, assetName) => {
+			if (this.world) {
+				this.world.removeCollider(collider, true);
+			}
+		});
+		this.dropped_asset_colliders.clear();
+		
+		if (this.simple_floor) {
+			this.simple_floor.dispose();
+		}
 	}
 }

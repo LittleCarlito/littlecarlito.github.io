@@ -16,6 +16,12 @@ const LEFT_BURST_ANGLE = -80;
 const RIGHT_BURST_ANGLE = -100; 
 const SPREAD_ANGLE = 45;
 
+export const TEXT_COLORS = {
+	PRIMARY: 0xffffff,
+	SECONDARY: 0x000000,
+	TERTIARY: 0x000000
+};
+
 export class OverlayContainer {
 	overlay_container;
 	title_block;
@@ -34,32 +40,92 @@ export class OverlayContainer {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
 		this.overlay_container = new THREE.Object3D();
-		this.overlay_container.renderOrder = 999;
+		this.overlay_container.renderOrder = 1000;
 		this.overlay_container.traverse((child) => {
-			child.renderOrder = 999;
+			child.renderOrder = 1000;
+			if (child.isMesh && child.material) {
+				const materials = Array.isArray(child.material) ? child.material : [child.material];
+				materials.forEach(material => {
+					material.depthTest = false;
+					material.depthWrite = false;
+					material.transparent = true;
+				});
+			}
 		});
-		this.title_block = new TitleBlock(this.overlay_container, this.camera);
+		this.title_block = new TitleBlock(this.overlay_container, this.camera, this);
 		this.text_box_container = new TextContainer(this.overlay_container, this.camera);
-		this.label_container = new LabelContainer(this.overlay_container, this.camera);
+		this.label_container = new LabelContainer(this.overlay_container, this.camera, this);
 		this.link_container = new LinkContainer(this.overlay_container, this.camera);
-		this.artist_block = new ArtistBlock(this.overlay_container, this.camera);
+		this.artist_block = new ArtistBlock(this.overlay_container, this.camera, this);
 		this.hide_button = new HideButton(this.overlay_container, this.camera);
+		this.applyOverlayRenderingSettings();
 		this.overlay_container.position.z = this.camera.position.z - 15;
 		this.parent.add(this.overlay_container);
+	}
+
+	applyOverlayRenderingSettings() {
+		const components = [
+			this.title_block,
+			this.text_box_container,
+			this.label_container,
+			this.link_container,
+			this.artist_block,
+			this.hide_button
+		];
+		components.forEach(component => {
+			if (component && component.traverse) {
+				component.traverse((child) => {
+					child.renderOrder = 1000;
+					if (child.isMesh && child.material) {
+						this.setMaterialOverlayProperties(child.material);
+					}
+				});
+			} else if (component) {
+				this.traverseComponentProperties(component);
+			}
+		});
+	}
+
+	setMaterialOverlayProperties(material) {
+		const materials = Array.isArray(material) ? material : [material];
+		materials.forEach(mat => {
+			mat.depthTest = false;
+			mat.depthWrite = false;
+			mat.transparent = true;
+			if (mat.opacity === undefined) {
+				mat.opacity = 1.0;
+			}
+		});
+	}
+
+	traverseComponentProperties(component) {
+		Object.keys(component).forEach(key => {
+			const prop = component[key];
+			if (prop && prop.isObject3D) {
+				prop.renderOrder = 1000;
+				prop.traverse((child) => {
+					child.renderOrder = 1000;
+					if (child.isMesh && child.material) {
+						this.setMaterialOverlayProperties(child.material);
+					}
+				});
+			}
+		});
+	}
+
+	get_text_colors() {
+		return TEXT_COLORS;
 	}
 
 	create_confetti_burst() {
 		if(FLAGS.PHYSICS_LOGS) {
 			const cam_pos = this.camera.position;
 			const overlay_pos = this.overlay_container.position;
-			console.log(`Camera Position: (${cam_pos.x.toFixed(2)}, ${cam_pos.y.toFixed(2)}, ${cam_pos.z.toFixed(2)})`);
-			console.log(`Overlay Position: (${overlay_pos.x.toFixed(2)}, ${overlay_pos.y.toFixed(2)}, ${overlay_pos.z.toFixed(2)})`);
 		}
 		const forward = new THREE.Vector3(0, 0, -3);
 		forward.applyQuaternion(this.camera.quaternion);
 		const burst_position = this.camera.position.clone().add(forward);
 		if(FLAGS.PHYSICS_LOGS) {
-			console.log(`Burst Position: (${burst_position.x.toFixed(2)}, ${burst_position.y.toFixed(2)}, ${burst_position.z.toFixed(2)})`);
 		}
 		const burst_angles = [
 			LEFT_BURST_ANGLE * Math.PI / 180,
@@ -86,7 +152,7 @@ export class OverlayContainer {
 				);
 				particle.position.copy(offset_position);
 				this.parent.add(particle);
-				particle.renderOrder = 999;
+				particle.renderOrder = 1001;
 				const spread = (Math.random() - 0.5) * SPREAD_ANGLE * Math.PI / 180;
 				const angle = base_angle + spread;
 				const direction = new THREE.Vector3();
@@ -126,7 +192,6 @@ export class OverlayContainer {
 		if (this.particles.length > 0 && FLAGS.PHYSICS_LOGS) {
 			if (Math.random() < 0.1) {
 				const particle = this.particles[0];
-				console.log(`First Particle - Position: (${particle.position.x.toFixed(2)}, ${particle.position.y.toFixed(2)}, ${particle.position.z.toFixed(2)}), Velocity: (${particle.velocity.x.toFixed(3)}, ${particle.velocity.y.toFixed(3)}, ${particle.velocity.z.toFixed(3)})`);
 			}
 		}
 		for (const particle of this.particles) {
@@ -143,34 +208,28 @@ export class OverlayContainer {
 
 	trigger_overlay() {
 		if(FLAGS.TWEEN_LOGS) {
-			console.log(`OverlayContainer - Triggering overlay animation:
-                Current Map Size: ${this.hide_transition_map.size}
-                Current Position: (${this.overlay_container.position.x.toFixed(2)}, ${this.overlay_container.position.y.toFixed(2)}, ${this.overlay_container.position.z.toFixed(2)})`);
 		}
 		if(this.hide_transition_map.size == 0) {
 			this.hide_button.swap_hide_status();
 			if(FLAGS.TWEEN_LOGS) {
-				console.log(`OverlayContainer - Starting animations:
-                    Is overlay hidden: ${this.hide_button.is_overlay_hidden}
-                    Active tweens before: ${this.hide_transition_map.size}`);
 			}
-			this.title_block.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
-			this.label_container.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
-			this.link_container.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
-			this.artist_block.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map);
+			const cleanup_callback = (tween_name) => {
+				this.hide_transition_map.delete(tween_name);
+				if(FLAGS.TWEEN_LOGS) {
+				}
+			};
+			this.title_block.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map, cleanup_callback);
+			this.label_container.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map, cleanup_callback);
+			this.link_container.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map, cleanup_callback);
+			this.artist_block.trigger_overlay(this.hide_button.is_overlay_hidden, this.hide_transition_map, cleanup_callback);
 			if(this.primary_control_trigger && !this.secondary_control_trigger && this.hide_button.is_overlay_hidden) {
 				this.secondary_control_trigger = true;
 			}
 			this.primary_control_trigger = true;
 			if(FLAGS.TWEEN_LOGS) {
-				console.log(`OverlayContainer - Animations started:
-                    Active tweens after: ${this.hide_transition_map.size}`);
 			}
 		} else {
 			if(FLAGS.TWEEN_LOGS) {
-				console.log(`OverlayContainer - Animation skipped:
-                    Current active tweens: ${this.hide_transition_map.size}
-                    Active tween names: ${Array.from(this.hide_transition_map.keys()).join(', ')}`);
 			}
 		}
 	}
@@ -208,7 +267,6 @@ export class OverlayContainer {
 
 	reset_hover() {
 		if(FLAGS.SELECT_LOGS) {
-			console.log('Resetting hover state');
 		}
 		this.label_container.reset_previous_intersected();
 	}
@@ -276,7 +334,6 @@ export class OverlayContainer {
 			return;
 		}
 		if(FLAGS.TWEEN_LOGS) {
-			console.log(`Updating tween targets for ${this.hide_transition_map.size} active tweens`);
 		}
 		if (this.hide_button.is_overlay_hidden) {
 			if (this.hide_transition_map.has(this.label_container.container_column.name)) {
@@ -288,7 +345,6 @@ export class OverlayContainer {
 				tween.start();
 				
 				if(FLAGS.TWEEN_LOGS) {
-					console.log(`Updated label container tween target to x: ${target_x.toFixed(2)}`);
 				}
 			}
 			if (this.text_box_container.text_box_container && 
@@ -301,7 +357,6 @@ export class OverlayContainer {
 				tween.start();
 				
 				if(FLAGS.TWEEN_LOGS) {
-					console.log(`Updated text container tween target to y: ${target_y.toFixed(2)}`);
 				}
 			}
 			if (this.title_block.title_box && 
@@ -314,7 +369,6 @@ export class OverlayContainer {
 				tween.start();
 				
 				if(FLAGS.TWEEN_LOGS) {
-					console.log(`Updated title block tween target to y: ${target_y.toFixed(2)}`);
 				}
 			}
 			if (this.link_container.link_container && 
@@ -327,7 +381,6 @@ export class OverlayContainer {
 				tween.start();
 				
 				if(FLAGS.TWEEN_LOGS) {
-					console.log(`Updated link container tween target to y: ${target_y.toFixed(2)}`);
 				}
 			}
 			if (this.artist_block.artist_box && 
@@ -340,7 +393,6 @@ export class OverlayContainer {
 				tween.start();
 				
 				if(FLAGS.TWEEN_LOGS) {
-					console.log(`Updated artist block tween target to y: ${target_y.toFixed(2)}`);
 				}
 			}
 		}

@@ -12,6 +12,7 @@ export class CSS3DFactory {
         this.mainCamera = null;
         this.materialFactory = new MaterialFactory();
         this.debugMode = false;
+        this.useExternalAnimationLoop = false;
     }
 
     setDebugMode(enabled) {
@@ -27,7 +28,30 @@ export class CSS3DFactory {
         return this.debugMode;
     }
 
-    async createFrameOnDisplay(displayMesh, sceneCamera, parentElement, assetType = null, filePath = null) {
+    setExternalAnimationLoop(enabled) {
+        this.useExternalAnimationLoop = enabled;
+        if (enabled && this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        } else if (!enabled && !this.animationId && this.frames.length > 0) {
+            this.startAnimationLoop();
+        }
+    }
+
+    update() {
+        if (!this.useExternalAnimationLoop) return;
+        
+        for (const frameTracker of this.frames) {
+            if (frameTracker.mesh && frameTracker.frame) {
+                this.updateFrameTransform(frameTracker);
+            }
+        }
+        if (this.css3dRenderer && this.css3dScene && this.mainCamera) {
+            this.css3dRenderer.render(this.css3dScene, this.mainCamera);
+        }
+    }
+
+    async createFrameOnDisplay(displayMesh, sceneCamera, parentElement, assetType = null, filePath = null, backgroundColor = null) {
         if (!this.isInitialized) {
             this.initializeCSS3D(parentElement || document.body);
         }
@@ -35,7 +59,7 @@ export class CSS3DFactory {
         
         this.validateDisplayMesh(displayMesh);
         
-        const frameTracker = await this.createCSS3DFrame(500, 400, filePath, displayMesh, assetType);
+        const frameTracker = await this.createCSS3DFrame(500, 400, filePath, displayMesh, assetType, backgroundColor);
         return frameTracker;
     }
 
@@ -57,6 +81,17 @@ export class CSS3DFactory {
         if (!positions || positions.count < 4) {
             throw new Error(`Display mesh "${mesh.name}" is not a valid rectangle - insufficient vertices`);
         }
+    }
+
+    isProjectsFrame(mesh) {
+        let current = mesh;
+        while (current) {
+            if (current.name && (current.name.toLowerCase().includes('notebook') || current.name.toLowerCase().includes('projects'))) {
+                return true;
+            }
+            current = current.parent;
+        }
+        return false;
     }
 
     calculateDisplayMeshDimensions(mesh) {
@@ -87,8 +122,15 @@ export class CSS3DFactory {
             throw new Error('Could not determine rectangular face dimensions from display mesh');
         }
         
-        const faceWidth = dimensions[0].size;
-        const faceHeight = dimensions[1].size;
+        let faceWidth, faceHeight;
+        
+        if (this.isProjectsFrame(mesh)) {
+            faceWidth = dimensions[1].size;
+            faceHeight = dimensions[0].size;
+        } else {
+            faceWidth = dimensions[0].size;
+            faceHeight = dimensions[1].size;
+        }
         
         return { 
             width: Math.max(50, faceWidth * 1000),
@@ -206,7 +248,7 @@ export class CSS3DFactory {
         return false;
     }
 
-    async createCSS3DFrame(width, height, filePath = null, displayMesh = null, assetType = null) {
+    async createCSS3DFrame(width, height, filePath = null, displayMesh = null, assetType = null, backgroundColor = null) {
         if (!this.isInitialized) {
             this.initializeCSS3D(document.body);
         }
@@ -218,6 +260,11 @@ export class CSS3DFactory {
         iframe.style.borderRadius = '5px';
         iframe.style.backgroundColor = 'white';
         iframe.style.boxSizing = 'border-box';
+        
+        // Add unique identifier for tracking
+        const frameId = `css3d-frame-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        iframe.id = frameId;
+        
         const css3dObject = new CSS3DObject(iframe);
 
         const frameTracker = {
@@ -228,13 +275,16 @@ export class CSS3DFactory {
             visible: true,
             assetType: assetType,
             filePath: filePath,
+            backgroundColor: backgroundColor,
             isPlaying: false,
             pendingContent: null,
+            frameId: frameId,
             play: () => this.playFrame(frameTracker),
             reset: () => this.resetFrame(frameTracker),
             show: () => this.showFrame(frameTracker),
             hide: () => this.hideFrame(frameTracker),
-            toggleVisibility: () => this.toggleFrameVisibility(frameTracker)
+            toggleVisibility: () => this.toggleFrameVisibility(frameTracker),
+            dispose: () => this.disposeFrame(frameTracker)
         };
 
         this.css3dScene.add(css3dObject);
@@ -244,19 +294,64 @@ export class CSS3DFactory {
             this.updateFrameTransform(frameTracker);
         }
 
-        if (!this.animationId) {
+        if (!this.animationId && !this.useExternalAnimationLoop) {
             this.startAnimationLoop();
         }
 
         setTimeout(() => {
             if (iframe.contentDocument) {
                 iframe.contentDocument.open();
-                iframe.contentDocument.write(this.getLoadingHTML());
+                iframe.contentDocument.write(this.getLoadingHTML(backgroundColor));
                 iframe.contentDocument.close();
             }
         }, 100);
 
         return frameTracker;
+    }
+
+    disposeFrame(frameTracker) {
+        if (!frameTracker) return;
+        
+        console.log(`🗑️ Disposing CSS3D frame: ${frameTracker.frameId}`);
+        
+        // Clear iframe content first
+        if (frameTracker.frame && frameTracker.frame.element) {
+            const iframe = frameTracker.frame.element;
+            
+            try {
+                if (iframe.contentDocument) {
+                    iframe.contentDocument.open();
+                    iframe.contentDocument.write('');
+                    iframe.contentDocument.close();
+                }
+            } catch (e) {
+                console.warn('Could not clear iframe content (cross-origin):', e);
+            }
+            
+            // Stop any loading by setting blank src
+            iframe.src = 'about:blank';
+            
+            // Remove from DOM
+            if (iframe.parentNode) {
+                iframe.parentNode.removeChild(iframe);
+            }
+        }
+        
+        // Remove from CSS3D scene
+        if (this.css3dScene && frameTracker.frame) {
+            this.css3dScene.remove(frameTracker.frame);
+        }
+        
+        // Remove from frames array
+        const index = this.frames.indexOf(frameTracker);
+        if (index > -1) {
+            this.frames.splice(index, 1);
+        }
+        
+        // Clear all references
+        frameTracker.mesh = null;
+        frameTracker.frame = null;
+        frameTracker.pendingContent = null;
     }
 
     updateFrameTransform(frameTracker) {
@@ -309,35 +404,26 @@ export class CSS3DFactory {
         const iframe = frameTracker.frame.element;
         
         if (this.debugMode) {
-            iframe.src = 'about:blank';
-            setTimeout(() => {
+            if (iframe.contentDocument) {
+                iframe.contentDocument.open();
+                iframe.contentDocument.write(this.getDebugHTML());
+                iframe.contentDocument.close();
+            }
+        } else {
+            if (frameTracker.pendingContent) {
+                if (iframe.contentDocument) {
+                    iframe.contentDocument.open();
+                    iframe.contentDocument.write(this.wrapContentWithScrollControl(frameTracker.pendingContent, frameTracker.assetType));
+                    iframe.contentDocument.close();
+                }
+            } else if (frameTracker.filePath) {
+                this.loadExternalContentDeferred(iframe, frameTracker.filePath, frameTracker.assetType, frameTracker.backgroundColor);
+            } else {
                 if (iframe.contentDocument) {
                     iframe.contentDocument.open();
                     iframe.contentDocument.write(this.getDebugHTML());
                     iframe.contentDocument.close();
                 }
-            }, 150);
-        } else {
-            if (frameTracker.pendingContent) {
-                iframe.src = 'about:blank';
-                setTimeout(() => {
-                    if (iframe.contentDocument) {
-                        iframe.contentDocument.open();
-                        iframe.contentDocument.write(this.wrapContentWithScrollControl(frameTracker.pendingContent));
-                        iframe.contentDocument.close();
-                    }
-                }, 150);
-            } else if (frameTracker.filePath) {
-                this.loadExternalContentDeferred(iframe, frameTracker.filePath, frameTracker.assetType);
-            } else {
-                iframe.src = 'about:blank';
-                setTimeout(() => {
-                    if (iframe.contentDocument) {
-                        iframe.contentDocument.open();
-                        iframe.contentDocument.write(this.getDebugHTML());
-                        iframe.contentDocument.close();
-                    }
-                }, 150);
             }
         }
     }
@@ -350,14 +436,11 @@ export class CSS3DFactory {
         frameTracker.pendingContent = null;
         
         const iframe = frameTracker.frame.element;
-        iframe.src = 'about:blank';
-        setTimeout(() => {
-            if (iframe.contentDocument) {
-                iframe.contentDocument.open();
-                iframe.contentDocument.write(this.getLoadingHTML());
-                iframe.contentDocument.close();
-            }
-        }, 150);
+        if (iframe.contentDocument) {
+            iframe.contentDocument.open();
+            iframe.contentDocument.write(this.getLoadingHTML(frameTracker.backgroundColor));
+            iframe.contentDocument.close();
+        }
     }
 
     initializeCSS3D(parentElement) {
@@ -373,35 +456,101 @@ export class CSS3DFactory {
         this.isInitialized = true;
     }
 
-    async loadExternalContentDeferred(iframe, filePath, assetType) {
+    wrapContentWithScrollControl(content, assetType = null) {
+        // Special handling for work section - it has its own scroll container
+        if (assetType && (assetType.toLowerCase().includes('monitor') || assetType.toLowerCase().includes('work'))) {
+            return content; // Return content as-is, it already handles scrolling
+        }
+        
+        // Default wrapping for other sections
+        return `<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        body {
+            background-color: white;
+            color: #333;
+            font-family: Arial, sans-serif;
+        }
+        
+        .content-wrapper {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            box-sizing: border-box;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .content-wrapper > * {
+            max-width: 100%;
+            box-sizing: border-box;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .content-wrapper * {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .content-wrapper pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .content-wrapper img {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="content-wrapper" id="contentWrapper">
+        ${content}
+    </div>
+</body>
+</html>`;
+    }
+
+    async loadExternalContentDeferred(iframe, filePath, assetType, backgroundColor = null) {
         try {
             const response = await fetch(filePath);
             if (!response.ok) {
                 throw new Error(`Failed to load ${filePath}: ${response.status}`);
             }
             const htmlContent = await response.text();
-            const wrappedContent = this.wrapContentWithScrollControl(htmlContent);
-            iframe.src = 'about:blank';
-            setTimeout(() => {
-                if (iframe.contentDocument) {
-                    iframe.contentDocument.open();
-                    iframe.contentDocument.write(wrappedContent);
-                    iframe.contentDocument.close();
-                }
-            }, 150);
+            const wrappedContent = this.wrapContentWithScrollControl(htmlContent, assetType);
+            if (iframe.contentDocument) {
+                iframe.contentDocument.open();
+                iframe.contentDocument.write(wrappedContent);
+                iframe.contentDocument.close();
+            }
         } catch (error) {
-            iframe.src = 'about:blank';
-            setTimeout(() => {
-                if (iframe.contentDocument) {
-                    iframe.contentDocument.open();
-                    iframe.contentDocument.write(this.getErrorHTML(filePath, error.message));
-                    iframe.contentDocument.close();
-                }
-            }, 150);
+            if (iframe.contentDocument) {
+                iframe.contentDocument.open();
+                iframe.contentDocument.write(this.getErrorHTML(filePath, error.message));
+                iframe.contentDocument.close();
+            }
         }
     }
 
     startAnimationLoop() {
+        if (this.useExternalAnimationLoop) {
+            return;
+        }
+        
         const animate = () => {
             this.animationId = requestAnimationFrame(animate);
             for (const frameTracker of this.frames) {
@@ -416,7 +565,27 @@ export class CSS3DFactory {
         animate();
     }
 
-    getLoadingHTML() {
+    getLoadingHTML(backgroundColor = null) {
+        if (backgroundColor) {
+            return `<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: ${backgroundColor};
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+</body>
+</html>`;
+        }
+
         return `<!DOCTYPE html>
 <html>
 <head>
@@ -477,194 +646,6 @@ export class CSS3DFactory {
         <div class="loading-title">CSS3D FRAME</div>
         <div class="loading-info">Waiting for play signal...</div>
     </div>
-</body>
-</html>`;
-    }
-
-    wrapContentWithScrollControl(content) {
-        return `<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            box-sizing: border-box;
-            overflow: hidden;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        body {
-            background-color: white;
-            color: #333;
-            font-family: Arial, sans-serif;
-        }
-        
-        .content-wrapper {
-            width: 100%;
-            height: 100%;
-            overflow-y: auto;
-            overflow-x: hidden;
-            box-sizing: border-box;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            scroll-behavior: smooth;
-        }
-        
-        .content-wrapper > * {
-            max-width: 100%;
-            box-sizing: border-box;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        
-        .content-wrapper * {
-            max-width: 100%;
-            box-sizing: border-box;
-        }
-        
-        .content-wrapper pre {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        
-        .content-wrapper img {
-            max-width: 100%;
-            height: auto;
-        }
-        
-        .scroll-enable-delay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: transparent;
-            z-index: 10000;
-            pointer-events: auto;
-            opacity: 1;
-            transition: opacity 0.3s ease;
-        }
-        
-        .scroll-enable-delay.fade-out {
-            opacity: 0;
-            pointer-events: none;
-        }
-        
-        .virtual-spacer {
-            height: 200vh;
-            width: 1px;
-            position: absolute;
-            top: 0;
-            right: 0;
-            pointer-events: none;
-            visibility: hidden;
-            z-index: -1;
-        }
-    </style>
-</head>
-<body>
-    <div class="scroll-enable-delay" id="scrollDelay"></div>
-    <div class="content-wrapper" id="contentWrapper">
-        <div class="virtual-spacer"></div>
-        ${content}
-    </div>
-    
-    <script>
-        (function() {
-            let contentStabilized = false;
-            let lastContentHeight = 0;
-            let autoScrollEnabled = true;
-            let userScrolled = false;
-            let scrollTimeout = null;
-            
-            const contentWrapper = document.getElementById('contentWrapper');
-            const scrollDelay = document.getElementById('scrollDelay');
-            
-            function enableScrolling() {
-                if (contentStabilized) return;
-                contentStabilized = true;
-                scrollDelay.classList.add('fade-out');
-                setTimeout(() => {
-                    if (scrollDelay && scrollDelay.parentNode) {
-                        scrollDelay.parentNode.removeChild(scrollDelay);
-                    }
-                }, 300);
-            }
-            
-            function checkContentHeight() {
-                const currentHeight = contentWrapper.scrollHeight;
-                if (currentHeight > lastContentHeight) {
-                    const scrollPosition = contentWrapper.scrollTop + contentWrapper.clientHeight;
-                    const wasNearBottom = scrollPosition >= lastContentHeight - 100;
-                    const heightDiff = currentHeight - lastContentHeight;
-                    
-                    const shouldAutoScroll = heightDiff < 200 || wasNearBottom || lastContentHeight === 0;
-                    
-                    if (shouldAutoScroll) {
-                        setTimeout(() => {
-                            contentWrapper.scrollTop = currentHeight - contentWrapper.clientHeight;
-                            if (heightDiff < 200) {
-                                userScrolled = false;
-                                autoScrollEnabled = true;
-                            }
-                        }, 30);
-                    }
-                }
-                lastContentHeight = currentHeight;
-            }
-            
-            function handleUserScroll() {
-                if (!contentStabilized) return;
-                
-                clearTimeout(scrollTimeout);
-                const scrollPosition = contentWrapper.scrollTop + contentWrapper.clientHeight;
-                const isAtBottom = scrollPosition >= contentWrapper.scrollHeight - 30;
-                
-                if (isAtBottom) {
-                    userScrolled = false;
-                    autoScrollEnabled = true;
-                } else {
-                    const scrollDistance = Math.abs(contentWrapper.scrollTop - (contentWrapper.scrollHeight - contentWrapper.clientHeight));
-                    if (scrollDistance > 100) {
-                        userScrolled = true;
-                        autoScrollEnabled = false;
-                    }
-                }
-                
-                scrollTimeout = setTimeout(() => {
-                    const currentScrollPosition = contentWrapper.scrollTop + contentWrapper.clientHeight;
-                    const currentIsAtBottom = currentScrollPosition >= contentWrapper.scrollHeight - 30;
-                    if (currentIsAtBottom) {
-                        userScrolled = false;
-                        autoScrollEnabled = true;
-                    }
-                }, 1500);
-            }
-            
-            contentWrapper.addEventListener('scroll', handleUserScroll);
-            
-            const observer = new MutationObserver(checkContentHeight);
-            observer.observe(contentWrapper, {
-                childList: true,
-                subtree: true,
-                attributes: true,
-                characterData: true
-            });
-            
-            setInterval(checkContentHeight, 100);
-            
-            setTimeout(() => {
-                enableScrolling();
-                checkContentHeight();
-                userScrolled = false;
-                autoScrollEnabled = true;
-            }, 1000);
-        })();
-    </script>
 </body>
 </html>`;
     }
@@ -819,16 +800,57 @@ export class CSS3DFactory {
     }
 
     dispose() {
+        console.log('🗑️ Disposing CSS3D Factory...');
+        
+        // Stop animation loop first
         if (this.animationId) {
             cancelAnimationFrame(this.animationId);
             this.animationId = null;
         }
-        if (this.css3dRenderer && this.css3dRenderer.domElement && this.css3dRenderer.domElement.parentNode) {
-            this.css3dRenderer.domElement.parentNode.removeChild(this.css3dRenderer.domElement);
+        
+        // Dispose all frames with proper cleanup
+        console.log(`📋 Disposing ${this.frames.length} CSS3D frames...`);
+        const framesToDispose = [...this.frames]; // Create copy to avoid mutation during iteration
+        framesToDispose.forEach(frameTracker => {
+            this.disposeFrame(frameTracker);
+        });
+        
+        // Clear frames array
+        this.frames.length = 0;
+        
+        // Dispose CSS3D renderer and its DOM element
+        if (this.css3dRenderer) {
+            console.log('🎬 Disposing CSS3D renderer...');
+            
+            if (this.css3dRenderer.domElement && this.css3dRenderer.domElement.parentNode) {
+                this.css3dRenderer.domElement.parentNode.removeChild(this.css3dRenderer.domElement);
+            }
+            
+            // Clear any internal references if dispose method exists
+            if (this.css3dRenderer.dispose) {
+                this.css3dRenderer.dispose();
+            }
         }
-        this.frames = [];
+        
+        // Clear scene
+        if (this.css3dScene) {
+            this.css3dScene.clear();
+        }
+        
+        // Dispose material factory
+        if (this.materialFactory && this.materialFactory.dispose) {
+            this.materialFactory.dispose();
+        }
+        
+        // Clear all references to prevent memory leaks
         this.css3dRenderer = null;
         this.css3dScene = null;
+        this.mainCamera = null;
+        this.materialFactory = null;
         this.isInitialized = false;
+        this.useExternalAnimationLoop = false;
+        this.debugMode = false;
+        
+        console.log('✅ CSS3D Factory disposal complete');
     }
 }

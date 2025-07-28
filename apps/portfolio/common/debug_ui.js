@@ -617,42 +617,23 @@ export function createDebugUI() {
 	displayDivider.style.margin = isDisplayMeshVisible ? '10px 0' : '5px 0 10px 0'; // Adjusted margin
 	displayDivider.style.transition = 'margin 0.3s ease-in-out';
 	debugUI.appendChild(displayDivider);
+
 	// Create a container for the debug toggles section (keep this visible)
 	const debugTogglesTitle = document.createElement('div');
 	debugTogglesTitle.textContent = 'Debug Toggles';
 	debugTogglesTitle.style.fontWeight = 'bold';
 	debugTogglesTitle.style.marginBottom = '8px';
 	debugUI.appendChild(debugTogglesTitle);
-	// Add debug toggles (these remain visible)
-	addToggle(debugUI, 'COLLISION_VISUAL_DEBUG', 'Collision Debug', FLAGS.COLLISION_VISUAL_DEBUG, (checked) => {
-		// Update flags
-		FLAGS.COLLISION_VISUAL_DEBUG = checked;
-		// Also update SIGN_VISUAL_DEBUG to match COLLISION_VISUAL_DEBUG
-		FLAGS.SIGN_VISUAL_DEBUG = checked;
-		// Update sign debug visualizations
-		if (window.background_container) {
-			background_container.updateSignDebugVisualizations();
-		}
-		// Update collision debug in the asset spawner if available
-		if (window.asset_handler) {
-			console.log(`Setting collision debug to ${checked}`);
-			asset_handler.set_collision_debug(checked);
-		}
-		// Update label wireframes
-		updateLabelWireframes();
-		// Log the change for debugging
-		console.log(`Collision and Sign debug visualization ${checked ? 'enabled' : 'disabled'}`);
-		console.log(`All collision wireframes will be ${checked ? 'shown' : 'hidden'}`);
+	// Create toggles
+	addToggle(debugUI, 'COLLISION_WIREFRAMES', 'Collision Wireframes', false, (checked) => {
+		FLAGS.COLLISION_WIREFRAMES = checked;
+		toggleCollisionWireframes(checked);
+		console.log(`Collision wireframes ${checked ? 'enabled' : 'disabled'}`);
 	});
-	addToggle(debugUI, 'SPOTLIGHT_VISUAL_DEBUG', 'Spotlight Debug', undefined, function(checked) {
-		// Update flag to control visibility
-		BLORKPACK_FLAGS.SPOTLIGHT_VISUAL_DEBUG = checked;
-		console.log(`Spotlight debug helpers visibility set to ${checked ? 'visible' : 'hidden'}`);
-		// Force update of spotlight debug visualizations to apply the change
-		if (window.asset_handler && window.asset_handler.forceDebugMeshUpdate) {
-			window.asset_handler.forceDebugMeshUpdate();
-			window.asset_handler.update_debug_meshes();
-		}
+	addToggle(debugUI, 'RIG_VISUALIZATION', 'Rig Visualization', FLAGS.RIG_VISUALIZATION, (checked) => {
+		FLAGS.RIG_VISUALIZATION = checked;
+		toggleRigVisualization(checked);
+		console.log(`Rig visualization ${checked ? 'enabled' : 'disabled'}`);
 	});
 	// Add divider
 	const divider4 = document.createElement('div');
@@ -1656,11 +1637,7 @@ function addToggle(parent, flagName, label, initialState, onChange) {
 	checkbox.type = 'checkbox';
 	// Use provided initial state or get from FLAGS or BLORKPACK_FLAGS
 	let isChecked = initialState !== undefined ? initialState : false;
-	if (flagName === 'SPOTLIGHT_VISUAL_DEBUG') {
-		isChecked = BLORKPACK_FLAGS[flagName] || false;
-	} else {
-		isChecked = FLAGS[flagName] || false;
-	}
+	isChecked = FLAGS[flagName] || false;
 	checkbox.checked = isChecked;
 	checkbox.style.opacity = '0';
 	checkbox.style.width = '0';
@@ -1692,31 +1669,15 @@ function addToggle(parent, flagName, label, initialState, onChange) {
 		const checked = this.checked;
 		slider.style.backgroundColor = checked ? '#4CAF50' : '#ccc';
 		circle.style.left = checked ? '13px' : '2px';
-		// Special case for SPOTLIGHT_VISUAL_DEBUG which now uses BLORKPACK_FLAGS
-		if (flagName === 'SPOTLIGHT_VISUAL_DEBUG') {
-			// Skip the default FLAG update
-			if (onChange && typeof onChange === 'function') {
-				onChange(checked);
-			}
-			return;
-		}
 		// For all other flags, update FLAGS as before
 		if (flagName in FLAGS) {
 			FLAGS[flagName] = checked;
 			console.log(`${flagName} set to ${checked}`);
 			// Call specific update functions based on the flag
-			if (flagName === 'SIGN_VISUAL_DEBUG' && flagName !== 'COLLISION_VISUAL_DEBUG') {
-				// Only handle SIGN_VISUAL_DEBUG here if it's not being controlled by COLLISION_VISUAL_DEBUG
+			if (flagName === 'SIGN_VISUAL_DEBUG') {
 				if (backgroundContainer) {
 					backgroundContainer.updateSignDebugVisualizations();
 				}
-			} else if (flagName === 'COLLISION_VISUAL_DEBUG') {
-				// For collision debug, we need to refresh the scene to show/hide wireframes
-				// The wireframes will be created/updated in the next frame if the flag is enabled
-				console.log(`Collision debug visualization ${checked ? 'enabled' : 'disabled'}`);
-				// The visibility of wireframes is controlled in the update_debug_wireframes method
-				// which is called every frame during the physics update
-				console.log(`All collision wireframes will be ${checked ? 'shown' : 'hidden'}`);
 			}
 		}
 		// Call onChange callback if provided
@@ -1729,3 +1690,99 @@ function addToggle(parent, flagName, label, initialState, onChange) {
 	toggleContainer.appendChild(toggle);
 	parent.appendChild(toggleContainer);
 } 
+
+function toggleRigVisualization(enabled) {
+    console.log(`Rig visualization ${enabled ? 'enabled' : 'disabled'}`);
+    
+    // Update rig config and state through asset handler
+    if (window.asset_handler) {
+        window.asset_handler.updateRigConfig({ displayRig: enabled });
+        window.asset_handler.setRigVisualizationEnabled(enabled);
+    }
+    
+    if (sceneRef) {
+        sceneRef.traverse((object) => {
+            if (object.name === "RigVisualization") {
+                object.visible = enabled;
+            }
+            if (object.name === "RigControlHandle") {
+                object.visible = enabled;
+            }
+        });
+    }
+
+    if (window.asset_handler && window.asset_handler.activeRigVisualizations) {
+        window.asset_handler.activeRigVisualizations.forEach((rigData) => {
+            if (rigData.visualization && rigData.visualization.group) {
+                rigData.visualization.group.visible = enabled;
+            }
+            if (rigData.visualization && rigData.visualization.handles) {
+                rigData.visualization.handles.forEach(handle => {
+                    handle.visible = enabled;
+                });
+            }
+        });
+    }
+}
+
+function toggleCollisionWireframes(enabled) {
+	console.log(`Collision wireframes ${enabled ? 'enabled' : 'disabled'}`);
+	
+	// Update all assets in the scene that have collision wireframes
+	if (sceneRef) {
+		sceneRef.traverse((object) => {
+			// Check if this object has collision wireframe methods
+			if (object.userData && object.userData.collisionWireframes) {
+				if (enabled) {
+					object.userData.enableCollisionWireframes();
+				} else {
+					object.userData.disableCollisionWireframes();
+				}
+			}
+		});
+	}
+	
+	// Also check background container if it exists
+	if (backgroundContainer) {
+		// Get all categorized assets
+		const allAssets = backgroundContainer.getAllCategorizedAssets();
+		Object.values(allAssets).forEach(categoryAssets => {
+			categoryAssets.forEach(assetData => {
+				if (assetData.mesh && assetData.mesh.userData && assetData.mesh.userData.collisionWireframes) {
+					if (enabled) {
+						assetData.mesh.userData.enableCollisionWireframes();
+					} else {
+						assetData.mesh.userData.disableCollisionWireframes();
+					}
+				}
+			});
+		});
+		
+		// Also check the main asset container
+		if (backgroundContainer.asset_container) {
+			backgroundContainer.asset_container.traverse((object) => {
+				if (object.userData && object.userData.collisionWireframes) {
+					if (enabled) {
+						object.userData.enableCollisionWireframes();
+					} else {
+						object.userData.disableCollisionWireframes();
+					}
+				}
+			});
+		}
+	}
+	
+	// Update AssetHandler managed assets if available
+	if (window.asset_handler && window.asset_handler.storage) {
+		const allAssets = window.asset_handler.storage.get_all_assets();
+		allAssets.forEach(asset => {
+			if (asset.mesh && asset.mesh.userData && asset.mesh.userData.collisionWireframes) {
+				if (enabled) {
+					asset.mesh.userData.enableCollisionWireframes();
+				} else {
+					asset.mesh.userData.disableCollisionWireframes();
+				}
+			}
+		});
+	}
+}

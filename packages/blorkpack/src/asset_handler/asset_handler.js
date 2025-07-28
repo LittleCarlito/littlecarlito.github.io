@@ -8,14 +8,12 @@ import {
 	CustomFactory, 
 	IdGenerator
 } from "./index.js";
-import { CollisionFactory } from "./factories/collision_factory.js";
 import { DebugFactory } from "./factories/debug_factory.js";
 import { AssetRotator } from "./common/asset_rotator.js";
+import { RigAnalyzer } from './data/rig_analyzer.js';
+import { AnimationController } from './animation_controller.js';
+import { createRigVisualization, updateRigVisualization, clearRigVisualization } from './factories/rig_factory.js';
 
-/**
- * Class responsible for spawning and managing 3D assets in the scene.
- * Handles both static and dynamic (physics-enabled) assets with rotation capabilities.
- */
 export class AssetHandler {
 	static #instance = null;
 	static #disposed = false;
@@ -23,10 +21,11 @@ export class AssetHandler {
 	container;
 	world;
 	scene;
-	#assetTypes = null;
-	#assetConfigs = null;
 	debugFactory = null;
 	rotator;
+	rigAnalyzer;
+	animationController;
+	activeRigVisualizations = new Map();
 
 	constructor(target_container = null, target_world = null) {
 		if (AssetHandler.#instance) {
@@ -35,9 +34,10 @@ export class AssetHandler {
 		this.storage = AssetStorage.get_instance();
 		this.container = target_container;
 		this.world = target_world;
-		this.#assetTypes = CustomTypeManager.getTypes();
-		this.#assetConfigs = CustomTypeManager.getConfigs();
 		this.rotator = AssetRotator.get_instance();
+		this.rigAnalyzer = RigAnalyzer.get_instance();
+		this.animationController = AnimationController.get_instance();
+		this.activeRigVisualizations = new Map();
 		AssetHandler.#instance = this;
 		AssetHandler.#disposed = false;
 	}
@@ -61,14 +61,120 @@ export class AssetHandler {
 		return AssetHandler.#instance;
 	}
 
-	/**
-	 * Spawns an asset of the specified type at the given position with the given rotation.
-	 * @param {string} asset_type - The type of asset to spawn.
-	 * @param {THREE.Vector3} position - The position to spawn the asset at.
-	 * @param {THREE.Quaternion} rotation - The rotation of the asset.
-	 * @param {Object} options - Additional options for spawning.
-	 * @returns {Promise<Object>} A promise that resolves with the spawned asset details.
-	 */
+	updateAnimations(deltaTime) {
+		this.animationController.updateAnimations(deltaTime);
+	}
+
+	stopAllAnimations() {
+		this.animationController.stopAllAnimations();
+	}
+
+	removeAnimationMixer(instanceId) {
+		this.animationController.removeAnimationMixer(instanceId);
+	}
+
+	analyzeAssetRig(spawnResult, assetType) {
+		if (!spawnResult || !spawnResult.mesh) {
+			return null;
+		}
+
+		try {
+			const storage = AssetStorage.get_instance();
+			const customTypeKey = CustomTypeManager.getType(assetType);
+			
+			if (storage.cached_models && storage.cached_models.has(customTypeKey)) {
+				const gltfData = storage.cached_models.get(customTypeKey);
+				const rigDetails = this.rigAnalyzer.analyze(gltfData, customTypeKey);
+				
+				if (rigDetails && rigDetails.hasRig && rigDetails.bones.length > 0) {
+					if (!rigDetails.joints) {
+						rigDetails.joints = [];
+					}
+					
+					spawnResult.mesh.userData.rigDetails = rigDetails;
+					spawnResult.mesh.userData.hasRig = true;
+					spawnResult.rigDetails = rigDetails;
+					
+					console.log(`[AssetHandler] 🎯 RIG DETECTED in ${assetType}:`, {
+						instanceId: spawnResult.instance_id,
+						bones: rigDetails.bones.length,
+						constraints: rigDetails.constraints.length,
+						roots: rigDetails.roots.length,
+						armature: rigDetails.armature ? rigDetails.armature.name : 'none'
+					});
+					
+					if (rigDetails.bones.length > 0) {
+						console.log(`[AssetHandler] Bone Details:`, rigDetails.bones.map(b => ({
+							name: b.name,
+							parent: b.parentName,
+							constraint: b.constraintType
+						})));
+					}
+					
+					this.createRigForAsset(spawnResult, rigDetails, assetType);
+					
+					if (rigDetails.joints && rigDetails.joints.length > 0) {
+						console.log(`[AssetHandler] 🔗 JOINTS CREATED: ${rigDetails.joints.length} joints`, 
+							rigDetails.joints.map(j => ({
+								name: j.name,
+								parent: j.parentBone,
+								child: j.childBone,
+								isRoot: j.isRoot || false
+							}))
+						);
+					}
+					
+					return rigDetails;
+				} else {
+					console.log(`[AssetHandler] ⚪ No rig structure found in ${assetType}`);
+					spawnResult.mesh.userData.hasRig = false;
+				}
+			} else {
+				console.warn(`[AssetHandler] No cached GLTF data found for ${assetType}, cannot analyze rig`);
+			}
+		} catch (error) {
+			console.error(`[AssetHandler] Error analyzing rig for ${assetType}:`, error);
+			spawnResult.mesh.userData.hasRig = false;
+		}
+		
+		return null;
+	}
+
+	createRigForAsset(spawnResult, rigDetails, assetType) {
+		if (!this.scene) {
+			console.warn('[AssetHandler] No scene available for rig visualization');
+			return;
+		}
+
+		try {
+			console.log(`[AssetHandler] Creating rig visualization for ${assetType}`);
+			
+			const rigVisualization = createRigVisualization(rigDetails, this.scene, spawnResult.mesh);
+			
+			if (rigVisualization) {
+				this.activeRigVisualizations.set(spawnResult.instance_id, {
+					visualization: rigVisualization,
+					assetType: assetType,
+					mesh: spawnResult.mesh
+				});
+				
+				console.log(`[AssetHandler] ✅ Rig visualization created for ${assetType}`);
+			}
+		} catch (error) {
+			console.error(`[AssetHandler] Error creating rig visualization for ${assetType}:`, error);
+		}
+	}
+
+	updateRigVisualizations() {
+		this.activeRigVisualizations.forEach((rigData, instanceId) => {
+			try {
+				updateRigVisualization();
+			} catch (error) {
+				console.error(`[AssetHandler] Error updating rig visualization for ${rigData.assetType}:`, error);
+			}
+		});
+	}
+
 	async spawn_asset(asset_type, position = new THREE.Vector3(), rotation = new THREE.Quaternion(), options = {}) {
 		let type_value = typeof asset_type === 'object' && asset_type.value ? asset_type.value : asset_type;
 		try {
@@ -86,7 +192,14 @@ export class AssetHandler {
 			if (CustomTypeManager.hasLoadedCustomTypes()) {
 				if (CustomTypeManager.hasType(type_value)) {
 					const custom_factory = CustomFactory.get_instance(this.scene, this.world);
-					return await custom_factory.spawn_custom_asset(type_value, position, rotation, options);
+					const spawnResult = await custom_factory.spawn_custom_asset(type_value, position, rotation, options);
+					
+					if (spawnResult) {
+						this.animationController.analyzeAssetAnimations(spawnResult, type_value);
+						this.analyzeAssetRig(spawnResult, type_value);
+					}
+					
+					return spawnResult;
 				} else {
 					if (!CustomTypeManager.hasLoadedCustomTypes()) {
 						console.error(`Custom types not loaded yet. Please ensure CustomTypeManager.loadCustomTypes() is called before spawning assets.`);
@@ -109,15 +222,6 @@ export class AssetHandler {
 		}
 	}
 
-	/**
-	 * Rotates a spawned asset around a specified axis
-	 * @param {THREE.Object3D|string} assetOrInstanceId - Asset mesh or instance ID
-	 * @param {THREE.Vector3} axis - Rotation axis (will be normalized)
-	 * @param {number} radians - Rotation amount in radians
-	 * @param {number} duration - Duration in milliseconds
-	 * @param {Object} options - Additional options (easing, onUpdate, onComplete)
-	 * @returns {Promise} Promise that resolves when rotation completes
-	 */
 	async rotateAsset(assetOrInstanceId, axis, radians, duration, options = {}) {
 		let asset;
 		
@@ -133,25 +237,25 @@ export class AssetHandler {
 			throw new Error('Invalid asset provided - must be Object3D or valid instance ID');
 		}
 
-		return this.rotator.rotateAsset(asset, axis, radians, duration, options);
+		const result = await this.rotator.rotateAsset(asset, axis, radians, duration, options);
+		
+		return result;
 	}
 
-	/**
-	 * Flips a spawned asset 180 degrees around an axis
-	 * @param {THREE.Object3D|string} assetOrInstanceId - Asset mesh or instance ID
-	 * @param {THREE.Vector3} axis - Flip axis
-	 * @param {number} duration - Duration in milliseconds
-	 * @param {Object} options - Additional options
-	 * @returns {Promise} Promise that resolves when flip completes
-	 */
 	async flipAsset(assetOrInstanceId, axis, duration, options = {}) {
-		return this.rotateAsset(assetOrInstanceId, axis, Math.PI, duration, options);
+		const result = await this.rotateAsset(assetOrInstanceId, axis, Math.PI, duration, options);
+		
+		let asset;
+		if (typeof assetOrInstanceId === 'string') {
+			const assetData = this.storage.get_object(assetOrInstanceId);
+			asset = assetData ? assetData.mesh : null;
+		} else if (assetOrInstanceId && assetOrInstanceId.isObject3D) {
+			asset = assetOrInstanceId;
+		}
+		
+		return result;
 	}
 
-	/**
-	 * Stops rotation for a spawned asset
-	 * @param {THREE.Object3D|string} assetOrInstanceId - Asset mesh or instance ID
-	 */
 	stopAssetRotation(assetOrInstanceId) {
 		let asset;
 		
@@ -172,11 +276,6 @@ export class AssetHandler {
 		this.rotator.stopRotation(asset);
 	}
 
-	/**
-	 * Checks if an asset is currently rotating
-	 * @param {THREE.Object3D|string} assetOrInstanceId - Asset mesh or instance ID
-	 * @returns {boolean} True if asset is rotating
-	 */
 	isAssetRotating(assetOrInstanceId) {
 		let asset;
 		
@@ -195,31 +294,14 @@ export class AssetHandler {
 		return this.rotator.isRotating(asset);
 	}
 
-	/**
-	 * Gets all currently rotating assets
-	 * @returns {Array<THREE.Object3D>} Array of rotating assets
-	 */
 	getRotatingAssets() {
 		return this.rotator.getRotatingAssets();
 	}
 
-	/**
-	 * Stops all active rotations
-	 */
 	stopAllRotations() {
 		this.rotator.stopAllRotations();
 	}
 
-	/**
-	 * Creates a debug wireframe for visualizing physics shapes.
-	 * Delegates to DebugFactory.
-	 * @param {string} type - The type of wireframe to create.
-	 * @param {Object} dimensions - The dimensions of the wireframe.
-	 * @param {THREE.Vector3} position - The position of the wireframe.
-	 * @param {THREE.Quaternion} rotation - The rotation of the wireframe.
-	 * @param {Object} options - Additional options for the wireframe.
-	 * @returns {Promise<THREE.Mesh>} The created wireframe mesh.
-	 */
 	async create_debug_wireframe(type, dimensions, position, rotation, options = {}) {
 		if (!this.debugFactory) {
 			this.debugFactory = DebugFactory.get_instance(this.scene, this.world);
@@ -227,10 +309,6 @@ export class AssetHandler {
 		return this.debugFactory.create_debug_wireframe(type, dimensions, position, rotation, options);
 	}
 
-	/**
-	 * Updates the positions of debug wireframes based on physics bodies.
-	 * Delegates to DebugFactory.
-	 */
 	update_debug_wireframes() {
 		if (!this.debugFactory) {
 			this.debugFactory = DebugFactory.get_instance(this.scene, this.world);
@@ -238,10 +316,20 @@ export class AssetHandler {
 		return this.debugFactory.update_debug_wireframes();
 	}
 
-	/**
-	 * Core cleanup of essential resources.
-	 */
 	cleanup() {
+		this.activeRigVisualizations.forEach((rigData, instanceId) => {
+			try {
+				if (this.scene) {
+					clearRigVisualization(this.scene);
+				}
+			} catch (error) {
+				console.error(`[AssetHandler] Error clearing rig visualization:`, error);
+			}
+		});
+		this.activeRigVisualizations.clear();
+		
+		this.animationController.cleanup();
+		
 		AssetHandler.#instance = null;
 		if (this.storage) {
 			const allAssets = this.storage.get_all_assets();
@@ -262,14 +350,8 @@ export class AssetHandler {
 		this.storage = null;
 		this.container = null;
 		this.world = null;
-		this.#assetTypes = null;
-		this.#assetConfigs = null;
 	}
 
-	/**
-	 * Cleanup of debug-specific resources.
-	 * Delegates to DebugFactory.
-	 */
 	cleanup_debug() {
 		if (!this.debugFactory) {
 			this.debugFactory = DebugFactory.get_instance(this.scene, this.world);
@@ -277,33 +359,15 @@ export class AssetHandler {
 		return this.debugFactory.cleanup_debug();
 	}
 
-	/**
-	 * Updates all visual elements including debug wireframes and spotlight debug meshes.
-	 * Delegates to DebugFactory.
-	 */
 	update_visualizations() {
+		this.updateRigVisualizations();
+		
 		if (!this.debugFactory) {
 			this.debugFactory = DebugFactory.get_instance(this.scene, this.world);
 		}
 		return this.debugFactory.update_visualizations();
 	}
 
-	/**
-	 * Sets the collision debug state for this spawner.
-	 * Delegates to DebugFactory.
-	 * @param {boolean} enabled - Whether collision debug should be enabled
-	 */
-	async set_collision_debug(enabled) {
-		if (!this.debugFactory) {
-			this.debugFactory = DebugFactory.get_instance(this.scene, this.world);
-		}
-		return this.debugFactory.set_collision_debug(enabled);
-	}
-
-	/**
-	 * Creates debug wireframes for all physics bodies.
-	 * Delegates to DebugFactory.
-	 */
 	async create_debug_wireframes_for_all_bodies() {
 		if (!this.debugFactory) {
 			this.debugFactory = DebugFactory.get_instance(this.scene, this.world);
@@ -311,12 +375,6 @@ export class AssetHandler {
 		return this.debugFactory.create_debug_wireframes_for_all_bodies();
 	}
 
-	/**
-	 * Spawns assets from asset groups defined in the manifest
-	 * @param {Object} manifest_manager - Instance of ManifestManager
-	 * @param {Function} progress_callback - Optional callback function for progress updates
-	 * @returns {Promise<Array>} Array of spawned assets
-	 */
 	async spawn_asset_groups(manifest_manager, progress_callback = null) {
 		const spawned_assets = [];
 		try {
@@ -383,14 +441,6 @@ export class AssetHandler {
 		return spawned_assets;
 	}
 
-	/**
-	 * Spawns all assets from the manifest, routing system assets to SystemFactory
-	 * and handling custom assets directly.
-	 * 
-	 * @param {Object} manifest_manager - Instance of ManifestManager
-	 * @param {Function} progress_callback - Optional callback function for progress updates
-	 * @returns {Promise<Array>} Array of all spawned assets
-	 */
 	async spawn_manifest_assets(manifest_manager, progress_callback = null) {
 		const spawned_assets = [];
 		try {
@@ -425,14 +475,6 @@ export class AssetHandler {
 		}
 	}
 
-	/**
-	 * @deprecated
-	 * Spawns a scene camera based on the camera configuration from the manifest.
-	 * This method creates a simple camera without any additional functionality.
-	 * 
-	 * @param {Object} camera_config - The camera configuration object from manifest
-	 * @returns {THREE.PerspectiveCamera} The created camera
-	 */
 	spawn_scene_camera(camera_config) {
 		if (!camera_config) {
 			console.error("No camera configuration provided to spawn_scene_camera");
@@ -454,14 +496,6 @@ export class AssetHandler {
 		return camera;
 	}
 
-	/**
-	 * Creates a debug mesh visualization for the specified asset type.
-	 * Delegates to DebugFactory.
-	 * 
-	 * @param {string} asset_type - The type of asset to create a debug mesh for
-	 * @param {THREE.Object3D} asset - The asset to create debug meshes for
-	 * @returns {Promise<Object>} The created debug mesh objects
-	 */
 	async create_debug_mesh(asset_type, asset) {
 		if (!this.debugFactory) {
 			this.debugFactory = DebugFactory.get_instance(this.scene, this.world);
@@ -469,13 +503,6 @@ export class AssetHandler {
 		return this.debugFactory.create_debug_mesh(asset_type, asset);
 	}
 
-	/**
-	 * Removes debug mesh visualizations for the specified asset.
-	 * Delegates to DebugFactory.
-	 * 
-	 * @param {THREE.Object3D} asset - The asset whose debug meshes should be removed
-	 * @returns {Promise<void>}
-	 */
 	async despawn_debug_meshes(asset) {
 		if (!this.debugFactory) {
 			this.debugFactory = DebugFactory.get_instance(this.scene, this.world);
@@ -483,10 +510,6 @@ export class AssetHandler {
 		return this.debugFactory.despawn_debug_meshes(asset);
 	}
 
-	/**
-	 * Updates all debug mesh visualizations to match their associated assets.
-	 * Delegates to DebugFactory.
-	 */
 	async update_debug_meshes() {
 		if (!this.debugFactory) {
 			this.debugFactory = DebugFactory.get_instance(this.scene, this.world);
@@ -494,10 +517,6 @@ export class AssetHandler {
 		return this.debugFactory.update_debug_meshes();
 	}
 
-	/**
-	 * Forces a full update of all debug mesh visualizations on next call.
-	 * Delegates to DebugFactory.
-	 */
 	async forceDebugMeshUpdate() {
 		if (!this.debugFactory) {
 			this.debugFactory = DebugFactory.get_instance(this.scene, this.world);
@@ -505,28 +524,50 @@ export class AssetHandler {
 		return this.debugFactory.forceDebugMeshUpdate();
 	}
 
-	/**
-	 * Dispose of the spawner instance and clean up resources
-	 */
 	dispose() {
 		if (!AssetHandler.#instance) return;
 		CustomFactory.dispose_instance();
-		CollisionFactory.dispose_instance();
 		DebugFactory.dispose_instance();
 		AssetRotator.dispose_instance();
+		if (this.rigAnalyzer) {
+			this.rigAnalyzer.dispose();
+		}
+		if (this.animationController) {
+			this.animationController.dispose();
+		}
 		this.scene = null;
 		this.world = null;
 		this.storage = null;
 		this.container = null;
 		this.debugFactory = null;
 		this.rotator = null;
+		this.rigAnalyzer = null;
+		this.animationController = null;
 		AssetHandler.#disposed = true;
 		AssetHandler.#instance = null;
 	}
 
-	static dispose_instance() {
-		if (AssetHandler.#instance) {
-			AssetHandler.#instance.dispose();
+	updateRigConfig(newConfig) {
+		try {
+			import('./factories/rig_factory.js').then(({ updateRigConfig }) => {
+				updateRigConfig(newConfig);
+			}).catch(error => {
+				console.error('[AssetHandler] Error importing rig factory:', error);
+			});
+		} catch (error) {
+			console.error('[AssetHandler] Error updating rig config:', error);
+		}
+	}
+
+	setRigVisualizationEnabled(enabled) {
+		try {
+			import('./factories/rig_factory.js').then(({ setRigVisualizationEnabled }) => {
+				setRigVisualizationEnabled(enabled);
+			}).catch(error => {
+				console.error('[AssetHandler] Error importing rig factory:', error);
+			});
+		} catch (error) {
+			console.error('[AssetHandler] Error setting rig visualization state:', error);
 		}
 	}
 }

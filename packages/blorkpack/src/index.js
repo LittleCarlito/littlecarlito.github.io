@@ -27,26 +27,25 @@ export async function initThree() {
 export { Easing, Tween };
 // Re-export asset management components
 export * from './asset_storage.js';
-export * from './asset_activator.js';
 export * from './asset_handler/asset_handler.js';
 export * from './btype_helper.js';
 export * from './manifest_manager.js';
 export * from './loader.js';
 export * from './app_renderer.js';
 export * from './physics/index.js'; // Export physics utilities
+import { AppRenderer } from './app_renderer.js';
 import { AssetStorage } from './asset_storage.js';
 import { AssetHandler } from './asset_handler/asset_handler.js';
-import { BTYPES } from './BTYPES.js';
-import { MaterialFactory } from './asset_handler/index.js';
-import { InteractionManager } from './interaction_manager.js';
-import { CSS3DFactory } from './asset_handler/index.js';
-import { AssetActivator } from './asset_activator.js';
-import { ManifestManager } from './manifest_manager.js';
-import { AppRenderer } from './app_renderer.js';
-import CustomTypeManager from './custom_type_manager.js';
 import { BLORKPACK_FLAGS } from './blorkpack_flags.js';
-import { MANIFEST_TYPES } from './manifest_types.js';
+import { BTYPES } from './BTYPES.js';
+import { CSS3DFactory } from './asset_handler/index.js';
+import { CustomTypeManager } from './custom_type_manager.js';
+import { InteractionManager } from './interaction/interaction_manager.js';
 import { initPhysicsUtil } from './physics/physics_util.js';
+import { MaterialFactory } from './asset_handler/index.js';
+import { ManifestManager } from './manifest_manager.js';
+import { MANIFEST_TYPES } from './manifest_types.js';
+import { MemoryAnalyzer } from './memory_analyzer.js';
 import { SystemAssetType } from './asset_handler/common/system_asset_types.js';
 // Export the components
 export {
@@ -58,9 +57,9 @@ export {
 	MaterialFactory,
 	CSS3DFactory,
 	AssetStorage,
-	AssetActivator,
 	AppRenderer,
 	CustomTypeManager,
+	MemoryAnalyzer,
 	BLORKPACK_FLAGS,
 	initPhysicsUtil,
 	SystemAssetType

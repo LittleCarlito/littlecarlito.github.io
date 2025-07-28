@@ -2,6 +2,14 @@
 import { THREE, BLORKPACK_FLAGS } from '@littlecarlito/blorkpack';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 
+const BACKGROUND_PATH = 'images/orbit_sunset.exr';
+const LIGHTING_PATH = 'images/brown_studio.exr';
+
+// HDRI Background Rotation Controls (in degrees)
+const HDRI_ROTATION_X_DEG = 0;      // Pitch rotation
+const HDRI_ROTATION_Y_DEG = 40;     // Yaw rotation
+const HDRI_ROTATION_Z_DEG = 0;      // Roll rotation
+
 /**
  * Scene Setup Helper - Functional class for managing scene background and lighting
  * Handles initialization and configuration of scene visual elements
@@ -53,25 +61,45 @@ export const SceneSetupHelper = {
 	},
 
 	/**
-	 * Creates HDRI background and environment lighting
+	 * Creates HDRI background using orbit_sunset.exr
 	 * @private
 	 * @param {THREE.Scene} scene - The Three.js scene to configure
 	 * @param {Function} progressCallback - Optional callback for loading progress updates
 	 * @returns {Promise} Promise that resolves when HDRI is loaded
 	 */
 	_create_hdri_background(scene, progressCallback) {
-		const hdriPath = 'images/studio_small.exr';
-		console.log('Loading HDRI environment map from:', hdriPath);
+		console.log('Loading HDRI background from:', BACKGROUND_PATH);
 		
 		return new Promise((resolve, reject) => {
 			const loader = new EXRLoader();
 			
-			loader.load(hdriPath, 
+			loader.load(BACKGROUND_PATH, 
 				(texture) => {
 					texture.mapping = THREE.EquirectangularReflectionMapping;
-					scene.background = texture;
-					scene.environment = texture;
-					console.log('HDRI background and environment loaded successfully');
+					
+					// Convert degrees to radians
+					const rotX = THREE.MathUtils.degToRad(HDRI_ROTATION_X_DEG);
+					const rotY = THREE.MathUtils.degToRad(HDRI_ROTATION_Y_DEG);
+					const rotZ = THREE.MathUtils.degToRad(HDRI_ROTATION_Z_DEG);
+					
+					// Always use sphere approach for proper rotation control
+					const sphere = new THREE.SphereGeometry(500, 64, 32);
+					const material = new THREE.MeshBasicMaterial({
+						map: texture,
+						side: THREE.BackSide,
+						fog: false
+					});
+					const backgroundSphere = new THREE.Mesh(sphere, material);
+					backgroundSphere.rotation.set(rotX, rotY, rotZ);
+					backgroundSphere.renderOrder = -1;
+					backgroundSphere.matrixAutoUpdate = false;
+					backgroundSphere.updateMatrix();
+					scene.add(backgroundSphere);
+					
+					// Store reference for cleanup
+					scene.userData.backgroundSphere = backgroundSphere;
+					
+					console.log('HDRI background loaded successfully');
 					resolve(texture);
 				},
 				(progress) => {
@@ -81,7 +109,7 @@ export const SceneSetupHelper = {
 					}
 				},
 				(error) => {
-					console.error('Error loading HDRI file:', error);
+					console.error('Error loading HDRI background file:', error);
 					reject(error);
 				}
 			);
@@ -89,20 +117,19 @@ export const SceneSetupHelper = {
 	},
 
 	/**
-	 * Creates HDRI environment lighting
+	 * Creates HDRI environment lighting using brown_studio.exr
 	 * @private
 	 * @param {THREE.Scene} scene - The Three.js scene to configure
 	 * @param {Function} progressCallback - Optional callback for loading progress updates
 	 * @returns {Promise} Promise that resolves when HDRI lighting is loaded
 	 */
 	_create_hdri_lighting(scene, progressCallback) {
-		const hdriPath = 'images/studio_small.exr';
-		console.log('Configuring HDRI environment lighting from:', hdriPath);
+		console.log('Configuring HDRI environment lighting from:', LIGHTING_PATH);
 		
 		return new Promise((resolve, reject) => {
 			const loader = new EXRLoader();
 			
-			loader.load(hdriPath,
+			loader.load(LIGHTING_PATH,
 				(texture) => {
 					texture.mapping = THREE.EquirectangularReflectionMapping;
 					scene.environment = texture;
@@ -144,6 +171,16 @@ export const SceneSetupHelper = {
 	 * @param {THREE.Scene} scene - The Three.js scene to clean up
 	 */
 	dispose_background(scene) {
+		if (scene && scene.userData.backgroundSphere) {
+			const sphere = scene.userData.backgroundSphere;
+			scene.remove(sphere);
+			if (sphere.geometry) sphere.geometry.dispose();
+			if (sphere.material) {
+				if (sphere.material.map) sphere.material.map.dispose();
+				sphere.material.dispose();
+			}
+			delete scene.userData.backgroundSphere;
+		}
 		if (scene && scene.background) {
 			if (scene.background.isTexture) {
 				scene.background.dispose();

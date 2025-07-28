@@ -13,7 +13,6 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const outputPath = path.resolve(__dirname, 'dist/index.js')
 
-// Determine if building for GitHub Pages
 const isGitHubPages = process.env.GITHUB_PAGES === 'true'
 const base = isGitHubPages ? '/threejs_site/' : '/'
 
@@ -137,7 +136,6 @@ export default defineConfig(({ command }) => {
 			{
 				name: 'debug-svg-copying',
 				buildStart() {
-					// Check source files before build
 					const imagesSrc = path.resolve(__dirname, 'public/images');
 					const svgFiles = fs.readdirSync(imagesSrc).filter(file => file.endsWith('.svg'));
 					console.log('\n=== SVG DEBUG - BUILD START ===');
@@ -148,7 +146,6 @@ export default defineConfig(({ command }) => {
 					});
 				},
 				generateBundle() {
-					// Check what Vite is about to output
 					console.log('\n=== SVG DEBUG - GENERATE BUNDLE ===');
 					const distImages = path.resolve(__dirname, 'dist/images');
 					if (fs.existsSync(distImages)) {
@@ -258,22 +255,18 @@ export default defineConfig(({ command }) => {
 					return options;
 				}
 			},
-			// isProduction && ViteImageOptimizer({
-			// 	png: { quality: 80 },
-			// 	jpeg: { quality: 80 },
-			// 	jpg: { quality: 80 },
-			// 	webp: { lossless: true },
-			// 	avif: { lossless: true },
-			// 	gif: { optimizationLevel: 3 },
-			// 	svg: false
-			// }),
+			isProduction && ViteImageOptimizer({
+				include: /\.(hdri|exr|jpg|jpeg|png)$/i,
+				png: { quality: 80 },
+				jpeg: { quality: 80 },
+				jpg: { quality: 80 }
+			}),
 			{
 				name: 'copy-resources',
 				closeBundle() {
 					if (isProduction) {
 						console.log('🔄 Copying static resources...');
 						try {
-							// Copy manifest
 							const manifestSrc = path.resolve(__dirname, 'public/resources/manifest.json');
 							const manifestDest = path.resolve(__dirname, 'dist/resources/manifest.json');
 							if (fs.existsSync(manifestSrc)) {
@@ -286,7 +279,6 @@ export default defineConfig(({ command }) => {
 								console.warn('⚠️ No manifest.json found in public/resources directory');
 							}
 							
-							// Copy pages
 							const pagesSrc = path.resolve(__dirname, 'public/pages');
 							const pagesDest = path.resolve(__dirname, 'dist/pages');
 							copyDirectory(pagesSrc, pagesDest);

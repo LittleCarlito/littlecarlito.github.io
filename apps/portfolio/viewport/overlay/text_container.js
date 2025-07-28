@@ -11,6 +11,8 @@ import {
 	BLORKPACK_FLAGS, 
 }  from '@littlecarlito/blorkpack';
 
+const PROJECTS_FRAME_DELAY = 3500;
+
 export class TextContainer {
 	container_width;
 	container_height;
@@ -22,11 +24,13 @@ export class TextContainer {
 	css3d_factory;
 	business_card_asset = null;
 	business_card_flipped = false;
+	projects_frames_played = false;
 
 	constructor(incoming_parent, incoming_camera) {
 		this.parent = incoming_parent;
 		this.camera = incoming_camera;
 		this.text_box_container = new THREE.Object3D();
+		this.text_box_container.renderOrder = 1000;
 		this.material_factory = new MaterialFactory();
 		this.css3d_factory = new CSS3DFactory();
 		this.asset_handler = AssetHandler.get_instance(this.parent, null);
@@ -39,11 +43,13 @@ export class TextContainer {
 			const box_material = new THREE.MeshBasicMaterial({
 				color: incoming_category.color,
 				depthTest: false,
-				transparent: true
+				depthWrite: false,
+				transparent: true,
+				renderOrder: 1000
 			});
 			const text_box_background = new THREE.Mesh(box_geometry, box_material);
 			text_box_background.name = `${TYPES.BACKGROUND}${incoming_category.value}`;
-			text_box_background.renderOrder = -1;
+			text_box_background.renderOrder = 1000;
 			incoming_box.add(text_box_background);
 		};
 
@@ -58,13 +64,48 @@ export class TextContainer {
 			asset.traverse((child) => {
 				if (child.isMesh) {
 					if (child.name.startsWith('display_')){
-						this.css3d_factory.createFrameOnDisplay(child, this.camera, document.body, asset_type, options.contentPath)
+						const displayIdentifier = child.name.replace('display_', '');
+						const contentPath = options.contentPaths?.[displayIdentifier] || options.contentPath;
+						
+						this.css3d_factory.createFrameOnDisplay(child, this.camera, document.body, asset_type, contentPath, options.backgroundColor)
 							.then(frameTracker => {
-								this.css3d_frames.set(asset_type, frameTracker);
+								const frameKey = `${asset_type}_${displayIdentifier}`;
+								this.css3d_frames.set(frameKey, frameTracker);
 							});
 					}
 					else if (child.name.startsWith('col_')) {
 						child.visible = false;
+					}
+				}
+			});
+		};
+
+		const setProperRenderOrders = (asset, baseOrder = 1000) => {
+			asset.traverse((child) => {
+				if (child.isMesh) {
+					if (child.name.startsWith('col_')) {
+						child.visible = false;
+					} else if (child.name.startsWith('display_')) {
+						child.renderOrder = baseOrder + 50;
+						if (child.material) {
+							child.material.depthTest = false;
+							child.material.depthWrite = false;
+							child.material.transparent = true;
+						}
+					} else if (child.name.includes('background') || child.name.includes('page')) {
+						child.renderOrder = baseOrder + 10;
+						if (child.material) {
+							child.material.depthTest = false;
+							child.material.depthWrite = false;
+							child.material.transparent = true;
+						}
+					} else {
+						child.renderOrder = baseOrder + 100;
+						if (child.material) {
+							child.material.depthTest = false;
+							child.material.depthWrite = false;
+							child.material.transparent = true;
+						}
 					}
 				}
 			});
@@ -80,16 +121,17 @@ export class TextContainer {
 				positionOffsetZ: 0,
 				scaleFactor: 0.12,
 				useFixedScale: false,
-				renderOrder: 998,
+				renderOrder: 1000,
 				...options
 			};
 
-			const asset_config = CustomTypeManager.getConfigs()[asset_type];
+			const asset_config = CustomTypeManager.getInstance().getConfigs()[asset_type];
 			if (!asset_config) {
 				throw new Error(`No configuration found for asset type: ${asset_type}`);
 			}
 			const gltf = await AssetStorage.get_instance().loader.loadAsync(asset_config.PATH);
 			const asset = gltf.scene.clone();
+			asset.renderOrder = config.renderOrder;
 
 			if (config.useFixedScale) {
 				const scale = asset_config.ui_scale || asset_config.scale || 1.0;
@@ -132,7 +174,7 @@ export class TextContainer {
 				}
 			}
 
-			if (config.contentPath) {
+			if (config.contentPath || config.contentPaths) {
 				handleDisplay(asset, asset_type, config);
 			}
 
@@ -141,14 +183,20 @@ export class TextContainer {
 			}
 			
 			asset.traverse((child) => {
-				if (child.isMesh && !child.name.startsWith('col_') && !child.name.startsWith('display_')) {
+				if (child.isMesh && !child.name.startsWith('col_') && !child.name.startsWith('display_') && !child.name.startsWith('activate_')) {
 					child.renderOrder = config.renderOrder;
 					
 					if (child.material) {
-						child.material.transparent = true;
 						child.material.depthTest = false;
-						child.material.side = THREE.DoubleSide;
+						child.material.depthWrite = false;
+						child.material.transparent = true;
+						
+						if (child.material.opacity === undefined) {
+							child.material.opacity = 1.0;
+						}
 					}
+				} else if (child.isMesh && child.name.startsWith('activate_')) {
+					child.visible = false;
 				}
 			});
 
@@ -163,6 +211,7 @@ export class TextContainer {
 			text_box.position.y = this.get_text_box_y();
 			text_box.simple_name = category.value;
 			text_box.name = `${TYPES.TEXT}${category.value}`;
+			text_box.renderOrder = 1000;
 			if (FLAGS.LAYER) {
 				text_box.layers.set(1);
 			}
@@ -171,40 +220,41 @@ export class TextContainer {
 			switch (category.value) {
 			case CATEGORIES.EDUCATION.value:
 				(async () => {
-					const ASSET_TYPES = CustomTypeManager.getTypes();
-					await create_asset_background(text_box, ASSET_TYPES.DIPLOMA_TOP, {
+					const ASSET_TYPES = CustomTypeManager.getInstance().getTypes();
+					await create_asset_background(text_box, ASSET_TYPES.DIPLOMA_BOT, {
 						useFixedScale: true,
 						positionOffsetX: 0,
 						positionOffsetY: 3,
 						positionOffsetZ: 0,
 						rotation: { x: -Math.PI / 2, y: Math.PI, z: Math.PI },
-						renderOrder: 999
+						renderOrder: 1002
 					});
-					await create_asset_background(text_box, ASSET_TYPES.DIPLOMA_BOT, {
+					await create_asset_background(text_box, ASSET_TYPES.DIPLOMA_TOP, {
 						useFixedScale: true,
 						positionOffsetX: 0,
 						positionOffsetY: -3,
 						positionOffsetZ: 0,
 						rotation: { x: -Math.PI / 2, y: Math.PI, z: Math.PI },
-						renderOrder: 999
+						renderOrder: 1002
 					});
 				})();
 				create_background(category, text_box);
 				break;
 			case CATEGORIES.CONTACT.value:
 				(async () => {
-					const ASSET_TYPES = CustomTypeManager.getTypes();
+					const ASSET_TYPES = CustomTypeManager.getInstance().getTypes();
 					await create_asset_background(text_box, ASSET_TYPES.TABLET, {
 						horizontalStretch: 1.1,
 						verticalStretch: 0.6,
 						rotation: new THREE.Euler(-Math.PI / 2, 0, Math.PI, 'XYZ'),
-						contentPath: 'pages/contact.html'
+						contentPath: 'pages/contact.html',
+						renderOrder: 1002
 					});
 				})();
 				break;
 			case CATEGORIES.ABOUT.value:
 				(async () => {
-					const ASSET_TYPES = CustomTypeManager.getTypes();
+					const ASSET_TYPES = CustomTypeManager.getInstance().getTypes();
 					const businessCardAsset = await create_asset_background(text_box, ASSET_TYPES.BUSINESS_CARD, {
 						horizontalStretch: 2,
 						verticalStretch: 2,
@@ -212,14 +262,15 @@ export class TextContainer {
 						positionOffsetY: 0,
 						positionOffsetZ: 0,
 						rotation: new THREE.Euler(Math.PI / 2, 0, 0, 'XYZ'),
-						contentPath: 'pages/about.html'
+						contentPath: 'pages/about.html',
+						renderOrder: 1002
 					});
 					this.business_card_asset = businessCardAsset;
 				})();
 				break;
 			case CATEGORIES.WORK.value:
 				(async () => {
-					const ASSET_TYPES = CustomTypeManager.getTypes();
+					const ASSET_TYPES = CustomTypeManager.getInstance().getTypes();
 					await create_asset_background(text_box, ASSET_TYPES.MONITOR, {
 						horizontalStretch: 2,
 						verticalStretch: 2,
@@ -227,7 +278,8 @@ export class TextContainer {
 						positionOffsetY: -9.27,
 						positionOffsetZ: 0,
 						rotation: new THREE.Euler(Math.PI, Math.PI, Math.PI, 'XYZ'),
-						contentPath: 'pages/work.html'
+						contentPath: 'pages/work.html',
+						renderOrder: 1002
 					});
 
 					setTimeout(() => {
@@ -236,6 +288,41 @@ export class TextContainer {
 							const monitorModel = monitorModels[0].children[0];
 						}
 					}, 100);
+				})();
+				break;
+			case CATEGORIES.PROJECTS.value:
+				(async () => {
+					const ASSET_TYPES = CustomTypeManager.getInstance().getTypes();
+					
+					const notebookAsset = await create_asset_background(text_box, ASSET_TYPES.NOTEBOOK_OPENED, {
+						horizontalStretch: 1.5,
+						verticalStretch: 1.5,
+						positionOffsetX: 5,
+						positionOffsetY: 0,
+						positionOffsetZ: 0,
+						rotation: new THREE.Euler(Math.PI / 2, -Math.PI / 2, 0, 'XYZ'),
+						contentPaths: {
+							'right_notebook_open': 'pages/projects2.html',
+							'left_notebook_open': 'pages/projects.html'
+						},
+						renderOrder: 1000,
+						backgroundColor: '#b6b4af'
+					});
+					
+					setProperRenderOrders(notebookAsset, 1000);
+					
+					const displayMeshes = [];
+					notebookAsset.traverse((child) => {
+						if (child.isMesh && child.name.startsWith('display_')) {
+							displayMeshes.push(child);
+						}
+					});
+					
+					if (displayMeshes.length !== 2) {
+						throw new Error(`Projects section requires exactly 2 display meshes, found ${displayMeshes.length}. Display meshes found: ${displayMeshes.map(m => m.name).join(', ')}`);
+					}
+					
+					console.log(`[TextContainer] Created CSS3D frames for Projects section with display meshes: ${displayMeshes.map(m => m.name).join(', ')}`);
 				})();
 				break;
 			default:
@@ -274,8 +361,19 @@ export class TextContainer {
 		return this.css3d_factory.getDebugMode();
 	}
 
+	getCss3dFramesForCategory(category) {
+		const frames = [];
+		this.css3d_frames.forEach((frame, key) => {
+			const assetType = this.getCss3dAssetType(category);
+			if (assetType && key.startsWith(`${assetType}_`)) {
+				frames.push(frame);
+			}
+		});
+		return frames;
+	}
+
 	focus_text_box(incoming_name, is_column_left) {
-		const ASSET_TYPES = CustomTypeManager.getTypes();
+		const ASSET_TYPES = CustomTypeManager.getInstance().getTypes();
 		const found_index = incoming_name.indexOf('_');
 		const new_name = TYPES.TEXT + incoming_name.substring(found_index + 1);
 		const category = incoming_name.substring(found_index + 1);
@@ -308,16 +406,41 @@ export class TextContainer {
 						currentFrame.iframe.contentDocument.dispatchEvent(visibilityEvent);
 					}
 				}
+
+				const currentCss3dFrames = this.getCss3dFramesForCategory(currentCategory);
+				// FIXED: Don't reset any frames, just hide them
+				currentCss3dFrames.forEach(frame => frame.hide());
+
 				this.lose_focus_text_box(SOUTH);
 			}
 			this.focused_text_name = new_name;
 
 			const frame = this.text_frames.get(`${TYPES.TEXT_BLOCK}${category}`);
 			
-			const css3dFrame = this.css3d_frames.get(this.getCss3dAssetType(category));
-			
-			if (css3dFrame) {
-				css3dFrame.play();
+			const css3dFrames = this.getCss3dFramesForCategory(category);
+			if (category === CATEGORIES.PROJECTS.value && css3dFrames.length === 2 && !this.projects_frames_played) {
+				const leftFrame = css3dFrames.find(f => f.mesh && f.mesh.name && f.mesh.name.includes('left_notebook_open'));
+				const rightFrame = css3dFrames.find(f => f.mesh && f.mesh.name && f.mesh.name.includes('right_notebook_open'));
+				
+				if (leftFrame && rightFrame) {
+					leftFrame.play();
+					setTimeout(() => {
+						rightFrame.play();
+						this.projects_frames_played = true;
+					}, PROJECTS_FRAME_DELAY);
+				} else {
+					css3dFrames.forEach(frame => frame.play());
+					this.projects_frames_played = true;
+				}
+			} else {
+				css3dFrames.forEach(frame => {
+					// Show the frame first, then play if needed
+					frame.show();
+					// Only play if the frame is not already playing/loaded
+					if (!frame.isPlaying) {
+						frame.play();
+					}
+				});
 			}
 
 			if (frame && frame.iframe && frame.iframe.contentWindow) {
@@ -374,10 +497,10 @@ export class TextContainer {
 				.start();
 
 			if (category === CATEGORIES.ABOUT.value && this.business_card_asset) {
-				const aboutFrame = this.css3d_frames.get(ASSET_TYPES.BUSINESS_CARD);
+				const aboutFrames = this.getCss3dFramesForCategory(CATEGORIES.ABOUT.value);
 				
 				if (!this.business_card_flipped) {
-					if (aboutFrame) aboutFrame.hide();
+					aboutFrames.forEach(frame => frame.hide());
 					focusTween.onComplete(() => {
 						try {
 							this.asset_handler.flipAsset(
@@ -387,7 +510,7 @@ export class TextContainer {
 								{
 									easing: Easing.Quintic.In,
 									onHalfway: (asset) => {
-										if (aboutFrame) aboutFrame.show();
+										aboutFrames.forEach(frame => frame.show());
 									},
 									onComplete: () => {
 										this.business_card_flipped = true;
@@ -399,14 +522,14 @@ export class TextContainer {
 						}
 					});
 				} else {
-					if (aboutFrame) aboutFrame.show();
+					aboutFrames.forEach(frame => frame.show());
 				}
 			}
 		}
 	}
 
 	getCss3dAssetType(category) {
-		const ASSET_TYPES = CustomTypeManager.getTypes();
+		const ASSET_TYPES = CustomTypeManager.getInstance().getTypes();
 		switch (category) {
 			case CATEGORIES.CONTACT.value:
 				return ASSET_TYPES.TABLET;
@@ -414,6 +537,8 @@ export class TextContainer {
 				return ASSET_TYPES.MONITOR;
 			case CATEGORIES.ABOUT.value:
 				return ASSET_TYPES.BUSINESS_CARD;
+			case CATEGORIES.PROJECTS.value:
+				return ASSET_TYPES.NOTEBOOK_OPENED;
 			default:
 				return null;
 		}
@@ -436,6 +561,10 @@ export class TextContainer {
 						console.error('Error sending visibility message:', e);
 					}
 				}
+
+				const css3dFrames = this.getCss3dFramesForCategory(category);
+				// FIXED: Don't reset any frames, just hide them
+				css3dFrames.forEach(frame => frame.hide());
 
 				if (move_direction == "") {
 					existing_focus_box.position.x = get_associated_position(WEST, this.camera);

@@ -1,5 +1,3 @@
-// @ts-nocheck
-// Import the global config first to ensure it's available to all modules
 import { FLAGS, THREE, RAPIER, initThree, updateTween, initRapier } from './common/index.js';
 import { ViewableContainer } from './viewport/viewable_container.js';
 import { BackgroundContainer } from './background/background_container.js';
@@ -8,7 +6,6 @@ import { extract_type, get_intersect_list, TYPES } from './viewport/overlay/over
 import { AppRenderer } from './common/index.js';
 import { 
 	AssetStorage, 
-	AssetActivator, 
 	AssetHandler, 
 	ManifestManager, 
 	BLORKPACK_FLAGS, 
@@ -21,7 +18,8 @@ import {
 	grab_object, 
 	release_object, 
 	initPhysicsUtil,
-	InteractionManager, 
+	InteractionManager,
+	MemoryAnalyzer
 	} from '@littlecarlito/blorkpack';
 import { 
 	toggleDebugUI, 
@@ -31,7 +29,6 @@ import {
 	updateLabelWireframes, setSceneReference 
 } from './common/debug_ui.js';
 
-// Enable HMR for development
 if (import.meta.hot) {
 	import.meta.hot.accept();
 	import.meta.hot.accept(['@littlecarlito/blorkpack'], (updatedModules) => {
@@ -43,22 +40,21 @@ if (import.meta.hot) {
 	});
 }
 
-// ----- Variables
 let is_cleaned_up = false;
 let is_physics_paused = false;
 let interactionManager = null;
+let memoryAnalyzer = null;
+let isPageVisible = !document.hidden;
+let backgroundAnimationFrameId = null;
 
-/** Creates and configures scene background based on manifest settings */
 async function setup_scene_background() {
 	await SceneSetupHelper.setup_background(window.scene, window.manifest_manager, update_loading_progress);
 }
 
-/** Initializes scene lighting based on manifest configuration */
 async function setup_scene_lighting() {
 	await SceneSetupHelper.setup_lighting(window.scene, window.manifest_manager, update_loading_progress);
 }
 
-/** Initializes physics world with manifest settings */
 function setup_physics_world() {
 	const gravityData = window.manifest_manager.get_gravity();
 	if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
@@ -90,7 +86,6 @@ function setup_physics_world() {
 	window.world.integrationParameters.allowedLinearError = physicsOptimization.integration_parameters.allowed_linear_error;
 }
 
-/** Updates the loading progress text */
 function update_loading_progress(text) {
 	const loading_progress = document.getElementById('loading-progress');
 	if (loading_progress) {
@@ -98,7 +93,6 @@ function update_loading_progress(text) {
 	}
 }
 
-/** Shows the loading screen */
 async function show_loading_screen() {
 	const loadingPagePath = 'pages/loading.html'
 	const response = await fetch(loadingPagePath);
@@ -106,7 +100,6 @@ async function show_loading_screen() {
 	document.body.insertAdjacentHTML('beforeend', html);
 }
 
-/** Hides the loading screen */
 function hide_loading_screen() {
 	const loading_screen = document.getElementById('loading-screen');
 	if (loading_screen) {
@@ -114,9 +107,119 @@ function hide_loading_screen() {
 	}
 }
 
-/** Initializes the main scene */
+function handleVisibilityChange() {
+	const wasVisible = isPageVisible;
+	isPageVisible = !document.hidden;
+	
+	if (wasVisible !== isPageVisible) {
+		if (isPageVisible) {
+			console.log('🔄 Page visible - resuming full animation');
+			if (backgroundAnimationFrameId) {
+				cancelAnimationFrame(backgroundAnimationFrameId);
+				backgroundAnimationFrameId = null;
+			}
+			window.app_renderer.set_animation_loop(animate);
+		} else {
+			console.log('🛑 Page hidden - switching to background mode');
+			window.app_renderer.set_animation_loop(null);
+			startBackgroundAnimation();
+		}
+	}
+}
+
+function startBackgroundAnimation() {
+	function animateBackground() {
+		if (!isPageVisible) {
+			const delta = window.clock.getDelta();
+			updateTween();
+			
+			if(interactionManager.resize_move) {
+				if(!interactionManager.zoom_event) {
+					window.viewable_container.resize_reposition();
+				} else {
+					interactionManager.zoom_event = false;
+				}
+				interactionManager.resize_move = false;
+			}
+			
+			const isTextActive = window.viewable_container.is_text_active();
+			if (!window.previousTextContainerState && isTextActive && !is_physics_paused) {
+				if (FLAGS.SELECT_LOGS) {
+					console.log('Pausing physics due to text container activation');
+				}
+				window.textContainerPausedPhysics = true;
+				toggle_physics_pause();
+			} else if (window.previousTextContainerState && !isTextActive && is_physics_paused && window.textContainerPausedPhysics) {
+				if (FLAGS.SELECT_LOGS) {
+					console.log('Resuming physics due to text container deactivation');
+				}
+				window.textContainerPausedPhysics = false;
+				toggle_physics_pause();
+			}
+			window.previousTextContainerState = isTextActive;
+			
+			if(interactionManager.grabbed_object) {
+				translate_object(interactionManager.grabbed_object, window.viewable_container.get_camera());
+			}
+			
+			window.world.timestep = Math.min(delta, 0.1);
+			if (!is_physics_paused) {
+				window.world.step();
+			}
+			
+			if (window.background_container) {
+				window.background_container.update(interactionManager.grabbed_object, window.viewable_container, delta);
+			}
+			
+			if (window.asset_handler) {
+				window.asset_handler.updateAnimations(delta);
+			}
+			
+			if (AssetStorage.get_instance()) {
+				if (!is_physics_paused) {
+					AssetStorage.get_instance().update();
+				} else if (interactionManager.grabbed_object) {
+					const body_pair = AssetStorage.get_instance().get_body_pair_by_mesh(interactionManager.grabbed_object);
+					if (body_pair) {
+						const [mesh, body] = body_pair;
+						const position = body.translation();
+						mesh.position.set(position.x, position.y, position.z);
+						const rotation = body.rotation();
+						mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+					}
+				}
+			}
+			
+			window.viewable_container.get_overlay().update_confetti();
+			
+			if (window.asset_handler) {
+				window.asset_handler.updateRigVisualizations();
+				window.asset_handler.update_visualizations();
+				if (window.asset_handler.update_debug_meshes) {
+					window.asset_handler.update_debug_meshes();
+				}
+			}
+			
+			if (window.css3dFactory) {
+				window.css3dFactory.update();
+			}
+			
+			// Render at reduced frequency (every 10th call)
+			if (Math.random() < 0.1) {
+				window.app_renderer.render();
+			}
+			
+			backgroundAnimationFrameId = requestAnimationFrame(animateBackground);
+		}
+	}
+	
+	backgroundAnimationFrameId = requestAnimationFrame(animateBackground);
+}
+
 async function init() {
 	interactionManager = InteractionManager.getInstance();
+	memoryAnalyzer = new MemoryAnalyzer();
+	
 	try {
 		await show_loading_screen();
 		
@@ -160,15 +263,21 @@ async function init() {
 		update_loading_progress('Creating UI components...');
 		await setup_scene_lighting();
 		
+		const customTypeManager = CustomTypeManager.getInstance();
+		if (!customTypeManager.hasLoadedCustomTypes()) {
+			console.warn('Custom types not yet available, waiting...');
+			await new Promise(resolve => setTimeout(resolve, 100));
+		}
+		
 		window.viewable_container = new ViewableContainer(window);
 		
 		window.app_renderer = new AppRenderer(window.scene, window.viewable_container.get_camera());
 		window.renderer = window.app_renderer.get_renderer();
-		window.asset_activator = AssetActivator.get_instance(window.viewable_container.get_camera(), window.app_renderer.get_renderer());
 		
 		await interactionManager.startListening(window);
 		window.addEventListener('keydown', toggle_debug_ui);
 		window.addEventListener('unload', cleanup);
+		document.addEventListener('visibilitychange', handleVisibilityChange);
 		
 		update_loading_progress('Loading background assets...');
 		window.background_container = new BackgroundContainer(window.scene, window.viewable_container.get_camera(), window.world);
@@ -199,6 +308,15 @@ async function init() {
 		});
 		
 		hide_loading_screen();
+		
+		memoryAnalyzer.initialize();
+		window.memoryAnalyzer = memoryAnalyzer;
+		
+		if (window.css3dFactory) {
+			window.css3dFactory.setExternalAnimationLoop(true);
+			console.log('✅ CSS3D Factory configured for external animation loop');
+		}
+		
 		window.app_renderer.set_animation_loop(animate);
 		
 		create_debug_UI();
@@ -217,13 +335,20 @@ async function init() {
 				labelContainer.updateDebugVisualizations();
 			}
 		}
+		
+		window.checkMemory = () => memoryAnalyzer.forceAnalysis();
+		window.getMemoryUsage = () => memoryAnalyzer.getCurrentMemoryUsage();
+		
+		console.log('🔧 Memory analysis tools available:');
+		console.log('  - window.checkMemory() - Force memory analysis');
+		console.log('  - window.getMemoryUsage() - Get current memory stats');
+		
 	} catch (error) {
 		console.error('Error during initialization:', error);
 		update_loading_progress('Error loading application. Please refresh the page.');
 	}
 }
 
-/** Cleans up resources to prevent memory leaks */
 function cleanup() {
 	if (is_cleaned_up) {
 		if(BLORKPACK_FLAGS.DEBUG_LOGS) {
@@ -231,9 +356,17 @@ function cleanup() {
 		}
 		return;
 	}
+	
+	if (backgroundAnimationFrameId) {
+		cancelAnimationFrame(backgroundAnimationFrameId);
+		backgroundAnimationFrameId = null;
+	}
+	
 	interactionManager.stopListening();
-	// TODO Leaving this one in main as its specific to this app
 	window.removeEventListener('keydown', toggle_debug_ui);
+	window.removeEventListener('unload', cleanup);
+	document.removeEventListener('visibilitychange', handleVisibilityChange);
+	
 	if (window.app_renderer) {
 		window.app_renderer.dispose();
 		window.app_renderer = null;
@@ -266,16 +399,20 @@ function cleanup() {
 	if (window.world) {
 		window.world = null;
 	}
+	if (window.css3dFactory) {
+		window.css3dFactory.dispose();
+		window.css3dFactory = null;
+	}
 	window.viewable_container = null;
 	window.background_container = null;
 	window.clock = null;
+	memoryAnalyzer = null;
 	is_cleaned_up = true;
 	if (BLORKPACK_FLAGS.DEBUG_LOGS) {
 		console.log("Application resources cleaned up");
 	}
 }
 
-/** Toggle physics simulation pause state */
 function toggle_physics_pause() {
 	is_physics_paused = !is_physics_paused;
 	if (FLAGS.PHYSICS_LOGS) {
@@ -291,10 +428,12 @@ function toggle_physics_pause() {
 
 window.toggle_physics_pause = toggle_physics_pause;
 
-/** Primary animation function run every frame by renderer */
 function animate() {
+	const animateStart = performance.now();
+	
 	const delta = window.clock.getDelta();
 	updateTween();
+	
 	if(interactionManager.resize_move) {
 		if(!interactionManager.zoom_event) {
 			window.viewable_container.resize_reposition();
@@ -303,6 +442,7 @@ function animate() {
 		}
 		interactionManager.resize_move = false;
 	}
+	
 	const isTextActive = window.viewable_container.is_text_active();
 	if (!window.previousTextContainerState && isTextActive && !is_physics_paused) {
 		if (FLAGS.SELECT_LOGS) {
@@ -318,24 +458,31 @@ function animate() {
 		toggle_physics_pause();
 	}
 	window.previousTextContainerState = isTextActive;
-	if(window.viewable_container.get_overlay().is_intersected() != null) {
-		window.asset_activator.activate_object(window.viewable_container.get_intersected_name());
-	} else if(interactionManager.grabbed_object) {
+	
+	if(interactionManager.grabbed_object) {
 		translate_object(interactionManager.grabbed_object, window.viewable_container.get_camera());
-	} else if(interactionManager.hovered_interactable_name != "" && window.viewable_container.is_overlay_hidden()) {
-		window.asset_activator.activate_object(interactionManager.hovered_interactable_name);
-	} else if(window.viewable_container.is_text_active()) {
-		window.asset_activator.activate_object(window.viewable_container.get_active_name());
-	} else {
-		window.asset_activator.deactivate_all_objects();
 	}
+	
+	const physicsStart = performance.now();
 	window.world.timestep = Math.min(delta, 0.1);
 	if (!is_physics_paused) {
 		window.world.step();
 	}
+	const physicsTime = performance.now() - physicsStart;
+	
+	const backgroundStart = performance.now();
 	if (window.background_container) {
-		window.background_container.update(interactionManager.grabbed_object, window.viewable_container);
+		window.background_container.update(interactionManager.grabbed_object, window.viewable_container, delta);
 	}
+	const backgroundTime = performance.now() - backgroundStart;
+	
+	const assetStart = performance.now();
+	if (window.asset_handler) {
+		window.asset_handler.updateAnimations(delta);
+	}
+	const assetTime = performance.now() - assetStart;
+	
+	const storageStart = performance.now();
 	if (AssetStorage.get_instance()) {
 		if (!is_physics_paused) {
 			AssetStorage.get_instance().update();
@@ -350,17 +497,47 @@ function animate() {
 			}
 		}
 	}
+	const storageTime = performance.now() - storageStart;
+	
+	const overlayStart = performance.now();
 	window.viewable_container.get_overlay().update_confetti();
+	const overlayTime = performance.now() - overlayStart;
+	
+	const rigStart = performance.now();
 	if (window.asset_handler) {
+		window.asset_handler.updateRigVisualizations();
 		window.asset_handler.update_visualizations();
 		if (window.asset_handler.update_debug_meshes) {
 			window.asset_handler.update_debug_meshes();
 		}
 	}
+	const rigTime = performance.now() - rigStart;
+	
+	const css3dStart = performance.now();
+	if (window.css3dFactory) {
+		window.css3dFactory.update();
+	}
+	const css3dTime = performance.now() - css3dStart;
+	
+	const renderStart = performance.now();
 	window.app_renderer.render();
+	const renderTime = performance.now() - renderStart;
+	
+	const totalTime = performance.now() - animateStart;
+	
+	if (totalTime > 20) {
+		console.warn(`🐌 SLOW FRAME BREAKDOWN (${totalTime.toFixed(2)}ms total):`);
+		console.warn(`  Physics: ${physicsTime.toFixed(2)}ms`);
+		console.warn(`  Background: ${backgroundTime.toFixed(2)}ms`);
+		console.warn(`  Assets: ${assetTime.toFixed(2)}ms`);
+		console.warn(`  Storage: ${storageTime.toFixed(2)}ms`);
+		console.warn(`  Overlay: ${overlayTime.toFixed(2)}ms`);
+		console.warn(`  Rigs: ${rigTime.toFixed(2)}ms`);
+		console.warn(`  CSS3D: ${css3dTime.toFixed(2)}ms`);
+		console.warn(`  Render: ${renderTime.toFixed(2)}ms`);
+	}
 }
 
-/** Toggle debug UI when 's' key is pressed */
 function toggle_debug_ui(event) {
 	if (event.key === 's') {
 		toggleDebugUI();

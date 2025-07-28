@@ -20,7 +20,7 @@ export const CATEGORIES = {
 	EDUCATION: {
 		value: "education",
 		icon: "categories/education_raised.svg",
-		color: 0x25973a,
+		color: 0x162448,
 		html: "pages/education.html"
 	},
 	ABOUT: {

@@ -8,7 +8,6 @@
 import { 
 	AssetStorage, 
 	AssetHandler, 
-	AssetActivator, 
 	ASSET_TYPE, 
 	ASSET_CONFIGS,
 	ManifestManager
@@ -84,9 +83,6 @@ async function asset_management_example() {
 		//   new THREE.Quaternion()
 		// );
 		console.log('✅ Assets spawned successfully');
-		// Initialize asset activator
-		console.log('Initializing asset activator...');
-		const activator = AssetActivator.get_instance(camera, renderer);
 		// Simulate activation
 		console.log('Activating an object...');
 		// activator.activate_object('example_object');

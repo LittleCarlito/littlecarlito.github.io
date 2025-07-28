@@ -26,6 +26,7 @@ export class AppRenderer {
 		this.webgl_renderer.setSize(window.innerWidth, window.innerHeight);
 		this.webgl_renderer.shadowMap.enabled = true;
 		this.webgl_renderer.shadowMap.type = THREE.VSMShadowMap;
+		this.webgl_renderer.sortObjects = true;
 		this. webgl_renderer.domElement.style.position = 'absolute';
 		this. webgl_renderer.domElement.style.top = '0';
 		this.webgl_renderer.domElement.style.zIndex = '0';
@@ -84,6 +85,12 @@ export class AppRenderer {
 	}
 
 	render() {
+		this.parent.traverse((object) => {
+			if (object.isMesh) {
+				object.updateMatrixWorld(true);
+			}
+		});
+
 		this.composer.render();
 		this.css_renderer.render(this.parent, this.camera);
 		

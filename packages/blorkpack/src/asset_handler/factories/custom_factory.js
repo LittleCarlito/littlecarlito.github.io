@@ -3,30 +3,17 @@ import { AssetUtils } from "../../index.js";
 import CustomTypeManager from "../../custom_type_manager.js";
 import { AssetStorage } from "../../asset_storage.js";
 import { BLORKPACK_FLAGS } from "../../blorkpack_flags.js";
-import { CollisionFactory } from "./collision_factory.js";
 import { MaterialFactory } from "./material_factory.js";
 import { AssetRotator } from "../common/asset_rotator.js";
+import { ActivateMeshHandler } from "./activate_mesh_handler.js";
 
-/**
- * Factory class responsible for spawning custom assets in the scene.
- * Handles loading and spawning of custom 3D models with physics and rotation capabilities.
- */
 export class CustomFactory {
 	static #instance = null;
 	static #disposed = false;
 	storage;
 	scene;
 	world;
-	#assetTypes = null;
 	#assetConfigs = null;
-	#randomColors = [
-		0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff,
-		0xff8000, 0x8000ff, 0xff0080, 0x80ff00, 0x0080ff, 0xff8080,
-		0x80ff80, 0x8080ff, 0xffff80, 0xff80ff, 0x80ffff, 0xffc080,
-		0xc080ff, 0x80ffc0
-	];
-	#colorIndex = 0;
-	#shuffledColors = [];
 	debugMeshes = new Map();
 	rotator;
 
@@ -37,9 +24,7 @@ export class CustomFactory {
 		this.storage = AssetStorage.get_instance();
 		this.scene = scene;
 		this.world = world;
-		this.#assetTypes = CustomTypeManager.getTypes();
 		this.#assetConfigs = CustomTypeManager.getConfigs();
-		this.shuffleColors();
 		this.material_factory = new MaterialFactory();
 		this.rotator = AssetRotator.get_instance();
 		CustomFactory.#instance = this;
@@ -68,7 +53,6 @@ export class CustomFactory {
 		this.scene = null;
 		this.world = null;
 		this.storage = null;
-		this.#assetTypes = null;
 		this.#assetConfigs = null;
 		CustomFactory.#disposed = true;
 		CustomFactory.#instance = null;
@@ -80,55 +64,6 @@ export class CustomFactory {
 		}
 	}
 
-	shuffleColors() {
-		this.#shuffledColors = [...this.#randomColors];
-		for (let i = this.#shuffledColors.length - 1; i > 0; i--) {
-			const j = Math.floor((Math.random() * 1000 + Date.now()) % (i + 1));
-			[this.#shuffledColors[i], this.#shuffledColors[j]] = [this.#shuffledColors[j], this.#shuffledColors[i]];
-		}
-		this.#colorIndex = 0;
-	}
-
-	getRandomColor() {
-		if (this.#colorIndex >= this.#shuffledColors.length) {
-			this.shuffleColors();
-		}
-		const color = this.#shuffledColors[this.#colorIndex];
-		this.#colorIndex++;
-		return color;
-	}
-
-	applyRandomColorToAsset(model) {
-		const randomColor = this.getRandomColor();
-		
-		model.traverse((child) => {
-			if (child.isMesh && child.material) {
-				if (!child.name.startsWith('col_') && !child.name.startsWith('display_')) {
-					if (Array.isArray(child.material)) {
-						child.material.forEach(mat => {
-							if (mat.isMeshStandardMaterial || mat.isMeshBasicMaterial) {
-								mat.color.setHex(randomColor);
-							}
-						});
-					} else {
-						if (child.material.isMeshStandardMaterial || child.material.isMeshBasicMaterial) {
-							child.material.color.setHex(randomColor);
-						}
-					}
-				}
-			}
-		});
-	}
-
-	/**
-	 * Rotates a spawned asset around a specified axis
-	 * @param {THREE.Object3D|string} assetOrInstanceId - Asset mesh or instance ID
-	 * @param {THREE.Vector3} axis - Rotation axis (will be normalized)
-	 * @param {number} radians - Rotation amount in radians
-	 * @param {number} duration - Duration in milliseconds
-	 * @param {Object} options - Additional options (easing, onUpdate, onComplete)
-	 * @returns {Promise} Promise that resolves when rotation completes
-	 */
 	async rotateAsset(assetOrInstanceId, axis, radians, duration, options = {}) {
 		let asset;
 		
@@ -147,22 +82,10 @@ export class CustomFactory {
 		return this.rotator.rotateAsset(asset, axis, radians, duration, options);
 	}
 
-	/**
-	 * Flips a spawned asset 180 degrees around an axis
-	 * @param {THREE.Object3D|string} assetOrInstanceId - Asset mesh or instance ID
-	 * @param {THREE.Vector3} axis - Flip axis
-	 * @param {number} duration - Duration in milliseconds
-	 * @param {Object} options - Additional options
-	 * @returns {Promise} Promise that resolves when flip completes
-	 */
 	async flipAsset(assetOrInstanceId, axis, duration, options = {}) {
 		return this.rotateAsset(assetOrInstanceId, axis, Math.PI, duration, options);
 	}
 
-	/**
-	 * Stops rotation for a spawned asset
-	 * @param {THREE.Object3D|string} assetOrInstanceId - Asset mesh or instance ID
-	 */
 	stopAssetRotation(assetOrInstanceId) {
 		let asset;
 		
@@ -183,11 +106,6 @@ export class CustomFactory {
 		this.rotator.stopRotation(asset);
 	}
 
-	/**
-	 * Checks if an asset is currently rotating
-	 * @param {THREE.Object3D|string} assetOrInstanceId - Asset mesh or instance ID
-	 * @returns {boolean} True if asset is rotating
-	 */
 	isAssetRotating(assetOrInstanceId) {
 		let asset;
 		
@@ -204,6 +122,87 @@ export class CustomFactory {
 		}
 
 		return this.rotator.isRotating(asset);
+	}
+
+	/**
+	 * Creates colliders for collision meshes or default colliders
+	 * @param {THREE.Mesh[]} collisionMeshes - Array of collision meshes
+	 * @param {RAPIER.RigidBody} physicsBody - The physics body to attach colliders to
+	 * @param {Object} asset_config - Asset configuration
+	 * @param {Object} options - Spawn options
+	 */
+	createColliders(collisionMeshes, physicsBody, asset_config, options) {
+		if (collisionMeshes.length > 0) {
+			for (const collisionMesh of collisionMeshes) {
+				this.createColliderFromMesh(collisionMesh, physicsBody, asset_config, options);
+			}
+		} else {
+			const halfScale = asset_config.scale / 2;
+			let collider_desc;
+			if (options.colliderType === 'sphere') {
+				collider_desc = RAPIER.ColliderDesc.ball(halfScale);
+			} else if (options.colliderType === 'capsule') {
+				collider_desc = RAPIER.ColliderDesc.capsule(halfScale, halfScale * 0.5);
+			} else {
+				collider_desc = RAPIER.ColliderDesc.cuboid(halfScale, halfScale, halfScale);
+			}
+			collider_desc.setRestitution(asset_config.restitution || 0.5);
+			collider_desc.setFriction(asset_config.friction || 0.5);
+			this.world.createCollider(collider_desc, physicsBody);
+		}
+	}
+
+	/**
+	 * Creates a collider from a mesh (replaces CollisionFactory functionality)
+	 * @param {THREE.Mesh} mesh - The mesh to create a collider from
+	 * @param {RAPIER.RigidBody} body - The rigid body to attach the collider to
+	 * @param {Object} asset_config - Asset configuration data
+	 * @param {Object} options - Additional options for collider creation
+	 */
+	createColliderFromMesh(mesh, body, asset_config, options = {}) {
+		const geometry = mesh.geometry;
+		geometry.computeBoundingBox();
+		const boundingBox = geometry.boundingBox;
+		
+		const width = boundingBox.max.x - boundingBox.min.x;
+		const height = boundingBox.max.y - boundingBox.min.y;
+		const depth = boundingBox.max.z - boundingBox.min.z;
+		
+		let shape_type = 'box';
+		if (mesh.name.includes('sphere') || mesh.name.includes('ball')) {
+			shape_type = 'sphere';
+		} else if (mesh.name.includes('capsule')) {
+			shape_type = 'capsule';
+		} else if (options.shape_type) {
+			shape_type = options.shape_type;
+		}
+
+		let colliderDesc;
+		switch (shape_type) {
+		case 'sphere':
+			const radius = Math.max(width, height, depth) / 2;
+			colliderDesc = RAPIER.ColliderDesc.ball(radius);
+			break;
+		case 'capsule':
+			const capsuleRadius = Math.max(width, depth) / 2;
+			const capsuleHeight = height;
+			colliderDesc = RAPIER.ColliderDesc.capsule(capsuleHeight / 2, capsuleRadius);
+			break;
+		case 'box':
+		default:
+			colliderDesc = RAPIER.ColliderDesc.cuboid(width / 2, height / 2, depth / 2);
+			break;
+		}
+
+		colliderDesc.setRestitution(asset_config.restitution || 0.5);
+		colliderDesc.setFriction(asset_config.friction || 0.5);
+
+		const position = mesh.position;
+		const rotation = mesh.quaternion;
+		colliderDesc.setTranslation(position.x, position.y, position.z);
+		colliderDesc.setRotation(rotation);
+
+		return this.world.createCollider(colliderDesc, body);
 	}
 
 	async spawn_custom_asset(asset_type, position = new THREE.Vector3(), rotation = new THREE.Quaternion(), options = {}) {
@@ -247,28 +246,35 @@ export class CustomFactory {
 			model.traverse((child) => {
 				if (child.isMesh) {
 					if (child.name.startsWith('col_')) {
-						child.visible = false;
+						child.visible = true;
 						collisionMeshes.push(child);
 					} else if (child.name.startsWith('display_')) {
-						child.visible = true;
-						const displayMaterial = this.createDisplayMeshMaterial(0);
-						child.material = displayMaterial;
-						if (model.userData) {
-							model.userData.currentDisplayImage = 0;
+						if (options.hideDisplayMeshes) {
+							child.visible = false;
+						} else {
+							child.visible = true;
+							const displayMaterial = this.createDisplayMeshMaterial(0);
+							child.material = displayMaterial;
+							if (model.userData) {
+								model.userData.currentDisplayImage = 0;
+							}
+							displayMeshes.push(child);
 						}
-						displayMeshes.push(child);
-					} else {
+					} else if (!child.name.startsWith('activate_')) {
 						const childId = child.id || Math.floor(Math.random() * 10000);
 						child.name = `interactable_${customTypeKey}_${child.name || 'part'}_${childId}`;
 					}
 				}
 			});
 
+			const activateMeshes = ActivateMeshHandler.processActivateMeshes(model);
+
 			if (options.atlasConfig) {
-				this.material_factory.applyPbrMaterial(model, options.atlasConfig);
+				await this.material_factory.applyPbrMaterial(model, options.atlasConfig);
+				ActivateMeshHandler.reapplyActivatorMaterials(activateMeshes);
 			}
 
-			if (displayMeshes.length > 0) {
+			if (displayMeshes.length > 0 && !options.hideDisplayMeshes) {
 				model.userData.displayMeshes = displayMeshes;
 				model.userData.switchDisplayImage = (imageIndex) => {
 					if (imageIndex < 0 || imageIndex > 2) {
@@ -284,7 +290,8 @@ export class CustomFactory {
 				};
 			}
 
-			// Add rotation methods to the model's userData for easy access
+			ActivateMeshHandler.addActivateMeshMethods(model, activateMeshes);
+
 			model.userData.rotate = (axis, radians, duration, rotationOptions = {}) => {
 				return this.rotateAsset(model, axis, radians, duration, rotationOptions);
 			};
@@ -307,52 +314,45 @@ export class CustomFactory {
 			let physicsBody = null;
 
 			if (options.enablePhysics !== false && this.world) {
-				const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
-					.setTranslation(position.x, position.y, position.z)
-					.setLinearDamping(0.5)
-					.setAngularDamping(0.6);
-				rigidBodyDesc.setGravityScale(1.0);
+				let rigidBodyDesc;
+				
+				if (options.kinematic === true) {
+					rigidBodyDesc = RAPIER.RigidBodyDesc.kinematicPositionBased()
+						.setTranslation(position.x, position.y, position.z);
+				} else {
+					rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
+						.setTranslation(position.x, position.y, position.z)
+						.setLinearDamping(0.5)
+						.setAngularDamping(0.6);
+					rigidBodyDesc.setGravityScale(1.0);
+				}
+				
 				if (rotation) {
 					rigidBodyDesc.setRotation(rotation);
 				}
+				
 				physicsBody = this.world.createRigidBody(rigidBodyDesc);
 
-				if (collisionMeshes.length > 0) {
-					for (const collisionMesh of collisionMeshes) {
-						await CollisionFactory.get_instance(this.world).create_collider_from_mesh(collisionMesh, physicsBody, asset_config, options);
-					}
-				} else {
-					const halfScale = asset_config.scale / 2;
-					let collider_desc;
-					if (options.colliderType === 'sphere') {
-						collider_desc = RAPIER.ColliderDesc.ball(halfScale);
-					} else if (options.colliderType === 'capsule') {
-						collider_desc = RAPIER.ColliderDesc.capsule(halfScale, halfScale * 0.5);
-					} else {
-						collider_desc = RAPIER.ColliderDesc.cuboid(halfScale, halfScale, halfScale);
-					}
-					collider_desc.setRestitution(asset_config.restitution || 0.5);
-					collider_desc.setFriction(asset_config.friction || 0.5);
-					this.world.createCollider(collider_desc, physicsBody);
+				this.createColliders(collisionMeshes, physicsBody, asset_config, options);
 
-					if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG) {
-						try {
-							await this.create_debug_wireframe(
-								'box',
-								{ width: halfScale * 2, height: halfScale * 2, depth: halfScale * 2 },
-								position,
-								rotation,
-								{ color: 0x00ff00, opacity: 0.3, body: physicsBody }
-							);
-						} catch (error) {
-							console.warn('Failed to create debug wireframe:', error);
-						}
+				if (BLORKPACK_FLAGS.COLLISION_VISUAL_DEBUG && collisionMeshes.length === 0) {
+					try {
+						const halfScale = asset_config.scale / 2;
+						await this.create_debug_wireframe(
+							'box',
+							{ width: halfScale * 2, height: halfScale * 2, depth: halfScale * 2 },
+							position,
+							rotation,
+							{ color: 0x00ff00, opacity: 0.3, body: physicsBody }
+						);
+					} catch (error) {
+						console.warn('Failed to create debug wireframe:', error);
 					}
 				}
 			}
 
 			const instance_id = this.storage.add_object(model, physicsBody);
-			return {
+			const result = {
 				mesh: model,
 				body: physicsBody,
 				instance_id,
@@ -361,6 +361,24 @@ export class CustomFactory {
 				stopRotation: model.userData.stopRotation,
 				isRotating: model.userData.isRotating
 			};
+
+			ActivateMeshHandler.addActivateMeshMethodsToResult(result, activateMeshes);
+
+			if (model.userData.collisionWireframes && model.userData.collisionWireframes.length > 0) {
+				result.enableCollisionWireframes = model.userData.enableCollisionWireframes;
+				result.disableCollisionWireframes = model.userData.disableCollisionWireframes;
+				result.toggleCollisionWireframes = model.userData.toggleCollisionWireframes;
+				result.areCollisionWireframesEnabled = model.userData.areCollisionWireframesEnabled;
+				result.getCollisionWireframeCount = model.userData.getCollisionWireframeCount;
+				result.updateCollisionWireframes = model.userData.updateCollisionWireframes;
+				result.setCollisionWireframeColor = model.userData.setCollisionWireframeColor;
+				result.setCollisionWireframeOpacity = model.userData.setCollisionWireframeOpacity;
+				result.disposeCollisionWireframes = model.userData.disposeCollisionWireframes;
+				
+				console.log(`[CustomFactory] Added collision wireframe methods to spawn result for ${asset_type}`);
+			}
+
+			return result;
 		} catch (error) {
 			console.error(`Error spawning custom asset ${asset_type}:`, error);
 			throw error;

@@ -10,7 +10,6 @@
   "exports": {
     ".": "./dist/index.js",
     "./app-renderer": "./dist/app_renderer.js",
-    "./asset-activator": "./dist/asset_activator.js",
     "./custom-factory": "./dist/asset_handler/asset_factories/custom_factory.js",
     "./system-factory": "./dist/asset_handler/asset_factories/system_factory.js",
     "./box-spawner": "./dist/asset_handler/asset_factories/system_spawners/box_spawner.js",

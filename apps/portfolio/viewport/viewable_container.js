@@ -7,6 +7,7 @@ export const UI_Z_DIST = 25;
 
 export class ViewableContainer {
 	detect_rotation = false;
+	detect_pan = false;
 	overlay_container;
 	left_mouse_down = false;
 	right_mouse_down = false;
