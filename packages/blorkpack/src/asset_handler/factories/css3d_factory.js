@@ -413,7 +413,7 @@ export class CSS3DFactory {
             if (frameTracker.pendingContent) {
                 if (iframe.contentDocument) {
                     iframe.contentDocument.open();
-                    iframe.contentDocument.write(this.wrapContentWithScrollControl(frameTracker.pendingContent));
+                    iframe.contentDocument.write(this.wrapContentWithScrollControl(frameTracker.pendingContent, frameTracker.assetType));
                     iframe.contentDocument.close();
                 }
             } else if (frameTracker.filePath) {
@@ -456,6 +456,74 @@ export class CSS3DFactory {
         this.isInitialized = true;
     }
 
+    wrapContentWithScrollControl(content, assetType = null) {
+        // Special handling for work section - it has its own scroll container
+        if (assetType && (assetType.toLowerCase().includes('monitor') || assetType.toLowerCase().includes('work'))) {
+            return content; // Return content as-is, it already handles scrolling
+        }
+        
+        // Default wrapping for other sections
+        return `<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        body {
+            background-color: white;
+            color: #333;
+            font-family: Arial, sans-serif;
+        }
+        
+        .content-wrapper {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            box-sizing: border-box;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .content-wrapper > * {
+            max-width: 100%;
+            box-sizing: border-box;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .content-wrapper * {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .content-wrapper pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .content-wrapper img {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="content-wrapper" id="contentWrapper">
+        ${content}
+    </div>
+</body>
+</html>`;
+    }
+
     async loadExternalContentDeferred(iframe, filePath, assetType, backgroundColor = null) {
         try {
             const response = await fetch(filePath);
@@ -463,7 +531,7 @@ export class CSS3DFactory {
                 throw new Error(`Failed to load ${filePath}: ${response.status}`);
             }
             const htmlContent = await response.text();
-            const wrappedContent = this.wrapContentWithScrollControl(htmlContent);
+            const wrappedContent = this.wrapContentWithScrollControl(htmlContent, assetType);
             if (iframe.contentDocument) {
                 iframe.contentDocument.open();
                 iframe.contentDocument.write(wrappedContent);
@@ -577,68 +645,6 @@ export class CSS3DFactory {
         <div class="loading-spinner"></div>
         <div class="loading-title">CSS3D FRAME</div>
         <div class="loading-info">Waiting for play signal...</div>
-    </div>
-</body>
-</html>`;
-    }
-
-    wrapContentWithScrollControl(content) {
-        return `<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            box-sizing: border-box;
-            overflow: hidden;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        body {
-            background-color: white;
-            color: #333;
-            font-family: Arial, sans-serif;
-        }
-        
-        .content-wrapper {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            box-sizing: border-box;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        
-        .content-wrapper > * {
-            max-width: 100%;
-            box-sizing: border-box;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        
-        .content-wrapper * {
-            max-width: 100%;
-            box-sizing: border-box;
-        }
-        
-        .content-wrapper pre {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        
-        .content-wrapper img {
-            max-width: 100%;
-            height: auto;
-        }
-    </style>
-</head>
-<body>
-    <div class="content-wrapper" id="contentWrapper">
-        ${content}
     </div>
 </body>
 </html>`;

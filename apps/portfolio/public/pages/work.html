@@ -4,11 +4,40 @@
     <style>
         body {
             margin: 0;
-            padding: 20px;
+            padding: 0;
             background-color: black;
             font-family: 'Courier New', monospace;
             color: #00ff00;
             line-height: 1.2;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .scroll-container {
+            height: 100vh;
+            overflow-y: auto;
+            padding: 20px;
+            padding-right: 10px;
+            box-sizing: border-box;
+        }
+
+        /* Custom scrollbar for terminal look */
+        .scroll-container::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        .scroll-container::-webkit-scrollbar-track {
+            background: #001100;
+            border-left: 1px solid #00ff00;
+        }
+
+        .scroll-container::-webkit-scrollbar-thumb {
+            background: #00aa00;
+            border-radius: 2px;
+        }
+
+        .scroll-container::-webkit-scrollbar-thumb:hover {
+            background: #00ff00;
         }
 
         .terminal-text {
@@ -67,48 +96,62 @@
     </style>
 </head>
 <body>
-    <div id="content">
-        <h1 class="terminal-text">--------------------------------</h1>
-        <h1 class="terminal-text">WORK EXPERIENCE</h1>
-        <h1 class="terminal-text">--------------------------------</h1>
-        
-        <h2 class="terminal-text">Apex Systems</h2>
-        <h3 class="terminal-text">Java Engineer</h3>
-        <p class="terminal-text">Remote | June 2024 - Present</p>
-        <p class="terminal-text">• Architects and implements enterprise-scale Java solutions for Fortune 500 healthcare clients</p>
-        <p class="terminal-text">• Established comprehensive development standards improving code quality by 40%</p>
-        <p class="terminal-text">• Spearheads client integration with SailPoint identity management platform</p>
-        <p class="terminal-text">• Mentors engineering teams on test-driven development, achieving 95% code coverage</p>
-        
-        <h2 class="terminal-text">Northwestern Mutual</h2>
-        <h3 class="terminal-text">Software Engineer II</h3>
-        <p class="terminal-text">Franklin, WI | 2023 - June 2024</p>
-        <p class="terminal-text">• Pioneered AI-driven healthcare payment matching system processing $50M+ annually</p>
-        <p class="terminal-text">• Led development of mission-critical document processing service handling 100K+ transactions daily</p>
-        <p class="terminal-text">• Architected scalable microservices ecosystem with NoSQL backend supporting 1M+ users</p>
-        <p class="terminal-text">• Achieved 99.99% uptime across critical systems with zero production incidents</p>
-        
-        <h3 class="terminal-text">Software Engineer</h3>
-        <p class="terminal-text">2021 - 2023</p>
-        <p class="terminal-text">• Modernized legacy mainframe systems reducing processing time by 70%</p>
-        <p class="terminal-text">• Earned AWS certification and led cloud migration initiatives</p>
-        <p class="terminal-text">• Implemented comprehensive testing framework achieving 90% coverage across 50K+ lines of code</p>
-        
-        <h2 class="terminal-text">Quad Graphics</h2>
-        <h3 class="terminal-text">Business Analyst</h3>
-        <p class="terminal-text">Sussex, WI | 2014 - 2018</p>
-        <p class="terminal-text">• Orchestrated Agile transformation across 5 development teams</p>
-        <p class="terminal-text">• Revolutionized healthcare mailing system reducing client onboarding from 6 weeks to 5 days</p>
-        <p class="terminal-text">• Managed sensitive healthcare data for 10M+ patients with perfect compliance record</p>
+    <div class="scroll-container" id="scrollContainer">
+        <div id="content">
+            <h1 class="terminal-text">--------------------------------</h1>
+            <h1 class="terminal-text">WORK EXPERIENCE</h1>
+            <h1 class="terminal-text">--------------------------------</h1>
+            
+            <h2 class="terminal-text">Apex Systems</h2>
+            <h3 class="terminal-text">Java Engineer</h3>
+            <p class="terminal-text">Remote | June 2024 - Present</p>
+            <p class="terminal-text">• Architects and implements enterprise-scale Java solutions for Fortune 500 healthcare clients</p>
+            <p class="terminal-text">• Established comprehensive development standards improving code quality by 40%</p>
+            <p class="terminal-text">• Spearheads client integration with SailPoint identity management platform</p>
+            <p class="terminal-text">• Mentors engineering teams on test-driven development, achieving 95% code coverage</p>
+            
+            <h2 class="terminal-text">Northwestern Mutual</h2>
+            <h3 class="terminal-text">Software Engineer II</h3>
+            <p class="terminal-text">Franklin, WI | 2023 - June 2024</p>
+            <p class="terminal-text">• Pioneered AI-driven healthcare payment matching system processing $50M+ annually</p>
+            <p class="terminal-text">• Led development of mission-critical document processing service handling 100K+ transactions daily</p>
+            <p class="terminal-text">• Architected scalable microservices ecosystem with NoSQL backend supporting 1M+ users</p>
+            <p class="terminal-text">• Achieved 99.99% uptime across critical systems with zero production incidents</p>
+            
+            <h3 class="terminal-text">Software Engineer</h3>
+            <p class="terminal-text">2021 - 2023</p>
+            <p class="terminal-text">• Modernized legacy mainframe systems reducing processing time by 70%</p>
+            <p class="terminal-text">• Earned AWS certification and led cloud migration initiatives</p>
+            <p class="terminal-text">• Implemented comprehensive testing framework achieving 90% coverage across 50K+ lines of code</p>
+            
+            <h2 class="terminal-text">Quad Graphics</h2>
+            <h3 class="terminal-text">Business Analyst</h3>
+            <p class="terminal-text">Sussex, WI | 2014 - 2018</p>
+            <p class="terminal-text">• Orchestrated Agile transformation across 5 development teams</p>
+            <p class="terminal-text">• Revolutionized healthcare mailing system reducing client onboarding from 6 weeks to 5 days</p>
+            <p class="terminal-text">• Managed sensitive healthcare data for 10M+ patients with perfect compliance record</p>
+        </div>
     </div>
 
     <script>
         const CHARS_PER_SECOND = 150;
         const CURSOR = '█';
         let sessionIP = '';
+        let isAnimating = false;
+        let scrollContainer;
         
         function generateRandomIP() {
             return `172.${Math.floor(Math.random() * 16 + 16)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
+        }
+
+        function scrollToBottom(smooth = true) {
+            if (!scrollContainer) return;
+            
+            const scrollOptions = {
+                top: scrollContainer.scrollHeight,
+                behavior: smooth ? 'smooth' : 'auto'
+            };
+            scrollContainer.scrollTo(scrollOptions);
         }
 
         function typeText(element, text) {
@@ -120,10 +163,18 @@
                 const interval = setInterval(() => {
                     if (i < text.length) {
                         element.textContent = text.substring(0, i + 1) + CURSOR;
+                        // Auto-scroll to follow typing
+                        if (isAnimating) {
+                            scrollToBottom(false);
+                        }
                         i++;
                     } else {
                         element.textContent = text;
                         clearInterval(interval);
+                        // Final scroll after element is complete
+                        if (isAnimating) {
+                            scrollToBottom();
+                        }
                         setTimeout(resolve, 100);
                     }
                 }, 1000 / CHARS_PER_SECOND);
@@ -159,9 +210,15 @@
             commandLine.appendChild(cursorSpan);
             
             document.getElementById('content').appendChild(commandLine);
+            
+            // Scroll to show new command line
+            scrollToBottom();
         }
 
         function handleKeyPress(e) {
+            // Don't handle keys during animation
+            if (isAnimating) return;
+            
             const commandLine = document.querySelector('.command-line:last-child');
             if (!commandLine) return;
             
@@ -187,19 +244,53 @@
         }
 
         async function startAnimation() {
+            isAnimating = true;
             sessionIP = generateRandomIP();
             const textElements = document.querySelectorAll('.terminal-text');
             const originalTexts = Array.from(textElements).map(el => el.textContent);
+            
+            // Start from top
+            scrollContainer.scrollTop = 0;
             
             for (let i = 0; i < textElements.length; i++) {
                 await typeText(textElements[i], originalTexts[i]);
             }
             
+            isAnimating = false;
             createCommandLine();
         }
 
-        document.addEventListener('keydown', handleKeyPress);
-        window.addEventListener('load', startAnimation);
+        function initialize() {
+            scrollContainer = document.getElementById('scrollContainer');
+            
+            document.addEventListener('keydown', handleKeyPress);
+            
+            // Listen for messages from parent frame
+            window.addEventListener('message', (event) => {
+                if (event.data.type === 'visibility' && event.data.visible) {
+                    startAnimation();
+                } else if (event.data === 'resize' || event.data === 'extreme-resize') {
+                    // Handle resize if needed
+                }
+            });
+        }
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initialize);
+        } else {
+            initialize();
+        }
+
+        // Also trigger on window load as fallback
+        window.addEventListener('load', () => {
+            if (!isAnimating && !document.querySelector('.command-line')) {
+                startAnimation();
+            }
+        });
+
+        // Global function for external triggering
+        window.trigger_frame_animation = startAnimation;
     </script>
 </body>
 </html>
