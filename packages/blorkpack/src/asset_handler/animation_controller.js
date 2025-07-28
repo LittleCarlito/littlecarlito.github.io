@@ -5,6 +5,33 @@ import { AnimationAnalyzer } from './data/animation_analyzer.js';
 
 const ANIMATION_LOGS_ENABLED = false;
 
+function filterBadAnimationTracks(gltf) {
+    if (!gltf.animations || gltf.animations.length === 0) return;
+    
+    gltf.animations = gltf.animations.filter(animation => {
+        if (!animation.tracks) return false;
+        
+        animation.tracks = animation.tracks.filter(track => {
+            const trackName = track.name;
+            
+            if (trackName.includes('.morphTargetInfluences')) {
+                console.log(`Filtering out problematic track: ${trackName}`);
+                return false;
+            }
+            
+            return true;
+        });
+        
+        if (animation.tracks.length === 0) {
+            console.log(`Removing empty animation: ${animation.name}`);
+            return false;
+        }
+        
+        console.log(`Animation "${animation.name}" now has ${animation.tracks.length} tracks`);
+        return true;
+    });
+}
+
 export class AnimationController {
 	static #instance = null;
 	static #disposed = false;
@@ -43,6 +70,9 @@ export class AnimationController {
 			
 			if (storage.cached_models && storage.cached_models.has(customTypeKey)) {
 				const gltfData = storage.cached_models.get(customTypeKey);
+				
+				filterBadAnimationTracks(gltfData);
+				
 				const animationAnalysis = this.animationAnalyzer.analyze(gltfData, assetType);
 				
 				if (animationAnalysis.hasAnimations) {
@@ -113,7 +143,8 @@ export class AnimationController {
 			actions: actions,
 			mesh: spawnResult.mesh,
 			currentAnimationIndex: 0,
-			isPlaying: false
+			isPlaying: false,
+			onFinishedListener: null
 		};
 
 		this.startNextAnimation(animationState);
@@ -180,6 +211,10 @@ export class AnimationController {
 
 		const currentAction = animationState.actions[animationState.currentAnimationIndex];
 		
+		if (animationState.onFinishedListener) {
+			animationState.mixer.removeEventListener('finished', animationState.onFinishedListener);
+		}
+		
 		const onAnimationFinished = () => {
 			if (ANIMATION_LOGS_ENABLED) {
 				console.log(`[AnimationController] 🔄 Animation ${animationState.currentAnimationIndex} finished, moving to next`);
@@ -196,6 +231,7 @@ export class AnimationController {
 			this.startNextAnimation(animationState);
 		};
 
+		animationState.onFinishedListener = onAnimationFinished;
 		currentAction.reset();
 		currentAction.play();
 		animationState.isPlaying = true;
@@ -254,6 +290,9 @@ export class AnimationController {
 		if (this.animationMixers.has(instanceId)) {
 			const animationData = this.animationMixers.get(instanceId);
 			if (animationData.mixer) {
+				if (animationData.onFinishedListener) {
+					animationData.mixer.removeEventListener('finished', animationData.onFinishedListener);
+				}
 				animationData.mixer.stopAllAction();
 			}
 			this.animationMixers.delete(instanceId);
@@ -266,6 +305,9 @@ export class AnimationController {
 	cleanup() {
 		this.animationMixers.forEach((animationData, instanceId) => {
 			if (animationData.mixer) {
+				if (animationData.onFinishedListener) {
+					animationData.mixer.removeEventListener('finished', animationData.onFinishedListener);
+				}
 				animationData.mixer.stopAllAction();
 			}
 		});
