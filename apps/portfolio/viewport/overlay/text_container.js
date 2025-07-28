@@ -408,9 +408,8 @@ export class TextContainer {
 				}
 
 				const currentCss3dFrames = this.getCss3dFramesForCategory(currentCategory);
-				if (currentCategory !== CATEGORIES.PROJECTS.value) {
-					currentCss3dFrames.forEach(frame => frame.reset());
-				}
+				// FIXED: Don't reset any frames, just hide them
+				currentCss3dFrames.forEach(frame => frame.hide());
 
 				this.lose_focus_text_box(SOUTH);
 			}
@@ -433,8 +432,15 @@ export class TextContainer {
 					css3dFrames.forEach(frame => frame.play());
 					this.projects_frames_played = true;
 				}
-			} else if (category !== CATEGORIES.PROJECTS.value) {
-				css3dFrames.forEach(frame => frame.play());
+			} else {
+				css3dFrames.forEach(frame => {
+					// Show the frame first, then play if needed
+					frame.show();
+					// Only play if the frame is not already playing/loaded
+					if (!frame.isPlaying) {
+						frame.play();
+					}
+				});
 			}
 
 			if (frame && frame.iframe && frame.iframe.contentWindow) {
@@ -557,9 +563,8 @@ export class TextContainer {
 				}
 
 				const css3dFrames = this.getCss3dFramesForCategory(category);
-				if (category !== CATEGORIES.PROJECTS.value) {
-					css3dFrames.forEach(frame => frame.reset());
-				}
+				// FIXED: Don't reset any frames, just hide them
+				css3dFrames.forEach(frame => frame.hide());
 
 				if (move_direction == "") {
 					existing_focus_box.position.x = get_associated_position(WEST, this.camera);
