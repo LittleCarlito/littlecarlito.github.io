@@ -67,9 +67,7 @@ export class LabelContainer {
 			outerTextMesh.material.depthWrite = false;
 			outerTextMesh.material.transparent = true;
 			
-			const fontPath = window.location.hostname === 'littlecarlito.github.io' 
-				? '/littlecarlito.github.io/fonts/russo-one.woff'
-				: '/fonts/russo-one.woff';
+			const fontPath = '/fonts/russo-one.woff';
 			outerTextMesh.font = fontPath;
 
 			const textMesh = new Text();
