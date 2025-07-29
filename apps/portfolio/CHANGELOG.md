@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.50.2 (2025-07-29)</small>
+
+- refactor(portfolio): link paths ([86b49e3](https://github.com/littlecarlito/threejs_site/commit/86b49e3))
+- fix: more bad paths ([b97110e](https://github.com/littlecarlito/threejs_site/commit/b97110e))
+
 ## <small>0.50.1 (2025-07-28)</small>
 
 - fix: correcting repo name to root ([4652f6f](https://github.com/littlecarlito/threejs_site/commit/4652f6f))
