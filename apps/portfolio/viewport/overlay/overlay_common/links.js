@@ -1,7 +1,7 @@
 export const LINKS = {
 	GITHUB: {
 		value: "github",
-		url: "https://github.com/blooooork",
+		url: "https://github.com/LittleCarlito/",
 		icon_path: "links/github_link.svg"
 	},
 	TWITCH: {
@@ -11,7 +11,7 @@ export const LINKS = {
 	},
 	LINKEDIN: {
 		value: "linkedin",
-		url: "https://www.linkedin.com/in/meiersteven",
+		url: "https://www.linkedin.com/in/meiersteven/",
 		icon_path: "links/linkedin_link.svg"
 	},
 	TIKTOK: {
