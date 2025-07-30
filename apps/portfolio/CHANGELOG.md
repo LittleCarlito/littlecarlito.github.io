@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.50.5 (2025-07-30)</small>
+
+**Note:** Version bump only for package @littlecarlito/portfolio
+
 ## <small>0.50.4 (2025-07-30)</small>
 
 - fix(portfolio): concurrent loading ([b22d754](https://github.com/littlecarlito/threejs_site/commit/b22d754))
