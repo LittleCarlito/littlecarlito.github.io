@@ -3,20 +3,20 @@ import { THREE, RAPIER } from '../common';
 const SIMPLE_FLOOR_WIDTH = 15;
 const SIMPLE_FLOOR_HEIGHT = 0.5;
 const SIMPLE_FLOOR_DEPTH = 15;
-const SIMPLE_FLOOR_X = 0;
-const SIMPLE_FLOOR_Y = -10.25;
-const SIMPLE_FLOOR_Z = 0;
 
 export class SimpleFloorRectangle {
-	constructor(world, parent) {
+	constructor(world, parent, config = {}) {
 		this.world = world;
 		this.parent = parent;
-		this.width = SIMPLE_FLOOR_WIDTH;
-		this.height = SIMPLE_FLOOR_HEIGHT;
-		this.depth = SIMPLE_FLOOR_DEPTH;
-		this.x = SIMPLE_FLOOR_X;
-		this.y = SIMPLE_FLOOR_Y;
-		this.z = SIMPLE_FLOOR_Z;
+		this.width = config.width || SIMPLE_FLOOR_WIDTH;
+		this.height = config.height || SIMPLE_FLOOR_HEIGHT;
+		this.depth = config.depth || SIMPLE_FLOOR_DEPTH;
+		this.x = config.x || 0;
+		this.y = config.y || -10.25;
+		this.z = config.z || 0;
+		this.rotation = config.rotation || { x: 0, y: 0, z: 0 };
+		this.debugColor = config.debugColor || 0xff0000;
+		this.name = config.name || "SimpleFloor";
 		
 		this.mesh = null;
 		this.body = null;
@@ -24,14 +24,13 @@ export class SimpleFloorRectangle {
 		this.transparentMaterial = null;
 		this.debugMaterial = null;
 		
-		console.log(`SimpleFloorRectangle: Creating floor at position (${this.x}, ${this.y}, ${this.z})`);
+		console.log(`SimpleFloorRectangle: Creating floor "${this.name}" at position (${this.x}, ${this.y}, ${this.z})`);
 		this.createFloor();
 	}
 	
 	createFloor() {
 		const geometry = new THREE.BoxGeometry(this.width, this.height, this.depth);
 		
-		// Create transparent material (default)
 		this.transparentMaterial = new THREE.MeshStandardMaterial({ 
 			color: 0xffffff,
 			transparent: true,
@@ -40,35 +39,34 @@ export class SimpleFloorRectangle {
 			metalness: 0.2
 		});
 		
-		// Create debug material (red for collision visualization)
 		this.debugMaterial = new THREE.MeshStandardMaterial({ 
-			color: 0xff0000,
+			color: this.debugColor,
 			transparent: false,
 			opacity: 1.0,
 			roughness: 0.8,
 			metalness: 0.2
 		});
 		
-		this.mesh = new THREE.Mesh(geometry, this.transparentMaterial);
+		this.mesh = new THREE.Mesh(geometry, this.debugMaterial);
 		this.mesh.position.set(this.x, this.y, this.z);
-		this.mesh.name = "SimpleFloor";
+		this.mesh.rotation.set(this.rotation.x, this.rotation.y, this.rotation.z);
+		this.mesh.name = this.name;
 		this.mesh.receiveShadow = true;
+		this.mesh.visible = false;
 		
-		// Add collision wireframe methods to userData
 		this.mesh.userData.enableCollisionWireframes = () => {
+			this.mesh.visible = true;
 			this.mesh.material = this.debugMaterial;
 			this.mesh.material.needsUpdate = true;
 		};
 		
 		this.mesh.userData.disableCollisionWireframes = () => {
-			this.mesh.material = this.transparentMaterial;
-			this.mesh.material.needsUpdate = true;
+			this.mesh.visible = false;
 		};
 		
-		// Mark this mesh as having collision wireframes
 		this.mesh.userData.collisionWireframes = true;
 		
-		console.log(`SimpleFloorRectangle: Mesh positioned at (${this.mesh.position.x}, ${this.mesh.position.y}, ${this.mesh.position.z})`);
+		console.log(`SimpleFloorRectangle: Mesh "${this.name}" positioned at (${this.mesh.position.x}, ${this.mesh.position.y}, ${this.mesh.position.z})`);
 		
 		this.parent.add(this.mesh);
 		
@@ -79,10 +77,13 @@ export class SimpleFloorRectangle {
 	
 	createPhysicsBody() {
 		const worldPosition = new THREE.Vector3();
+		const worldQuaternion = new THREE.Quaternion();
 		this.mesh.getWorldPosition(worldPosition);
+		this.mesh.getWorldQuaternion(worldQuaternion);
 		
 		const bodyDesc = RAPIER.RigidBodyDesc.fixed();
 		bodyDesc.setTranslation(worldPosition.x, worldPosition.y, worldPosition.z);
+		bodyDesc.setRotation(worldQuaternion);
 		this.body = this.world.createRigidBody(bodyDesc);
 		
 		const colliderDesc = RAPIER.ColliderDesc.cuboid(
@@ -97,8 +98,8 @@ export class SimpleFloorRectangle {
 		this.collider = this.world.createCollider(colliderDesc, this.body);
 		
 		const bodyPos = this.body.translation();
-		console.log(`SimpleFloorRectangle: Physics body positioned at (${bodyPos.x}, ${bodyPos.y}, ${bodyPos.z})`);
-		console.log(`Created simple floor: ${SIMPLE_FLOOR_WIDTH}x${SIMPLE_FLOOR_HEIGHT}x${SIMPLE_FLOOR_DEPTH} at (${SIMPLE_FLOOR_X}, ${SIMPLE_FLOOR_Y}, ${SIMPLE_FLOOR_Z})`);
+		console.log(`SimpleFloorRectangle: Physics body "${this.name}" positioned at (${bodyPos.x}, ${bodyPos.y}, ${bodyPos.z})`);
+		console.log(`Created floor "${this.name}": ${this.width}x${this.height}x${this.depth} at (${this.x}, ${this.y}, ${this.z})`);
 	}
 	
 	dispose() {

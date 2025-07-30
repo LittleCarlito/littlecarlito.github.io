@@ -2,6 +2,27 @@ import * as THREE from 'three';
 import { CSS3DRenderer, CSS3DObject } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 import { MaterialFactory } from './material_factory';
 
+// Reusable objects to prevent allocations - initialized when needed
+let tempVector3;
+let tempQuaternion;
+let tempEuler;
+let tempMatrix4;
+let tempVector3_2;
+let tempVector3_3;
+let tempVector3_4;
+let tempBox3;
+
+function initializeTempObjects() {
+    tempVector3 = new THREE.Vector3();
+    tempQuaternion = new THREE.Quaternion();
+    tempEuler = new THREE.Euler();
+    tempMatrix4 = new THREE.Matrix4();
+    tempVector3_2 = new THREE.Vector3();
+    tempVector3_3 = new THREE.Vector3();
+    tempVector3_4 = new THREE.Vector3();
+    tempBox3 = new THREE.Box3();
+}
+
 export class CSS3DFactory {
     constructor() {
         this.css3dRenderer = null;
@@ -13,6 +34,18 @@ export class CSS3DFactory {
         this.materialFactory = new MaterialFactory();
         this.debugMode = false;
         this.useExternalAnimationLoop = false;
+        // Cache for frequently accessed values
+        this.transformCache = new Map();
+        this.dimensionCache = new Map();
+        this.lastUpdateTimes = new Map();
+        this.tempObjectsInitialized = false;
+    }
+
+    ensureTempObjectsInitialized() {
+        if (!this.tempObjectsInitialized && typeof THREE !== 'undefined') {
+            initializeTempObjects();
+            this.tempObjectsInitialized = true;
+        }
     }
 
     setDebugMode(enabled) {
@@ -95,8 +128,19 @@ export class CSS3DFactory {
     }
 
     calculateDisplayMeshDimensions(mesh) {
+        this.ensureTempObjectsInitialized();
+        
         if (!mesh || !mesh.geometry) {
             throw new Error('Display mesh or geometry not found');
+        }
+        
+        // Check cache first
+        const cacheKey = mesh.uuid;
+        const lastUpdate = this.lastUpdateTimes.get(cacheKey);
+        const currentTime = performance.now();
+        
+        if (lastUpdate && (currentTime - lastUpdate < 16) && this.dimensionCache.has(cacheKey)) {
+            return this.dimensionCache.get(cacheKey);
         }
         
         const geometry = mesh.geometry;
@@ -107,10 +151,10 @@ export class CSS3DFactory {
         }
         
         geometry.computeBoundingBox();
-        const localSize = geometry.boundingBox.getSize(new THREE.Vector3());
+        const localSize = geometry.boundingBox.getSize(tempVector3);
         
-        const worldScale = mesh.getWorldScale(new THREE.Vector3());
-        const worldSize = localSize.clone().multiply(worldScale);
+        mesh.getWorldScale(tempVector3_2);
+        const worldSize = tempVector3_3.copy(localSize).multiply(tempVector3_2);
         
         const dimensions = [
             { size: worldSize.x, axis: 'x' },
@@ -132,15 +176,23 @@ export class CSS3DFactory {
             faceHeight = dimensions[1].size;
         }
         
-        return { 
+        const result = { 
             width: Math.max(50, faceWidth * 1000),
             height: Math.max(50, faceHeight * 1000),
             realWidth: faceWidth,
             realHeight: faceHeight
         };
+        
+        // Cache the result
+        this.dimensionCache.set(cacheKey, result);
+        this.lastUpdateTimes.set(cacheKey, currentTime);
+        
+        return result;
     }
 
     calculateMeshTransform(mesh, offsetDistance = 0.001) {
+        this.ensureTempObjectsInitialized();
+        
         if (!mesh || !mesh.geometry) {
             return {
                 position: new THREE.Vector3(0, 0, 0),
@@ -149,22 +201,25 @@ export class CSS3DFactory {
             };
         }
 
+        // Check cache first
+        const cacheKey = mesh.uuid;
+        const lastUpdate = this.lastUpdateTimes.get(cacheKey + '_transform');
+        const currentTime = performance.now();
+        
+        if (lastUpdate && (currentTime - lastUpdate < 16) && this.transformCache.has(cacheKey)) {
+            return this.transformCache.get(cacheKey);
+        }
+
         const geometry = mesh.geometry;
         if (!geometry.boundingBox) {
             geometry.computeBoundingBox();
         }
         
-        const center = new THREE.Vector3();
-        geometry.boundingBox.getCenter(center);
-        mesh.localToWorld(center);
+        geometry.boundingBox.getCenter(tempVector3);
+        mesh.localToWorld(tempVector3);
 
-        const meshMatrix = mesh.matrixWorld.clone();
-        
-        const position = new THREE.Vector3();
-        const quaternion = new THREE.Quaternion();
-        const scale = new THREE.Vector3();
-        
-        meshMatrix.decompose(position, quaternion, scale);
+        tempMatrix4.copy(mesh.matrixWorld);
+        tempMatrix4.decompose(tempVector3_2, tempQuaternion, tempVector3_3);
         
         const box = geometry.boundingBox;
         const width = box.max.x - box.min.x;
@@ -188,19 +243,19 @@ export class CSS3DFactory {
         
         const isAboutSection = this.isAboutSectionFrame(mesh);
         
-        let correctionRotation = new THREE.Quaternion();
+        let correctionRotation = tempQuaternion.identity();
         
         if (thinAxis === 'z') {
             if (isAboutSection) {
-                correctionRotation.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+                correctionRotation.setFromAxisAngle(tempVector3_4.set(0, 1, 0), Math.PI);
             } else {
                 correctionRotation.identity();
             }
         } else if (thinAxis === 'y') {
-            correctionRotation.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+            correctionRotation.setFromAxisAngle(tempVector3_4.set(1, 0, 0), -Math.PI / 2);
             
             if (isAboutSection) {
-                const faceAwayRotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+                const faceAwayRotation = new THREE.Quaternion().setFromAxisAngle(tempVector3_4.set(0, 1, 0), Math.PI);
                 correctionRotation.multiply(faceAwayRotation);
             } else {
                 if (mesh.name && mesh.name.toLowerCase().includes('display_')) {
@@ -215,26 +270,32 @@ export class CSS3DFactory {
                     }
                     
                     if (isTablet) {
-                        const flipRotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI);
+                        const flipRotation = new THREE.Quaternion().setFromAxisAngle(tempVector3_4.set(0, 0, 1), Math.PI);
                         correctionRotation.multiply(flipRotation);
                     }
                 }
             }
         } else if (thinAxis === 'x') {
             if (isAboutSection) {
-                correctionRotation.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2);
+                correctionRotation.setFromAxisAngle(tempVector3_4.set(0, 1, 0), -Math.PI / 2);
             } else {
-                correctionRotation.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
+                correctionRotation.setFromAxisAngle(tempVector3_4.set(0, 1, 0), Math.PI / 2);
             }
         }
         
-        const finalQuaternion = quaternion.clone().multiply(correctionRotation);
+        const finalQuaternion = new THREE.Quaternion().copy(tempQuaternion).multiply(correctionRotation);
 
-        return {
-            position: center,
-            rotation: new THREE.Euler().setFromQuaternion(finalQuaternion),
-            quaternion: finalQuaternion
+        const result = {
+            position: tempVector3.clone(),
+            rotation: tempEuler.setFromQuaternion(finalQuaternion),
+            quaternion: finalQuaternion.clone()
         };
+        
+        // Cache the result
+        this.transformCache.set(cacheKey, result);
+        this.lastUpdateTimes.set(cacheKey + '_transform', currentTime);
+
+        return result;
     }
 
     isAboutSectionFrame(mesh) {
@@ -313,6 +374,15 @@ export class CSS3DFactory {
         if (!frameTracker) return;
         
         console.log(`🗑️ Disposing CSS3D frame: ${frameTracker.frameId}`);
+        
+        // Clear cache entries
+        if (frameTracker.mesh) {
+            const cacheKey = frameTracker.mesh.uuid;
+            this.transformCache.delete(cacheKey);
+            this.dimensionCache.delete(cacheKey);
+            this.lastUpdateTimes.delete(cacheKey);
+            this.lastUpdateTimes.delete(cacheKey + '_transform');
+        }
         
         // Clear iframe content first
         if (frameTracker.frame && frameTracker.frame.element) {
@@ -817,6 +887,11 @@ export class CSS3DFactory {
         
         // Clear frames array
         this.frames.length = 0;
+        
+        // Clear all caches
+        this.transformCache.clear();
+        this.dimensionCache.clear();
+        this.lastUpdateTimes.clear();
         
         // Dispose CSS3D renderer and its DOM element
         if (this.css3dRenderer) {

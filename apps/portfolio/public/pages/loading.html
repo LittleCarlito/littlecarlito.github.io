@@ -1,7 +1,24 @@
 <div id="loading-screen">
-    <div class="loading-spinner"></div>
-    <div id="loading-progress">Loading assets...</div>
+    <div class="loading-content">
+        <h1 class="loading-title">LOADING</h1>
+        <div class="loading-spinner-container">
+            <div class="atomic-spinner">
+                <div class="nucleus"></div>
+                <div class="electron-orbit">
+                    <div class="electron"></div>
+                </div>
+                <div class="electron-orbit">
+                    <div class="electron"></div>
+                </div>
+                <div class="electron-orbit">
+                    <div class="electron"></div>
+                </div>
+            </div>
+        </div>
+        <div id="loading-progress" class="loading-progress-text">Loading assets...</div>
+    </div>
 </div>
+
 <style>
     #loading-screen {
         position: fixed;
@@ -9,26 +26,218 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: #000000;
+        background-color: #0a0a0a;
         display: flex;
-        flex-direction: column;
         justify-content: center;
         align-items: center;
         z-index: 9999;
-        color: white;
-        font-family: Arial, sans-serif;
+        opacity: 1;
+        transition: opacity 0.5s ease-in-out;
+        overflow: hidden;
+        font-family: monospace;
     }
-    .loading-spinner {
-        width: 50px;
-        height: 50px;
-        border: 5px solid #f3f3f3;
-        border-top: 5px solid #3498db;
+
+    #loading-screen.fade-out {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .loading-content {
+        text-align: center;
+        color: #2ecc71;
+        font-family: 'Courier New', monospace;
+        position: relative;
+        width: 100%;
+        max-width: 600px;
+        padding: 2rem;
+    }
+
+    .loading-title {
+        margin-bottom: 30px;
+        letter-spacing: 3px;
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #2ecc71;
+        text-transform: uppercase;
+        text-shadow: 0 0 10px rgba(46, 204, 113, 0.7);
+    }
+
+    .loading-spinner-container {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        margin: 30px auto;
+    }
+
+    .atomic-spinner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+    }
+
+    .nucleus {
+        position: absolute;
+        width: 30px;
+        height: 30px;
+        background-color: #2ecc71;
         border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin-bottom: 20px;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        box-shadow: 0 0 15px #2ecc71;
     }
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+
+    .electron-orbit {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: 1px dashed rgba(46, 204, 113, 0.3);
+        border-radius: 50%;
+        animation: rotate 4s linear infinite;
     }
-</style> 
+
+    .electron-orbit:nth-child(2) {
+        width: 90%;
+        height: 90%;
+        top: 5%;
+        left: 5%;
+        animation-duration: 3s;
+        transform: rotate(60deg);
+    }
+
+    .electron-orbit:nth-child(3) {
+        width: 80%;
+        height: 80%;
+        top: 10%;
+        left: 10%;
+        animation-duration: 5s;
+        transform: rotate(120deg);
+    }
+
+    .electron-orbit:nth-child(4) {
+        width: 70%;
+        height: 70%;
+        top: 15%;
+        left: 15%;
+        animation-duration: 6s;
+        transform: rotate(180deg);
+    }
+
+    .electron {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        background-color: #2ecc71;
+        border-radius: 50%;
+        box-shadow: 0 0 10px #2ecc71;
+    }
+
+    .electron-orbit:nth-child(1) .electron {
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .electron-orbit:nth-child(2) .electron {
+        top: 50%;
+        left: 0;
+        transform: translateY(-50%);
+    }
+
+    .electron-orbit:nth-child(3) .electron {
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .electron-orbit:nth-child(4) .electron {
+        top: 50%;
+        right: 0;
+        transform: translateY(-50%);
+    }
+
+    .loading-progress-text {
+        margin-top: 20px;
+        font-size: 16px;
+        color: #2ecc71;
+        letter-spacing: 1px;
+        font-family: 'Courier New', monospace;
+        position: relative;
+        min-height: 24px;
+    }
+
+    .loading-progress-text::after {
+        content: "_";
+        animation: blink 1s step-end infinite;
+    }
+
+    @keyframes rotate {
+        0% { transform: rotateZ(0deg); }
+        100% { transform: rotateZ(360deg); }
+    }
+
+    @keyframes rotate60 {
+        0% { transform: rotate(60deg) rotateZ(0deg); }
+        100% { transform: rotate(60deg) rotateZ(360deg); }
+    }
+
+    @keyframes rotate120 {
+        0% { transform: rotate(120deg) rotateZ(0deg); }
+        100% { transform: rotate(120deg) rotateZ(360deg); }
+    }
+
+    @keyframes rotate180 {
+        0% { transform: rotate(180deg) rotateZ(0deg); }
+        100% { transform: rotate(180deg) rotateZ(360deg); }
+    }
+
+    .electron-orbit:nth-child(2) {
+        animation-name: rotate60;
+    }
+
+    .electron-orbit:nth-child(3) {
+        animation-name: rotate120;
+    }
+
+    .electron-orbit:nth-child(4) {
+        animation-name: rotate180;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0; }
+    }
+
+    @media (max-width: 768px) {
+        .loading-title {
+            font-size: 2rem;
+            letter-spacing: 2px;
+        }
+        
+        .loading-spinner-container {
+            width: 80px;
+            height: 80px;
+        }
+        
+        .nucleus {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .electron {
+            width: 8px;
+            height: 8px;
+        }
+        
+        .loading-progress-text {
+            font-size: 14px;
+        }
+    }
+</style>

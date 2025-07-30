@@ -40,12 +40,35 @@ if (import.meta.hot) {
 	});
 }
 
+let tempVector3;
+let tempQuaternion;
+let tempEuler;
+let tempMatrix4;
+let tempVector3_2;
+let tempVector3_3;
+
 let is_cleaned_up = false;
 let is_physics_paused = false;
 let interactionManager = null;
 let memoryAnalyzer = null;
 let isPageVisible = !document.hidden;
 let backgroundAnimationFrameId = null;
+let lastFrameTime = 0;
+let frameCount = 0;
+
+let performanceTracking = {
+	enabled: false,
+	times: {}
+};
+
+function initializeTempObjects() {
+	tempVector3 = new THREE.Vector3();
+	tempQuaternion = new THREE.Quaternion();
+	tempEuler = new THREE.Euler();
+	tempMatrix4 = new THREE.Matrix4();
+	tempVector3_2 = new THREE.Vector3();
+	tempVector3_3 = new THREE.Vector3();
+}
 
 async function setup_scene_background() {
 	await SceneSetupHelper.setup_background(window.scene, window.manifest_manager, update_loading_progress);
@@ -204,7 +227,6 @@ function startBackgroundAnimation() {
 				window.css3dFactory.update();
 			}
 			
-			// Render at reduced frequency (every 10th call)
 			if (Math.random() < 0.1) {
 				window.app_renderer.render();
 			}
@@ -216,6 +238,77 @@ function startBackgroundAnimation() {
 	backgroundAnimationFrameId = requestAnimationFrame(animateBackground);
 }
 
+// Optimized parallel loading functions
+async function loadCoreSystemsParallel() {
+	const corePromises = [
+		initThree().then(() => {
+			initializeTempObjects();
+			return 'Three.js initialized';
+		}),
+		initRapier().then(() => 'Rapier initialized'),
+		initPhysicsUtil().then(() => 'Physics utilities initialized'),
+		CustomTypeManager.loadCustomTypes('custom_types.json').then(() => 'Custom types loaded')
+	];
+	
+	const results = await Promise.all(corePromises);
+	results.forEach(result => update_loading_progress(result));
+}
+
+async function loadManifestAndSetupScene() {
+	window.manifest_manager = ManifestManager.get_instance();
+	await window.manifest_manager.load_manifest();
+	
+	if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
+		console.log("Manifest loaded:", window.manifest_manager.get_manifest());
+	}
+	
+	window.scene = new THREE.Scene();
+	setSceneReference(window.scene);
+	setup_physics_world();
+	window.asset_handler = AssetHandler.get_instance(window.scene, window.world);
+	window.clock = new THREE.Clock();
+}
+
+async function loadAssetsParallel() {
+	update_loading_progress('Loading assets in parallel...');
+	
+	const assetPromises = [
+		setup_scene_background(),
+		setup_scene_lighting(),
+		window.asset_handler.spawn_manifest_assets(window.manifest_manager, (text) => {
+			console.log('Manifest assets:', text);
+		})
+	];
+	
+	const [backgroundResult, lightingResult, manifestAssets] = await Promise.all(assetPromises);
+	
+	if (BLORKPACK_FLAGS.ASSET_LOGS) {
+		console.log('Loaded assets:', manifestAssets);
+	}
+	
+	return manifestAssets;
+}
+
+async function waitForBackgroundAssetsOptimized() {
+	update_loading_progress('Finalizing scene assets...');
+	
+	return new Promise(async (resolve) => {
+		const checkAssetsLoaded = async () => {
+			const isComplete = await window.background_container.is_loading_complete();
+			if (isComplete) {
+				if (BLORKPACK_FLAGS.ASSET_LOGS) {
+					console.log('All assets loaded:', Array.from(window.background_container.get_asset_manifest()));
+				}
+				resolve();
+			} else {
+				// Reduced polling interval for faster response
+				setTimeout(checkAssetsLoaded, 50);
+			}
+		};
+		await checkAssetsLoaded();
+	});
+}
+
 async function init() {
 	interactionManager = InteractionManager.getInstance();
 	memoryAnalyzer = new MemoryAnalyzer();
@@ -223,45 +316,16 @@ async function init() {
 	try {
 		await show_loading_screen();
 		
-		update_loading_progress('Loading Three.js...');
-		await initThree();
+		// Phase 1: Load core systems in parallel
+		update_loading_progress('Initializing core systems...');
+		await loadCoreSystemsParallel();
 		
-		update_loading_progress('Loading Rapier Physics...');
-		await initRapier();
+		// Phase 2: Load manifest and setup scene (must be sequential)
+		update_loading_progress('Loading manifest and setting up scene...');
+		await loadManifestAndSetupScene();
 		
-		update_loading_progress('Initializing physics utilities...');
-		await initPhysicsUtil();
-		
-		update_loading_progress('Loading custom asset types...');
-		const customTypesPath = 'custom_types.json';
-		await CustomTypeManager.loadCustomTypes(customTypesPath);
-		
-		update_loading_progress('Initializing scene...');
+		// Phase 3: Create containers early
 		AssetStorage.get_instance();
-		
-		update_loading_progress("Loading manifest...");
-		window.manifest_manager = ManifestManager.get_instance();
-		await window.manifest_manager.load_manifest();
-		
-		if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
-			console.log("Manifest loaded:", window.manifest_manager.get_manifest());
-		}
-		
-		window.scene = new THREE.Scene();
-
-		setSceneReference(window.scene);
-		
-		update_loading_progress('Setting up scene background...');
-		await setup_scene_background();
-		
-		update_loading_progress('Initializing physics world...');
-		setup_physics_world();
-		
-		window.asset_handler = AssetHandler.get_instance(window.scene, window.world);
-		window.clock = new THREE.Clock();
-		
-		update_loading_progress('Creating UI components...');
-		await setup_scene_lighting();
 		
 		const customTypeManager = CustomTypeManager.getInstance();
 		if (!customTypeManager.hasLoadedCustomTypes()) {
@@ -269,45 +333,34 @@ async function init() {
 			await new Promise(resolve => setTimeout(resolve, 100));
 		}
 		
+		update_loading_progress('Creating UI components...');
 		window.viewable_container = new ViewableContainer(window);
-		
 		window.app_renderer = new AppRenderer(window.scene, window.viewable_container.get_camera());
 		window.renderer = window.app_renderer.get_renderer();
 		
-		await interactionManager.startListening(window);
+		// Phase 4: Setup interaction and background container in parallel
+		const setupPromises = [
+			interactionManager.startListening(window),
+			(async () => {
+				window.background_container = new BackgroundContainer(window.scene, window.viewable_container.get_camera(), window.world);
+				return 'Background container created';
+			})()
+		];
+		
+		await Promise.all(setupPromises);
+		
+		// Phase 5: Load all assets in parallel
+		await loadAssetsParallel();
+		
+		// Phase 6: Wait for background assets with optimized polling
+		await waitForBackgroundAssetsOptimized();
+		
+		// Phase 7: Final setup
+		hide_loading_screen();
+		
 		window.addEventListener('keydown', toggle_debug_ui);
 		window.addEventListener('unload', cleanup);
 		document.addEventListener('visibilitychange', handleVisibilityChange);
-		
-		update_loading_progress('Loading background assets...');
-		window.background_container = new BackgroundContainer(window.scene, window.viewable_container.get_camera(), window.world);
-		
-		update_loading_progress('Loading assets...');
-		const spawned_assets = await window.asset_handler.spawn_manifest_assets(window.manifest_manager, update_loading_progress);
-		if (BLORKPACK_FLAGS.ASSET_LOGS) {
-			console.log('Loaded assets:', spawned_assets);
-		}
-		
-		update_loading_progress('Loading scene assets...');
-		await new Promise(async (resolve) => {
-			const checkAssetsLoaded = async () => {
-				const isComplete = await window.background_container.is_loading_complete();
-				if (isComplete) {
-					if (BLORKPACK_FLAGS.ASSET_LOGS) {
-						console.log('All assets loaded:', Array.from(window.background_container.get_asset_manifest()));
-					}
-					resolve();
-				} else {
-					if (BLORKPACK_FLAGS.ASSET_LOGS) {
-						console.log('Waiting for assets to complete loading...');
-					}
-					setTimeout(checkAssetsLoaded, 100);
-				}
-			};
-			await checkAssetsLoaded();
-		});
-		
-		hide_loading_screen();
 		
 		memoryAnalyzer.initialize();
 		window.memoryAnalyzer = memoryAnalyzer;
@@ -429,7 +482,15 @@ function toggle_physics_pause() {
 window.toggle_physics_pause = toggle_physics_pause;
 
 function animate() {
-	const animateStart = performance.now();
+	frameCount++;
+	const currentTime = performance.now();
+	
+	const shouldTrackPerformance = FLAGS.PERFORMANCE_LOGS || (currentTime - lastFrameTime > 20);
+	
+	if (shouldTrackPerformance) {
+		performanceTracking.enabled = true;
+		performanceTracking.times.animateStart = currentTime;
+	}
 	
 	const delta = window.clock.getDelta();
 	updateTween();
@@ -463,26 +524,38 @@ function animate() {
 		translate_object(interactionManager.grabbed_object, window.viewable_container.get_camera());
 	}
 	
-	const physicsStart = performance.now();
+	if (shouldTrackPerformance) {
+		performanceTracking.times.physicsStart = performance.now();
+	}
+	
 	window.world.timestep = Math.min(delta, 0.1);
 	if (!is_physics_paused) {
 		window.world.step();
 	}
-	const physicsTime = performance.now() - physicsStart;
 	
-	const backgroundStart = performance.now();
+	if (shouldTrackPerformance) {
+		performanceTracking.times.physicsEnd = performance.now();
+		performanceTracking.times.backgroundStart = performance.now();
+	}
+	
 	if (window.background_container) {
 		window.background_container.update(interactionManager.grabbed_object, window.viewable_container, delta);
 	}
-	const backgroundTime = performance.now() - backgroundStart;
 	
-	const assetStart = performance.now();
+	if (shouldTrackPerformance) {
+		performanceTracking.times.backgroundEnd = performance.now();
+		performanceTracking.times.assetStart = performance.now();
+	}
+	
 	if (window.asset_handler) {
 		window.asset_handler.updateAnimations(delta);
 	}
-	const assetTime = performance.now() - assetStart;
 	
-	const storageStart = performance.now();
+	if (shouldTrackPerformance) {
+		performanceTracking.times.assetEnd = performance.now();
+		performanceTracking.times.storageStart = performance.now();
+	}
+	
 	if (AssetStorage.get_instance()) {
 		if (!is_physics_paused) {
 			AssetStorage.get_instance().update();
@@ -497,13 +570,19 @@ function animate() {
 			}
 		}
 	}
-	const storageTime = performance.now() - storageStart;
 	
-	const overlayStart = performance.now();
+	if (shouldTrackPerformance) {
+		performanceTracking.times.storageEnd = performance.now();
+		performanceTracking.times.overlayStart = performance.now();
+	}
+	
 	window.viewable_container.get_overlay().update_confetti();
-	const overlayTime = performance.now() - overlayStart;
 	
-	const rigStart = performance.now();
+	if (shouldTrackPerformance) {
+		performanceTracking.times.overlayEnd = performance.now();
+		performanceTracking.times.rigStart = performance.now();
+	}
+	
 	if (window.asset_handler) {
 		window.asset_handler.updateRigVisualizations();
 		window.asset_handler.update_visualizations();
@@ -511,31 +590,53 @@ function animate() {
 			window.asset_handler.update_debug_meshes();
 		}
 	}
-	const rigTime = performance.now() - rigStart;
 	
-	const css3dStart = performance.now();
+	if (shouldTrackPerformance) {
+		performanceTracking.times.rigEnd = performance.now();
+		performanceTracking.times.css3dStart = performance.now();
+	}
+	
 	if (window.css3dFactory) {
 		window.css3dFactory.update();
 	}
-	const css3dTime = performance.now() - css3dStart;
 	
-	const renderStart = performance.now();
-	window.app_renderer.render();
-	const renderTime = performance.now() - renderStart;
-	
-	const totalTime = performance.now() - animateStart;
-	
-	if (totalTime > 20) {
-		console.warn(`🐌 SLOW FRAME BREAKDOWN (${totalTime.toFixed(2)}ms total):`);
-		console.warn(`  Physics: ${physicsTime.toFixed(2)}ms`);
-		console.warn(`  Background: ${backgroundTime.toFixed(2)}ms`);
-		console.warn(`  Assets: ${assetTime.toFixed(2)}ms`);
-		console.warn(`  Storage: ${storageTime.toFixed(2)}ms`);
-		console.warn(`  Overlay: ${overlayTime.toFixed(2)}ms`);
-		console.warn(`  Rigs: ${rigTime.toFixed(2)}ms`);
-		console.warn(`  CSS3D: ${css3dTime.toFixed(2)}ms`);
-		console.warn(`  Render: ${renderTime.toFixed(2)}ms`);
+	if (shouldTrackPerformance) {
+		performanceTracking.times.css3dEnd = performance.now();
+		performanceTracking.times.renderStart = performance.now();
 	}
+	
+	window.app_renderer.render();
+	
+	if (shouldTrackPerformance) {
+		performanceTracking.times.renderEnd = performance.now();
+		
+		const totalTime = performanceTracking.times.renderEnd - performanceTracking.times.animateStart;
+		
+		if (totalTime > 20) {
+			const physicsTime = performanceTracking.times.physicsEnd - performanceTracking.times.physicsStart;
+			const backgroundTime = performanceTracking.times.backgroundEnd - performanceTracking.times.backgroundStart;
+			const assetTime = performanceTracking.times.assetEnd - performanceTracking.times.assetStart;
+			const storageTime = performanceTracking.times.storageEnd - performanceTracking.times.storageStart;
+			const overlayTime = performanceTracking.times.overlayEnd - performanceTracking.times.overlayStart;
+			const rigTime = performanceTracking.times.rigEnd - performanceTracking.times.rigStart;
+			const css3dTime = performanceTracking.times.css3dEnd - performanceTracking.times.css3dStart;
+			const renderTime = performanceTracking.times.renderEnd - performanceTracking.times.renderStart;
+			
+			console.warn(`🐌 SLOW FRAME BREAKDOWN (${totalTime.toFixed(2)}ms total):`);
+			console.warn(`  Physics: ${physicsTime.toFixed(2)}ms`);
+			console.warn(`  Background: ${backgroundTime.toFixed(2)}ms`);
+			console.warn(`  Assets: ${assetTime.toFixed(2)}ms`);
+			console.warn(`  Storage: ${storageTime.toFixed(2)}ms`);
+			console.warn(`  Overlay: ${overlayTime.toFixed(2)}ms`);
+			console.warn(`  Rigs: ${rigTime.toFixed(2)}ms`);
+			console.warn(`  CSS3D: ${css3dTime.toFixed(2)}ms`);
+			console.warn(`  Render: ${renderTime.toFixed(2)}ms`);
+		}
+		
+		performanceTracking.enabled = false;
+	}
+	
+	lastFrameTime = currentTime;
 }
 
 function toggle_debug_ui(event) {
