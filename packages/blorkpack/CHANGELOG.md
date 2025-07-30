@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.51.3 (2025-07-30)</small>
+
+- fix(portfolio): memory allocation every frame ([4197f2e](https://github.com/littlecarlito/threejs_site/commit/4197f2e))
+
 ## <small>0.51.2 (2025-07-29)</small>
 
 - fix: more bad paths ([b97110e](https://github.com/littlecarlito/threejs_site/commit/b97110e))

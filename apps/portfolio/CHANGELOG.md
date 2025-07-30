@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.50.4 (2025-07-30)</small>
+
+- fix(portfolio): concurrent loading ([b22d754](https://github.com/littlecarlito/threejs_site/commit/b22d754))
+- fix(portfolio): memory allocation every frame ([4197f2e](https://github.com/littlecarlito/threejs_site/commit/4197f2e))
+- refactor(portfolio): loading splash screen ([5a0764b](https://github.com/littlecarlito/threejs_site/commit/5a0764b))
+- slice(portfolio): new walls ([8096232](https://github.com/littlecarlito/threejs_site/commit/8096232))
+
 ## <small>0.50.3 (2025-07-30)</small>
 
 - slice(portfolio): image replacement ([fa86b15](https://github.com/littlecarlito/threejs_site/commit/fa86b15))
