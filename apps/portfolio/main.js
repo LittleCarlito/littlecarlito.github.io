@@ -40,7 +40,6 @@ if (import.meta.hot) {
 	});
 }
 
-// Reusable objects to prevent allocations - initialized after THREE.js loads
 let tempVector3;
 let tempQuaternion;
 let tempEuler;
@@ -57,7 +56,6 @@ let backgroundAnimationFrameId = null;
 let lastFrameTime = 0;
 let frameCount = 0;
 
-// Performance tracking - only allocate when needed
 let performanceTracking = {
 	enabled: false,
 	times: {}
@@ -229,7 +227,6 @@ function startBackgroundAnimation() {
 				window.css3dFactory.update();
 			}
 			
-			// Render at reduced frequency (every 10th call)
 			if (Math.random() < 0.1) {
 				window.app_renderer.render();
 			}
@@ -241,6 +238,77 @@ function startBackgroundAnimation() {
 	backgroundAnimationFrameId = requestAnimationFrame(animateBackground);
 }
 
+// Optimized parallel loading functions
+async function loadCoreSystemsParallel() {
+	const corePromises = [
+		initThree().then(() => {
+			initializeTempObjects();
+			return 'Three.js initialized';
+		}),
+		initRapier().then(() => 'Rapier initialized'),
+		initPhysicsUtil().then(() => 'Physics utilities initialized'),
+		CustomTypeManager.loadCustomTypes('custom_types.json').then(() => 'Custom types loaded')
+	];
+	
+	const results = await Promise.all(corePromises);
+	results.forEach(result => update_loading_progress(result));
+}
+
+async function loadManifestAndSetupScene() {
+	window.manifest_manager = ManifestManager.get_instance();
+	await window.manifest_manager.load_manifest();
+	
+	if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
+		console.log("Manifest loaded:", window.manifest_manager.get_manifest());
+	}
+	
+	window.scene = new THREE.Scene();
+	setSceneReference(window.scene);
+	setup_physics_world();
+	window.asset_handler = AssetHandler.get_instance(window.scene, window.world);
+	window.clock = new THREE.Clock();
+}
+
+async function loadAssetsParallel() {
+	update_loading_progress('Loading assets in parallel...');
+	
+	const assetPromises = [
+		setup_scene_background(),
+		setup_scene_lighting(),
+		window.asset_handler.spawn_manifest_assets(window.manifest_manager, (text) => {
+			console.log('Manifest assets:', text);
+		})
+	];
+	
+	const [backgroundResult, lightingResult, manifestAssets] = await Promise.all(assetPromises);
+	
+	if (BLORKPACK_FLAGS.ASSET_LOGS) {
+		console.log('Loaded assets:', manifestAssets);
+	}
+	
+	return manifestAssets;
+}
+
+async function waitForBackgroundAssetsOptimized() {
+	update_loading_progress('Finalizing scene assets...');
+	
+	return new Promise(async (resolve) => {
+		const checkAssetsLoaded = async () => {
+			const isComplete = await window.background_container.is_loading_complete();
+			if (isComplete) {
+				if (BLORKPACK_FLAGS.ASSET_LOGS) {
+					console.log('All assets loaded:', Array.from(window.background_container.get_asset_manifest()));
+				}
+				resolve();
+			} else {
+				// Reduced polling interval for faster response
+				setTimeout(checkAssetsLoaded, 50);
+			}
+		};
+		await checkAssetsLoaded();
+	});
+}
+
 async function init() {
 	interactionManager = InteractionManager.getInstance();
 	memoryAnalyzer = new MemoryAnalyzer();
@@ -248,48 +316,16 @@ async function init() {
 	try {
 		await show_loading_screen();
 		
-		update_loading_progress('Loading Three.js...');
-		await initThree();
+		// Phase 1: Load core systems in parallel
+		update_loading_progress('Initializing core systems...');
+		await loadCoreSystemsParallel();
 		
-		// Initialize reusable objects after THREE.js is loaded
-		initializeTempObjects();
+		// Phase 2: Load manifest and setup scene (must be sequential)
+		update_loading_progress('Loading manifest and setting up scene...');
+		await loadManifestAndSetupScene();
 		
-		update_loading_progress('Loading Rapier Physics...');
-		await initRapier();
-		
-		update_loading_progress('Initializing physics utilities...');
-		await initPhysicsUtil();
-		
-		update_loading_progress('Loading custom asset types...');
-		const customTypesPath = 'custom_types.json';
-		await CustomTypeManager.loadCustomTypes(customTypesPath);
-		
-		update_loading_progress('Initializing scene...');
+		// Phase 3: Create containers early
 		AssetStorage.get_instance();
-		
-		update_loading_progress("Loading manifest...");
-		window.manifest_manager = ManifestManager.get_instance();
-		await window.manifest_manager.load_manifest();
-		
-		if(BLORKPACK_FLAGS.MANIFEST_LOGS) {
-			console.log("Manifest loaded:", window.manifest_manager.get_manifest());
-		}
-		
-		window.scene = new THREE.Scene();
-
-		setSceneReference(window.scene);
-		
-		update_loading_progress('Setting up scene background...');
-		await setup_scene_background();
-		
-		update_loading_progress('Initializing physics world...');
-		setup_physics_world();
-		
-		window.asset_handler = AssetHandler.get_instance(window.scene, window.world);
-		window.clock = new THREE.Clock();
-		
-		update_loading_progress('Creating UI components...');
-		await setup_scene_lighting();
 		
 		const customTypeManager = CustomTypeManager.getInstance();
 		if (!customTypeManager.hasLoadedCustomTypes()) {
@@ -297,45 +333,34 @@ async function init() {
 			await new Promise(resolve => setTimeout(resolve, 100));
 		}
 		
+		update_loading_progress('Creating UI components...');
 		window.viewable_container = new ViewableContainer(window);
-		
 		window.app_renderer = new AppRenderer(window.scene, window.viewable_container.get_camera());
 		window.renderer = window.app_renderer.get_renderer();
 		
-		await interactionManager.startListening(window);
+		// Phase 4: Setup interaction and background container in parallel
+		const setupPromises = [
+			interactionManager.startListening(window),
+			(async () => {
+				window.background_container = new BackgroundContainer(window.scene, window.viewable_container.get_camera(), window.world);
+				return 'Background container created';
+			})()
+		];
+		
+		await Promise.all(setupPromises);
+		
+		// Phase 5: Load all assets in parallel
+		await loadAssetsParallel();
+		
+		// Phase 6: Wait for background assets with optimized polling
+		await waitForBackgroundAssetsOptimized();
+		
+		// Phase 7: Final setup
+		hide_loading_screen();
+		
 		window.addEventListener('keydown', toggle_debug_ui);
 		window.addEventListener('unload', cleanup);
 		document.addEventListener('visibilitychange', handleVisibilityChange);
-		
-		update_loading_progress('Loading background assets...');
-		window.background_container = new BackgroundContainer(window.scene, window.viewable_container.get_camera(), window.world);
-		
-		update_loading_progress('Loading assets...');
-		const spawned_assets = await window.asset_handler.spawn_manifest_assets(window.manifest_manager, update_loading_progress);
-		if (BLORKPACK_FLAGS.ASSET_LOGS) {
-			console.log('Loaded assets:', spawned_assets);
-		}
-		
-		update_loading_progress('Loading scene assets...');
-		await new Promise(async (resolve) => {
-			const checkAssetsLoaded = async () => {
-				const isComplete = await window.background_container.is_loading_complete();
-				if (isComplete) {
-					if (BLORKPACK_FLAGS.ASSET_LOGS) {
-						console.log('All assets loaded:', Array.from(window.background_container.get_asset_manifest()));
-					}
-					resolve();
-				} else {
-					if (BLORKPACK_FLAGS.ASSET_LOGS) {
-						console.log('Waiting for assets to complete loading...');
-					}
-					setTimeout(checkAssetsLoaded, 100);
-				}
-			};
-			await checkAssetsLoaded();
-		});
-		
-		hide_loading_screen();
 		
 		memoryAnalyzer.initialize();
 		window.memoryAnalyzer = memoryAnalyzer;
@@ -460,7 +485,6 @@ function animate() {
 	frameCount++;
 	const currentTime = performance.now();
 	
-	// Enable performance tracking only when needed
 	const shouldTrackPerformance = FLAGS.PERFORMANCE_LOGS || (currentTime - lastFrameTime > 20);
 	
 	if (shouldTrackPerformance) {
