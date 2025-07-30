@@ -128,8 +128,6 @@ export class CSS3DFactory {
     }
 
     calculateDisplayMeshDimensions(mesh) {
-        this.ensureTempObjectsInitialized();
-        
         if (!mesh || !mesh.geometry) {
             throw new Error('Display mesh or geometry not found');
         }
@@ -151,10 +149,10 @@ export class CSS3DFactory {
         }
         
         geometry.computeBoundingBox();
-        const localSize = geometry.boundingBox.getSize(tempVector3);
+        const localSize = geometry.boundingBox.getSize(new THREE.Vector3());
         
-        mesh.getWorldScale(tempVector3_2);
-        const worldSize = tempVector3_3.copy(localSize).multiply(tempVector3_2);
+        const worldScale = mesh.getWorldScale(new THREE.Vector3());
+        const worldSize = localSize.clone().multiply(worldScale);
         
         const dimensions = [
             { size: worldSize.x, axis: 'x' },
@@ -191,8 +189,6 @@ export class CSS3DFactory {
     }
 
     calculateMeshTransform(mesh, offsetDistance = 0.001) {
-        this.ensureTempObjectsInitialized();
-        
         if (!mesh || !mesh.geometry) {
             return {
                 position: new THREE.Vector3(0, 0, 0),
@@ -215,11 +211,17 @@ export class CSS3DFactory {
             geometry.computeBoundingBox();
         }
         
-        geometry.boundingBox.getCenter(tempVector3);
-        mesh.localToWorld(tempVector3);
+        const center = new THREE.Vector3();
+        geometry.boundingBox.getCenter(center);
+        mesh.localToWorld(center);
 
-        tempMatrix4.copy(mesh.matrixWorld);
-        tempMatrix4.decompose(tempVector3_2, tempQuaternion, tempVector3_3);
+        const meshMatrix = mesh.matrixWorld.clone();
+        
+        const position = new THREE.Vector3();
+        const quaternion = new THREE.Quaternion();
+        const scale = new THREE.Vector3();
+        
+        meshMatrix.decompose(position, quaternion, scale);
         
         const box = geometry.boundingBox;
         const width = box.max.x - box.min.x;
@@ -243,19 +245,19 @@ export class CSS3DFactory {
         
         const isAboutSection = this.isAboutSectionFrame(mesh);
         
-        let correctionRotation = tempQuaternion.identity();
+        let correctionRotation = new THREE.Quaternion();
         
         if (thinAxis === 'z') {
             if (isAboutSection) {
-                correctionRotation.setFromAxisAngle(tempVector3_4.set(0, 1, 0), Math.PI);
+                correctionRotation.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
             } else {
                 correctionRotation.identity();
             }
         } else if (thinAxis === 'y') {
-            correctionRotation.setFromAxisAngle(tempVector3_4.set(1, 0, 0), -Math.PI / 2);
+            correctionRotation.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
             
             if (isAboutSection) {
-                const faceAwayRotation = new THREE.Quaternion().setFromAxisAngle(tempVector3_4.set(0, 1, 0), Math.PI);
+                const faceAwayRotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
                 correctionRotation.multiply(faceAwayRotation);
             } else {
                 if (mesh.name && mesh.name.toLowerCase().includes('display_')) {
@@ -270,25 +272,25 @@ export class CSS3DFactory {
                     }
                     
                     if (isTablet) {
-                        const flipRotation = new THREE.Quaternion().setFromAxisAngle(tempVector3_4.set(0, 0, 1), Math.PI);
+                        const flipRotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI);
                         correctionRotation.multiply(flipRotation);
                     }
                 }
             }
         } else if (thinAxis === 'x') {
             if (isAboutSection) {
-                correctionRotation.setFromAxisAngle(tempVector3_4.set(0, 1, 0), -Math.PI / 2);
+                correctionRotation.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2);
             } else {
-                correctionRotation.setFromAxisAngle(tempVector3_4.set(0, 1, 0), Math.PI / 2);
+                correctionRotation.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
             }
         }
         
-        const finalQuaternion = new THREE.Quaternion().copy(tempQuaternion).multiply(correctionRotation);
+        const finalQuaternion = quaternion.clone().multiply(correctionRotation);
 
         const result = {
-            position: tempVector3.clone(),
-            rotation: tempEuler.setFromQuaternion(finalQuaternion),
-            quaternion: finalQuaternion.clone()
+            position: center,
+            rotation: new THREE.Euler().setFromQuaternion(finalQuaternion),
+            quaternion: finalQuaternion
         };
         
         // Cache the result
