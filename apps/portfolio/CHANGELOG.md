@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.50.6 (2025-07-30)</small>
+
+- fix(portfolio): mobile detection ([4d4d8c5](https://github.com/littlecarlito/threejs_site/commit/4d4d8c5))
+
 ## <small>0.50.5 (2025-07-30)</small>
 
 **Note:** Version bump only for package @littlecarlito/portfolio
