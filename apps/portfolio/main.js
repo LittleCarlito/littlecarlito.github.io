@@ -46,7 +46,6 @@ let tempEuler;
 let tempMatrix4;
 let tempVector3_2;
 let tempVector3_3;
-
 let is_cleaned_up = false;
 let is_physics_paused = false;
 let interactionManager = null;
@@ -55,11 +54,52 @@ let isPageVisible = !document.hidden;
 let backgroundAnimationFrameId = null;
 let lastFrameTime = 0;
 let frameCount = 0;
-
 let performanceTracking = {
 	enabled: false,
 	times: {}
 };
+let diagnosticInfo = {
+	stage: 'INIT',
+	device: 'UNKNOWN',
+	errors: []
+};
+
+function updateDiagnostic(stage, error = null) {
+	diagnosticInfo.stage = stage;
+	if (error) {
+		diagnosticInfo.errors.push(error);
+		console.error(`DIAGNOSTIC: ${stage} - ${error}`);
+	} else {
+		console.log(`DIAGNOSTIC: ${stage}`);
+	}
+	update_loading_progress(`${stage}${error ? ` - ${error}` : ''}`);
+}
+
+function showDiagnosticError(code) {
+	const loadingScreen = document.getElementById('loading-screen');
+	if (loadingScreen) {
+		loadingScreen.innerHTML = `
+			<div class="loading-content">
+				<h1 class="loading-title">ERROR ${code}</h1>
+				<div class="loading-progress-text">
+					DEVICE: ${diagnosticInfo.device}<br>
+					STAGE: ${diagnosticInfo.stage}<br>
+					ERRORS: ${diagnosticInfo.errors.join(', ') || 'NONE'}<br><br>
+					<button onclick="location.reload()" style="
+						background: #e74c3c; 
+						color: white; 
+						border: none; 
+						padding: 10px 20px; 
+						border-radius: 5px; 
+						cursor: pointer; 
+						font-family: monospace;
+						font-size: 16px;
+					">RETRY</button>
+				</div>
+			</div>
+		`;
+	}
+}
 
 function initializeTempObjects() {
 	tempVector3 = new THREE.Vector3();
@@ -238,7 +278,6 @@ function startBackgroundAnimation() {
 	backgroundAnimationFrameId = requestAnimationFrame(animateBackground);
 }
 
-// Optimized parallel loading functions
 async function loadCoreSystemsParallel() {
 	const corePromises = [
 		initThree().then(() => {
@@ -301,7 +340,6 @@ async function waitForBackgroundAssetsOptimized() {
 				}
 				resolve();
 			} else {
-				// Reduced polling interval for faster response
 				setTimeout(checkAssetsLoaded, 50);
 			}
 		};
@@ -316,15 +354,38 @@ async function init() {
 	try {
 		await show_loading_screen();
 		
-		// Phase 1: Load core systems in parallel
-		update_loading_progress('Initializing core systems...');
+		const ua = navigator.userAgent;
+		if (/iPad|iPhone|iPod/.test(ua)) {
+			diagnosticInfo.device = 'IOS';
+			if (/Safari/.test(ua) && !/Chrome/.test(ua)) {
+				diagnosticInfo.device = 'IOS_SAFARI';
+			}
+		} else if (/Android/.test(ua)) {
+			diagnosticInfo.device = 'ANDROID';
+		} else {
+			diagnosticInfo.device = 'DESKTOP';
+		}
+		
+		updateDiagnostic('DEVICE_DETECTED');
+		
+		const loadingTimeout = setTimeout(() => {
+			updateDiagnostic('TIMEOUT', 'LOADING_STUCK');
+			showDiagnosticError('T1');
+		}, 25000);
+		
+		window.addEventListener('error', (event) => {
+			updateDiagnostic('JS_ERROR', event.message.substring(0, 20));
+			showDiagnosticError('E1');
+		});
+		
+		updateDiagnostic('CORE_LOADING');
 		await loadCoreSystemsParallel();
+		updateDiagnostic('CORE_LOADED');
 		
-		// Phase 2: Load manifest and setup scene (must be sequential)
-		update_loading_progress('Loading manifest and setting up scene...');
+		updateDiagnostic('MANIFEST_LOADING');
 		await loadManifestAndSetupScene();
+		updateDiagnostic('MANIFEST_LOADED');
 		
-		// Phase 3: Create containers early
 		AssetStorage.get_instance();
 		
 		const customTypeManager = CustomTypeManager.getInstance();
@@ -338,7 +399,6 @@ async function init() {
 		window.app_renderer = new AppRenderer(window.scene, window.viewable_container.get_camera());
 		window.renderer = window.app_renderer.get_renderer();
 		
-		// Phase 4: Setup interaction and background container in parallel
 		const setupPromises = [
 			interactionManager.startListening(window),
 			(async () => {
@@ -349,13 +409,37 @@ async function init() {
 		
 		await Promise.all(setupPromises);
 		
-		// Phase 5: Load all assets in parallel
+		updateDiagnostic('ASSETS_LOADING');
 		await loadAssetsParallel();
+		updateDiagnostic('ASSETS_LOADED');
 		
-		// Phase 6: Wait for background assets with optimized polling
+		updateDiagnostic('BG_ASSETS_LOADING');
 		await waitForBackgroundAssetsOptimized();
+		updateDiagnostic('BG_ASSETS_LOADED');
 		
-		// Phase 7: Final setup
+		if (diagnosticInfo.device.startsWith('IOS')) {
+			try {
+				if (window.devicePixelRatio > 2) {
+					set_resolution_scale(0.5);
+					updateDiagnostic('IOS_LOW_RES');
+				}
+				
+				const canvas = window.app_renderer?.get_renderer()?.domElement;
+				if (canvas) {
+					canvas.addEventListener('webglcontextlost', (event) => {
+						event.preventDefault();
+						updateDiagnostic('WEBGL_LOST');
+						showDiagnosticError('W1');
+					});
+				}
+			} catch (e) {
+				updateDiagnostic('IOS_FALLBACK_ERROR', e.message.substring(0, 15));
+				showDiagnosticError('I1');
+			}
+		}
+		
+		clearTimeout(loadingTimeout);
+		updateDiagnostic('SUCCESS');
 		hide_loading_screen();
 		
 		window.addEventListener('keydown', toggle_debug_ui);
@@ -398,7 +482,8 @@ async function init() {
 		
 	} catch (error) {
 		console.error('Error during initialization:', error);
-		update_loading_progress('Error loading application. Please refresh the page.');
+		updateDiagnostic('INIT_ERROR', error.message.substring(0, 20));
+		showDiagnosticError('E2');
 	}
 }
 
