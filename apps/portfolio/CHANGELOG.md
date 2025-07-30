@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.50.3 (2025-07-30)</small>
+
+- slice(portfolio): image replacement ([fa86b15](https://github.com/littlecarlito/threejs_site/commit/fa86b15))
+
 ## <small>0.50.2 (2025-07-29)</small>
 
 - refactor(portfolio): link paths ([86b49e3](https://github.com/littlecarlito/threejs_site/commit/86b49e3))
