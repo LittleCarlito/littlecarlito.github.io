@@ -8,7 +8,43 @@ const DESK_HEIGHT = FLOOR_HEIGHT/2;
 const DIPLOMA_X = -7.2;
 const DIPLOMA_Z = -.5;
 const DESPAWN_Y_THRESHOLD = -50;
-const FALLEN_ASSET_CHECK_INTERVAL = 60; // Only check every 60 frames (~1 second at 60fps)
+const FALLEN_ASSET_CHECK_INTERVAL = 60;
+
+const FLOOR_CONFIGS = {
+	MAIN: {
+		name: "MainFloor",
+		x: 0,
+		y: -10.25,
+		z: 0,
+		width: 15,
+		height: 0.5,
+		depth: 15,
+		rotation: { x: 0, y: 0, z: 0 },
+		debugColor: 0xff0000
+	},
+	LEFT: {
+		name: "LeftWall",
+		x: -7.75,
+		y: -3,
+		z: 0,
+		width: 0.5,
+		height: 15,
+		depth: 15,
+		rotation: { x: 0, y: 0, z: 0 },
+		debugColor: 0x00ff00
+	},
+	RIGHT: {
+		name: "RightWall",
+		x: 0,
+		y: -3,
+		z: -7.75,
+		width: 15,
+		height: 15,
+		depth: 0.5,
+		rotation: { x: 0, y: 0, z: 0 },
+		debugColor: 0x0000ff
+	}
+};
 
 const ASSET_CATEGORY_MAP = {
 	DIPLOMA_BOT: CATEGORIES.EDUCATION.value,
@@ -26,7 +62,7 @@ export class BackgroundContainer {
 	world;
 	object_container;
 	asset_container;
-	simple_floor;
+	floors = {};
 	dynamic_bodies = [];
 	asset_manifest = new Set();
 	categorized_assets = new Map();
@@ -35,7 +71,7 @@ export class BackgroundContainer {
 	is_spawning_secondary = false;
 	is_spawning_primary = false;
 	dropped_asset_colliders = new Map();
-	frameCount = 0; // Track frame count for optimizations
+	frameCount = 0;
 
 	constructor(incoming_parent, incoming_camera, incoming_world) {
 		this.parent = incoming_parent;
@@ -49,7 +85,9 @@ export class BackgroundContainer {
 		this.asset_container.userData.isAssetContainer = true;
 		this.object_container.add(this.asset_container);
 		
-		this.simple_floor = new SimpleFloorRectangle(this.world, this.object_container);
+		this.floors.main = new SimpleFloorRectangle(this.world, this.object_container, FLOOR_CONFIGS.MAIN);
+		this.floors.left = new SimpleFloorRectangle(this.world, this.object_container, FLOOR_CONFIGS.LEFT);
+		this.floors.right = new SimpleFloorRectangle(this.world, this.object_container, FLOOR_CONFIGS.RIGHT);
 		
 		const asset_loader = AssetHandler.get_instance(this.asset_container, this.world);
 		this.loading_promise = (async () => {
@@ -271,7 +309,6 @@ export class BackgroundContainer {
 	checkForFallenAssets() {
 		const assetsToRemove = [];
 		
-		// Only check fallen assets occasionally, not every frame
 		if (this.frameCount % FALLEN_ASSET_CHECK_INTERVAL !== 0) {
 			return 0;
 		}
@@ -392,7 +429,6 @@ export class BackgroundContainer {
 	update(grabbed_object, viewable_container, deltaTime) {
 		this.frameCount++;
 		
-		// Only sync mesh positions from physics bodies
 		this.dynamic_bodies.forEach(entry => {
 			const mesh = Array.isArray(entry) ? entry[0] : entry.mesh;
 			const body = Array.isArray(entry) ? entry[1] : entry.body;
@@ -404,7 +440,6 @@ export class BackgroundContainer {
 			}
 		});
 		
-		// Only check for fallen assets occasionally to reduce overhead
 		this.checkForFallenAssets();
 	}
 
@@ -420,8 +455,10 @@ export class BackgroundContainer {
 		});
 		this.dropped_asset_colliders.clear();
 		
-		if (this.simple_floor) {
-			this.simple_floor.dispose();
-		}
+		Object.values(this.floors).forEach(floor => {
+			if (floor) {
+				floor.dispose();
+			}
+		});
 	}
 }
