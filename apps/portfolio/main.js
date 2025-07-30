@@ -40,12 +40,37 @@ if (import.meta.hot) {
 	});
 }
 
+// Reusable objects to prevent allocations - initialized after THREE.js loads
+let tempVector3;
+let tempQuaternion;
+let tempEuler;
+let tempMatrix4;
+let tempVector3_2;
+let tempVector3_3;
+
 let is_cleaned_up = false;
 let is_physics_paused = false;
 let interactionManager = null;
 let memoryAnalyzer = null;
 let isPageVisible = !document.hidden;
 let backgroundAnimationFrameId = null;
+let lastFrameTime = 0;
+let frameCount = 0;
+
+// Performance tracking - only allocate when needed
+let performanceTracking = {
+	enabled: false,
+	times: {}
+};
+
+function initializeTempObjects() {
+	tempVector3 = new THREE.Vector3();
+	tempQuaternion = new THREE.Quaternion();
+	tempEuler = new THREE.Euler();
+	tempMatrix4 = new THREE.Matrix4();
+	tempVector3_2 = new THREE.Vector3();
+	tempVector3_3 = new THREE.Vector3();
+}
 
 async function setup_scene_background() {
 	await SceneSetupHelper.setup_background(window.scene, window.manifest_manager, update_loading_progress);
@@ -225,6 +250,9 @@ async function init() {
 		
 		update_loading_progress('Loading Three.js...');
 		await initThree();
+		
+		// Initialize reusable objects after THREE.js is loaded
+		initializeTempObjects();
 		
 		update_loading_progress('Loading Rapier Physics...');
 		await initRapier();
@@ -429,7 +457,16 @@ function toggle_physics_pause() {
 window.toggle_physics_pause = toggle_physics_pause;
 
 function animate() {
-	const animateStart = performance.now();
+	frameCount++;
+	const currentTime = performance.now();
+	
+	// Enable performance tracking only when needed
+	const shouldTrackPerformance = FLAGS.PERFORMANCE_LOGS || (currentTime - lastFrameTime > 20);
+	
+	if (shouldTrackPerformance) {
+		performanceTracking.enabled = true;
+		performanceTracking.times.animateStart = currentTime;
+	}
 	
 	const delta = window.clock.getDelta();
 	updateTween();
@@ -463,26 +500,38 @@ function animate() {
 		translate_object(interactionManager.grabbed_object, window.viewable_container.get_camera());
 	}
 	
-	const physicsStart = performance.now();
+	if (shouldTrackPerformance) {
+		performanceTracking.times.physicsStart = performance.now();
+	}
+	
 	window.world.timestep = Math.min(delta, 0.1);
 	if (!is_physics_paused) {
 		window.world.step();
 	}
-	const physicsTime = performance.now() - physicsStart;
 	
-	const backgroundStart = performance.now();
+	if (shouldTrackPerformance) {
+		performanceTracking.times.physicsEnd = performance.now();
+		performanceTracking.times.backgroundStart = performance.now();
+	}
+	
 	if (window.background_container) {
 		window.background_container.update(interactionManager.grabbed_object, window.viewable_container, delta);
 	}
-	const backgroundTime = performance.now() - backgroundStart;
 	
-	const assetStart = performance.now();
+	if (shouldTrackPerformance) {
+		performanceTracking.times.backgroundEnd = performance.now();
+		performanceTracking.times.assetStart = performance.now();
+	}
+	
 	if (window.asset_handler) {
 		window.asset_handler.updateAnimations(delta);
 	}
-	const assetTime = performance.now() - assetStart;
 	
-	const storageStart = performance.now();
+	if (shouldTrackPerformance) {
+		performanceTracking.times.assetEnd = performance.now();
+		performanceTracking.times.storageStart = performance.now();
+	}
+	
 	if (AssetStorage.get_instance()) {
 		if (!is_physics_paused) {
 			AssetStorage.get_instance().update();
@@ -497,13 +546,19 @@ function animate() {
 			}
 		}
 	}
-	const storageTime = performance.now() - storageStart;
 	
-	const overlayStart = performance.now();
+	if (shouldTrackPerformance) {
+		performanceTracking.times.storageEnd = performance.now();
+		performanceTracking.times.overlayStart = performance.now();
+	}
+	
 	window.viewable_container.get_overlay().update_confetti();
-	const overlayTime = performance.now() - overlayStart;
 	
-	const rigStart = performance.now();
+	if (shouldTrackPerformance) {
+		performanceTracking.times.overlayEnd = performance.now();
+		performanceTracking.times.rigStart = performance.now();
+	}
+	
 	if (window.asset_handler) {
 		window.asset_handler.updateRigVisualizations();
 		window.asset_handler.update_visualizations();
@@ -511,31 +566,53 @@ function animate() {
 			window.asset_handler.update_debug_meshes();
 		}
 	}
-	const rigTime = performance.now() - rigStart;
 	
-	const css3dStart = performance.now();
+	if (shouldTrackPerformance) {
+		performanceTracking.times.rigEnd = performance.now();
+		performanceTracking.times.css3dStart = performance.now();
+	}
+	
 	if (window.css3dFactory) {
 		window.css3dFactory.update();
 	}
-	const css3dTime = performance.now() - css3dStart;
 	
-	const renderStart = performance.now();
-	window.app_renderer.render();
-	const renderTime = performance.now() - renderStart;
-	
-	const totalTime = performance.now() - animateStart;
-	
-	if (totalTime > 20) {
-		console.warn(`🐌 SLOW FRAME BREAKDOWN (${totalTime.toFixed(2)}ms total):`);
-		console.warn(`  Physics: ${physicsTime.toFixed(2)}ms`);
-		console.warn(`  Background: ${backgroundTime.toFixed(2)}ms`);
-		console.warn(`  Assets: ${assetTime.toFixed(2)}ms`);
-		console.warn(`  Storage: ${storageTime.toFixed(2)}ms`);
-		console.warn(`  Overlay: ${overlayTime.toFixed(2)}ms`);
-		console.warn(`  Rigs: ${rigTime.toFixed(2)}ms`);
-		console.warn(`  CSS3D: ${css3dTime.toFixed(2)}ms`);
-		console.warn(`  Render: ${renderTime.toFixed(2)}ms`);
+	if (shouldTrackPerformance) {
+		performanceTracking.times.css3dEnd = performance.now();
+		performanceTracking.times.renderStart = performance.now();
 	}
+	
+	window.app_renderer.render();
+	
+	if (shouldTrackPerformance) {
+		performanceTracking.times.renderEnd = performance.now();
+		
+		const totalTime = performanceTracking.times.renderEnd - performanceTracking.times.animateStart;
+		
+		if (totalTime > 20) {
+			const physicsTime = performanceTracking.times.physicsEnd - performanceTracking.times.physicsStart;
+			const backgroundTime = performanceTracking.times.backgroundEnd - performanceTracking.times.backgroundStart;
+			const assetTime = performanceTracking.times.assetEnd - performanceTracking.times.assetStart;
+			const storageTime = performanceTracking.times.storageEnd - performanceTracking.times.storageStart;
+			const overlayTime = performanceTracking.times.overlayEnd - performanceTracking.times.overlayStart;
+			const rigTime = performanceTracking.times.rigEnd - performanceTracking.times.rigStart;
+			const css3dTime = performanceTracking.times.css3dEnd - performanceTracking.times.css3dStart;
+			const renderTime = performanceTracking.times.renderEnd - performanceTracking.times.renderStart;
+			
+			console.warn(`🐌 SLOW FRAME BREAKDOWN (${totalTime.toFixed(2)}ms total):`);
+			console.warn(`  Physics: ${physicsTime.toFixed(2)}ms`);
+			console.warn(`  Background: ${backgroundTime.toFixed(2)}ms`);
+			console.warn(`  Assets: ${assetTime.toFixed(2)}ms`);
+			console.warn(`  Storage: ${storageTime.toFixed(2)}ms`);
+			console.warn(`  Overlay: ${overlayTime.toFixed(2)}ms`);
+			console.warn(`  Rigs: ${rigTime.toFixed(2)}ms`);
+			console.warn(`  CSS3D: ${css3dTime.toFixed(2)}ms`);
+			console.warn(`  Render: ${renderTime.toFixed(2)}ms`);
+		}
+		
+		performanceTracking.enabled = false;
+	}
+	
+	lastFrameTime = currentTime;
 }
 
 function toggle_debug_ui(event) {
