@@ -25,8 +25,8 @@ import {
 	toggleDebugUI, 
 	createDebugUI as create_debug_UI, 
 	setBackgroundContainer as set_background_container,
-	setResolutionScale as set_resolution_scale, 
-	updateLabelWireframes, setSceneReference 
+	updateLabelWireframes, 
+	setSceneReference 
 } from './common/debug_ui.js';
 
 if (import.meta.hot) {
@@ -48,7 +48,7 @@ class UniversalMemoryManager {
 		this.maxConcurrentLoads = this.calculateConcurrentLoads();
 		this.memoryBudget = this.calculateMemoryBudget();
 		this.isLoadingPaused = false;
-		this.loadingPhase = 'essential'; // essential -> interactive -> decorative -> background
+		this.loadingPhase = 'essential';
 	}
 	
 	detectLowMemoryDevice() {
@@ -63,30 +63,28 @@ class UniversalMemoryManager {
 		if (this.isLowMemoryDevice) return 1;
 		if (this.isMobile) return 2;
 		const cores = navigator.hardwareConcurrency || 4;
-		return Math.min(cores, 6); // Cap at 6 for stability
+		return Math.min(cores, 6);
 	}
 	
 	calculateMemoryBudget() {
-		if (this.isLowMemoryDevice) return 150 * 1024 * 1024; // 150MB
-		if (this.isMobile) return 400 * 1024 * 1024; // 400MB
+		if (this.isLowMemoryDevice) return 150 * 1024 * 1024;
+		if (this.isMobile) return 400 * 1024 * 1024;
 		const ram = navigator.deviceMemory || 8;
-		if (ram >= 16) return 1200 * 1024 * 1024; // 1.2GB for high-end
-		if (ram >= 8) return 800 * 1024 * 1024; // 800MB for mid-range
-		return 600 * 1024 * 1024; // 600MB for lower-end desktop
+		if (ram >= 16) return 1200 * 1024 * 1024;
+		if (ram >= 8) return 800 * 1024 * 1024;
+		return 600 * 1024 * 1024;
 	}
 	
 	async loadAssetsWithBudget(assetList) {		
 		const phaseAssets = this.organizeAssetsByPhase(assetList);
 		const loadedAssets = [];
 		
-		// Load in phases: essential -> interactive -> decorative -> background
 		for (const [phase, assets] of Object.entries(phaseAssets)) {
 			this.loadingPhase = phase;
 			
 			const phaseResults = await this.loadAssetPhase(assets);
 			loadedAssets.push(...phaseResults);
 			
-			// Check memory after each phase
 			const currentMemory = this.getCurrentMemoryUsage();
 			const memoryRatio = currentMemory / this.memoryBudget;
 						
@@ -96,7 +94,6 @@ class UniversalMemoryManager {
 				break;
 			}
 			
-			// Brief pause between phases to allow garbage collection
 			await new Promise(resolve => setTimeout(resolve, 100));
 		}
 		
@@ -116,7 +113,6 @@ class UniversalMemoryManager {
 			phases[phase].push(asset);
 		}
 		
-		// Sort each phase by priority
 		Object.keys(phases).forEach(phase => {
 			phases[phase].sort((a, b) => this.getAssetPriority(b) - this.getAssetPriority(a));
 		});
@@ -127,28 +123,23 @@ class UniversalMemoryManager {
 	getAssetPhase(asset) {
 		const name = asset.name || asset;
 		
-		// Essential - critical for basic functionality
 		if (typeof name === 'string') {
 			const upperName = name.toUpperCase();
 			
-			// Essential - critical for basic functionality
 			if (upperName.includes('CAMERA') || upperName.includes('LIGHTING') || upperName.includes('SCENE')) {
 				return 'essential';
 			}
 			
-			// Interactive - user can interact with these (has rigs or activators)
 			if (upperName.includes('CAT') || upperName.includes('MONITOR')) {
 				return 'interactive';
 			}
 			
-			// Decorative - visible but non-interactive office items
 			if (upperName.includes('COMPUTER') || upperName.includes('KEYBOARD') || 
 				upperName.includes('MOUSE') || upperName.includes('PLANT') ||
 				upperName.includes('CHAIR') || upperName.includes('DESK')) {
 				return 'decorative';
 			}
 			
-			// Background - nice to have, lowest priority
 			if (upperName.includes('DIPLOMA') || upperName.includes('BOOK') || 
 				upperName.includes('NOTEBOOK') || upperName.includes('TABLET') ||
 				upperName.includes('DESKPHOTO') || upperName.includes('MOUSEPAD')) {
@@ -156,7 +147,6 @@ class UniversalMemoryManager {
 			}
 		}
 		
-		// Default to decorative if we can't determine
 		return 'decorative';
 	}
 	
@@ -191,7 +181,6 @@ class UniversalMemoryManager {
 			const chunkResults = await Promise.all(chunkPromises);
 			loadedAssets.push(...chunkResults.filter(asset => asset !== null));
 			
-			// Brief pause between chunks
 			await new Promise(resolve => setTimeout(resolve, 50));
 		}
 		
@@ -231,30 +220,24 @@ class UniversalMemoryManager {
 		if (typeof name === 'string') {
 			const upperName = name.toUpperCase();
 			
-			// Higher priority for essential assets
 			if (upperName.includes('CAT') || upperName.includes('MONITOR')) priority += 100;
 			
-			// Medium priority for visible office items
 			if (upperName.includes('COMPUTER') || upperName.includes('KEYBOARD') || 
 				upperName.includes('DESK') || upperName.includes('CHAIR')) priority += 25;
 			
-			// Lower priority for decorative items
 			if (upperName.includes('PLANT') || upperName.includes('BOOK') || 
 				upperName.includes('MOUSE')) priority -= 25;
 			
-			// Lowest priority for background items
 			if (upperName.includes('DIPLOMA') || upperName.includes('DESKPHOTO') || 
 				upperName.includes('NOTEBOOK') || upperName.includes('TABLET')) priority -= 50;
 		}
 		
-		// Higher priority for assets with rigs (interactive)
 		if (asset.hasRig) priority += 50;
 		
 		return priority;
 	}
 	
 	async loadAssetOptimized(asset) {
-		// Apply universal optimizations with device-specific tweaks
 		const optimizations = {
 			textureCompression: true,
 			geometrySimplification: this.getGeometrySimplification(),
@@ -267,7 +250,6 @@ class UniversalMemoryManager {
 			shadowQuality: this.getShadowQuality()
 		};
 		
-		// Check if asset has a name property or is a string
 		const assetName = asset.name || asset.toString();
 		
 		try {
@@ -276,9 +258,7 @@ class UniversalMemoryManager {
 			if (window.asset_handler.spawn_asset_optimized) {
 				loadedAsset = await window.asset_handler.spawn_asset_optimized(asset, optimizations);
 			} else if (window.asset_handler.spawn_asset) {
-				// Use spawn_asset with asset name
 				loadedAsset = await window.asset_handler.spawn_asset(assetName);
-				// Apply post-optimization
 				loadedAsset = this.postOptimizeAsset(loadedAsset, optimizations);
 			} else {
 				console.warn(`Cannot load asset ${assetName} - no suitable spawn method found`);
@@ -293,11 +273,11 @@ class UniversalMemoryManager {
 	}
 	
 	getGeometrySimplification() {
-		if (this.isLowMemoryDevice) return 0.4; // 60% reduction
-		if (this.isMobile) return 0.7; // 30% reduction
+		if (this.isLowMemoryDevice) return 0.4;
+		if (this.isMobile) return 0.7;
 		const cores = navigator.hardwareConcurrency || 4;
-		if (cores >= 8) return 1.0; // No reduction for high-end
-		return 0.8; // 20% reduction for mid-range
+		if (cores >= 8) return 1.0;
+		return 0.8;
 	}
 	
 	getMaxTextureSize() {
@@ -326,7 +306,6 @@ class UniversalMemoryManager {
 	postOptimizeAsset(asset, optimizations) {
 		if (!asset) return asset;
 		
-		// Optimize textures
 		asset.traverse((child) => {
 			if (child.material) {
 				const materials = Array.isArray(child.material) ? child.material : [child.material];
@@ -340,7 +319,6 @@ class UniversalMemoryManager {
 				});
 			}
 			
-			// Simplify geometry if needed
 			if (child.geometry && optimizations.geometrySimplification < 1.0) {
 				this.simplifyGeometry(child.geometry, optimizations.geometrySimplification);
 			}
@@ -355,7 +333,6 @@ class UniversalMemoryManager {
 			const targetCount = Math.floor(positionCount * factor);
 			
 			if (targetCount < positionCount && window.THREE.SimplifyModifier) {
-				// Use Three.js simplification if available
 				const modifier = new THREE.SimplifyModifier();
 				const simplified = modifier.modify(geometry, targetCount);
 				geometry.copy(simplified);
@@ -380,7 +357,6 @@ class UniversalMemoryManager {
 		const currentMemory = this.getCurrentMemoryUsage();
 		const memoryRatio = currentMemory / this.memoryBudget;
 		
-		// Only load deferred assets if we have sufficient memory headroom
 		if (memoryRatio < 0.6) {
 			const assetsToLoad = this.assetQueue.splice(0, this.maxConcurrentLoads);			
 			const loadPromises = assetsToLoad.map(async (asset) => {
@@ -814,7 +790,6 @@ async function loadAssetsWithMemoryManagement() {
 	
 	await Promise.all(assetPromises);
 	
-	// Get asset list from manifest manager
 	let assetList = [];
 	try {
 		if (window.manifest_manager.get_asset_list) {
@@ -831,18 +806,15 @@ async function loadAssetsWithMemoryManagement() {
 		
 		if (assetList.length === 0) {
 			console.warn('No assets found in manifest, falling back to spawn_manifest_assets');
-			// Fallback to original loading method
 			return await window.asset_handler.spawn_manifest_assets(window.manifest_manager, (text) => {});
 		}
 	} catch (error) {
 		console.error('Error getting asset list:', error);
-		// Fallback to original loading method
 		return await window.asset_handler.spawn_manifest_assets(window.manifest_manager, (text) => {});
 	}
 		
 	const loadedAssets = await memoryManager.loadAssetsWithBudget(assetList);
 	
-	// Set up progressive loading and memory management
 	const managementInterval = setInterval(() => {
 		const memoryRatio = memoryManager.getCurrentMemoryUsage() / memoryManager.memoryBudget;
 		
@@ -854,23 +826,19 @@ async function loadAssetsWithMemoryManagement() {
 			memoryManager.resumeLoading();
 		}
 		
-		// Continue loading deferred assets
 		memoryManager.loadDeferredAssets();
 		
-		// Periodic cleanup
 		if (Math.random() < 0.1) {
 			memoryManager.unloadUnusedAssets();
 		}
-	}, 3000); // Check every 3 seconds
+	}, 3000);
 	
-	// Store interval reference for cleanup
 	window.memoryManagementInterval = managementInterval;
 	
 	return loadedAssets;
 }
 
 function setupMemoryPressureHandling() {
-	// Universal memory monitoring (not just mobile)
 	if ('memory' in performance) {
 		const memoryCheckInterval = setInterval(() => {
 			const memInfo = performance.memory;
@@ -886,25 +854,22 @@ function setupMemoryPressureHandling() {
 					window.memoryManager.unloadUnusedAssets();
 				}
 				
-				// Emergency cleanup
 				if (usedRatio > 0.9) {
 					console.error('🚨 Emergency memory cleanup triggered');
 					performEmergencyCleanup();
 				}
 				
-				// Force garbage collection if available
 				if (window.gc) {
 					window.gc();
 				}
 			} else if (usedRatio < 0.7 && window.memoryManager && window.memoryManager.isLoadingPaused) {
 				window.memoryManager.resumeLoading();
 			}
-		}, 5000); // Check every 5 seconds
+		}, 5000);
 		
 		window.memoryCheckInterval = memoryCheckInterval;
 	}
 	
-	// Handle low memory events (available on some devices)
 	window.addEventListener('low-memory', () => {
 		console.warn('📱 Low memory event detected - aggressive cleanup');
 		if (window.memoryManager) {
@@ -914,19 +879,16 @@ function setupMemoryPressureHandling() {
 		performEmergencyCleanup();
 	});
 	
-	// Enhanced visibility change handling
 	document.addEventListener('visibilitychange', () => {
 		if (document.hidden) {
 			if (window.memoryManager) {
 				window.memoryManager.unloadUnusedAssets();
 			}
-			// Reduce render quality when hidden
 			if (window.app_renderer && window.app_renderer.get_renderer()) {
 				const renderer = window.app_renderer.get_renderer();
 				renderer.setPixelRatio(Math.min(window.devicePixelRatio * 0.5, 1));
 			}
 		} else {
-			// Restore render quality
 			if (window.app_renderer && window.app_renderer.get_renderer()) {
 				const renderer = window.app_renderer.get_renderer();
 				const targetRatio = window.memoryManager?.isMobile ? 
@@ -939,7 +901,6 @@ function setupMemoryPressureHandling() {
 }
 
 function performEmergencyCleanup() {	
-	// Clear any caches
 	if (window.asset_handler) {
 		if (typeof window.asset_handler.clearCaches === 'function') {
 			window.asset_handler.clearCaches();
@@ -949,7 +910,6 @@ function performEmergencyCleanup() {
 		}
 	}
 	
-	// Reduce background container LOD
 	if (window.background_container) {
 		if (typeof window.background_container.reduceLOD === 'function') {
 			window.background_container.reduceLOD();
@@ -959,12 +919,10 @@ function performEmergencyCleanup() {
 		}
 	}
 	
-	// Pause physics temporarily to reduce CPU load
 	if (!is_physics_paused) {
 		window.emergencyPhysicsPause = true;
 		toggle_physics_pause();
 		
-		// Resume after 5 seconds
 		setTimeout(() => {
 			if (window.emergencyPhysicsPause && is_physics_paused) {
 				window.emergencyPhysicsPause = false;
@@ -973,7 +931,6 @@ function performEmergencyCleanup() {
 		}, 5000);
 	}
 	
-	// Clear overlay animations
 	if (window.viewable_container && window.viewable_container.get_overlay()) {
 		const overlay = window.viewable_container.get_overlay();
 		if (typeof overlay.clearNonEssentialAnimations === 'function') {
@@ -1069,11 +1026,6 @@ async function init() {
 		
 		if (diagnosticInfo.device.startsWith('IOS')) {
 			try {
-				if (window.devicePixelRatio > 2) {
-					set_resolution_scale(0.5);
-					updateDiagnostic('IOS_LOW_RES');
-				}
-				
 				const canvas = window.app_renderer?.get_renderer()?.domElement;
 				if (canvas) {
 					canvas.addEventListener('webglcontextlost', (event) => {
@@ -1122,11 +1074,6 @@ async function init() {
 		create_debug_UI();
 		set_background_container(window.background_container);
 		
-		if (window.manifest_manager.get_auto_throttle()) {
-			const initialScale = window.devicePixelRatio > 1 ? 0.75 : 1.0;
-			set_resolution_scale(initialScale);
-		}
-		
 		if (window.viewable_container && window.viewable_container.get_overlay()) {
 			const labelContainer = window.viewable_container.get_overlay().label_container;
 			if (labelContainer && typeof labelContainer.updateDebugVisualizations === 'function') {
@@ -1167,7 +1114,6 @@ function cleanup() {
 		window.memoryManager = null;
 	}
 	
-	// Clear memory management intervals
 	if (window.memoryManagementInterval) {
 		clearInterval(window.memoryManagementInterval);
 		window.memoryManagementInterval = null;
