@@ -105,7 +105,7 @@ export class UIInteractionHandler {
             render_order: intersected_object.renderOrder
         };
         
-        console.log("Label Hover Info:", labelInfo);
+        // console.log("Label Hover Info:", labelInfo);
     }
 
     #clearUIHover() {
@@ -118,7 +118,7 @@ export class UIInteractionHandler {
 
     #clearLabelHover() {
         if (this.current_hovered_label) {
-            console.log("Label hover cleared:", this.current_hovered_label);
+            // console.log("Label hover cleared:", this.current_hovered_label);
             this.current_hovered_label = null;
             this.#setCursor('default');
         }

@@ -33,33 +33,25 @@ export function setRigVisualizationEnabled(enabled) {
 
 export function createRigVisualization(rigDetails, scene, asset) {
     if (!rigDetails || !rigDetails.hasRig || rigDetails.bones.length === 0) {
-        console.log('[RigFactory] No actual rig to visualize (bones required)');
         return null;
     }
-    
-    console.log('[RigFactory] Creating rig visualization for:', rigDetails);
-    
+        
     if (!rigDetails.joints) {
         rigDetails.joints = [];
     }
     
     let targetContainer = scene;
     let currentParent = asset.parent;
-    console.log('[RigFactory] Looking for asset container, asset parent:', asset.parent?.name);
     
     while (currentParent && currentParent !== scene) {
-        console.log('[RigFactory] Checking parent:', currentParent.name, 'userData:', currentParent.userData);
         if (currentParent.name === 'asset_container' || 
             currentParent.userData && currentParent.userData.isAssetContainer) {
             targetContainer = currentParent;
-            console.log('[RigFactory] Found asset container:', targetContainer.name);
             break;
         }
         currentParent = currentParent.parent;
     }
-    
-    console.log('[RigFactory] Using target container:', targetContainer.name || 'scene');
-    
+        
     const rigVisualsGroup = new THREE.Group();
     rigVisualsGroup.name = "RigVisualization";
     rigVisualsGroup.visible = RIG_CONFIG.displayRig && RIG_VISUALIZATION_ENABLED;
@@ -71,9 +63,7 @@ export function createRigVisualization(rigDetails, scene, asset) {
             bones.push(node);
         }
     });
-    
-    console.log(`[RigFactory] Found ${bones.length} bones in asset`);
-    
+        
     if (bones.length === 0) {
         console.warn('[RigFactory] No bones found in asset');
         return null;
@@ -135,10 +125,6 @@ export function createRigVisualization(rigDetails, scene, asset) {
         asset: asset,
         targetContainer: targetContainer
     });
-    
-    console.log('[RigFactory] Rig visualization created successfully');
-    console.log(`[RigFactory] Created ${rigDetails.joints.length} joints`);
-    
     return {
         group: rigVisualsGroup,
         bones: bones,
@@ -147,31 +133,23 @@ export function createRigVisualization(rigDetails, scene, asset) {
     };
 }
 
-function createBoneStructureWithJoints(bones, bonesByParent, boneRadius, rigDetails, rigVisualsGroup) {
-    console.log('[RigFactory] Creating bone structure with', bones.length, 'bones');
-    
+function createBoneStructureWithJoints(bones, bonesByParent, boneRadius, rigDetails, rigVisualsGroup) {    
     bones.forEach(bone => {
-        const childBones = bonesByParent.get(bone.uuid) || [];
-        console.log('[RigFactory] Bone', bone.name, 'has', childBones.length, 'children');
-        
+        const childBones = bonesByParent.get(bone.uuid) || [];        
         childBones.forEach(childBone => {
             if (childBone.name.toLowerCase().includes('control') || 
                 childBone.name.toLowerCase().includes('ctrl') || 
                 childBone.name.toLowerCase().includes('handle')) {
-                console.log('[RigFactory] Skipping control bone:', childBone.name);
                 return;
             }
             
             const boneGroup = createBoneConnectionWithJoints(bone, childBone, boneRadius, rigDetails, rigVisualsGroup);
             rigVisualsGroup.add(boneGroup);
-            console.log('[RigFactory] Created bone connection from', bone.name, 'to', childBone.name);
         });
     });
 }
 
-function createBoneConnectionWithJoints(parentBone, childBone, radius, rigDetails, rigVisualsGroup) {
-    console.log(`[RigFactory] Creating bone connection from ${parentBone.name} to ${childBone.name}`);
-    
+function createBoneConnectionWithJoints(parentBone, childBone, radius, rigDetails, rigVisualsGroup) {    
     const boneGroup = new THREE.Group();
     
     boneGroup.userData.parentBone = parentBone;
@@ -255,12 +233,8 @@ function createBoneConnectionWithJoints(parentBone, childBone, radius, rigDetail
     return boneGroup;
 }
 
-function createRootBoneVisualizationsWithJoints(rootBones, radius, rigDetails, rigVisualsGroup) {
-    console.log('[RigFactory] Creating root visualizations for', rootBones.length, 'root bones');
-    
-    rootBones.forEach(rootBone => {
-        console.log(`[RigFactory] Creating root visualization for: ${rootBone.name}`);
-        
+function createRootBoneVisualizationsWithJoints(rootBones, radius, rigDetails, rigVisualsGroup) {    
+    rootBones.forEach(rootBone => {        
         const rootGroup = new THREE.Group();
         rigVisualsGroup.add(rootGroup);
         
@@ -299,8 +273,6 @@ function createRootBoneVisualizationsWithJoints(rootBones, radius, rigDetails, r
         rootGroup.userData.updatePosition = () => updateRootPosition(rootGroup, rigVisualsGroup);
         
         updateRootPosition(rootGroup, rigVisualsGroup);
-        
-        console.log(`[RigFactory] Created root puck for ${rootBone.name}`);
     });
 }
 
@@ -322,9 +294,7 @@ function createControlHandle(bone, container, modelScale, controlHandles) {
     handle.renderOrder = 10030;
     
     container.add(handle);
-    
-    console.log(`[RigFactory] Created control handle for bone: ${bone.name}`);
-    
+        
     handle.userData.controlledBone = bone;
     handle.userData.isControlHandle = true;
     handle.userData.updatePosition = () => updateHandlePosition(handle);
@@ -353,11 +323,9 @@ function findFarthestBone(bones) {
     });
     
     if (endBones.length > 0) {
-        console.log('[RigFactory] Found end bone:', endBones[0].name);
         return endBones[0];
     }
     
-    console.log('[RigFactory] No end bones found, using last bone:', bones[bones.length - 1].name);
     return bones[bones.length - 1];
 }
 
@@ -432,8 +400,6 @@ function updateHandlePosition(handle) {
 
 function applyForceZSettings(rigVisualsGroup, controlHandles) {
     if (!rigVisualsGroup) return;
-    
-    console.log('[RigFactory] Applying Force Z settings');
     
     rigVisualsGroup.renderOrder = 10000;
     rigVisualsGroup.onBeforeRender = function() {
@@ -515,7 +481,6 @@ export function clearRigVisualization(scene) {
 
 export function updateRigConfig(newConfig) {
     Object.assign(RIG_CONFIG, newConfig);
-    console.log('[RigFactory] Rig config updated:', RIG_CONFIG);
     
     rigVisualizationsByAsset.forEach((rigData, assetId) => {
         if (rigData.group) {
