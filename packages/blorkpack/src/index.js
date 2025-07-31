@@ -47,6 +47,8 @@ import { ManifestManager } from './manifest_manager.js';
 import { MANIFEST_TYPES } from './manifest_types.js';
 import { MemoryAnalyzer } from './memory_analyzer.js';
 import { SystemAssetType } from './asset_handler/common/system_asset_types.js';
+import { TextureOptimizer } from '../texture_optimizer.js';
+import { UniversalMemoryManager } from './universal_memory_manager.js';
 // Export the components
 export {
 	BTYPES,
@@ -62,5 +64,7 @@ export {
 	MemoryAnalyzer,
 	BLORKPACK_FLAGS,
 	initPhysicsUtil,
-	SystemAssetType
+	SystemAssetType,
+	TextureOptimizer,
+	UniversalMemoryManager
 }; 

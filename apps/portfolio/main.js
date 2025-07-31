@@ -19,7 +19,8 @@ import {
 	release_object, 
 	initPhysicsUtil,
 	InteractionManager,
-	MemoryAnalyzer
+	MemoryAnalyzer,
+	UniversalMemoryManager
 	} from '@littlecarlito/blorkpack';
 import { 
 	toggleDebugUI, 
@@ -39,443 +40,6 @@ if (import.meta.hot) {
 	});
 }
 
-class UniversalMemoryManager {
-	constructor() {
-		this.isMobile = /iPad|iPhone|iPod|Android/.test(navigator.userAgent);
-		this.isLowMemoryDevice = this.detectLowMemoryDevice();
-		this.loadedAssets = new Map();
-		this.assetQueue = [];
-		this.maxConcurrentLoads = this.calculateConcurrentLoads();
-		this.memoryBudget = this.calculateMemoryBudget();
-		this.isLoadingPaused = false;
-		this.loadingPhase = 'essential';
-	}
-	
-	detectLowMemoryDevice() {
-		const ram = navigator.deviceMemory || 4;
-		const isOldIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && 
-						parseInt(navigator.userAgent.match(/OS (\d+)_/)?.[1] || '15') < 13;
-		const isLowEndDesktop = !this.isMobile && (ram < 8 || navigator.hardwareConcurrency < 4);
-		return ram < 4 || isOldIOS || isLowEndDesktop;
-	}
-	
-	calculateConcurrentLoads() {
-		if (this.isLowMemoryDevice) return 1;
-		if (this.isMobile) return 2;
-		const cores = navigator.hardwareConcurrency || 4;
-		return Math.min(cores, 6);
-	}
-	
-	calculateMemoryBudget() {
-		if (this.isLowMemoryDevice) return 150 * 1024 * 1024;
-		if (this.isMobile) return 400 * 1024 * 1024;
-		const ram = navigator.deviceMemory || 8;
-		if (ram >= 16) return 1200 * 1024 * 1024;
-		if (ram >= 8) return 800 * 1024 * 1024;
-		return 600 * 1024 * 1024;
-	}
-	
-	async loadAssetsWithBudget(assetList) {		
-		const phaseAssets = this.organizeAssetsByPhase(assetList);
-		const loadedAssets = [];
-		
-		for (const [phase, assets] of Object.entries(phaseAssets)) {
-			this.loadingPhase = phase;
-			
-			const phaseResults = await this.loadAssetPhase(assets);
-			loadedAssets.push(...phaseResults);
-			
-			const currentMemory = this.getCurrentMemoryUsage();
-			const memoryRatio = currentMemory / this.memoryBudget;
-						
-			if (memoryRatio > 0.8) {
-				console.warn(`⚠️ Memory budget reached after ${phase} phase, deferring remaining assets`);
-				this.deferRemainingAssets(phaseAssets, phase);
-				break;
-			}
-			
-			await new Promise(resolve => setTimeout(resolve, 100));
-		}
-		
-		return loadedAssets;
-	}
-	
-	organizeAssetsByPhase(assetList) {
-		const phases = {
-			essential: [],
-			interactive: [],
-			decorative: [],
-			background: []
-		};
-		
-		for (const asset of assetList) {
-			const phase = this.getAssetPhase(asset);
-			phases[phase].push(asset);
-		}
-		
-		Object.keys(phases).forEach(phase => {
-			phases[phase].sort((a, b) => this.getAssetPriority(b) - this.getAssetPriority(a));
-		});
-		
-		return phases;
-	}
-	
-	getAssetPhase(asset) {
-		const name = asset.name || asset;
-		
-		if (typeof name === 'string') {
-			const upperName = name.toUpperCase();
-			
-			if (upperName.includes('CAMERA') || upperName.includes('LIGHTING') || upperName.includes('SCENE')) {
-				return 'essential';
-			}
-			
-			if (upperName.includes('CAT') || upperName.includes('MONITOR')) {
-				return 'interactive';
-			}
-			
-			if (upperName.includes('COMPUTER') || upperName.includes('KEYBOARD') || 
-				upperName.includes('MOUSE') || upperName.includes('PLANT') ||
-				upperName.includes('CHAIR') || upperName.includes('DESK')) {
-				return 'decorative';
-			}
-			
-			if (upperName.includes('DIPLOMA') || upperName.includes('BOOK') || 
-				upperName.includes('NOTEBOOK') || upperName.includes('TABLET') ||
-				upperName.includes('DESKPHOTO') || upperName.includes('MOUSEPAD')) {
-				return 'background';
-			}
-		}
-		
-		return 'decorative';
-	}
-	
-	async loadAssetPhase(assets) {
-		const loadedAssets = [];
-		const chunks = this.chunkArray(assets, this.maxConcurrentLoads);
-		
-		for (const chunk of chunks) {
-			if (this.isLoadingPaused) {
-				this.assetQueue.push(...chunk);
-				break;
-			}
-			
-			const chunkPromises = chunk.map(async (asset) => {
-				try {
-					const currentMemory = this.getCurrentMemoryUsage();
-					if (currentMemory > this.memoryBudget * 0.9) {
-						console.warn(`Memory limit reached, deferring ${asset.name}`);
-						this.deferAsset(asset);
-						return null;
-					}
-					
-					const loadedAsset = await this.loadAssetOptimized(asset);
-					this.loadedAssets.set(asset.name || asset.toString(), loadedAsset);
-					return loadedAsset;
-				} catch (error) {
-					console.warn(`Failed to load ${asset.name}:`, error);
-					return null;
-				}
-			});
-			
-			const chunkResults = await Promise.all(chunkPromises);
-			loadedAssets.push(...chunkResults.filter(asset => asset !== null));
-			
-			await new Promise(resolve => setTimeout(resolve, 50));
-		}
-		
-		return loadedAssets;
-	}
-	
-	chunkArray(array, size) {
-		const chunks = [];
-		for (let i = 0; i < array.length; i += size) {
-			chunks.push(array.slice(i, i + size));
-		}
-		return chunks;
-	}
-	
-	deferRemainingAssets(phaseAssets, currentPhase) {
-		const phaseOrder = ['essential', 'interactive', 'decorative', 'background'];
-		const currentIndex = phaseOrder.indexOf(currentPhase);
-		
-		for (let i = currentIndex + 1; i < phaseOrder.length; i++) {
-			const phase = phaseOrder[i];
-			this.assetQueue.push(...phaseAssets[phase]);
-		}
-	}
-	
-	prioritizeAssets(assetList) {
-		return assetList.sort((a, b) => {
-			const aPriority = this.getAssetPriority(a);
-			const bPriority = this.getAssetPriority(b);
-			return bPriority - aPriority;
-		});
-	}
-	
-	getAssetPriority(asset) {
-		let priority = 0;
-		const name = asset.name || asset;
-		
-		if (typeof name === 'string') {
-			const upperName = name.toUpperCase();
-			
-			if (upperName.includes('CAT') || upperName.includes('MONITOR')) priority += 100;
-			
-			if (upperName.includes('COMPUTER') || upperName.includes('KEYBOARD') || 
-				upperName.includes('DESK') || upperName.includes('CHAIR')) priority += 25;
-			
-			if (upperName.includes('PLANT') || upperName.includes('BOOK') || 
-				upperName.includes('MOUSE')) priority -= 25;
-			
-			if (upperName.includes('DIPLOMA') || upperName.includes('DESKPHOTO') || 
-				upperName.includes('NOTEBOOK') || upperName.includes('TABLET')) priority -= 50;
-		}
-		
-		if (asset.hasRig) priority += 50;
-		
-		return priority;
-	}
-	
-	async loadAssetOptimized(asset) {
-		const optimizations = {
-			textureCompression: true,
-			geometrySimplification: this.getGeometrySimplification(),
-			materialSimplification: true,
-			disableNonEssentialAnimations: this.isLowMemoryDevice,
-			lodEnabled: true,
-			maxTextureSize: this.getMaxTextureSize(),
-			enableInstancing: !this.isLowMemoryDevice,
-			cullDistance: this.getCullDistance(),
-			shadowQuality: this.getShadowQuality()
-		};
-		
-		const assetName = asset.name || asset.toString();
-		
-		try {
-			let loadedAsset;
-			
-			if (window.asset_handler.spawn_asset_optimized) {
-				loadedAsset = await window.asset_handler.spawn_asset_optimized(asset, optimizations);
-			} else if (window.asset_handler.spawn_asset) {
-				loadedAsset = await window.asset_handler.spawn_asset(assetName);
-				loadedAsset = this.postOptimizeAsset(loadedAsset, optimizations);
-			} else {
-				console.warn(`Cannot load asset ${assetName} - no suitable spawn method found`);
-				return null;
-			}
-			
-			return loadedAsset;
-		} catch (error) {
-			console.error(`Error loading asset ${assetName}:`, error);
-			return null;
-		}
-	}
-	
-	getGeometrySimplification() {
-		if (this.isLowMemoryDevice) return 0.4;
-		if (this.isMobile) return 0.7;
-		const cores = navigator.hardwareConcurrency || 4;
-		if (cores >= 8) return 1.0;
-		return 0.8;
-	}
-	
-	getMaxTextureSize() {
-		if (this.isLowMemoryDevice) return 512;
-		if (this.isMobile) return 1024;
-		const ram = navigator.deviceMemory || 8;
-		if (ram >= 16) return 2048;
-		if (ram >= 8) return 1024;
-		return 1024;
-	}
-	
-	getCullDistance() {
-		if (this.isLowMemoryDevice) return 30;
-		if (this.isMobile) return 50;
-		return 100;
-	}
-	
-	getShadowQuality() {
-		if (this.isLowMemoryDevice) return 'none';
-		if (this.isMobile) return 'low';
-		const ram = navigator.deviceMemory || 8;
-		if (ram >= 16) return 'high';
-		return 'medium';
-	}
-	
-	postOptimizeAsset(asset, optimizations) {
-		if (!asset) return asset;
-		
-		asset.traverse((child) => {
-			if (child.material) {
-				const materials = Array.isArray(child.material) ? child.material : [child.material];
-				materials.forEach(material => {
-					if (material.map) {
-						TextureOptimizer.optimizeForMobile(material.map, optimizations.maxTextureSize);
-					}
-					if (material.normalMap) {
-						TextureOptimizer.optimizeForMobile(material.normalMap, optimizations.maxTextureSize / 2);
-					}
-				});
-			}
-			
-			if (child.geometry && optimizations.geometrySimplification < 1.0) {
-				this.simplifyGeometry(child.geometry, optimizations.geometrySimplification);
-			}
-		});
-		
-		return asset;
-	}
-	
-	simplifyGeometry(geometry, factor) {
-		if (geometry.attributes.position) {
-			const positionCount = geometry.attributes.position.count;
-			const targetCount = Math.floor(positionCount * factor);
-			
-			if (targetCount < positionCount && window.THREE.SimplifyModifier) {
-				const modifier = new THREE.SimplifyModifier();
-				const simplified = modifier.modify(geometry, targetCount);
-				geometry.copy(simplified);
-			}
-		}
-	}
-	
-	getCurrentMemoryUsage() {
-		if (performance.memory) {
-			return performance.memory.usedJSHeapSize;
-		}
-		return this.loadedAssets.size * 10 * 1024 * 1024;
-	}
-	
-	deferAsset(asset) {
-		this.assetQueue.push(asset);
-	}
-	
-	async loadDeferredAssets() {
-		if (this.assetQueue.length === 0 || this.isLoadingPaused) return;
-		
-		const currentMemory = this.getCurrentMemoryUsage();
-		const memoryRatio = currentMemory / this.memoryBudget;
-		
-		if (memoryRatio < 0.6) {
-			const assetsToLoad = this.assetQueue.splice(0, this.maxConcurrentLoads);			
-			const loadPromises = assetsToLoad.map(async (asset) => {
-				try {
-					const loadedAsset = await this.loadAssetOptimized(asset);
-					this.loadedAssets.set(asset.name || asset.toString(), loadedAsset);
-					return loadedAsset;
-				} catch (error) {
-					console.warn(`Failed to load deferred asset ${asset.name}:`, error);
-					return null;
-				}
-			});
-			
-			await Promise.all(loadPromises);
-		}
-	}
-	
-	pauseLoading() {
-		this.isLoadingPaused = true;
-	}
-	
-	resumeLoading() {
-		this.isLoadingPaused = false;
-	}
-	
-	unloadUnusedAssets() {
-		const unusedAssets = this.findUnusedAssets();
-		for (const assetName of unusedAssets) {
-			this.unloadAsset(assetName);
-		}
-	}
-	
-	findUnusedAssets() {
-		const unused = [];
-		const camera = window.viewable_container?.get_camera();
-		
-		if (!camera) return unused;
-		
-		for (const [name, asset] of this.loadedAssets) {
-			if (this.isAssetOutOfView(asset, camera)) {
-				unused.push(name);
-			}
-		}
-		
-		return unused;
-	}
-	
-	isAssetOutOfView(asset, camera) {
-		if (!asset.position) return false;
-		
-		const distance = camera.position.distanceTo(asset.position);
-		const frustum = new THREE.Frustum();
-		const matrix = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-		frustum.setFromProjectionMatrix(matrix);
-		
-		return distance > 50 || !frustum.containsPoint(asset.position);
-	}
-	
-	unloadAsset(assetName) {
-		const asset = this.loadedAssets.get(assetName);
-		if (!asset) return;
-		
-		if (asset.geometry) asset.geometry.dispose();
-		if (asset.material) {
-			if (Array.isArray(asset.material)) {
-				asset.material.forEach(mat => this.disposeMaterial(mat));
-			} else {
-				this.disposeMaterial(asset.material);
-			}
-		}
-		
-		if (asset.parent) asset.parent.remove(asset);
-		
-		this.loadedAssets.delete(assetName);
-	}
-	
-	disposeMaterial(material) {
-		if (material.map) material.map.dispose();
-		if (material.normalMap) material.normalMap.dispose();
-		if (material.roughnessMap) material.roughnessMap.dispose();
-		if (material.metalnessMap) material.metalnessMap.dispose();
-		material.dispose();
-	}
-}
-
-class TextureOptimizer {
-	static optimizeForMobile(texture, maxSize = 1024) {
-		if (texture.image && (texture.image.width > maxSize || texture.image.height > maxSize)) {
-			const canvas = document.createElement('canvas');
-			const ctx = canvas.getContext('2d');
-			
-			const scale = Math.min(maxSize / texture.image.width, maxSize / texture.image.height);
-			canvas.width = texture.image.width * scale;
-			canvas.height = texture.image.height * scale;
-			
-			ctx.drawImage(texture.image, 0, 0, canvas.width, canvas.height);
-			texture.image = canvas;
-			texture.needsUpdate = true;
-		}
-		
-		texture.generateMipmaps = false;
-		texture.minFilter = THREE.LinearFilter;
-		texture.magFilter = THREE.LinearFilter;
-		
-		return texture;
-	}
-	
-	static compressTexture(texture) {
-		const renderer = window.app_renderer?.get_renderer();
-		if (renderer) {
-			const extensions = renderer.extensions;
-			if (extensions.get('WEBGL_compressed_texture_s3tc')) {
-				texture.format = THREE.CompressedRGBFormat;
-			}
-		}
-		return texture;
-	}
-}
-
 let tempVector3;
 let tempQuaternion;
 let tempEuler;
@@ -486,6 +50,7 @@ let is_cleaned_up = false;
 let is_physics_paused = false;
 let interactionManager = null;
 let memoryAnalyzer = null;
+let memoryManager = null;
 let isPageVisible = !document.hidden;
 let backgroundAnimationFrameId = null;
 let lastFrameTime = 0;
@@ -648,9 +213,6 @@ function handleVisibilityChange() {
 		} else {
 			window.app_renderer.set_animation_loop(null);
 			startBackgroundAnimation();
-			if (window.memoryManager) {
-				window.memoryManager.unloadUnusedAssets();
-			}
 		}
 	}
 }
@@ -763,22 +325,8 @@ async function loadManifestAndSetupScene() {
 	window.clock = new THREE.Clock();
 }
 
-async function loadAssetsParallel() {
-	update_loading_progress('Loading assets in parallel...');
-	
-	const assetPromises = [
-		setup_scene_background(),
-		setup_scene_lighting(),
-		window.asset_handler.spawn_manifest_assets(window.manifest_manager, (text) => {})
-	];
-	
-	const [backgroundResult, lightingResult, manifestAssets] = await Promise.all(assetPromises);
-	
-	return manifestAssets;
-}
-
 async function loadAssetsWithMemoryManagement() {
-	const memoryManager = new UniversalMemoryManager();
+	memoryManager = new UniversalMemoryManager();
 	window.memoryManager = memoryManager;
 	
 	update_loading_progress('Loading assets with universal memory optimization...');
@@ -815,128 +363,18 @@ async function loadAssetsWithMemoryManagement() {
 		
 	const loadedAssets = await memoryManager.loadAssetsWithBudget(assetList);
 	
-	const managementInterval = setInterval(() => {
-		const memoryRatio = memoryManager.getCurrentMemoryUsage() / memoryManager.memoryBudget;
-		
-		if (memoryRatio > 0.85) {
-			console.warn(`🔥 High memory usage: ${(memoryRatio * 100).toFixed(1)}%`);
-			memoryManager.pauseLoading();
-			memoryManager.unloadUnusedAssets();
-		} else if (memoryRatio < 0.6 && memoryManager.isLoadingPaused) {
-			memoryManager.resumeLoading();
-		}
-		
-		memoryManager.loadDeferredAssets();
-		
-		if (Math.random() < 0.1) {
-			memoryManager.unloadUnusedAssets();
-		}
-	}, 3000);
+	memoryManager.integrateWithSystems({
+		renderer: window.app_renderer.get_renderer(),
+		physics: window.world,
+		background: window.background_container,
+		scene: window.scene,
+		assetHandler: window.asset_handler
+	});
 	
-	window.memoryManagementInterval = managementInterval;
+	memoryManager.setupEventListeners();
+	memoryManager.startMemoryMonitoring();
 	
 	return loadedAssets;
-}
-
-function setupMemoryPressureHandling() {
-	if ('memory' in performance) {
-		const memoryCheckInterval = setInterval(() => {
-			const memInfo = performance.memory;
-			const usedRatio = memInfo.usedJSHeapSize / memInfo.jsHeapSizeLimit;
-			
-			if (usedRatio > 0.85) {
-				console.warn(`🔥 Critical memory usage: ${Math.round(usedRatio * 100)}%`);
-				console.warn(`   Used: ${(memInfo.usedJSHeapSize / 1024 / 1024).toFixed(1)}MB`);
-				console.warn(`   Limit: ${(memInfo.jsHeapSizeLimit / 1024 / 1024).toFixed(1)}MB`);
-				
-				if (window.memoryManager) {
-					window.memoryManager.pauseLoading();
-					window.memoryManager.unloadUnusedAssets();
-				}
-				
-				if (usedRatio > 0.9) {
-					console.error('🚨 Emergency memory cleanup triggered');
-					performEmergencyCleanup();
-				}
-				
-				if (window.gc) {
-					window.gc();
-				}
-			} else if (usedRatio < 0.7 && window.memoryManager && window.memoryManager.isLoadingPaused) {
-				window.memoryManager.resumeLoading();
-			}
-		}, 5000);
-		
-		window.memoryCheckInterval = memoryCheckInterval;
-	}
-	
-	window.addEventListener('low-memory', () => {
-		console.warn('📱 Low memory event detected - aggressive cleanup');
-		if (window.memoryManager) {
-			window.memoryManager.pauseLoading();
-			window.memoryManager.unloadUnusedAssets();
-		}
-		performEmergencyCleanup();
-	});
-	
-	document.addEventListener('visibilitychange', () => {
-		if (document.hidden) {
-			if (window.memoryManager) {
-				window.memoryManager.unloadUnusedAssets();
-			}
-			if (window.app_renderer && window.app_renderer.get_renderer()) {
-				const renderer = window.app_renderer.get_renderer();
-				renderer.setPixelRatio(Math.min(window.devicePixelRatio * 0.5, 1));
-			}
-		} else {
-			if (window.app_renderer && window.app_renderer.get_renderer()) {
-				const renderer = window.app_renderer.get_renderer();
-				const targetRatio = window.memoryManager?.isMobile ? 
-					Math.min(window.devicePixelRatio * 0.75, 2) : 
-					window.devicePixelRatio;
-				renderer.setPixelRatio(targetRatio);
-			}
-		}
-	});
-}
-
-function performEmergencyCleanup() {	
-	if (window.asset_handler) {
-		if (typeof window.asset_handler.clearCaches === 'function') {
-			window.asset_handler.clearCaches();
-		}
-		if (typeof window.asset_handler.clearNonEssentialAssets === 'function') {
-			window.asset_handler.clearNonEssentialAssets();
-		}
-	}
-	
-	if (window.background_container) {
-		if (typeof window.background_container.reduceLOD === 'function') {
-			window.background_container.reduceLOD();
-		}
-		if (typeof window.background_container.clearParticles === 'function') {
-			window.background_container.clearParticles();
-		}
-	}
-	
-	if (!is_physics_paused) {
-		window.emergencyPhysicsPause = true;
-		toggle_physics_pause();
-		
-		setTimeout(() => {
-			if (window.emergencyPhysicsPause && is_physics_paused) {
-				window.emergencyPhysicsPause = false;
-				toggle_physics_pause();
-			}
-		}, 5000);
-	}
-	
-	if (window.viewable_container && window.viewable_container.get_overlay()) {
-		const overlay = window.viewable_container.get_overlay();
-		if (typeof overlay.clearNonEssentialAnimations === 'function') {
-			overlay.clearNonEssentialAnimations();
-		}
-	}
 }
 
 async function waitForBackgroundAssetsOptimized() {
@@ -1060,8 +498,6 @@ async function init() {
 		window.addEventListener('unload', cleanup);
 		document.addEventListener('visibilitychange', handleVisibilityChange);
 		
-		setupMemoryPressureHandling();
-		
 		memoryAnalyzer.initialize();
 		window.memoryAnalyzer = memoryAnalyzer;
 		
@@ -1109,19 +545,10 @@ function cleanup() {
 	window.removeEventListener('unload', cleanup);
 	document.removeEventListener('visibilitychange', handleVisibilityChange);
 	
-	if (window.memoryManager) {
-		window.memoryManager.unloadUnusedAssets();
+	if (memoryManager) {
+		memoryManager.dispose();
+		memoryManager = null;
 		window.memoryManager = null;
-	}
-	
-	if (window.memoryManagementInterval) {
-		clearInterval(window.memoryManagementInterval);
-		window.memoryManagementInterval = null;
-	}
-	
-	if (window.memoryCheckInterval) {
-		clearInterval(window.memoryCheckInterval);
-		window.memoryCheckInterval = null;
 	}
 	
 	if (window.app_renderer) {
