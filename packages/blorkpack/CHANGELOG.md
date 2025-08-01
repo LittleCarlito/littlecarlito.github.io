@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.51.5 (2025-08-01)</small>
+
+- fix(portfolio): loading sequence ([8ca67e1](https://github.com/littlecarlito/threejs_site/commit/8ca67e1))
+- fix(portfolio): wasm warning ([bed2650](https://github.com/littlecarlito/threejs_site/commit/bed2650))
+- refactor(portfolio): main structure ([0a1a088](https://github.com/littlecarlito/threejs_site/commit/0a1a088))
+
 ## <small>0.51.4 (2025-07-30)</small>
 
 - fix(portfolio): css3d frame alignment ([6df9a2b](https://github.com/littlecarlito/threejs_site/commit/6df9a2b))

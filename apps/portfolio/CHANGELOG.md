@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.50.7 (2025-08-01)</small>
+
+- refactor(portfolio): debug ui ([5648ceb](https://github.com/littlecarlito/threejs_site/commit/5648ceb))
+- refactor(portfolio): main structure ([0a1a088](https://github.com/littlecarlito/threejs_site/commit/0a1a088))
+- fix(portfolio): loading sequence ([8ca67e1](https://github.com/littlecarlito/threejs_site/commit/8ca67e1))
+
 ## <small>0.50.6 (2025-07-30)</small>
 
 - fix(portfolio): mobile detection ([4d4d8c5](https://github.com/littlecarlito/threejs_site/commit/4d4d8c5))
