@@ -2,7 +2,7 @@
 import { THREE, BLORKPACK_FLAGS } from '@littlecarlito/blorkpack';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 
-const BACKGROUND_PATH = 'images/orbit_sunset.exr';
+const BACKGROUND_PATH = 'images/orbit_sunset.jpg';
 const LIGHTING_PATH = 'images/brown_studio.exr';
 
 // HDRI Background Rotation Controls (in degrees)
@@ -28,7 +28,7 @@ export const SceneSetupHelper = {
 		
 		switch (bg.type) {
 		case 'IMAGE':
-			await this._create_hdri_background(scene, progressCallback);
+			await this._create_optimized_background(scene, progressCallback);
 			break;
 		case 'COLOR':
 			scene.background = new THREE.Color(bg.color_value);
@@ -55,27 +55,28 @@ export const SceneSetupHelper = {
 	},
 
 	/**
-	 * Creates HDRI background using orbit_sunset.exr
+	 * Creates optimized background using JPG instead of massive EXR
 	 * @private
 	 * @param {THREE.Scene} scene - The Three.js scene to configure
 	 * @param {Function} progressCallback - Optional callback for loading progress updates
-	 * @returns {Promise} Promise that resolves when HDRI is loaded
+	 * @returns {Promise} Promise that resolves when background is loaded
 	 */
-	_create_hdri_background(scene, progressCallback) {		
+	_create_optimized_background(scene, progressCallback) {		
 		return new Promise((resolve, reject) => {
-			const loader = new EXRLoader();
+			const loader = new THREE.TextureLoader();
 			
 			loader.load(BACKGROUND_PATH, 
 				(texture) => {
 					texture.mapping = THREE.EquirectangularReflectionMapping;
+					texture.colorSpace = THREE.SRGBColorSpace;
 					
 					// Convert degrees to radians
 					const rotX = THREE.MathUtils.degToRad(HDRI_ROTATION_X_DEG);
 					const rotY = THREE.MathUtils.degToRad(HDRI_ROTATION_Y_DEG);
 					const rotZ = THREE.MathUtils.degToRad(HDRI_ROTATION_Z_DEG);
 					
-					// Always use sphere approach for proper rotation control
-					const sphere = new THREE.SphereGeometry(500, 64, 32);
+					// Use optimized sphere geometry (lower poly count)
+					const sphere = new THREE.SphereGeometry(500, 32, 16);
 					const material = new THREE.MeshBasicMaterial({
 						map: texture,
 						side: THREE.BackSide,
@@ -93,12 +94,15 @@ export const SceneSetupHelper = {
 					resolve(texture);
 				},
 				(progress) => {
-					const percentage = Math.round(progress.loaded / progress.total * 100);
-					if (progressCallback) {
-						progressCallback(`Loading HDRI background... ${percentage}%`);
+					if (progress.total > 0) {
+						const percentage = Math.round(progress.loaded / progress.total * 100);
+						if (progressCallback) {
+							progressCallback(`Loading background... ${percentage}%`);
+						}
 					}
 				},
 				(error) => {
+					console.error('Failed to load background:', error);
 					reject(error);
 				}
 			);
@@ -123,12 +127,15 @@ export const SceneSetupHelper = {
 					resolve(texture);
 				},
 				(progress) => {
-					const percentage = Math.round(progress.loaded / progress.total * 100);
-					if (progressCallback) {
-						progressCallback(`Loading HDRI lighting... ${percentage}%`);
+					if (progress.total > 0) {
+						const percentage = Math.round(progress.loaded / progress.total * 100);
+						if (progressCallback) {
+							progressCallback(`Loading lighting... ${percentage}%`);
+						}
 					}
 				},
 				(error) => {
+					console.error('Failed to load HDRI lighting:', error);
 					reject(error);
 				}
 			);
