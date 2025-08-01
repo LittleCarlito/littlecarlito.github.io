@@ -353,7 +353,6 @@ async function loadAssetsWithMemoryManagement() {
 		}
 		
 		if (assetList.length === 0) {
-			console.warn('No assets found in manifest, falling back to spawn_manifest_assets');
 			return await window.asset_handler.spawn_manifest_assets(window.manifest_manager, (text) => {});
 		}
 	} catch (error) {
@@ -444,6 +443,9 @@ async function init() {
 		window.app_renderer = new AppRenderer(window.scene, window.viewable_container.get_camera());
 		window.renderer = window.app_renderer.get_renderer();
 		
+		update_loading_progress('Precompiling shaders...');
+		await window.app_renderer.precompileShaders();
+		
 		const setupPromises = [
 			interactionManager.startListening(window),
 			(async () => {
@@ -454,13 +456,25 @@ async function init() {
 		
 		await Promise.all(setupPromises);
 		
+		// START RENDERING IMMEDIATELY - before asset loading
+		window.app_renderer.set_animation_loop(animate);
+		
 		updateDiagnostic('ASSETS_LOADING');
 		await loadAssetsWithMemoryManagement();
 		updateDiagnostic('ASSETS_LOADED');
 		
+		// Remove blocking wait - let BackgroundContainer load progressively while rendering
 		updateDiagnostic('BG_ASSETS_LOADING');
-		await waitForBackgroundAssetsOptimized();
-		updateDiagnostic('BG_ASSETS_LOADED');
+		
+		// Set up background loading completion handler to hide loading screen
+		const checkBackgroundComplete = setInterval(async () => {
+			const isComplete = await window.background_container.is_loading_complete();
+			if (isComplete) {
+				clearInterval(checkBackgroundComplete);
+				updateDiagnostic('BG_ASSETS_LOADED');
+				hide_loading_screen();
+			}
+		}, 100);
 		
 		if (diagnosticInfo.device.startsWith('IOS')) {
 			try {
@@ -492,7 +506,6 @@ async function init() {
 		
 		clearTimeout(loadingTimeout);
 		updateDiagnostic('SUCCESS');
-		hide_loading_screen();
 		
 		window.addEventListener('keydown', toggle_debug_ui);
 		window.addEventListener('unload', cleanup);
@@ -504,8 +517,6 @@ async function init() {
 		if (window.css3dFactory) {
 			window.css3dFactory.setExternalAnimationLoop(true);
 		}
-		
-		window.app_renderer.set_animation_loop(animate);
 		
 		create_debug_UI();
 		set_background_container(window.background_container);

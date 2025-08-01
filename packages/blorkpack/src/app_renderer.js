@@ -9,6 +9,8 @@ export class AppRenderer {
 	css_renderer;
 	composer;
 	css3d_factory;
+	isFirstRender = true;
+	compilationComplete = false;
 
 	constructor(incoming_parent, incoming_camera) {
 		this.parent = incoming_parent;
@@ -22,13 +24,19 @@ export class AppRenderer {
 		this.css_renderer.domElement.style.zIndex = '1';
 		document.body.appendChild(this.css_renderer.domElement);
 		
-		this.webgl_renderer = new THREE.WebGLRenderer({ antialias: true });
+		this.webgl_renderer = new THREE.WebGLRenderer({ 
+			antialias: true,
+			powerPreference: "high-performance",
+			stencil: false,
+			depth: true,
+			alpha: false
+		});
 		this.webgl_renderer.setSize(window.innerWidth, window.innerHeight);
 		this.webgl_renderer.shadowMap.enabled = true;
 		this.webgl_renderer.shadowMap.type = THREE.VSMShadowMap;
-		this.webgl_renderer.sortObjects = true;
-		this. webgl_renderer.domElement.style.position = 'absolute';
-		this. webgl_renderer.domElement.style.top = '0';
+		this.webgl_renderer.sortObjects = false;
+		this.webgl_renderer.domElement.style.position = 'absolute';
+		this.webgl_renderer.domElement.style.top = '0';
 		this.webgl_renderer.domElement.style.zIndex = '0';
 		document.body.appendChild(this.webgl_renderer.domElement);
 		
@@ -37,6 +45,20 @@ export class AppRenderer {
 		const render_scene = new RenderPass(this.parent, this.camera);
 		this.composer.addPass(render_scene);
 		this.composer.addPass(output_pass);
+		this.composer.setSize(window.innerWidth, window.innerHeight);
+	}
+
+	async precompileShaders() {
+		if (this.compilationComplete) return;
+		
+		console.log('Starting shader precompilation...');
+		const startTime = performance.now();
+		
+		await this.webgl_renderer.compileAsync(this.parent, this.camera);
+		
+		this.compilationComplete = true;
+		const endTime = performance.now();
+		console.log(`Shader precompilation completed in ${(endTime - startTime).toFixed(2)}ms`);
 	}
 
 	setCss3dFactory(css3dFactory) {
@@ -85,18 +107,18 @@ export class AppRenderer {
 	}
 
 	render() {
-		this.parent.traverse((object) => {
-			if (object.isMesh) {
-				object.updateMatrixWorld(true);
-			}
-		});
-
+		if (this.isFirstRender && !this.compilationComplete) {
+			console.warn('First render called before shader compilation - this may cause lag');
+		}
+		
 		this.composer.render();
 		this.css_renderer.render(this.parent, this.camera);
 		
 		if (this.css3d_factory && this.css3d_factory.css3dRenderer && this.css3d_factory.css3dScene) {
 			this.css3d_factory.css3dRenderer.render(this.css3d_factory.css3dScene, this.camera);
 		}
+		
+		this.isFirstRender = false;
 	}
 
 	forceRender() {
@@ -106,6 +128,7 @@ export class AppRenderer {
 	resize() {
 		this.webgl_renderer.setSize(window.innerWidth, window.innerHeight);
 		this.css_renderer.setSize(window.innerWidth, window.innerHeight);
+		this.composer.setSize(window.innerWidth, window.innerHeight);
 		
 		if (this.css3d_factory && this.css3d_factory.css3dRenderer) {
 			this.css3d_factory.css3dRenderer.setSize(window.innerWidth, window.innerHeight);

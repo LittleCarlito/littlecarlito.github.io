@@ -10,6 +10,11 @@ const DIPLOMA_Z = -.5;
 const DESPAWN_Y_THRESHOLD = -50;
 const FALLEN_ASSET_CHECK_INTERVAL = 60;
 
+// GPU-friendly loading delays
+const ASSET_SPAWN_DELAY_FRAMES = 3; // Wait 3 frames between assets
+const MOBILE_SPAWN_DELAY_FRAMES = 6; // Wait 6 frames on mobile
+const GPU_RECOVERY_DELAY_MS = 50; // Additional delay for GPU recovery
+
 const FLOOR_CONFIGS = {
 	MAIN: {
 		name: "MainFloor",
@@ -72,6 +77,7 @@ export class BackgroundContainer {
 	is_spawning_primary = false;
 	dropped_asset_colliders = new Map();
 	frameCount = 0;
+	isMobileDevice = false;
 
 	constructor(incoming_parent, incoming_camera, incoming_world) {
 		this.parent = incoming_parent;
@@ -85,58 +91,252 @@ export class BackgroundContainer {
 		this.asset_container.userData.isAssetContainer = true;
 		this.object_container.add(this.asset_container);
 		
+		// Detect mobile for different loading strategies
+		this.isMobileDevice = /iPad|iPhone|iPod|Android/.test(navigator.userAgent);
+		
 		this.floors.main = new SimpleFloorRectangle(this.world, this.object_container, FLOOR_CONFIGS.MAIN);
 		this.floors.left = new SimpleFloorRectangle(this.world, this.object_container, FLOOR_CONFIGS.LEFT);
 		this.floors.right = new SimpleFloorRectangle(this.world, this.object_container, FLOOR_CONFIGS.RIGHT);
 		
-		const asset_loader = AssetHandler.get_instance(this.asset_container, this.world);
-		this.loading_promise = (async () => {
-			try {
-				const customTypeManager = CustomTypeManager.getInstance();
+		// Start GPU-friendly progressive loading instead of blocking promise
+		this.startProgressiveAssetLoading();
+	}
+
+	async startProgressiveAssetLoading() {
+		try {
+			const customTypeManager = CustomTypeManager.getInstance();
+			if (!customTypeManager.hasLoadedCustomTypes()) {
+				if (FLAGS.ASSET_LOGS) console.warn(`${this.name} Custom types not loaded yet. Waiting for them to load...`);
+				await new Promise(resolve => setTimeout(resolve, 500));
 				if (!customTypeManager.hasLoadedCustomTypes()) {
-					if (FLAGS.ASSET_LOGS) console.warn(`${this.name} Custom types not loaded yet. Waiting for them to load...`);
-					await new Promise(resolve => setTimeout(resolve, 500));
-					if (!customTypeManager.hasLoadedCustomTypes()) {
-						throw new Error(`${this.name} Custom types still not loaded after waiting. Make sure CustomTypeManager.loadCustomTypes() is called before creating BackgroundContainer.`);
-					}
+					throw new Error(`${this.name} Custom types still not loaded after waiting. Make sure CustomTypeManager.loadCustomTypes() is called before creating BackgroundContainer.`);
 				}
-				const ASSET_TYPE = customTypeManager.getTypes();
-				const ASSET_CONFIGS = customTypeManager.getConfigs();
-				if (Object.keys(ASSET_TYPE).length === 0) {
-					throw new Error(`${this.name} No custom asset types found. Assets will not spawn correctly.`);
-				}
-				if (FLAGS.ASSET_LOGS) console.log(`${this.name} Loaded custom types:`, Object.keys(ASSET_TYPE));
-				
-				await this.spawnAsset(ASSET_TYPE.ROOM, new THREE.Vector3(0, FLOOR_HEIGHT, 0), new THREE.Quaternion(), ASSET_CONFIGS);
-				await this.spawnAsset(ASSET_TYPE.DESK, new THREE.Vector3(-.5, FLOOR_HEIGHT, -.75), new THREE.Quaternion(), ASSET_CONFIGS);
-				await this.spawnAsset(ASSET_TYPE.CHAIR, new THREE.Vector3(-1, FLOOR_HEIGHT, -1.5), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2 + Math.PI / 4), ASSET_CONFIGS);
-				await this.spawnAsset(ASSET_TYPE.CAT, new THREE.Vector3(5.5, FLOOR_HEIGHT, -6), new THREE.Quaternion(), ASSET_CONFIGS);
-				await this.spawnAsset(ASSET_TYPE.PLANT, new THREE.Vector3(-6, FLOOR_HEIGHT, 6), new THREE.Quaternion(), ASSET_CONFIGS);
-				await this.spawnAsset(ASSET_TYPE.COMPUTER, new THREE.Vector3(-4, FLOOR_HEIGHT, 2.5), new THREE.Quaternion(), ASSET_CONFIGS);
-				await this.spawnAsset(ASSET_TYPE.MONITOR, new THREE.Vector3(-4.5, DESK_HEIGHT, -5), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4), ASSET_CONFIGS, ASSET_CATEGORY_MAP.MONITOR);
-				await this.spawnAsset(ASSET_TYPE.KEYBOARD, new THREE.Vector3(-4, DESK_HEIGHT, -3), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 8), ASSET_CONFIGS);
-				await this.spawnAsset(ASSET_TYPE.MOUSEPAD, new THREE.Vector3(-2, DESK_HEIGHT, -5), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 8), ASSET_CONFIGS);
-				await this.spawnAsset(ASSET_TYPE.MOUSE, new THREE.Vector3(-2, DESK_HEIGHT, -5), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2 + Math.PI / 4), ASSET_CONFIGS);
-				await this.spawnAsset(ASSET_TYPE.DESKPHOTO, new THREE.Vector3(0, DESK_HEIGHT, -7), new THREE.Quaternion(), ASSET_CONFIGS, ASSET_CATEGORY_MAP.DESKPHOTO);
-				await this.spawnAsset(ASSET_TYPE.TABLET, new THREE.Vector3(2, DESK_HEIGHT, -5), new THREE.Quaternion(), ASSET_CONFIGS, ASSET_CATEGORY_MAP.TABLET);
-				await this.spawnAsset(ASSET_TYPE.NOTEBOOK_CLOSED, new THREE.Vector3(-6, DESK_HEIGHT, 2.5), new THREE.Quaternion(), ASSET_CONFIGS);
-				await this.spawnAsset(ASSET_TYPE.BOOK, new THREE.Vector3(-6, DESK_HEIGHT + .25, 2.5), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2), ASSET_CONFIGS);
-				await this.spawnAsset(ASSET_TYPE.NOTEBOOK_OPENED, new THREE.Vector3(-5, DESK_HEIGHT, 0), new THREE.Quaternion(), ASSET_CONFIGS, ASSET_CATEGORY_MAP.NOTEBOOK_OPENED);
-				await this.spawnAsset(ASSET_TYPE.DIPLOMA_BOT, new THREE.Vector3(DIPLOMA_X, 1.5, DIPLOMA_Z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2)), ASSET_CONFIGS, ASSET_CATEGORY_MAP.DIPLOMA_BOT);
-				await this.spawnAsset(ASSET_TYPE.DIPLOMA_TOP, new THREE.Vector3(DIPLOMA_X, -1.5, DIPLOMA_Z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2)), ASSET_CONFIGS, ASSET_CATEGORY_MAP.DIPLOMA_TOP);
-				
-				this.setBackgroundRenderOrder();
-				
-				if (FLAGS.PHYSICS_LOGS) {
-					console.log('All assets initialized successfully');
-				}
-				this.loading_complete = true;
-			} catch (error) {
-				console.error('Error initializing assets:', error);
-				this.loading_complete = true;
-				throw error;
 			}
-		})();
+			
+			const ASSET_TYPE = customTypeManager.getTypes();
+			const ASSET_CONFIGS = customTypeManager.getConfigs();
+			if (Object.keys(ASSET_TYPE).length === 0) {
+				throw new Error(`${this.name} No custom asset types found. Assets will not spawn correctly.`);
+			}
+			if (FLAGS.ASSET_LOGS) console.log(`${this.name} Loaded custom types:`, Object.keys(ASSET_TYPE));
+			
+			// Define asset loading queue with priorities
+			const assetQueue = [
+				// Priority 1: Essential scene elements (load first)
+				{ 
+					type: ASSET_TYPE.ROOM, 
+					position: new THREE.Vector3(0, FLOOR_HEIGHT, 0), 
+					rotation: new THREE.Quaternion(),
+					category: null,
+					priority: 1
+				},
+				
+				// Priority 2: Interactive workspace elements
+				{ 
+					type: ASSET_TYPE.DESK, 
+					position: new THREE.Vector3(-.5, FLOOR_HEIGHT, -.75), 
+					rotation: new THREE.Quaternion(),
+					category: null,
+					priority: 2
+				},
+				{ 
+					type: ASSET_TYPE.MONITOR, 
+					position: new THREE.Vector3(-4.5, DESK_HEIGHT, -5), 
+					rotation: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4),
+					category: ASSET_CATEGORY_MAP.MONITOR,
+					priority: 2
+				},
+				
+				// Priority 3: Secondary workspace elements
+				{ 
+					type: ASSET_TYPE.CHAIR, 
+					position: new THREE.Vector3(-1, FLOOR_HEIGHT, -1.5), 
+					rotation: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2 + Math.PI / 4),
+					category: null,
+					priority: 3
+				},
+				{ 
+					type: ASSET_TYPE.KEYBOARD, 
+					position: new THREE.Vector3(-4, DESK_HEIGHT, -3), 
+					rotation: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 8),
+					category: null,
+					priority: 3
+				},
+				{ 
+					type: ASSET_TYPE.MOUSEPAD, 
+					position: new THREE.Vector3(-2, DESK_HEIGHT, -5), 
+					rotation: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 8),
+					category: null,
+					priority: 3
+				},
+				{ 
+					type: ASSET_TYPE.MOUSE, 
+					position: new THREE.Vector3(-2, DESK_HEIGHT, -5), 
+					rotation: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2 + Math.PI / 4),
+					category: null,
+					priority: 3
+				},
+				
+				// Priority 4: Decorative/interactive elements
+				{ 
+					type: ASSET_TYPE.COMPUTER, 
+					position: new THREE.Vector3(-4, FLOOR_HEIGHT, 2.5), 
+					rotation: new THREE.Quaternion(),
+					category: null,
+					priority: 4
+				},
+				{ 
+					type: ASSET_TYPE.DESKPHOTO, 
+					position: new THREE.Vector3(0, DESK_HEIGHT, -7), 
+					rotation: new THREE.Quaternion(),
+					category: ASSET_CATEGORY_MAP.DESKPHOTO,
+					priority: 4
+				},
+				{ 
+					type: ASSET_TYPE.TABLET, 
+					position: new THREE.Vector3(2, DESK_HEIGHT, -5), 
+					rotation: new THREE.Quaternion(),
+					category: ASSET_CATEGORY_MAP.TABLET,
+					priority: 4
+				},
+				
+				// Priority 5: Background/ambient elements (load last)
+				{ 
+					type: ASSET_TYPE.CAT, 
+					position: new THREE.Vector3(5.5, FLOOR_HEIGHT, -6), 
+					rotation: new THREE.Quaternion(),
+					category: null,
+					priority: 5
+				},
+				{ 
+					type: ASSET_TYPE.PLANT, 
+					position: new THREE.Vector3(-6, FLOOR_HEIGHT, 6), 
+					rotation: new THREE.Quaternion(),
+					category: null,
+					priority: 5
+				},
+				{ 
+					type: ASSET_TYPE.NOTEBOOK_CLOSED, 
+					position: new THREE.Vector3(-6, DESK_HEIGHT, 2.5), 
+					rotation: new THREE.Quaternion(),
+					category: null,
+					priority: 5
+				},
+				{ 
+					type: ASSET_TYPE.BOOK, 
+					position: new THREE.Vector3(-6, DESK_HEIGHT + .25, 2.5), 
+					rotation: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2),
+					category: null,
+					priority: 5
+				},
+				{ 
+					type: ASSET_TYPE.NOTEBOOK_OPENED, 
+					position: new THREE.Vector3(-5, DESK_HEIGHT, 0), 
+					rotation: new THREE.Quaternion(),
+					category: ASSET_CATEGORY_MAP.NOTEBOOK_OPENED,
+					priority: 5
+				},
+				{ 
+					type: ASSET_TYPE.DIPLOMA_BOT, 
+					position: new THREE.Vector3(DIPLOMA_X, 1.5, DIPLOMA_Z), 
+					rotation: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2)),
+					category: ASSET_CATEGORY_MAP.DIPLOMA_BOT,
+					priority: 5
+				},
+				{ 
+					type: ASSET_TYPE.DIPLOMA_TOP, 
+					position: new THREE.Vector3(DIPLOMA_X, -1.5, DIPLOMA_Z), 
+					rotation: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2)),
+					category: ASSET_CATEGORY_MAP.DIPLOMA_TOP,
+					priority: 5
+				}
+			];
+			
+			// Load assets progressively with GPU-friendly delays
+			await this.loadAssetsWithGPUFriendlyPacing(assetQueue, ASSET_CONFIGS);
+			
+			this.setBackgroundRenderOrder();
+			
+			if (FLAGS.PHYSICS_LOGS) {
+				console.log('All assets initialized successfully');
+			}
+			this.loading_complete = true;
+			
+		} catch (error) {
+			console.error('Error initializing assets:', error);
+			this.loading_complete = true;
+			throw error;
+		}
+	}
+
+	async loadAssetsWithGPUFriendlyPacing(assetQueue, assetConfigs) {
+		const totalAssets = assetQueue.length;
+		let loadedCount = 0;
+		
+		// Sort by priority to load essential assets first
+		assetQueue.sort((a, b) => a.priority - b.priority);
+		
+		for (const assetConfig of assetQueue) {
+			try {
+				// Update loading progress
+				const percentage = Math.round((loadedCount / totalAssets) * 100);
+				if (window.update_loading_progress) {
+					window.update_loading_progress(`Loading ${assetConfig.type}... ${percentage}% (${loadedCount + 1}/${totalAssets})`);
+				}
+				
+				// Spawn the asset
+				await this.spawnAsset(
+					assetConfig.type, 
+					assetConfig.position, 
+					assetConfig.rotation, 
+					assetConfigs, 
+					assetConfig.category
+				);
+				
+				loadedCount++;
+				
+				// GPU-friendly delay between assets
+				await this.waitForGPURecovery(assetConfig.priority);
+				
+			} catch (error) {
+				console.error(`${this.name} Failed to spawn ${assetConfig.type}:`, error);
+				// Continue loading other assets even if one fails
+				loadedCount++;
+			}
+		}
+	}
+
+	async waitForGPURecovery(priority) {
+		// Determine delay based on device capability and asset priority
+		let frameDelay = this.isMobileDevice ? MOBILE_SPAWN_DELAY_FRAMES : ASSET_SPAWN_DELAY_FRAMES;
+		
+		// Higher priority assets get shorter delays, lower priority get longer delays
+		if (priority >= 4) {
+			frameDelay *= 2; // Double delay for decorative elements
+		}
+		
+		// Wait for specified number of frames
+		await this.waitForFrames(frameDelay);
+		
+		// Additional time-based delay for GPU recovery
+		if (this.isMobileDevice && priority >= 3) {
+			await new Promise(resolve => setTimeout(resolve, GPU_RECOVERY_DELAY_MS));
+		}
+	}
+
+	waitForFrames(frameCount) {
+		return new Promise(resolve => {
+			let frames = 0;
+			const waitFrame = () => {
+				frames++;
+				if (frames >= frameCount) {
+					resolve();
+				} else {
+					requestAnimationFrame(waitFrame);
+				}
+			};
+			requestAnimationFrame(waitFrame);
+		});
 	}
 
 	async spawnAsset(assetType, position, rotation, assetConfigs, category = null) {
@@ -413,13 +613,7 @@ export class BackgroundContainer {
 	}
 
 	async is_loading_complete() {
-		try {
-			await this.loading_promise;
-			return true;
-		} catch (error) {
-			console.error('Error checking loading status:', error);
-			return false;
-		}
+		return this.loading_complete;
 	}
 
 	get_asset_manifest() {

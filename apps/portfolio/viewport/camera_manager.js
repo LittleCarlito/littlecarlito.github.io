@@ -53,88 +53,6 @@ export class CameraManager {
 		
 		// Initial camera update with rotation applied - but overlay_container is null at this point
 		this.update_camera();
-		
-		if (camera_config.shoulder_lights && camera_config.shoulder_lights.enabled) {
-			this.create_shoulder_lights(camera_config.shoulder_lights);
-		}
-	}
-
-	async create_shoulder_lights(lights_config) {
-		if (lights_config.left) {
-			if (this.left_shoulder_light) {
-				await this.spawner.despawn_debug_meshes(this.left_shoulder_light.mesh);
-			}
-			const leftPos = new THREE.Vector3(
-				lights_config.left.position.x,
-				lights_config.left.position.y,
-				lights_config.left.position.z
-			);
-			leftPos.applyQuaternion(this.camera.quaternion);
-			leftPos.add(this.camera.position);
-			
-			const forward = new THREE.Vector3(0, 0, -100);
-			forward.applyQuaternion(this.camera.quaternion);
-			const target = new THREE.Vector3().copy(leftPos).add(forward);
-			
-			const direction = new THREE.Vector3().subVectors(target, leftPos);
-			const rotation_y = Math.atan2(direction.x, direction.z);
-			const rotation_x = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
-			
-			this.left_shoulder_light = await this.spawner.spawn_asset(
-				SystemAssetType.SPOTLIGHT,
-				leftPos,
-				new THREE.Quaternion().setFromEuler(new THREE.Euler(rotation_x, rotation_y, 0)),
-				{
-					id: "left_shoulder_light",
-					circle_radius: lights_config.left.position.y * Math.tan(ANGLES.toRadians(lights_config.left.angle)),
-					max_distance: lights_config.left.max_distance,
-					intensity: lights_config.left.intensity,
-					asset_data: {}
-				}
-			);
-			if(BLORKPACK_FLAGS.ASSET_LOGS) {
-				console.log("Left shoulder light created:", this.left_shoulder_light ? "success" : "failed");
-			}
-			this.left_shoulder_light.mesh.target.position.copy(target);
-		}
-		
-		if (lights_config.right) {
-			if (this.right_shoulder_light) {
-				await this.spawner.despawn_debug_meshes(this.right_shoulder_light.mesh);
-			}
-			const rightPos = new THREE.Vector3(
-				lights_config.right.position.x,
-				lights_config.right.position.y,
-				lights_config.right.position.z
-			);
-			rightPos.applyQuaternion(this.camera.quaternion);
-			rightPos.add(this.camera.position);
-			
-			const forward = new THREE.Vector3(0, 0, -100);
-			forward.applyQuaternion(this.camera.quaternion);
-			const target = new THREE.Vector3().copy(rightPos).add(forward);
-			
-			const direction = new THREE.Vector3().subVectors(target, rightPos);
-			const rotation_y = Math.atan2(direction.x, direction.z);
-			const rotation_x = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
-			
-			this.right_shoulder_light = await this.spawner.spawn_asset(
-				SystemAssetType.SPOTLIGHT,
-				rightPos,
-				new THREE.Quaternion().setFromEuler(new THREE.Euler(rotation_x, rotation_y, 0)),
-				{
-					id: "right_shoulder_light",
-					circle_radius: lights_config.right.position.y * Math.tan(ANGLES.toRadians(lights_config.right.angle)),
-					max_distance: lights_config.right.max_distance,
-					intensity: lights_config.right.intensity,
-					asset_data: {}
-				}
-			);
-			if(BLORKPACK_FLAGS.ASSET_LOGS) {
-				console.log("Right shoulder light created:", this.right_shoulder_light ? "success" : "failed");
-			}
-			this.right_shoulder_light.mesh.target.position.copy(target);
-		}
 	}
 
 	add_update_callback(callback) {
@@ -212,49 +130,6 @@ export class CameraManager {
 		this.camera.updateMatrix();
 		
 		const camera_config = window.manifest_manager.get_camera_config();
-		const lights_config = camera_config.shoulder_lights;
-		
-		if (this.left_shoulder_light && lights_config && lights_config.left) {
-			const leftPos = new THREE.Vector3(
-				lights_config.left.position.x,
-				lights_config.left.position.y,
-				lights_config.left.position.z
-			);
-			leftPos.applyQuaternion(this.camera.quaternion);
-			leftPos.add(this.camera.position);
-			
-			if (!this.left_shoulder_light.mesh) {
-				console.warn("Left shoulder light exists but has no mesh property!");
-			} else {
-				this.left_shoulder_light.mesh.position.copy(leftPos);
-				const forward = new THREE.Vector3(0, 0, -100);
-				forward.applyQuaternion(this.camera.quaternion);
-				this.left_shoulder_light.mesh.target.position.copy(leftPos).add(forward);
-				this.left_shoulder_light.mesh.updateMatrixWorld(true);
-				this.left_shoulder_light.mesh.target.updateMatrixWorld(true);
-			}
-		}
-		
-		if (this.right_shoulder_light && lights_config && lights_config.right) {
-			const rightPos = new THREE.Vector3(
-				lights_config.right.position.x,
-				lights_config.right.position.y,
-				lights_config.right.position.z
-			);
-			rightPos.applyQuaternion(this.camera.quaternion);
-			rightPos.add(this.camera.position);
-			
-			if (!this.right_shoulder_light.mesh) {
-				console.warn("Right shoulder light exists but has no mesh property!");
-			} else {
-				this.right_shoulder_light.mesh.position.copy(rightPos);
-				const forward = new THREE.Vector3(0, 0, -100);
-				forward.applyQuaternion(this.camera.quaternion);
-				this.right_shoulder_light.mesh.target.position.copy(rightPos).add(forward);
-				this.right_shoulder_light.mesh.updateMatrixWorld(true);
-				this.right_shoulder_light.mesh.target.updateMatrixWorld(true);
-			}
-		}
 		
 		this.spawner.update_debug_meshes();
 		
