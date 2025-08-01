@@ -28,9 +28,6 @@ export class RigAnalyzer {
 
         if (assetType && this.analysisCache.has(assetType)) {
             const cached = this.analysisCache.get(assetType);
-            if (RIG_LOGS) {
-                console.log(`[RigAnalyzer] Using cached analysis for ${assetType}`);
-            }
             return cached;
         }
 
@@ -72,15 +69,6 @@ export class RigAnalyzer {
 
         if (activators.length > 0) {
             rigDetails.hasActivators = true;
-        }
-
-        if (RIG_LOGS) {
-            if (rigDetails.hasRig) {
-                console.log(`[RigAnalyzer] Analysis complete for ${assetType || 'model'}`);
-                this.logRigSummary(rigDetails);
-            } else {
-                console.log(`[RigAnalyzer] No rig or activator meshes found in ${assetType || 'model'}`);
-            }
         }
 
         if (assetType && rigDetails.hasRig) {
@@ -317,9 +305,6 @@ export class RigAnalyzer {
 
     clearCache() {
         this.analysisCache.clear();
-        if (RIG_LOGS) {
-            console.log('[RigAnalyzer] Cache cleared');
-        }
     }
 
     dispose() {

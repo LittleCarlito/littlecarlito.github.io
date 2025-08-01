@@ -24,7 +24,6 @@ export class SimpleFloorRectangle {
 		this.transparentMaterial = null;
 		this.debugMaterial = null;
 		
-		console.log(`SimpleFloorRectangle: Creating floor "${this.name}" at position (${this.x}, ${this.y}, ${this.z})`);
 		this.createFloor();
 	}
 	
@@ -65,9 +64,7 @@ export class SimpleFloorRectangle {
 		};
 		
 		this.mesh.userData.collisionWireframes = true;
-		
-		console.log(`SimpleFloorRectangle: Mesh "${this.name}" positioned at (${this.mesh.position.x}, ${this.mesh.position.y}, ${this.mesh.position.z})`);
-		
+				
 		this.parent.add(this.mesh);
 		
 		if (this.world) {
@@ -98,8 +95,6 @@ export class SimpleFloorRectangle {
 		this.collider = this.world.createCollider(colliderDesc, this.body);
 		
 		const bodyPos = this.body.translation();
-		console.log(`SimpleFloorRectangle: Physics body "${this.name}" positioned at (${bodyPos.x}, ${bodyPos.y}, ${bodyPos.z})`);
-		console.log(`Created floor "${this.name}": ${this.width}x${this.height}x${this.depth} at (${this.x}, ${this.y}, ${this.z})`);
 	}
 	
 	dispose() {

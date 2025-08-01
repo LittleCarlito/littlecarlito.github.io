@@ -321,9 +321,7 @@ export class TextContainer {
 					if (displayMeshes.length !== 2) {
 						throw new Error(`Projects section requires exactly 2 display meshes, found ${displayMeshes.length}. Display meshes found: ${displayMeshes.map(m => m.name).join(', ')}`);
 					}
-					
-					console.log(`[TextContainer] Created CSS3D frames for Projects section with display meshes: ${displayMeshes.map(m => m.name).join(', ')}`);
-				})();
+					})();
 				break;
 			default:
 				create_background(category, text_box);

@@ -374,8 +374,6 @@ export class CustomFactory {
 				result.setCollisionWireframeColor = model.userData.setCollisionWireframeColor;
 				result.setCollisionWireframeOpacity = model.userData.setCollisionWireframeOpacity;
 				result.disposeCollisionWireframes = model.userData.disposeCollisionWireframes;
-				
-				console.log(`[CustomFactory] Added collision wireframe methods to spawn result for ${asset_type}`);
 			}
 
 			return result;

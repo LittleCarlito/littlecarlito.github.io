@@ -15,7 +15,6 @@ function filterBadAnimationTracks(gltf) {
             const trackName = track.name;
             
             if (trackName.includes('.morphTargetInfluences')) {
-                console.log(`Filtering out problematic track: ${trackName}`);
                 return false;
             }
             
@@ -23,11 +22,8 @@ function filterBadAnimationTracks(gltf) {
         });
         
         if (animation.tracks.length === 0) {
-            console.log(`Removing empty animation: ${animation.name}`);
             return false;
         }
-        
-        console.log(`Animation "${animation.name}" now has ${animation.tracks.length} tracks`);
         return true;
     });
 }
@@ -81,28 +77,10 @@ export class AnimationController {
 					spawnResult.hasAnimations = true;
 					spawnResult.animationData = animationAnalysis;
 					
-					if (ANIMATION_LOGS_ENABLED) {
-						console.log(`[AnimationController] 🎬 ANIMATION DETECTED in ${assetType}: YES`);
-					}
 					if (animationAnalysis.animationCount > 0) {
-						if (ANIMATION_LOGS_ENABLED) {
-							console.log(`[AnimationController] Animation Details:`, {
-								instanceId: spawnResult.instance_id,
-								count: animationAnalysis.animationCount,
-								clips: animationAnalysis.animationDetails.map(detail => ({
-									name: detail.name,
-									duration: detail.duration,
-									tracks: detail.tracks
-								}))
-							});
-						}
-						
 						this.startAnimations(spawnResult, gltfData);
 					}
 				} else {
-					if (ANIMATION_LOGS_ENABLED) {
-						console.log(`[AnimationController] 🎬 ANIMATION DETECTED in ${assetType}: NO`);
-					}
 					spawnResult.mesh.userData.hasAnimations = false;
 				}
 				
@@ -122,9 +100,6 @@ export class AnimationController {
 
 	startAnimations(spawnResult, gltfData) {
 		if (!gltfData.animations || gltfData.animations.length === 0) {
-			if (ANIMATION_LOGS_ENABLED) {
-				console.log(`[AnimationController] No animations to start for ${spawnResult.instance_id}`);
-			}
 			return;
 		}
 
@@ -165,15 +140,9 @@ export class AnimationController {
 		spawnResult.stopAnimation = (animationIndex = null) => {
 			if (animationIndex !== null && actions[animationIndex]) {
 				actions[animationIndex].stop();
-				if (ANIMATION_LOGS_ENABLED) {
-					console.log(`[AnimationController] 🛑 Stopped animation ${animationIndex} for ${spawnResult.instance_id}`);
-				}
 			} else {
 				actions.forEach((action, index) => {
 					action.stop();
-					if (ANIMATION_LOGS_ENABLED) {
-						console.log(`[AnimationController] 🛑 Stopped animation ${index} for ${spawnResult.instance_id}`);
-					}
 				});
 				animationState.isPlaying = false;
 			}
@@ -203,10 +172,6 @@ export class AnimationController {
 		spawnResult.mesh.userData.stopAnimation = spawnResult.stopAnimation;
 		spawnResult.mesh.userData.pauseAnimation = spawnResult.pauseAnimation;
 		spawnResult.mesh.userData.resumeAnimation = spawnResult.resumeAnimation;
-
-		if (ANIMATION_LOGS_ENABLED) {
-			console.log(`[AnimationController] 🎬 Animation system initialized for ${spawnResult.instance_id} with ${actions.length} animations (not auto-playing)`);
-		}
 	}
 
 	startNextAnimation(animationState) {
@@ -218,18 +183,8 @@ export class AnimationController {
 			animationState.mixer.removeEventListener('finished', animationState.onFinishedListener);
 		}
 		
-		const onAnimationFinished = () => {
-			if (ANIMATION_LOGS_ENABLED) {
-				console.log(`[AnimationController] 🔄 Animation ${animationState.currentAnimationIndex} finished, moving to next`);
-			}
-			
+		const onAnimationFinished = () => {			
 			animationState.currentAnimationIndex = (animationState.currentAnimationIndex + 1) % animationState.actions.length;
-			
-			if (animationState.currentAnimationIndex === 0) {
-				if (ANIMATION_LOGS_ENABLED) {
-					console.log(`[AnimationController] 🔁 Animation cycle completed, restarting from beginning`);
-				}
-			}
 			
 			this.startNextAnimation(animationState);
 		};
@@ -240,10 +195,6 @@ export class AnimationController {
 		animationState.isPlaying = true;
 		
 		animationState.mixer.addEventListener('finished', onAnimationFinished);
-		
-		if (ANIMATION_LOGS_ENABLED) {
-			console.log(`[AnimationController] 🎬 Playing animation ${animationState.currentAnimationIndex}: ${currentAction.getClip().name || `Animation_${animationState.currentAnimationIndex}`}`);
-		}
 	}
 
 	playSpecificAnimation(animationState, animationIndex) {
@@ -261,10 +212,6 @@ export class AnimationController {
 		action.reset();
 		action.play();
 		animationState.isPlaying = true;
-		
-		if (ANIMATION_LOGS_ENABLED) {
-			console.log(`[AnimationController] 🎬 Playing specific animation ${animationIndex}: ${action.getClip().name || `Animation_${animationIndex}`}`);
-		}
 	}
 
 	updateAnimations(deltaTime) {
@@ -284,9 +231,6 @@ export class AnimationController {
 			}
 			animationData.isPlaying = false;
 		});
-		if (ANIMATION_LOGS_ENABLED) {
-			console.log(`[AnimationController] 🛑 Stopped all animations`);
-		}
 	}
 
 	removeAnimationMixer(instanceId) {
@@ -299,9 +243,6 @@ export class AnimationController {
 				animationData.mixer.stopAllAction();
 			}
 			this.animationMixers.delete(instanceId);
-			if (ANIMATION_LOGS_ENABLED) {
-				console.log(`[AnimationController] 🗑️ Removed animation mixer for ${instanceId}`);
-			}
 		}
 	}
 

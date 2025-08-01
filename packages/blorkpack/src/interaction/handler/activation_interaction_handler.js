@@ -109,29 +109,29 @@ export class ActivationInteractionHandler {
         const categoryAssets = this.window.background_container.getAssetsByCategory(category);
         
         if (categoryAssets.length === 0) {
-            this.#logString(`No assets found for category: ${category}`, LogLevel.INFO);
+            // this.#logString(`No assets found for category: ${category}`, LogLevel.INFO);
             return;
         }
 
-        this.#logString(`=== Assets for category: ${category.toUpperCase()} ===`, LogLevel.INFO);
-        categoryAssets.forEach((asset, index) => {
-            const assetInfo = {
-                index: index + 1,
-                name: asset.mesh.name,
-                position: {
-                    x: asset.mesh.position.x.toFixed(2),
-                    y: asset.mesh.position.y.toFixed(2),
-                    z: asset.mesh.position.z.toFixed(2)
-                },
-                hasPhysics: asset.body !== null,
-                visible: asset.mesh.visible,
-                hasActivateMesh: asset.mesh.userData && asset.mesh.userData.showActivateMesh !== undefined
-            };
-            this.#logString(`  ${assetInfo.index}. ${assetInfo.name}`, LogLevel.INFO);
-            this.#logString(`     Position: (${assetInfo.position.x}, ${assetInfo.position.y}, ${assetInfo.position.z})`, LogLevel.INFO);
-            this.#logString(`     Physics: ${assetInfo.hasPhysics ? 'Yes' : 'No'}, Visible: ${assetInfo.visible}, Activate Mesh: ${assetInfo.hasActivateMesh ? 'Yes' : 'No'}`, LogLevel.INFO);
-        });
-        this.#logString(`=== Total: ${categoryAssets.length} assets ===`, LogLevel.INFO);
+        // this.#logString(`=== Assets for category: ${category.toUpperCase()} ===`, LogLevel.INFO);
+        // categoryAssets.forEach((asset, index) => {
+        //     const assetInfo = {
+        //         index: index + 1,
+        //         name: asset.mesh.name,
+        //         position: {
+        //             x: asset.mesh.position.x.toFixed(2),
+        //             y: asset.mesh.position.y.toFixed(2),
+        //             z: asset.mesh.position.z.toFixed(2)
+        //         },
+        //         hasPhysics: asset.body !== null,
+        //         visible: asset.mesh.visible,
+        //         hasActivateMesh: asset.mesh.userData && asset.mesh.userData.showActivateMesh !== undefined
+        //     };
+            // this.#logString(`  ${assetInfo.index}. ${assetInfo.name}`, LogLevel.INFO);
+            // this.#logString(`     Position: (${assetInfo.position.x}, ${assetInfo.position.y}, ${assetInfo.position.z})`, LogLevel.INFO);
+            // this.#logString(`     Physics: ${assetInfo.hasPhysics ? 'Yes' : 'No'}, Visible: ${assetInfo.visible}, Activate Mesh: ${assetInfo.hasActivateMesh ? 'Yes' : 'No'}`, LogLevel.INFO);
+        // });
+        // this.#logString(`=== Total: ${categoryAssets.length} assets ===`, LogLevel.INFO);
     }
 
     extract_category_from_label(labelName) {

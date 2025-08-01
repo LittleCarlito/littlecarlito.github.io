@@ -95,38 +95,10 @@ export class AssetHandler {
 					spawnResult.mesh.userData.hasRig = true;
 					spawnResult.rigDetails = rigDetails;
 					
-					console.log(`[AssetHandler] 🎯 RIG DETECTED in ${assetType}:`, {
-						instanceId: spawnResult.instance_id,
-						bones: rigDetails.bones.length,
-						constraints: rigDetails.constraints.length,
-						roots: rigDetails.roots.length,
-						armature: rigDetails.armature ? rigDetails.armature.name : 'none'
-					});
-					
-					if (rigDetails.bones.length > 0) {
-						console.log(`[AssetHandler] Bone Details:`, rigDetails.bones.map(b => ({
-							name: b.name,
-							parent: b.parentName,
-							constraint: b.constraintType
-						})));
-					}
-					
 					this.createRigForAsset(spawnResult, rigDetails, assetType);
-					
-					if (rigDetails.joints && rigDetails.joints.length > 0) {
-						console.log(`[AssetHandler] 🔗 JOINTS CREATED: ${rigDetails.joints.length} joints`, 
-							rigDetails.joints.map(j => ({
-								name: j.name,
-								parent: j.parentBone,
-								child: j.childBone,
-								isRoot: j.isRoot || false
-							}))
-						);
-					}
 					
 					return rigDetails;
 				} else {
-					console.log(`[AssetHandler] ⚪ No rig structure found in ${assetType}`);
 					spawnResult.mesh.userData.hasRig = false;
 				}
 			} else {
@@ -147,8 +119,6 @@ export class AssetHandler {
 		}
 
 		try {
-			console.log(`[AssetHandler] Creating rig visualization for ${assetType}`);
-			
 			const rigVisualization = createRigVisualization(rigDetails, this.scene, spawnResult.mesh);
 			
 			if (rigVisualization) {
@@ -157,8 +127,6 @@ export class AssetHandler {
 					assetType: assetType,
 					mesh: spawnResult.mesh
 				});
-				
-				console.log(`[AssetHandler] ✅ Rig visualization created for ${assetType}`);
 			}
 		} catch (error) {
 			console.error(`[AssetHandler] Error creating rig visualization for ${assetType}:`, error);
@@ -380,9 +348,6 @@ export class AssetHandler {
 		try {
 			const asset_groups = manifest_manager.get_all_asset_groups();
 			if (!asset_groups || asset_groups.length === 0) {
-				if (BLORKPACK_FLAGS.ASSET_LOGS) {
-					console.log("No asset groups found in manifest");
-				}
 				return spawned_assets;
 			}
 			const active_groups = asset_groups.filter(group => group.active);
@@ -432,9 +397,6 @@ export class AssetHandler {
 					}
 				}
 			}
-			if (BLORKPACK_FLAGS.ASSET_LOGS) {
-				console.log(`Spawned ${spawned_assets.length} assets from manifest`);
-			}
 		} catch (error) {
 			console.error('Error spawning asset groups:', error);
 		}
@@ -446,9 +408,6 @@ export class AssetHandler {
 		try {
 			const system_assets = manifest_manager.get_system_assets();
 			const custom_assets = manifest_manager.get_custom_assets();
-			if (BLORKPACK_FLAGS.ASSET_LOGS) {
-				console.log(`Found ${system_assets.length} system assets and ${custom_assets.length} custom assets to spawn`);
-			}
 			if (system_assets && system_assets.length > 0) {
 				if (progress_callback) {
 					progress_callback('Loading system assets...');
@@ -464,9 +423,6 @@ export class AssetHandler {
 				const custom_factory = CustomFactory.get_instance(this.scene, this.world);
 				const custom_results = await custom_factory.spawn_custom_assets(manifest_manager, progress_callback);
 				spawned_assets.push(...custom_results);
-			}
-			if (BLORKPACK_FLAGS.ASSET_LOGS) {
-				console.log(`Spawned ${spawned_assets.length} total assets from manifest`);
 			}
 			return spawned_assets;
 		} catch (error) {
