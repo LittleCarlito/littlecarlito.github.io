@@ -1,41 +1,31 @@
 {
   "name": "@littlecarlito/portfolio",
-  "version": "0.50.7",
+  "private": true,
+  "version": "0.0.0",
   "type": "module",
-  "description": "Interactive 3D portfolio website showcasing web development and creative coding projects",
-  "blorkType": "app",
-  "private": false,
-  "main": "dist/index.html",
-  "module": "dist/assets/index.js",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/littlecarlito/threejs_site.git",
-    "directory": "apps/portfolio"
-  },
   "scripts": {
-    "predev": "cd ../../packages/blorkpack && pnpm run build",
-    "prebuild": "cd ../../packages/blorkpack && pnpm run build",
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "clean": "rimraf dist",
-    "test": "cd ../.. && jest apps/portfolio/src/test tests/apps/portfolio --config=tests/config/jest/jest.config.cjs --passWithNoTests"
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@dimforge/rapier3d-compat": "^0.14.0",
-    "@littlecarlito/blorkpack": "workspace:*",
-    "three": "^0.172.0",
-    "troika-three-text": "0.52.4"
+    "matter-js": "^0.20.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "rimraf": "^5.0.5",
-    "sharp": "^0.33.5",
-    "svgo": "^3.3.2",
-    "vite": "^6.2.2",
-    "vite-plugin-image-optimizer": "^1.1.7"
-  },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
-    "access": "public"
+    "@eslint/js": "^9.30.1",
+    "@types/matter-js": "^0.19.8",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "eslint": "^9.30.1",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.3.0",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.35.1",
+    "vite": "^7.0.4"
   }
 }
