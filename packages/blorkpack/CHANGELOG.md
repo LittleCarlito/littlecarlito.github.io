@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.51.6 (2025-08-05)</small>
+
+- refactor(portfolio): background loading ([625936e](https://github.com/littlecarlito/threejs_site/commit/625936e))
+
 ## <small>0.51.5 (2025-08-01)</small>
 
 - fix(portfolio): loading sequence ([8ca67e1](https://github.com/littlecarlito/threejs_site/commit/8ca67e1))
