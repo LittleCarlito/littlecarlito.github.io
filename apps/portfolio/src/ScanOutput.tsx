@@ -18,8 +18,25 @@ const getHardwareInfo = () => {
   
   const memoryInfo = (navigator as any).deviceMemory || 0;
   const cores = navigator.hardwareConcurrency || 1;
-  
-  const canRunThreeJS = memoryInfo >= 4 && cores >= 4 && gl !== null;
+  // Check if mobile device
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  // Check if touch device (backup mobile detection)
+  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  // Check for Intel integrated graphics (common in laptops that struggle)
+  const hasWeakGPU = renderer.toLowerCase().includes('intel') || 
+                     renderer.toLowerCase().includes('gdi generic') ||
+                     renderer.toLowerCase().includes('microsoft basic');
+  // Strict requirements: 
+  // - Not mobile
+  // - At least 8 cores (high-end desktop/laptop)
+  // - At least 8GB RAM (when detectable)
+  // - Not using weak integrated graphics
+  const canRunThreeJS = gl !== null && 
+                        !isMobile && 
+                        !isTouch &&
+                        cores >= 8 && 
+                        (memoryInfo === 0 || memoryInfo >= 8) &&
+                        !hasWeakGPU;
   
   return {
     gpu: renderer,
