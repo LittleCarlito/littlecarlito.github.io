@@ -18,7 +18,8 @@ import webGlLogo from './assets/web_gl.svg'
 const BANNER_SCALE = .6
 const GRAVITY = 0.15
 const OBJECT_SCALE = 1.2
-const BASE_WIDTH = 1400 * BANNER_SCALE
+const LOGO_SCALE = 1.4
+const BASE_WIDTH = 2000 * BANNER_SCALE
 const BASE_HEIGHT = 800 * BANNER_SCALE
 
 interface LogoData {
@@ -132,7 +133,7 @@ class PhysicsBanner extends React.Component {
       render: { visible: false }
     })
 
-    const logoSize = 110 * BANNER_SCALE * OBJECT_SCALE
+    const logoSize = 110 * BANNER_SCALE * OBJECT_SCALE * LOGO_SCALE
     const spacing = 160 * BANNER_SCALE * OBJECT_SCALE
     
     const gridWidth = 5 * spacing
@@ -142,16 +143,13 @@ class PhysicsBanner extends React.Component {
 
     const physicsBodies: Matter.Body[] = []
 
-    // Calculate the center point between Steven and Meier
     const nameCenterX = startX + (1.5 * spacing)
     
     this.logos.forEach((logo) => {
       let x = startX + (logo.col * spacing)
       const y = startY + (logo.row * spacing)
       
-      // Center top and bottom rows around the midpoint between Steven and Meier
       if (logo.row === 0 || logo.row === 2) {
-        // Calculate offset to center the 6-logo row around the name center
         const rowCenterOffset = nameCenterX - (startX + (2.5 * spacing))
         x = startX + (logo.col * spacing) + rowCenterOffset
       }

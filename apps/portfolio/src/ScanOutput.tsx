@@ -188,7 +188,7 @@ export default function ScanOutput({ ip, onComplete, onContentUpdate }: ScanOutp
     } else {
       const hardware = getHardwareInfo();
       const launchButton = hardware.canRunThreeJS 
-        ? `<div class="mt-4"><a href="./three_dee/index.html" target="_blank" class="launch-button text-black bg-green-400 px-4 py-2 rounded hover:bg-green-300 transition-colors font-bold text-decoration-none inline-block">INITIATE LAUNCH</a></div>`
+        ? `<div class="mt-4"><button class="launch-button text-black bg-green-400 px-4 py-2 rounded hover:bg-green-300 transition-colors font-bold inline-block cursor-pointer">INITIATE LAUNCH</button></div>`
         : '';
       
       const htmlContent = `
