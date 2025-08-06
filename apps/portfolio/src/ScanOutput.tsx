@@ -186,6 +186,11 @@ export default function ScanOutput({ ip, onComplete, onContentUpdate }: ScanOutp
         setScanCharIdx(0);
       }
     } else {
+      const hardware = getHardwareInfo();
+      const launchButton = hardware.canRunThreeJS 
+        ? `<div class="mt-4"><a href="./three_dee/index.html" target="_blank" class="launch-button text-black bg-green-400 px-4 py-2 rounded hover:bg-green-300 transition-colors font-bold text-decoration-none inline-block">INITIATE LAUNCH</a></div>`
+        : '';
+      
       const htmlContent = `
         <div class="scan-section">
           ${scanDisplayed.map(line => {
@@ -207,6 +212,7 @@ export default function ScanOutput({ ip, onComplete, onContentUpdate }: ScanOutp
                 return `<div class="text-green-100 mb-2">${line}</div>`;
             }
           }).join('')}
+          ${launchButton}
         </div>
       `;
       onComplete(htmlContent);
