@@ -15,9 +15,12 @@ import threejsLogo from './assets/threejs.svg'
 import tsLogo from './assets/ts.svg'
 import webGlLogo from './assets/web_gl.svg'
 
-const LOGO_SIZE = 110
-const PHYSICS_WIDTH = 700
-const PHYSICS_HEIGHT = 400
+const BANNER_SCALE = .6
+const GRAVITY = 0.15
+const OBJECT_SCALE = 1.2
+const LOGO_SCALE = 1.4
+const BASE_WIDTH = 2000 * BANNER_SCALE
+const BASE_HEIGHT = 800 * BANNER_SCALE
 
 interface LogoData {
   src: string
@@ -28,9 +31,11 @@ interface LogoData {
 
 class PhysicsBanner extends React.Component {
   private canvasRef = React.createRef<HTMLCanvasElement>()
+  private containerRef = React.createRef<HTMLDivElement>()
   private engineRef: Matter.Engine | null = null
   private renderRef: Matter.Render | null = null
   private runnerRef: Matter.Runner | null = null
+  private resizeObserver: ResizeObserver | null = null
 
   private logos: LogoData[] = [
     { src: reactLogo, alt: 'React', row: 0, col: 0 },
@@ -40,7 +45,7 @@ class PhysicsBanner extends React.Component {
     { src: kubernetesLogo, alt: 'Kubernetes', row: 0, col: 4 },
     { src: springLogo, alt: 'Spring', row: 0, col: 5 },
     { src: javaLogo, alt: 'Java', row: 1, col: 0 },
-    { src: jsLogo, alt: 'JavaScript', row: 1, col: 2 },
+    { src: jsLogo, alt: 'JavaScript', row: 1, col: 3 },
     { src: gdscriptLogo, alt: 'GDScript', row: 2, col: 0 },
     { src: webGlLogo, alt: 'WebGL', row: 2, col: 1 },
     { src: htmlLogo, alt: 'HTML', row: 2, col: 2 },
@@ -49,7 +54,21 @@ class PhysicsBanner extends React.Component {
     { src: tsLogo, alt: 'TypeScript', row: 2, col: 5 }
   ]
 
-  private createTextTexture = (text: string, fontSize: number = 32): string => {
+  private updateCanvasSize = (): void => {
+    const container = this.containerRef.current
+    const canvas = this.canvasRef.current
+    if (!container || !canvas) return
+
+    const containerWidth = container.clientWidth
+    const aspectRatio = BASE_WIDTH / BASE_HEIGHT
+    const displayWidth = Math.min(containerWidth, BASE_WIDTH)
+    const displayHeight = displayWidth / aspectRatio
+
+    canvas.style.width = `${displayWidth}px`
+    canvas.style.height = `${displayHeight}px`
+  }
+
+  private createTextTexture = (text: string, fontSize: number = 32 * BANNER_SCALE * OBJECT_SCALE): string => {
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')!
     
@@ -79,19 +98,19 @@ class PhysicsBanner extends React.Component {
     const engine = Engine.create()
     this.engineRef = engine
 
-    engine.world.gravity.y = 0.6
+    engine.world.gravity.y = GRAVITY
     engine.world.gravity.scale = 0.001
 
     const canvas = this.canvasRef.current!
-    canvas.width = PHYSICS_WIDTH
-    canvas.height = PHYSICS_HEIGHT
+    canvas.width = BASE_WIDTH
+    canvas.height = BASE_HEIGHT
     
     const render = Render.create({
       canvas: canvas,
       engine: engine,
       options: {
-        width: PHYSICS_WIDTH,
-        height: PHYSICS_HEIGHT,
+        width: BASE_WIDTH,
+        height: BASE_HEIGHT,
         wireframes: false,
         background: 'transparent',
         showAngleIndicator: false,
@@ -101,29 +120,39 @@ class PhysicsBanner extends React.Component {
     })
     this.renderRef = render
 
-    const ground = Bodies.rectangle(PHYSICS_WIDTH / 2, PHYSICS_HEIGHT - 10, PHYSICS_WIDTH + 10, 60, { 
+    const ground = Bodies.rectangle(BASE_WIDTH / 2, BASE_HEIGHT - 20 * BANNER_SCALE, BASE_WIDTH + 20 * BANNER_SCALE, 120 * BANNER_SCALE, { 
       isStatic: true,
       render: { visible: false }
     })
-    const leftWall = Bodies.rectangle(-5, PHYSICS_HEIGHT / 2, 60, PHYSICS_HEIGHT, { 
+    const leftWall = Bodies.rectangle(-10 * BANNER_SCALE, BASE_HEIGHT / 2, 120 * BANNER_SCALE, BASE_HEIGHT, { 
       isStatic: true,
       render: { visible: false }
     })
-    const rightWall = Bodies.rectangle(PHYSICS_WIDTH + 5, PHYSICS_HEIGHT / 2, 60, PHYSICS_HEIGHT, { 
+    const rightWall = Bodies.rectangle(BASE_WIDTH + 10 * BANNER_SCALE, BASE_HEIGHT / 2, 120 * BANNER_SCALE, BASE_HEIGHT, { 
       isStatic: true,
       render: { visible: false }
     })
 
-    const logoSize = LOGO_SIZE
-    const spacing = 80
-    const startX = 140
-    const startY = 50
+    const logoSize = 110 * BANNER_SCALE * OBJECT_SCALE * LOGO_SCALE
+    const spacing = 160 * BANNER_SCALE * OBJECT_SCALE
+    
+    const gridWidth = 5 * spacing
+    const gridHeight = 2 * spacing
+    const startX = (BASE_WIDTH - gridWidth) / 2
+    const startY = (BASE_HEIGHT - gridHeight) / 2 - 100 * BANNER_SCALE * OBJECT_SCALE
 
     const physicsBodies: Matter.Body[] = []
 
+    const nameCenterX = startX + (1.5 * spacing)
+    
     this.logos.forEach((logo) => {
-      const x = startX + (logo.col * spacing) - (logo.row === 1 && logo.col > 1 ? spacing : 0)
-      const y = startY + (logo.row * 80)
+      let x = startX + (logo.col * spacing)
+      const y = startY + (logo.row * spacing)
+      
+      if (logo.row === 0 || logo.row === 2) {
+        const rowCenterOffset = nameCenterX - (startX + (2.5 * spacing))
+        x = startX + (logo.col * spacing) + rowCenterOffset
+      }
       
       const body = Bodies.circle(x, y, logoSize * 0.3, {
         restitution: 0.6,
@@ -141,33 +170,45 @@ class PhysicsBanner extends React.Component {
       physicsBodies.push(body)
     })
 
-    const stevenTexture = this.createTextTexture('Steven', 32)
-    const stevenBody = Bodies.rectangle(300, 140, 120, 50, {
-      restitution: 0.6,
-      friction: 0.4,
-      frictionAir: 0.01,
-      render: {
-        sprite: {
-          texture: stevenTexture,
-          xScale: 1,
-          yScale: 1
+    const stevenTexture = this.createTextTexture('Steven', 64 * BANNER_SCALE * OBJECT_SCALE)
+    const stevenBody = Bodies.rectangle(
+      startX + (1 * spacing),
+      startY + spacing,
+      240 * BANNER_SCALE * OBJECT_SCALE, 
+      100 * BANNER_SCALE * OBJECT_SCALE, 
+      {
+        restitution: 0.6,
+        friction: 0.4,
+        frictionAir: 0.01,
+        render: {
+          sprite: {
+            texture: stevenTexture,
+            xScale: 1,
+            yScale: 1
+          }
         }
       }
-    })
+    )
 
-    const meierTexture = this.createTextTexture('Meier', 32)
-    const meierBody = Bodies.rectangle(500, 140, 100, 50, {
-      restitution: 0.6,
-      friction: 0.4,
-      frictionAir: 0.01,
-      render: {
-        sprite: {
-          texture: meierTexture,
-          xScale: 1,
-          yScale: 1
+    const meierTexture = this.createTextTexture('Meier', 64 * BANNER_SCALE * OBJECT_SCALE)
+    const meierBody = Bodies.rectangle(
+      startX + (2 * spacing),
+      startY + spacing,
+      200 * BANNER_SCALE * OBJECT_SCALE, 
+      100 * BANNER_SCALE * OBJECT_SCALE, 
+      {
+        restitution: 0.6,
+        friction: 0.4,
+        frictionAir: 0.01,
+        render: {
+          sprite: {
+            texture: meierTexture,
+            xScale: 1,
+            yScale: 1
+          }
         }
       }
-    })
+    )
 
     physicsBodies.push(stevenBody, meierBody)
 
@@ -190,6 +231,8 @@ class PhysicsBanner extends React.Component {
     const runner = Runner.create()
     this.runnerRef = runner
     Runner.run(runner, engine)
+
+    this.updateCanvasSize()
   }
 
   private cleanupPhysics = (): void => {
@@ -209,26 +252,39 @@ class PhysicsBanner extends React.Component {
 
   componentDidMount(): void {
     this.initPhysics()
+    
+    this.resizeObserver = new ResizeObserver(() => {
+      this.updateCanvasSize()
+    })
+    
+    if (this.containerRef.current) {
+      this.resizeObserver.observe(this.containerRef.current)
+    }
   }
 
   componentWillUnmount(): void {
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect()
+    }
     this.cleanupPhysics()
   }
 
   render(): React.ReactNode {
     return (
-      <div style={{ 
-        width: '100%', 
-        maxWidth: '700px', 
-        margin: '32px auto 8px auto',
-        position: 'relative'
-      }}>        
+      <div 
+        ref={this.containerRef}
+        style={{ 
+          width: '100%', 
+          maxWidth: `${BASE_WIDTH}px`, 
+          margin: 'auto',
+          position: 'relative'
+        }}
+      >        
         <canvas 
           ref={this.canvasRef}
           style={{
-            width: '100%',
-            height: '300px',
-            display: 'block'
+            display: 'block',
+            imageRendering: 'pixelated'
           }}
         />
       </div>
