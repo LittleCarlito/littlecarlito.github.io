@@ -23,17 +23,27 @@ force_merge_pr() {
     echo "Mergeable: $MERGEABLE" >&2
     echo "Merge state: $MERGE_STATE" >&2
     
-    # Create JSON payload with jq to handle escaping properly
-    JSON_PAYLOAD=$(jq -n \
-      --arg title "$commit_title" \
-      --arg method "$merge_method" \
-      '{
-        "commit_title": $title,
-        "commit_message": "",
-        "merge_method": $method
-      }')
+    # Create JSON payload - only include commit_title if it's not empty
+    if [ -n "$commit_title" ] && [ "$commit_title" != "Merge pull request" ]; then
+        echo "Using custom commit title: $commit_title" >&2
+        JSON_PAYLOAD=$(jq -n \
+          --arg title "$commit_title" \
+          --arg method "$merge_method" \
+          '{
+            "commit_title": $title,
+            "commit_message": "",
+            "merge_method": $method
+          }')
+    else
+        echo "Using default GitHub merge commit message" >&2
+        JSON_PAYLOAD=$(jq -n \
+          --arg method "$merge_method" \
+          '{
+            "merge_method": $method
+          }')
+    fi
     
-    echo "Attempting direct API merge with title: $commit_title" >&2
+    echo "Attempting direct API merge..." >&2
     
     # Merge the PR using the GitHub API directly
     RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \
@@ -77,7 +87,7 @@ main() {
     local token=""
     local repo=""
     local pr_number=""
-    local commit_title="Merge pull request"
+    local commit_title=""  # Changed: Default to empty instead of "Merge pull request"
     local merge_method="squash"
     local delete_branch="true"
     
@@ -140,4 +150,4 @@ main() {
 # Run main function with all arguments (if script is not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
-fi 
+fi
