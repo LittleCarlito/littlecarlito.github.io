@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://unpkg.com blob:; connect-src 'self' https://unpkg.com blob:; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self'; worker-src 'self' blob:; manifest-src 'self'; base-uri 'self';">
+		<link rel="icon" type="image/x-icon" href="./favicon.ico">
+		<link rel="stylesheet" href="./index.css">
+		<title>
+			Steven Meier
+		</title>
+		<style>
+			body { margin: 0; }
+			canvas { display: block; }
+		</style>
+	</head>
+	<body>
+		<script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+		<script type="importmap">
+		{
+			"imports": {
+				"three": "https://unpkg.com/three@0.161.0/build/three.module.js",
+				"three/addons/": "https://unpkg.com/three@0.161.0/examples/jsm/"
+			}
+		}
+		</script>
+		<script type="module" src="./main.js"></script>
+	</body>
+</html>

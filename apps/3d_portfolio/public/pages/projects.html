@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            min-height: 100vh;
+            background: #b6b4af;
+            overflow-x: auto;
+        }
+
+        .writing-container {
+            width: 800px;
+            position: relative;
+            opacity: 0;
+            padding-left: 30px;
+            min-width: 800px;
+        }
+
+        .writing-container.show {
+            opacity: 1;
+        }
+
+        .text-path {
+            fill: none;
+            stroke: black;
+            stroke-width: 2;
+        }
+
+        .text-path.hidden {
+            stroke-dashoffset: 1000;
+        }
+
+        @keyframes write-text {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        .text-path.animate-write {
+            animation: write-text 1s forwards;
+        }
+
+        .title-text {
+            font-size: 64px;
+        }
+
+        .project-text {
+            font-size: 32px;
+        }
+
+        .hidden {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+        }
+
+        .animate-write {
+            animation: write-text forwards;
+        }
+
+        #title_svg {
+            width: 800px;
+            height: auto;
+            display: block;
+            min-width: 800px;
+        }
+
+        .letter-path {
+            fill: none;
+            stroke: #000;
+            stroke-width: 2px;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .letter-path.animate {
+            animation: drawLetter .025s forwards;
+        }
+
+        @keyframes drawLetter {
+            0% {
+                fill: transparent;
+                stroke-dashoffset: var(--path-length);
+            }
+            70% {
+                fill: transparent;
+                stroke-dashoffset: 0;
+            }
+            100% {
+                fill: #000;
+                stroke-dashoffset: 0;
+            }
+        }
+
+        .construction-tape {
+            position: absolute;
+            background: repeating-linear-gradient(
+                45deg,
+                rgba(255, 215, 0, 0.7),
+                rgba(255, 215, 0, 0.7) 5px,
+                rgba(0, 0, 0, 0.7) 5px,
+                rgba(0, 0, 0, 0.7) 10px
+            );
+            color: white;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            text-align: center;
+            line-height: 25px;
+            font-size: 14px;
+            padding: 0 10px;
+            width: 285px;
+            height: 25px;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .construction-tape.show {
+            opacity: 1;
+        }
+
+        .tape-interceptor {
+            position: absolute;
+            z-index: 999;
+            cursor: not-allowed;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .tape-interceptor.show {
+            opacity: 1;
+        }
+
+        .fallback-text {
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            fill: #000;
+            display: none;
+        }
+
+        .fallback-title {
+            font-size: 64px;
+        }
+
+        .fallback-project {
+            font-size: 32px;
+        }
+
+        .show-fallback .fallback-text {
+            display: block;
+        }
+
+        .show-fallback .letter-path {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="writing-container">
+        <svg id="title_svg" width="800" height="340" viewBox="0 0 800 340">
+        </svg>
+    </div>
+
+    <script>
+        const VISUAL_DEBUG = false;
+        const ORIGINAL_SVG_WIDTH = 800;
+        const LINK_LEFT_MARGIN = 60;
+        
+        const PROJECTS = [
+            {
+                text: 'ThreeJS tutorials',
+                url: 'https://www.youtube.com/@Blooooork',
+                width: 285,
+                height: 35,
+                yOffset: -15
+            },
+            {
+                text: 'Chuck Chucker',
+                url: 'https://github.com/LittleCarlito/chucker',
+                width: 250,
+                height: 32,
+                yOffset: -5
+            },
+            {
+                text: 'Recipeat',
+                url: 'https://github.com/LittleCarlito/Recipeat',
+                width: 144,
+                height: 35,
+                yOffset: 0
+            },
+            {
+                text: 'JPaint',
+                url: 'https://github.com/LittleCarlito/JPaint',
+                width: 114,
+                height: 35,
+                yOffset: 15
+            }
+        ];
+
+        const TITLE_X = 40;
+        const TITLE_Y = 68;
+        const TITLE_FONT_SIZE = 64;
+        const TITLE_TO_PROJECTS_PADDING = 60;
+        
+        const PROJECT_START_X = TITLE_X + 20;
+        const PROJECT_START_Y = TITLE_Y + TITLE_TO_PROJECTS_PADDING;
+        const PROJECT_FONT_SIZE = 32;
+        const PROJECT_SPACING = 60;
+
+        const PROJECT_LINKS = PROJECTS.map((project, index) => ({
+            y: PROJECT_START_Y + (index * PROJECT_SPACING),
+            height: project.height,
+            width: project.width,
+            yOffset: project.yOffset,
+            url: project.url
+        }));
+
+        const projectElements = PROJECTS.map(project => ({
+            text: project.text,
+            duration: 600,
+            class: 'project-text'
+        }));
+
+        let font = null;
+        let tape, interceptor;
+        let animationPlayed = false;
+        let fontLoaded = false;
+        let useFallback = false;
+        let threejsTextAnimated = false;
+
+        const debugContainer = document.createElement('div');
+        debugContainer.style.position = 'absolute';
+        debugContainer.style.top = '0';
+        debugContainer.style.left = '0';
+        debugContainer.style.width = '100%';
+        debugContainer.style.height = '100%';
+        debugContainer.style.zIndex = '100';
+        document.body.appendChild(debugContainer);
+
+        function loadFont() {
+            const fontPaths = [
+                '../fonts/TokyoRockstar.ttf',
+                '/fonts/TokyoRockstar.ttf',
+                'fonts/TokyoRockstar.ttf'
+            ];
+            
+            let pathIndex = 0;
+            
+            function tryNextPath() {
+                if (pathIndex >= fontPaths.length) {
+                    if (typeof opentype !== 'undefined') {
+                        font = null;
+                        fontLoaded = false;
+                        useFallback = true;
+                        initializePage();
+                    }
+                    return;
+                }
+                
+                const currentPath = fontPaths[pathIndex];
+                
+                opentype.load(currentPath, function(err, loadedFont) {
+                    if (err) {
+                        pathIndex++;
+                        tryNextPath();
+                        return;
+                    }
+                    
+                    font = loadedFont;
+                    fontLoaded = true;
+                    useFallback = false;
+                    initializePage();
+                });
+            }
+            
+            if (typeof opentype === 'undefined') {
+                useFallback = true;
+                initializePage();
+                return;
+            }
+            
+            tryNextPath();
+        }
+
+        function initializePage() {
+            createTapeAndInterceptor();
+            createClickableLinks();
+            updateBoxPositions();
+            setupSVG();
+        }
+
+        function createTapeAndInterceptor() {
+            tape = document.createElement('div');
+            tape.className = 'construction-tape';
+            tape.textContent = 'COMING SOON';
+            
+            interceptor = document.createElement('div');
+            interceptor.className = 'tape-interceptor';
+            
+            document.body.appendChild(tape);
+            document.body.appendChild(interceptor);
+        }
+
+        function showTape() {
+            if (tape && interceptor) {
+                tape.classList.add('show');
+                interceptor.classList.add('show');
+            }
+        }
+
+        function createClickableLinks() {
+            const boxConfigs = PROJECTS.map((project, index) => ({
+                y: PROJECT_START_Y + (index * PROJECT_SPACING),
+                height: project.height,
+                width: project.width,
+                yOffset: project.yOffset,
+                url: project.url
+            }));
+
+            boxConfigs.forEach((config, index) => {
+                const link = document.createElement('a');
+                link.href = config.url;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.style.position = 'absolute';
+                link.style.left = '60px';
+                link.style.top = `${config.y + config.yOffset}px`;
+                link.style.width = `${config.width}px`;
+                link.style.height = `${config.height}px`;
+                if(VISUAL_DEBUG) {
+                    link.style.backgroundColor = `rgba(255, 0, 0, 0.3)`;
+                }
+                link.style.cursor = 'pointer';
+                debugContainer.appendChild(link);
+            });
+        }
+
+        function setupSVG() {
+            const TITLE_HEIGHT = 100;
+            const TOTAL_PROJECTS = PROJECTS.length;
+            const TOTAL_HEIGHT = TITLE_HEIGHT + (TOTAL_PROJECTS * PROJECT_SPACING) + 100;
+
+            const svg = document.querySelector('#title_svg');
+            svg.setAttribute('viewBox', `0 0 800 ${TOTAL_HEIGHT}`);
+            svg.setAttribute('height', TOTAL_HEIGHT);
+            
+            if (useFallback) {
+                svg.classList.add('show-fallback');
+            }
+        }
+
+        const container = document.querySelector('.writing-container');
+        const svg = document.querySelector('#title_svg');
+        
+        container.style.position = 'relative';
+        container.style.width = '100%';
+        container.style.maxWidth = '800px';
+        
+        const titleText = { text: 'Projects', duration: 800, class: 'title-text' };
+
+        function createCharacterPath(char, x, y, className, fontSize) {
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("class", `text-path hidden ${className}`);
+            
+            if (useFallback) {
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", x);
+                text.setAttribute("y", y);
+                text.setAttribute("class", `fallback-text ${className === 'title-text' ? 'fallback-title' : 'fallback-project'}`);
+                text.textContent = char;
+                return text;
+            }
+            
+            const pathData = getPathDataForChar(char, x, y, fontSize);
+            path.setAttribute("d", pathData);
+            
+            const length = path.getTotalLength();
+            path.style.strokeDasharray = length;
+            path.style.strokeDashoffset = length;
+            
+            return path;
+        }
+
+        function getPathDataForChar(char, x, y, fontSize) {
+            if (!font) return '';
+            const path = font.getPath(char, x, y, fontSize);
+            return path.toPathData();
+        }
+
+        function animateCharacter(char, x, y, fontSize) {
+            return new Promise((resolve) => {
+                if (useFallback) {
+                    setTimeout(resolve, 50);
+                    return;
+                }
+                
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                const pathData = getPathDataForChar(char, x, y, fontSize);
+                path.setAttribute('d', pathData);
+                path.setAttribute('class', 'letter-path');
+                svg.appendChild(path);
+                
+                const pathLength = path.getTotalLength();
+                path.style.strokeDasharray = pathLength;
+                path.style.setProperty('--path-length', pathLength);
+                path.style.strokeDashoffset = pathLength;
+                
+                requestAnimationFrame(() => {
+                    path.classList.add('animate');
+                });
+
+                path.addEventListener('animationend', () => {
+                    setTimeout(resolve, 10);
+                });
+            });
+        }
+
+        async function createFallbackText() {
+            const svg = document.querySelector('#title_svg');
+            svg.innerHTML = '';
+            
+            const titleChars = titleText.text.split('');
+            let currentX = TITLE_X;
+            
+            for (let i = 0; i < titleChars.length; i++) {
+                const char = titleChars[i];
+                const charText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                charText.setAttribute("x", currentX);
+                charText.setAttribute("y", TITLE_Y);
+                charText.setAttribute("class", "fallback-text fallback-title");
+                charText.textContent = char;
+                charText.style.opacity = '0';
+                svg.appendChild(charText);
+                
+                setTimeout(() => {
+                    charText.style.transition = 'opacity 0.1s ease';
+                    charText.style.opacity = '1';
+                }, i * 50);
+                
+                currentX += char === ' ' ? 16 : 32;
+            }
+            
+            let currentY = PROJECT_START_Y;
+            let totalDelay = titleChars.length * 50 + 200;
+            
+            for (let projectIndex = 0; projectIndex < PROJECTS.length; projectIndex++) {
+                const project = PROJECTS[projectIndex];
+                const projectChars = project.text.split('');
+                let projectX = PROJECT_START_X;
+                
+                for (let i = 0; i < projectChars.length; i++) {
+                    const char = projectChars[i];
+                    const charText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    charText.setAttribute("x", projectX);
+                    charText.setAttribute("y", currentY);
+                    charText.setAttribute("class", "fallback-text fallback-project");
+                    charText.textContent = char;
+                    charText.style.opacity = '0';
+                    svg.appendChild(charText);
+                    
+                    setTimeout(() => {
+                        charText.style.transition = 'opacity 0.1s ease';
+                        charText.style.opacity = '1';
+                        if (projectIndex === 0 && i === projectChars.length - 1) {
+                            threejsTextAnimated = true;
+                            showTape();
+                        }
+                    }, totalDelay + i * 25);
+                    
+                    projectX += char === ' ' ? 8 : 16;
+                }
+                
+                totalDelay += projectChars.length * 25 + 75;
+                currentY += PROJECT_SPACING;
+            }
+        }
+
+        async function animateAllText() {
+            const svg = document.querySelector('#title_svg');
+            svg.innerHTML = '';
+            
+            if (useFallback) {
+                createFallbackText();
+                return;
+            }
+            
+            if (!font) {
+                useFallback = true;
+                createFallbackText();
+                return;
+            }
+            
+            const allCharacters = [];
+            let currentX = TITLE_X;
+            let currentY = TITLE_Y;
+
+            titleText.text.split('').forEach(char => {
+                allCharacters.push({
+                    char,
+                    x: currentX,
+                    y: currentY,
+                    fontSize: TITLE_FONT_SIZE,
+                    class: titleText.class
+                });
+                currentX += font.getAdvanceWidth(char, TITLE_FONT_SIZE);
+            });
+
+            currentY = PROJECT_START_Y;
+            projectElements.forEach(item => {
+                currentX = PROJECT_START_X;
+                item.text.split('').forEach(char => {
+                    allCharacters.push({
+                        char,
+                        x: currentX,
+                        y: currentY,
+                        fontSize: PROJECT_FONT_SIZE,
+                        class: item.class
+                    });
+                    currentX += font.getAdvanceWidth(char, PROJECT_FONT_SIZE);
+                });
+                currentY += PROJECT_SPACING;
+            });
+
+            let threejsTextLength = titleText.text.length;
+            let threejsProjectTextLength = PROJECTS[0].text.length;
+            let threejsTextEndIndex = threejsTextLength + threejsProjectTextLength;
+
+            for (let i = 0; i < allCharacters.length; i++) {
+                const charInfo = allCharacters[i];
+                await animateCharacter(charInfo.char, charInfo.x, charInfo.y, charInfo.fontSize);
+                
+                if (i === threejsTextEndIndex - 1) {
+                    threejsTextAnimated = true;
+                    showTape();
+                }
+            }
+        }
+
+        function showAllText() {
+            const svg = document.querySelector('#title_svg');
+            svg.innerHTML = '';
+            
+            if (useFallback) {
+                createFallbackText();
+                return;
+            }
+            
+            if (!font) {
+                useFallback = true;
+                createFallbackText();
+                return;
+            }
+            
+            const titleChars = titleText.text.split('');
+            let currentX = TITLE_X;
+            let titleY = TITLE_Y;
+            
+            titleChars.forEach(char => {
+                const charPath = createCharacterPath(char, currentX, titleY, titleText.class, TITLE_FONT_SIZE);
+                charPath.style.strokeDashoffset = 0;
+                svg.appendChild(charPath);
+                currentX += font.getAdvanceWidth(char, TITLE_FONT_SIZE);
+            });
+
+            let projectY = PROJECT_START_Y;
+            projectElements.forEach((item) => {
+                const chars = item.text.split('');
+                let currentX = PROJECT_START_X;
+                
+                chars.forEach(char => {
+                    const charPath = createCharacterPath(char, currentX, projectY, item.class, PROJECT_FONT_SIZE);
+                    charPath.style.strokeDashoffset = 0;
+                    svg.appendChild(charPath);
+                    currentX += font.getAdvanceWidth(char, PROJECT_FONT_SIZE);
+                });
+
+                projectY += PROJECT_SPACING;
+            });
+            
+            if (!threejsTextAnimated) {
+                threejsTextAnimated = true;
+                showTape();
+            }
+        }
+
+        function updateBoxPositions() {
+            const svg = document.querySelector('#title_svg');
+            if (!svg) return;
+
+            const svgRect = svg.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            const scale = svgRect.width / ORIGINAL_SVG_WIDTH;
+
+            const links = debugContainer.getElementsByTagName('a');
+
+            PROJECT_LINKS.forEach((config, index) => {
+                if (links[index]) {
+                    const link = links[index];
+                    link.style.left = `${Math.round(LINK_LEFT_MARGIN * scale)}px`;
+                    link.style.top = `${Math.round(config.y * scale * 0.9 + config.yOffset * scale)}px`;
+                    link.style.width = `${Math.round(config.width * scale)}px`;
+                    link.style.height = `${Math.round(config.height * scale)}px`;
+                }
+            });
+
+            if (tape && interceptor) {
+                const firstProjectConfig = PROJECT_LINKS[0];
+                const threejsTextX = containerRect.left + (PROJECT_START_X * scale);
+                const threejsTextY = containerRect.top + (firstProjectConfig.y * scale * 0.9 + firstProjectConfig.yOffset * scale);
+                
+                tape.style.left = `${threejsTextX}px`;
+                tape.style.top = `${threejsTextY}px`;
+                tape.style.transform = 'rotate(-5deg)';
+
+                interceptor.style.left = `${threejsTextX - containerRect.left}px`;
+                interceptor.style.top = `${threejsTextY - containerRect.top - 15}px`;
+                interceptor.style.width = `${PROJECTS[0].width * scale}px`;
+                interceptor.style.height = `${PROJECTS[0].height * scale}px`;
+            }
+        }
+
+        function resetAnimation() {
+            const container = document.querySelector('.writing-container');
+            container.classList.remove('show');
+            const svg = document.querySelector('#title_svg');
+            svg.innerHTML = '';
+            animationPlayed = false;
+            threejsTextAnimated = false;
+            if (tape && interceptor) {
+                tape.classList.remove('show');
+                interceptor.classList.remove('show');
+            }
+        }
+
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'visibility') {
+                if (event.data.visible) {
+                    setTimeout(() => {
+                        container.classList.add('show');
+                        if (!animationPlayed) {
+                            animateAllText();
+                            animationPlayed = true;
+                        } else {
+                            showAllText();
+                        }
+                    }, 200);
+                } else {
+                    resetAnimation();
+                }
+            }
+        });
+
+        window.addEventListener('message', (event) => {
+            if (event.data === 'resize' || event.data === 'extreme-resize') {
+                requestAnimationFrame(updateBoxPositions);
+            }
+        });
+
+        window.trigger_frame_animation = function() {
+            container.classList.add('show');
+            if (!animationPlayed) {
+                animateAllText();
+                animationPlayed = true;
+            } else {
+                showAllText();
+            }
+        };
+
+        const resizeObserver = new ResizeObserver(() => {
+            requestAnimationFrame(updateBoxPositions);
+        });
+
+        resizeObserver.observe(document.querySelector('#title_svg'));
+
+        if (typeof opentype === 'undefined') {
+            const script = document.createElement('script');
+            script.src = '../js/opentype.min.js';
+            script.onload = loadFont;
+            script.onerror = () => {
+                const altScript = document.createElement('script');
+                altScript.src = '/js/opentype.min.js';
+                altScript.onload = loadFont;
+                altScript.onerror = () => {
+                    useFallback = true;
+                    initializePage();
+                };
+                document.head.appendChild(altScript);
+            };
+            document.head.appendChild(script);
+        } else {
+            loadFont();
+        }
+
+        setTimeout(() => {
+            if (!animationPlayed) {
+                window.trigger_frame_animation();
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

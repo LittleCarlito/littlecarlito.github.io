@@ -1,0 +1,3 @@
+delete me once you put something here
+
+git won't respect empty directories
