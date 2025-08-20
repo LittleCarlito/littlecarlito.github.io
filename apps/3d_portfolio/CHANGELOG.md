@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.51.1 (2025-08-20)</small>
+
+- fix(portfolio): dual local startup ([a58c3db](https://github.com/littlecarlito/threejs_site/commit/a58c3db))
+- refactor(portfolio): moving public to root project ([3f918fc](https://github.com/littlecarlito/threejs_site/commit/3f918fc))
+
 ## 0.51.0 (2025-08-20)
 
 - feat(portfolio): deploying 3d version ([f4dd72d](https://github.com/littlecarlito/threejs_site/commit/f4dd72d))

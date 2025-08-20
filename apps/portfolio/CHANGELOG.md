@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 0.1.0 (2025-08-20)
+
+- feat(portfolio): orbit navigation ([6eb485f](https://github.com/LittleCarlito/littlecarlito.github.io/commit/6eb485f))
+- refactor(portfolio): moving public to root project ([3f918fc](https://github.com/LittleCarlito/littlecarlito.github.io/commit/3f918fc))
+
 ## <small>0.0.3 (2025-08-20)</small>
 
 - fix(portfolio): adding copy of manifest ([214b52c](https://github.com/LittleCarlito/littlecarlito.github.io/commit/214b52c))
