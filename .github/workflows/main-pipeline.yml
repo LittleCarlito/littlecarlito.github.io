@@ -523,10 +523,22 @@ jobs:
       # Set GITHUB_PAGES environment variable to ensure correct base URL
       - name: Build for GitHub Pages
         run: |
-          # First build the blorkpack package explicitly
+          # Build blorkpack package first (dependency)
           pnpm --filter=@littlecarlito/blorkpack build
-          # Then build the portfolio with GitHub Pages flag
+          
+          # Build portfolio (main site at root)
           GITHUB_PAGES=true pnpm --filter=@littlecarlito/portfolio build
+          
+          # Build 3D portfolio (will use /3d/ base path)
+          GITHUB_PAGES=true pnpm --filter=@littlecarlito/3d-portfolio build
+          
+          # Create subdirectory and copy 3D portfolio
+          mkdir -p apps/portfolio/dist/3d
+          cp -r apps/3d-portfolio/dist/* apps/portfolio/dist/3d/
+          
+          echo "✅ Both apps built and combined"
+          echo "Portfolio: apps/portfolio/dist/"
+          echo "3D Portfolio: apps/portfolio/dist/3d/"
           
       # Ensure _headers file is copied to the dist folder
       - name: Ensure _headers file for GitHub Pages
@@ -643,4 +655,4 @@ jobs:
             Details: ${{ steps.workflow-result.outputs.details }}
           source: 'dispatch'
           discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          github-token: ${{ secrets.PR_CREATION_TOKEN }} 
+          github-token: ${{ secrets.PR_CREATION_TOKEN }}
