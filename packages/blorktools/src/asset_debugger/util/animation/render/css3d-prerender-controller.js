@@ -632,8 +632,8 @@ export function startCss3dPreRendering(iframe, callback, progressBar = null, set
             analysisMetrics = analysis.metrics;
             
             if (analysis.loopDetected) {
-                isAnimationFinite = true;
-                animationDuration = domSnapshotFrames[domSnapshotFrames.length - 1].timestamp - domSnapshotFrames[0].timestamp;
+                setIsAnimationFinite(true);
+                setAnimationDuration(domSnapshotFrames[domSnapshotFrames.length - 1].timestamp - domSnapshotFrames[0].timestamp);
                 console.log(`CSS3D animation loop detected, duration: ${animationDuration}ms, ${domSnapshotFrames.length} snapshots captured`);
                 showStatus(`CSS3D animation loop detected (${(animationDuration/1000).toFixed(1)}s), ${domSnapshotFrames.length} snapshots captured`, 'success');
                 
@@ -641,8 +641,8 @@ export function startCss3dPreRendering(iframe, callback, progressBar = null, set
                 loopDetected = true;
                 detectedLoopSize = analysis.loopSize;
             } else if (!analysis.isAnimating) {
-                isAnimationFinite = true;
-                animationDuration = domSnapshotFrames[domSnapshotFrames.length - 1].timestamp - domSnapshotFrames[0].timestamp;
+                setIsAnimationFinite(true);
+                setAnimationDuration(domSnapshotFrames[domSnapshotFrames.length - 1].timestamp - domSnapshotFrames[0].timestamp);
                 console.log(`CSS3D animation appears to have ended, duration: ${animationDuration}ms, ${domSnapshotFrames.length} snapshots captured`);
                 showStatus(`CSS3D animation end detected (${(animationDuration/1000).toFixed(1)}s), ${domSnapshotFrames.length} snapshots captured`, 'success');
                 

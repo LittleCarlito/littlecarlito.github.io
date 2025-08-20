@@ -75,7 +75,6 @@ export function setLastTextureUpdateTime(incomingValue) {
     lastTextureUpdateTime = incomingValue;
 }
 
-
 /**
  * Set preRenderedFrames array
  * @param {Array} incomingValue - The new value to set
@@ -113,7 +112,7 @@ export function setFinalProgressStartTime(incomingValue) {
 }
 
 export function setAnimationPlaybackStartTime(incomingValue) {
-    setAnimationPlaybackStartTime = incomingValue;
+    animationPlaybackStartTime = incomingValue;
 }
 
 export function setAnimationCaptureStartTime(incomingValue) {

@@ -67,6 +67,10 @@ export function resetReverseAnimationFrameId() {
     reverseAnimationFrameId = null;
 }
 
+export function setReverseAnimationFrameId(incomingValue) {
+    reverseAnimationFrameId = incomingValue;
+}
+
 export function resetAnimationState() {
         // Clear existing animation stack
         resetAnimationStack();
