@@ -532,9 +532,17 @@ jobs:
           # Build 3D portfolio (will use /3d/ base path)
           GITHUB_PAGES=true pnpm --filter=@littlecarlito/3d-portfolio build
           
-          # Create subdirectory and copy 3D portfolio
+          # Debug: Check what was actually built
+          echo "=== Checking build outputs ==="
+          ls -la apps/
+          echo "Portfolio dist contents:"
+          ls -la apps/portfolio/dist/ || echo "Portfolio dist not found"
+          echo "3D Portfolio dist contents:"
+          ls -la apps/3d_portfolio/dist/ || echo "3D Portfolio dist not found"
+          
+          # Create subdirectory and copy 3D portfolio (fixed path)
           mkdir -p apps/portfolio/dist/3d
-          cp -r apps/3d-portfolio/dist/* apps/portfolio/dist/3d/
+          cp -r apps/3d_portfolio/dist/* apps/portfolio/dist/3d/
           
           echo "✅ Both apps built and combined"
           echo "Portfolio: apps/portfolio/dist/"
