@@ -14,8 +14,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const outputPath = path.resolve(__dirname, 'dist/index.js')
 
 const isGitHubPages = process.env.GITHUB_PAGES === 'true'
-// FIXED: Root domain repositories should use '/' as base
-const base = '/'
+// CHANGED: Conditional base path for subdirectory deployment
+const base = isGitHubPages ? '/3d/' : '/'
 
 function copyDirectory(src, dest) {
 	if (!fs.existsSync(src)) {
@@ -53,6 +53,7 @@ function copyDirectory(src, dest) {
 export default defineConfig(({ command }) => {
 	const isProduction = command === 'build'
 	console.log(`Starting ${isProduction ? 'production' : 'development'} build...`)
+	console.log(`Base path: ${base}`)
 	
 	const optimizeDepsConfig = {}
 	return {
@@ -175,8 +176,6 @@ export default defineConfig(({ command }) => {
             </script>
           </head>`);
 					
-					// REMOVED: GitHub Pages script src modification since base is now '/'
-					
 					return updatedHtml;
 				}
 			},
@@ -261,7 +260,7 @@ export default defineConfig(({ command }) => {
 				name: 'copy-resources',
 				closeBundle() {
 					if (isProduction) {
-						console.log('🔄 Copying static resources...');
+						console.log('📄 Copying static resources...');
 						try {
 							const manifestSrc = path.resolve(__dirname, 'public/resources/manifest.json');
 							const manifestDest = path.resolve(__dirname, 'dist/resources/manifest.json');
@@ -304,11 +303,7 @@ export default defineConfig(({ command }) => {
 							console.warn('⚠️ custom_types.json not found, skipping');
 						}
 							
-						fs.writeFileSync(
-							path.resolve(__dirname, 'dist/.nojekyll'),
-							''
-						);
-						console.log('✓ Created .nojekyll file in dist root');
+						// REMOVED: .nojekyll creation (will be handled by workflow)
 					} catch (error) {
 						console.error('Failed to copy extra files:', error);
 					}
