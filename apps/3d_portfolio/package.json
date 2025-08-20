@@ -1,5 +1,5 @@
 {
-  "name": "@littlecarlito/portfolio",
+  "name": "@littlecarlito/3d-portfolio",
   "version": "0.50.7",
   "type": "module",
   "description": "Interactive 3D portfolio website showcasing web development and creative coding projects",
@@ -10,7 +10,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/littlecarlito/threejs_site.git",
-    "directory": "apps/portfolio"
+    "directory": "apps/3d_portfolio"
   },
   "scripts": {
     "predev": "cd ../../packages/blorkpack && pnpm run build",
