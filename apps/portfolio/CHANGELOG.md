@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.1.1 (2025-08-20)</small>
+
+- fix(portfolio): opening new tab ([f51d98d](https://github.com/LittleCarlito/littlecarlito.github.io/commit/f51d98d))
+
 ## 0.1.0 (2025-08-20)
 
 - feat(portfolio): orbit navigation ([6eb485f](https://github.com/LittleCarlito/littlecarlito.github.io/commit/6eb485f))
