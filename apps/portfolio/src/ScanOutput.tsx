@@ -57,10 +57,20 @@ const generateScanLines = () => {
   ];
 };
 
-const handleLaunchClick = () => {
+const handleLaunchClick = (e: React.MouseEvent) => {
+  console.log('Button clicked!');
+  console.log('Event:', e);
+  
+  e.preventDefault();
+  e.stopPropagation();
+  
   const currentHost = window.location.origin;
   const targetUrl = `${currentHost}/3d`;
-  window.open(targetUrl, '_blank');
+  
+  console.log('Current host:', currentHost);
+  console.log('Target URL:', targetUrl);
+  
+  window.open(targetUrl, '_blank', 'noopener,noreferrer');
 };
 
 interface ScanOutputProps {
@@ -76,6 +86,7 @@ export default function ScanOutput({ ip, onComplete, onContentUpdate }: ScanOutp
   const [scanLineIdx, setScanLineIdx] = useState<number>(0);
   const [scanCharIdx, setScanCharIdx] = useState<number>(0);
   const [showLaunchButton, setShowLaunchButton] = useState<boolean>(false);
+  const [isComplete, setIsComplete] = useState<boolean>(false);
 
   const getLineType = (line: string) => {
     if (line === "HARDWARE SCAN INITIATED" || line === "SCAN COMPLETE") return "h1";
@@ -189,10 +200,7 @@ export default function ScanOutput({ ip, onComplete, onContentUpdate }: ScanOutp
       if (hardware.canRunThreeJS) {
         setShowLaunchButton(true);
       }
-      
-      const launchButton = hardware.canRunThreeJS 
-        ? `<div class="mt-4"><button class="launch-button text-black bg-green-400 px-4 py-2 rounded hover:bg-green-300 transition-colors font-bold inline-block cursor-pointer">INITIATE LAUNCH</button></div>`
-        : '';
+      setIsComplete(true);
       
       const htmlContent = `
         <div class="scan-section">
@@ -215,7 +223,6 @@ export default function ScanOutput({ ip, onComplete, onContentUpdate }: ScanOutp
                 return `<div class="text-green-100 mb-2">${line}</div>`;
             }
           }).join('')}
-          ${launchButton}
         </div>
       `;
       onComplete(htmlContent);
@@ -228,12 +235,12 @@ export default function ScanOutput({ ip, onComplete, onContentUpdate }: ScanOutp
         <span className="prompt text-green-400">root@{ip} {">"} </span>
       </div>
       {scanDisplayed.map((line: string, i: number) => renderLine(line, i))}
-      {scanCurrentLine && renderCurrentLine(scanCurrentLine)}
+      {!isComplete && scanCurrentLine && renderCurrentLine(scanCurrentLine)}
       {showLaunchButton && (
         <div className="mt-4">
           <button 
             onClick={handleLaunchClick}
-            className="text-black bg-green-400 px-4 py-2 rounded hover:bg-green-300 transition-colors font-bold cursor-pointer"
+            className="text-black bg-green-400 px-4 py-2 rounded hover:bg-green-300 active:bg-green-500 transition-colors font-bold cursor-pointer"
           >
             INITIATE LAUNCH
           </button>

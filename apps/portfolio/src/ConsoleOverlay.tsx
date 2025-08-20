@@ -56,6 +56,7 @@ export default function ConsoleOverlay() {
   const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean>(true);
   const [showingStartup, setShowingStartup] = useState<boolean>(true);
   const [showingMenu, setShowingMenu] = useState<boolean>(false);
+  const [scanCompleted, setScanCompleted] = useState<boolean>(false);
   const consoleRef = useRef<HTMLDivElement>(null);
 
   const getNextLineId = (): number => {
@@ -126,7 +127,6 @@ export default function ConsoleOverlay() {
   const matchInputToOption = (input: string): string | null => {
     const normalizedInput = input.toLowerCase().trim();
     
-    // Check for numeric options (with or without brackets)
     if (normalizedInput === "1" || normalizedInput === "[1]") return "[1] About option";
     if (normalizedInput === "2" || normalizedInput === "[2]") return "[2] Education option";
     if (normalizedInput === "3" || normalizedInput === "[3]") return "[3] Work option";
@@ -134,7 +134,6 @@ export default function ConsoleOverlay() {
     if (normalizedInput === "5" || normalizedInput === "[5]") return "[5] Contact option";
     if (normalizedInput === "6" || normalizedInput === "[6]") return "[6] Scan hardware for orbit";
     
-    // Check for text-based options (with or without "option")
     if (normalizedInput === "about" || normalizedInput === "about option") return "[1] About option";
     if (normalizedInput === "education" || normalizedInput === "education option") return "[2] Education option";
     if (normalizedInput === "work" || normalizedInput === "work option") return "[3] Work option";
@@ -176,6 +175,7 @@ export default function ConsoleOverlay() {
       case "[6] Scan hardware for orbit":
         console.error("ORBITAL SCAN INITIATED");
         setIsPrintingScan(true);
+        setScanCompleted(false);
         setIsIdle(false);
         break;
       default:
@@ -274,15 +274,9 @@ export default function ConsoleOverlay() {
     setTimeout(() => printMenuOptions(), 0);
   };
 
-  const handleScanComplete = (scanContent: string): void => {
-    setOutputLines(prev => [...prev, {
-      id: getNextLineId(),
-      type: 'scan',
-      content: scanContent,
-      isClickable: false
-    }]);
+  const handleScanComplete = (): void => {
     setIsPrintingScan(false);
-    setTimeout(() => printMenuOptions(), 0);
+    setScanCompleted(true);
   };
 
   const handleEducationComplete = (educationContent: string): void => {
@@ -396,7 +390,7 @@ export default function ConsoleOverlay() {
       {outputLines.map((line: OutputLine) => (
         <div key={line.id}>
           <span className="prompt">root@{ip} {">"} </span>
-          {line.type === 'work' || line.type === 'about' || line.type === 'projects' || line.type === 'contact' || line.type === 'scan' || line.type === 'education' ? (
+          {line.type === 'work' || line.type === 'about' || line.type === 'projects' || line.type === 'contact' || line.type === 'education' ? (
             <div dangerouslySetInnerHTML={{ __html: line.content }} />
           ) : line.isClickable ? (
             <span 
@@ -455,7 +449,7 @@ export default function ConsoleOverlay() {
         />
       )}
 
-      {isPrintingScan && (
+      {(isPrintingScan || scanCompleted) && (
         <ScanOutput 
           ip={ip} 
           onComplete={handleScanComplete} 
