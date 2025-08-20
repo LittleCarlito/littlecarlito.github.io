@@ -18,19 +18,11 @@ const getHardwareInfo = () => {
   
   const memoryInfo = (navigator as any).deviceMemory || 0;
   const cores = navigator.hardwareConcurrency || 1;
-  // Check if mobile device
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  // Check if touch device (backup mobile detection)
   const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  // Check for Intel integrated graphics (common in laptops that struggle)
   const hasWeakGPU = renderer.toLowerCase().includes('intel') || 
                      renderer.toLowerCase().includes('gdi generic') ||
                      renderer.toLowerCase().includes('microsoft basic');
-  // Strict requirements: 
-  // - Not mobile
-  // - At least 8 cores (high-end desktop/laptop)
-  // - At least 8GB RAM (when detectable)
-  // - Not using weak integrated graphics
   const canRunThreeJS = gl !== null && 
                         !isMobile && 
                         !isTouch &&
@@ -65,6 +57,13 @@ const generateScanLines = () => {
   ];
 };
 
+const handleLaunchClick = () => {
+  const isGitHubPages = window.location.hostname === 'stevenmeier.xyz';
+  if (isGitHubPages) {
+    window.open('https://stevenmeier.xyz/3d', '_blank');
+  }
+};
+
 interface ScanOutputProps {
   ip: string;
   onComplete: (content: string) => void;
@@ -77,6 +76,7 @@ export default function ScanOutput({ ip, onComplete, onContentUpdate }: ScanOutp
   const [scanCurrentLine, setScanCurrentLine] = useState<string>("");
   const [scanLineIdx, setScanLineIdx] = useState<number>(0);
   const [scanCharIdx, setScanCharIdx] = useState<number>(0);
+  const [showLaunchButton, setShowLaunchButton] = useState<boolean>(false);
 
   const getLineType = (line: string) => {
     if (line === "HARDWARE SCAN INITIATED" || line === "SCAN COMPLETE") return "h1";
@@ -187,6 +187,10 @@ export default function ScanOutput({ ip, onComplete, onContentUpdate }: ScanOutp
       }
     } else {
       const hardware = getHardwareInfo();
+      if (hardware.canRunThreeJS) {
+        setShowLaunchButton(true);
+      }
+      
       const launchButton = hardware.canRunThreeJS 
         ? `<div class="mt-4"><button class="launch-button text-black bg-green-400 px-4 py-2 rounded hover:bg-green-300 transition-colors font-bold inline-block cursor-pointer">INITIATE LAUNCH</button></div>`
         : '';
@@ -226,6 +230,16 @@ export default function ScanOutput({ ip, onComplete, onContentUpdate }: ScanOutp
       </div>
       {scanDisplayed.map((line: string, i: number) => renderLine(line, i))}
       {scanCurrentLine && renderCurrentLine(scanCurrentLine)}
+      {showLaunchButton && (
+        <div className="mt-4">
+          <button 
+            onClick={handleLaunchClick}
+            className="text-black bg-green-400 px-4 py-2 rounded hover:bg-green-300 transition-colors font-bold cursor-pointer"
+          >
+            INITIATE LAUNCH
+          </button>
+        </div>
+      )}
       <style >{`
         .blinking-cursor {
           animation: blink 1s infinite;
