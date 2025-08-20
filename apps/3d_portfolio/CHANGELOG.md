@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 0.51.0 (2025-08-20)
+
+- feat(portfolio): deploying 3d version ([f4dd72d](https://github.com/littlecarlito/threejs_site/commit/f4dd72d))
+
 ## <small>0.50.8 (2025-08-20)</small>
 
 - fix(pipeline): lerna 3d portfolio addition ([304b08c](https://github.com/littlecarlito/threejs_site/commit/304b08c))
