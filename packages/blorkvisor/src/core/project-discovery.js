@@ -3,21 +3,11 @@ import { existsSync } from 'fs';
 import { parse as parseYaml } from 'yaml';
 import path from 'path';
 
-/**
- *
- */
 export class ProjectInvestigator {
-	/**
-	 *
-	 */
 	constructor(rootDir) {
 		this.rootDir = rootDir;
 	}
 
-	/**
-     * Discovers all projects in the workspace
-     * @returns {Promise<Array>} Array of discovered projects
-     */
 	async discoverProjects() {
 		try {
 			const workspaceConfig = await fs.readFile(path.join(this.rootDir, 'pnpm-workspace.yaml'), 'utf8');
@@ -38,12 +28,6 @@ export class ProjectInvestigator {
 		}
 	}
 
-	/**
-     * Scans a directory for projects
-     * @private
-     * @param {string} fullBasePath - Full path to scan
-     * @param {Array} discoveredProjects - Array to store discovered projects
-     */
 	async scanDirectory(fullBasePath, discoveredProjects) {
 		try {
 			const entries = await fs.readdir(fullBasePath, { withFileTypes: true });
@@ -61,13 +45,6 @@ export class ProjectInvestigator {
 		}
 	}
 
-	/**
-     * Investigates a single project directory
-     * @private
-     * @param {string} projectPath - Path to project directory
-     * @param {Array} [discoveredProjects=[]] - Array of already discovered projects
-     * @returns {Promise<Object|null>} Project metadata or null if not a valid project
-     */
 	async investigateProject(projectPath, discoveredProjects = []) {
 		const packageJsonPath = path.join(projectPath, 'package.json');
 		if (!existsSync(packageJsonPath)) return null;
@@ -99,24 +76,11 @@ export class ProjectInvestigator {
 		};
 	}
 
-	/**
-     * Checks if package.json has valid scripts
-     * @private
-     * @param {Object} packageData - Package.json data
-     * @returns {boolean} True if valid scripts exist
-     */
 	hasValidScripts(packageData) {
 		return packageData.scripts && 
                (packageData.scripts.dev || packageData.scripts.start || packageData.scripts.tools);
 	}
 
-	/**
-     * Extracts project description from README or package.json
-     * @private
-     * @param {string} projectPath - Project directory path
-     * @param {Object} packageData - Package.json data
-     * @returns {Promise<string>} Project description
-     */
 	async extractDescription(projectPath, packageData) {
 		if (packageData.description) return packageData.description;
 
@@ -131,13 +95,6 @@ export class ProjectInvestigator {
 		return '';
 	}
 
-	/**
-     * Determines the project type based on name and configuration
-     * @private
-     * @param {string} projectPath - Project directory path
-     * @param {Object} packageData - Package.json data
-     * @returns {string} Project type
-     */
 	determineProjectType(projectPath, packageData) {
 		if (packageData.blorkType) return packageData.blorkType;
 
@@ -154,22 +111,10 @@ export class ProjectInvestigator {
 		return 'unknown';
 	}
 
-	/**
-     * Determines if a project should be served
-     * @private
-     * @param {string} projectType - Project type
-     * @returns {boolean} True if project should be served
-     */
 	shouldProjectBeServed(projectType) {
 		return !['package', 'library'].includes(projectType);
 	}
 
-	/**
-     * Extracts repository information from package.json
-     * @private
-     * @param {Object} packageData - Package.json data
-     * @returns {Object} Repository information
-     */
 	extractRepoInfo(packageData) {
 		if (!packageData.repository) return { url: null, directory: null };
 
@@ -185,31 +130,10 @@ export class ProjectInvestigator {
 		return { url: repoUrl, directory: repoDirectory };
 	}
 
-	/**
-     * Calculates the default port for a project
-     * @private
-     * @param {Object} packageData - Package.json data
-     * @param {Array} discoveredProjects - Array of already discovered projects
-     * @returns {number} Default port number
-     */
 	calculateDefaultPort(packageData, discoveredProjects = []) {
-		if (packageData.name.includes('blorktools')) return 3001;
-		if (packageData.name.includes('portfolio')) return 3000;
-		if (packageData.name.includes('web')) return 3002;
-
-		return 3003 + discoveredProjects.filter(p => 
-			!p.name.includes('blorktools') && 
-            !p.name.includes('portfolio') &&
-            !p.name.includes('web')
-		).length;
+		return 3000 + discoveredProjects.length;
 	}
 
-	/**
-     * Determines which script to use for the project
-     * @private
-     * @param {Object} packageData - Package.json data
-     * @returns {string} Script name to use
-     */
 	determineScriptToUse(packageData) {
 		if (packageData.name === '@littlecarlito/blorktools') {
 			return 'tools';
@@ -217,12 +141,6 @@ export class ProjectInvestigator {
 		return packageData.scripts.dev || packageData.scripts.start;
 	}
 
-	/**
-     * Sorts projects by priority
-     * @private
-     * @param {Array} projects - Array of projects to sort
-     * @returns {Array} Sorted projects
-     */
 	sortProjects(projects) {
 		return projects.sort((a, b) => {
 			if (a.name.includes('web')) return -1;
@@ -232,4 +150,4 @@ export class ProjectInvestigator {
 			return 0;
 		});
 	}
-} 
+}

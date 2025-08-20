@@ -1,5 +1,4 @@
-import { animationStack, reverseAnimationFrameId } from "../../state/css3d-state";
-
+import { animationStack, reverseAnimationFrameId, setReverseAnimationFrameId } from "../../state/css3d-state";
 /**
  * Pop and play the next animation from the stack in reverse
  * @param {HTMLIFrameElement} iframe - The iframe containing animations
@@ -13,7 +12,7 @@ export function playNextReverseAnimation(iframe) {
     // Cancel any pending reverse animation
     if (reverseAnimationFrameId) {
         cancelAnimationFrame(reverseAnimationFrameId);
-        reverseAnimationFrameId = null;
+        setReverseAnimationFrameId(null);
     }
     
     // Pop the next animation from the stack
@@ -274,7 +273,7 @@ function findTargetElement(iframe, animation) {
                         
                         // If it's a typing indicator dot, add the dot content
                         if (animation.selector && animation.selector.includes('span')) {
-                            newElement.textContent = '•';
+                            newElement.textContent = 'â€¢';
                             console.debug('Added typing indicator dot content');
                         }
                     } else {
