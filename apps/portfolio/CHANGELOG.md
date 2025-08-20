@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.0.3 (2025-08-20)</small>
+
+- fix(portfolio): adding copy of manifest ([214b52c](https://github.com/LittleCarlito/littlecarlito.github.io/commit/214b52c))
+
 ## <small>0.0.2 (2025-08-20)</small>
 
 - fix: removing missed placeholder ([6c42721](https://github.com/LittleCarlito/littlecarlito.github.io/commit/6c42721))
