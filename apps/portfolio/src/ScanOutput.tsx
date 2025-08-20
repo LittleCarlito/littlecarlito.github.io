@@ -58,10 +58,9 @@ const generateScanLines = () => {
 };
 
 const handleLaunchClick = () => {
-  const isGitHubPages = window.location.hostname === 'stevenmeier.xyz';
-  if (isGitHubPages) {
-    window.open('https://stevenmeier.xyz/3d', '_blank');
-  }
+  const currentHost = window.location.origin;
+  const targetUrl = `${currentHost}/3d`;
+  window.open(targetUrl, '_blank');
 };
 
 interface ScanOutputProps {
