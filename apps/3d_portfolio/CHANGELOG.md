@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.50.8 (2025-08-20)</small>
+
+- fix(pipeline): lerna 3d portfolio addition ([304b08c](https://github.com/littlecarlito/threejs_site/commit/304b08c))
+- fix(portfolio): actually backingup 3d site ([2d29605](https://github.com/littlecarlito/threejs_site/commit/2d29605))
+
 ## <small>0.50.7 (2025-08-01)</small>
 
 - refactor(portfolio): debug ui ([5648ceb](https://github.com/littlecarlito/threejs_site/commit/5648ceb))
