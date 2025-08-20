@@ -11,18 +11,14 @@ on:
         required: false
         default: 'manual'
 
-# Improve concurrency handling to avoid cancelling important runs
 concurrency:
   group: main-pipeline-${{ github.sha }}
   cancel-in-progress: false
 
-# Define reusable variables
 env:
   BUILD_ARTIFACT_NAME: build-artifacts-${{ github.run_id }}
   PACKAGES_ARTIFACT_NAME: package-builds-${{ github.run_id }}
   
-# Note: This workflow handles GitHub Pages deployment directly.
-# The separate deploy-pages.yml workflow should be disabled or deleted.
 permissions:
   contents: write
   packages: write
@@ -33,7 +29,6 @@ permissions:
   issues: write
 
 jobs:
-  # Capture information about what triggered this workflow
   capture-trigger-info:
     name: Capture Trigger Info
     runs-on: ubuntu-latest
@@ -49,31 +44,25 @@ jobs:
       - name: Set trigger information
         id: set-trigger-info
         run: |
-          # Determine what triggered this workflow
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.triggered_by }}" ]; then
-            # Triggered by another workflow
             {
               echo "trigger_workflow=${{ github.event.inputs.triggered_by }}"
               echo "triggering_workflow=${{ github.event.inputs.triggered_by }}"
             } >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            # Manual trigger
             {
               echo "trigger_workflow=manual"
               echo "triggering_workflow=manual"
             } >> "$GITHUB_OUTPUT"
           else
-            # Direct push to main
             {
               echo "trigger_workflow=direct_push"
               echo "triggering_workflow=direct"
             } >> "$GITHUB_OUTPUT"
           fi
           
-          # Set actor info
           echo "trigger_actor=${{ github.actor }}" >> "$GITHUB_OUTPUT"
           
-          # Print debug info
           echo "Workflow triggered by: ${{ github.event_name }}"
           echo "Actor: ${{ github.actor }}"
           echo "Ref: ${{ github.ref }}"
@@ -105,7 +94,6 @@ jobs:
           pnpm install
           echo "Environment debug complete"
           
-      # Update .npmrc files to not require NODE_AUTH_TOKEN
       - name: Update .npmrc files
         run: |
           chmod +x .github/scripts/maintenance/update-npmrc.js
@@ -129,7 +117,6 @@ jobs:
       - name: Validate build artifacts
         run: |
           echo "Validating build artifacts..."
-          # Check for dist directories
           DIST_DIRS=$(find packages -name "dist" -type d | wc -l)
           if [ "${DIST_DIRS}" -eq 0 ]; then
             echo "::error::No dist directories found in packages!"
@@ -137,10 +124,8 @@ jobs:
           fi
           echo "Found ${DIST_DIRS} dist directories"
           
-          # List all dist directories to verify they exist and contain files
           find packages -name "dist" -type d -exec ls -la {} \;
           
-          # Count files to ensure we have artifacts
           FILE_COUNT=$(find packages -name "dist" -type d -exec find {} -type f \; | wc -l)
           echo "Found ${FILE_COUNT} files in artifact directories"
           
@@ -159,7 +144,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
           
-      # Download build artifacts explicitly first
       - name: Download build artifacts
         id: download-artifacts
         uses: actions/download-artifact@v4
@@ -169,18 +153,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           
-      # Validate that artifacts were successfully downloaded
       - name: Validate downloaded artifacts
         run: |
           echo "Validating downloaded artifacts..."
-          # Check that artifacts were downloaded
           DIST_DIRS=$(find packages -name "dist" -type d | wc -l)
           if [ "${DIST_DIRS}" -eq 0 ]; then
             echo "::error::No dist directories found in downloaded artifacts!"
             exit 1
           fi
           
-          # Count files to ensure we have artifacts
           FILE_COUNT=$(find packages -name "dist" -type d -exec find {} -type f \; | wc -l)
           echo "Found ${FILE_COUNT} files in ${DIST_DIRS} artifact directories"
           
@@ -191,14 +172,12 @@ jobs:
           
           echo "✅ Downloaded artifacts validation successful"
           
-      # Replace workflow call with direct use of the action
       - name: Test packages
         uses: ./.github/actions/test-packages
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           artifact-name: ${{ needs.build.outputs.build_artifact_name }}
 
-  # Create releases and publish to GitHub packages
   create-releases-and-publish:
     name: Create Releases and Publish
     needs: [build, test]
@@ -211,32 +190,25 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # Use standard token for initial checkout
           token: ${{ secrets.GITHUB_TOKEN }}
-          
-      # Set up SSH for deploy key authentication
+
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.DEPLOY_KEY }}
-      
-      # Configure git to use SSH instead of HTTPS
+
       - name: Configure git to use SSH
         run: |
-          # Add GitHub to known hosts
           mkdir -p ~/.ssh
           ssh-keyscan github.com >> ~/.ssh/known_hosts
           
-          # Set up Git identity
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           
-          # Change origin URL to use SSH
           git remote set-url origin git@github.com:${{ github.repository }}.git
           
-          # Test SSH connection
           ssh -T git@github.com || true
-          
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -246,18 +218,57 @@ jobs:
         uses: pnpm/action-setup@v3
         with:
           version: '8.15.4'
+
+      - name: Clean working directory
+        run: |
+          echo "Cleaning working directory before dependency installation..."
+          git status --porcelain
+          git clean -fd
+          git checkout HEAD -- .
+          echo "Working directory cleaned"
+
+      - name: Install dependencies and handle lockfile changes
+        run: |
+          echo "Installing dependencies..."
+          pnpm install
           
-      - name: Install dependencies
-        run: pnpm install
+          echo "Checking for lockfile changes after install..."
+          if [ -n "$(git status --porcelain pnpm-lock.yaml)" ]; then
+            echo "::warning::pnpm-lock.yaml was modified during install"
+            echo "This suggests platform-specific dependencies or lockfile drift"
+            
+            # Check if it's just platform-specific changes
+            LOCKFILE_CHANGES=$(git diff pnpm-lock.yaml | grep -c -E "^\+" | grep -v "^+++" || echo "0")
+            echo "Number of additions in lockfile: $LOCKFILE_CHANGES"
+            
+            if [ "$LOCKFILE_CHANGES" -lt 50 ]; then
+              echo "Small lockfile changes detected - likely platform-specific"
+              echo "Committing lockfile update to prevent interference with versioning..."
+              git add pnpm-lock.yaml
+              git commit -m "chore: update lockfile with platform-specific changes" || echo "No lockfile changes to commit"
+            else
+              echo "Large lockfile changes detected - may indicate dependency issues"
+              echo "::error::Significant lockfile drift detected. Please run 'pnpm install' locally and commit the changes."
+              git diff --stat pnpm-lock.yaml
+              exit 1
+            fi
+          fi
           
-      # Check for version-worthy commits since last tag
+          # Check for other unintended changes
+          OTHER_CHANGES=$(git status --porcelain | grep -v pnpm-lock.yaml || true)
+          if [ -n "$OTHER_CHANGES" ]; then
+            echo "::warning::Non-lockfile changes detected after install:"
+            echo "$OTHER_CHANGES"
+            echo "Discarding these changes..."
+            git checkout HEAD -- . && git clean -fd
+            git checkout HEAD -- pnpm-lock.yaml || true
+          fi
+
       - name: Check for version-worthy commits
         id: check-version-worthy
         run: |
-          # Fetch all tags to ensure we have the latest ones
           git fetch --tags origin
           
-          # Get the latest tag
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           echo "Latest tag: $LATEST_TAG"
           
@@ -267,24 +278,19 @@ jobs:
             exit 0
           fi
           
-          # Read versioning types from config file
           if [ -f ".husky/.versioning-types" ]; then
             VERSION_TYPES=$(cat .husky/.versioning-types)
             echo "Using versioning types from .husky/.versioning-types: $VERSION_TYPES"
           else
-            # Fail loudly if versioning types file not found
             echo "::error::FATAL ERROR: .husky/.versioning-types file not found!"
             echo "This file is required for versioning decisions. Please ensure it exists and contains valid commit types."
             echo "Pipeline cannot continue without proper versioning configuration."
             exit 1
           fi
           
-          # Create regex pattern from version types
-          # Format each type as "^type(\([^)]+\))?:" and join with |
           TYPES_REGEX=$(echo "$VERSION_TYPES" | tr ' ' '\n' | sed 's/^/^/' | sed 's/$/\\([^)]*\\)?:/' | tr '\n' '|' | sed 's/|$//')
           echo "Using regex pattern: $TYPES_REGEX"
           
-          # Read ignored scopes
           IGNORED_SCOPES=""
           if [ -f ".husky/.ignored-scopes" ]; then
             IGNORED_SCOPES=$(cat .husky/.ignored-scopes)
@@ -294,14 +300,11 @@ jobs:
             echo "Using ignored scopes from .husky/.ignore-scopes: $IGNORED_SCOPES"
           fi
           
-          # Get merge commits since last tag
           MERGE_COMMITS=$(git log "$LATEST_TAG"..HEAD --merges --pretty=format:"%h %s" | wc -l | tr -d ' ')
           echo "Found $MERGE_COMMITS merge commits since last tag"
           
-          # Look for versioning-worthy commits with correct types, excluding ignored scopes
           VERSION_WORTHY_COMMITS=$(git log "$LATEST_TAG"..HEAD --pretty=format:"%h %s")
           
-          # Count version-worthy commits (matching types but not in ignored scopes)
           VERSION_WORTHY=0
           VERSION_WORTHY_LIST=""
           
@@ -309,9 +312,7 @@ jobs:
             if [[ -n "$COMMIT" ]]; then
               COMMIT_MSG=$(echo "$COMMIT" | cut -d' ' -f2-)
               
-              # Check if commit matches version types regex
               if echo "$COMMIT_MSG" | grep -E "$TYPES_REGEX" > /dev/null; then
-                # Check if commit has an ignored scope
                 SHOULD_COUNT=true
                 
                 for SCOPE in $IGNORED_SCOPES; do
@@ -338,14 +339,12 @@ jobs:
             fi
           fi
           
-          # Set output based on findings
           if [ "$VERSION_WORTHY" -gt 0 ] || [ "$MERGE_COMMITS" -gt 0 ]; then
             echo "has_version_worthy_commits=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_version_worthy_commits=false" >> "$GITHUB_OUTPUT"
           fi
-      
-      # Create releases and publish packages when there are version-worthy commits
+
       - name: Version and publish packages
         id: versioning
         if: steps.check-version-worthy.outputs.has_version_worthy_commits == 'true'
@@ -354,45 +353,91 @@ jobs:
         run: |
           echo "Creating versions based on conventional commits..."
           
-          # Run versioning based on conventional commit messages and capture output
+          echo "Working directory status before versioning:"
+          git status --porcelain
+          
+          # Store the current commit hash to track what changes versioning made
+          BEFORE_COMMIT=$(git rev-parse HEAD)
+          
           VERSION_OUTPUT=$(pnpm version:by-message)
           VERSION_EXIT_CODE=$?
           
           echo "$VERSION_OUTPUT"
           
-          # Check if versions were actually bumped by looking for the "Changes:" section in the output
           if echo "$VERSION_OUTPUT" | grep -q "Changes:" && [ $VERSION_EXIT_CODE -eq 0 ]; then
             echo "✅ Versioning detected and completed successfully"
             
-            # Extract the package names that were versioned
-            VERSIONED_PACKAGES=$(echo "$VERSION_OUTPUT" | grep -A 100 "Changes:" | grep -v "Changes:" | grep -E '^ - ' | sed 's/^ - \(@[^:]*\).*/\1/' | xargs)
+            # Check if lerna already created a commit
+            AFTER_COMMIT=$(git rev-parse HEAD)
             
-            # Determine if all packages were versioned
-            TOTAL_PACKAGES=$(find packages apps -maxdepth 1 -mindepth 1 -type d | wc -l)
-            VERSIONED_COUNT=$(echo "$VERSIONED_PACKAGES" | wc -w)
-            
-            # Create appropriate commit message
-            if [ "$VERSIONED_COUNT" -eq "$TOTAL_PACKAGES" ]; then
-              COMMIT_MSG="chore(release): publish all"
-            elif [ "$VERSIONED_COUNT" -le 3 ]; then
-              # If 3 or fewer packages, list them individually
-              COMMIT_MSG="chore(release): publish $VERSIONED_PACKAGES"
-            else
-              # If more than 3, show count
-              COMMIT_MSG="chore(release): publish $VERSIONED_COUNT packages"
-            fi
-            
-            echo "Commit message: $COMMIT_MSG"
-            
-            # Set output to indicate versioning was performed
-            echo "versioning_performed=true" >> "$GITHUB_OUTPUT"
-            
-            # Add a commit if there are local changes to commit
-            if [ -n "$(git status --porcelain)" ]; then
-              git add .
-              git commit -m "$COMMIT_MSG"
+            if [ "$BEFORE_COMMIT" != "$AFTER_COMMIT" ]; then
+              echo "✅ Lerna already created version commit"
+              echo "Pushing existing commit and tags..."
               git push --follow-tags origin main
+            else
+              # Lerna didn't commit, we need to commit manually
+              VERSIONED_PACKAGES=$(echo "$VERSION_OUTPUT" | grep -A 100 "Changes:" | grep -v "Changes:" | grep -E '^ - ' | sed 's/^ - \(@[^:]*\).*/\1/' | xargs)
+              
+              TOTAL_PACKAGES=$(find packages apps -maxdepth 1 -mindepth 1 -type d | wc -l)
+              VERSIONED_COUNT=$(echo "$VERSIONED_PACKAGES" | wc -w)
+              
+              if [ "$VERSIONED_COUNT" -eq "$TOTAL_PACKAGES" ]; then
+                COMMIT_MSG="chore(release): publish all"
+              elif [ "$VERSIONED_COUNT" -le 3 ]; then
+                COMMIT_MSG="chore(release): publish $VERSIONED_PACKAGES"
+              else
+                COMMIT_MSG="chore(release): publish $VERSIONED_COUNT packages"
+              fi
+              
+              echo "Commit message: $COMMIT_MSG"
+              
+              echo "Working directory status after versioning:"
+              git status --porcelain
+              
+              if [ -n "$(git status --porcelain)" ]; then
+                echo "Staging version changes for commit..."
+                
+                # Only stage package.json files and lerna.json changes - ignore other files
+                find . -name "package.json" -type f -exec git add {} \;
+                if [ -f lerna.json ]; then
+                  git add lerna.json
+                fi
+                if [ -f CHANGELOG.md ]; then
+                  git add CHANGELOG.md
+                fi
+                
+                echo "Files staged for commit:"
+                git diff --cached --name-only
+                
+                # Verify we're only committing version-related files
+                STAGED_FILES=$(git diff --cached --name-only)
+                NON_VERSION_FILES=$(echo "$STAGED_FILES" | grep -v -E "(package\.json|lerna\.json|CHANGELOG\.md)" || true)
+                
+                if [ -n "$NON_VERSION_FILES" ]; then
+                  echo "::warning::Non-version files detected in staging area:"
+                  echo "$NON_VERSION_FILES"
+                  echo "Unstaging non-version files..."
+                  echo "$NON_VERSION_FILES" | while read -r file; do
+                    if [ -n "$file" ]; then
+                      git reset HEAD -- "$file"
+                    fi
+                  done
+                fi
+                
+                # Only commit if we still have staged changes
+                if [ -n "$(git diff --cached --name-only)" ]; then
+                  git commit -m "$COMMIT_MSG"
+                  echo "Pushing changes and tags..."
+                  git push --follow-tags origin main
+                else
+                  echo "No version files to commit"
+                fi
+              else
+                echo "No changes to commit after versioning"
+              fi
             fi
+            
+            echo "versioning_performed=true" >> "$GITHUB_OUTPUT"
             
             echo "Exiting workflow after versioning - a new workflow will be triggered for publishing and site deployment"
             exit 0
@@ -401,20 +446,17 @@ jobs:
             echo "versioning_performed=false" >> "$GITHUB_OUTPUT"
           fi
         
-      # Skip message when no version-worthy commits are found
       - name: Skip versioning message
         if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
         run: |
           echo "ℹ️ No version-worthy commits found - skipping versioning step"
           echo "✅ Proceeding directly to publishing existing packages (if any)"
-      
-      # Publish packages to registry - Only if NO version-worthy commits were found
+
       - name: Publish to npm and GitHub Packages
         if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
         run: |
           echo "Publishing packages to npm and GitHub Packages..."
           
-          # Check if package.json has the publish:packages script
           if ! grep -q '"publish:packages"' package.json; then
             echo "::error::The publish:packages script is missing in package.json"
             echo "Please add a publish:packages script to your package.json file."
@@ -422,10 +464,8 @@ jobs:
             exit 1
           fi
           
-          # Clean any uncommitted changes
           git clean -fdx
-      
-      # Set up Node.js with npm authentication for npm registry
+
       - name: Setup Node.js for npm registry
         if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
         uses: actions/setup-node@v4
@@ -433,17 +473,14 @@ jobs:
           node-version: 'lts/*'
           registry-url: 'https://registry.npmjs.org/'
           scope: '@littlecarlito'
-          
-      # Publish to npm registry
+
       - name: Publish to npm
         if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          # Verify registry configuration
           echo "Using npm registry: $(npm config get registry)"
           
-          # Make sure npm is logged in (scope exists and token works)
           echo "Verifying npm authentication..."
           if ! npm whoami; then
             echo "::error::npm authentication failed! Cannot continue with publishing."
@@ -451,17 +488,14 @@ jobs:
             exit 1
           fi
           
-          # Try to initialize/validate npm scope
           echo "Attempting to initialize npm scope (if needed):"
           npm run npm:init-scope || echo "Could not initialize scope. This is expected if the scope already exists."
           
           echo "Publishing packages to npm..."
-          # Publish packages directly with lerna (excluding root package)
           npx lerna publish from-package --yes --no-private --registry=https://registry.npmjs.org/
           
           echo "✅ Packages published to npm!"
-      
-      # Set up Node.js with npm authentication for GitHub Packages
+
       - name: Setup Node.js for GitHub Packages
         if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
         uses: actions/setup-node@v4
@@ -469,26 +503,21 @@ jobs:
           node-version: 'lts/*'
           registry-url: 'https://npm.pkg.github.com/'
           scope: '@littlecarlito'
-          
-      # Publish to GitHub Packages
+
       - name: Publish to GitHub Packages
         if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Verify registry configuration
           echo "Using npm registry: $(npm config get registry)"
           
-          # Publish packages directly with lerna (excluding root package)
           npx lerna publish from-package --yes --no-private --registry=https://npm.pkg.github.com/
           
           echo "✅ Packages published to GitHub Packages!"
 
-  # Build the site for GitHub Pages
   build-site:
     name: Build Site for GitHub Pages
     needs: [test, create-releases-and-publish]
-    # Only run build-site if we're on main branch AND no versioning was performed
     if: |
       github.ref == 'refs/heads/main' && 
       needs.create-releases-and-publish.outputs.versioning_performed != 'true' && 
@@ -520,19 +549,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install
           
-      # Set GITHUB_PAGES environment variable to ensure correct base URL
       - name: Build for GitHub Pages
         run: |
-          # Build blorkpack package first (dependency)
           pnpm --filter=@littlecarlito/blorkpack build
           
-          # Build portfolio (main site at root)
           GITHUB_PAGES=true pnpm --filter=@littlecarlito/portfolio build
           
-          # Build 3D portfolio (will use /3d/ base path)
           GITHUB_PAGES=true pnpm --filter=@littlecarlito/3d-portfolio build
           
-          # Debug: Check what was actually built
           echo "=== Checking build outputs ==="
           ls -la apps/
           echo "Portfolio dist contents:"
@@ -540,15 +564,13 @@ jobs:
           echo "3D Portfolio dist contents:"
           ls -la apps/3d_portfolio/dist/ || echo "3D Portfolio dist not found"
           
-          # Create subdirectory and copy 3D portfolio (fixed path)
           mkdir -p apps/portfolio/dist/3d
           cp -r apps/3d_portfolio/dist/* apps/portfolio/dist/3d/
           
           echo "✅ Both apps built and combined"
           echo "Portfolio: apps/portfolio/dist/"
           echo "3D Portfolio: apps/portfolio/dist/3d/"
-          
-      # Ensure _headers file is copied to the dist folder
+
       - name: Ensure _headers file for GitHub Pages
         run: |
           if [ -f "apps/portfolio/public/_headers" ]; then
@@ -557,24 +579,21 @@ jobs:
           else
             echo "Warning: _headers file not found"
           fi
-          
-      # Create a .nojekyll file to disable Jekyll processing
+
       - name: Add .nojekyll file
         run: touch apps/portfolio/dist/.nojekyll
-      
-      # Display pre-optimization directory stats
+
       - name: Display pre-optimization directory stats
         run: |
           echo "Directory stats before optimization:"
           du -sh apps/portfolio/dist
           find apps/portfolio/dist -type f | wc -l
-      
-      # Optimize files for GitHub Pages to prevent deployment issues
+
       - name: Optimize files for GitHub Pages
         uses: ./.github/actions/optimize-gh-pages
         with:
           dist-dir: 'apps/portfolio/dist'
-      
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
@@ -589,18 +608,15 @@ jobs:
         with:
           token: ${{ secrets.PACKAGE_TOKEN }}
 
-  # Report pipeline results (always runs after all jobs)
   report-results:
     name: Report Pipeline Results
     needs: [capture-trigger-info, build, test, create-releases-and-publish, build-site]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      # Determine overall workflow result
       - name: Determine workflow result
         id: workflow-result
         run: |
-          # Check if versioning was performed
           VERSIONING_PERFORMED="${{ needs.create-releases-and-publish.outputs.versioning_performed }}"
           
           if [ "$VERSIONING_PERFORMED" = "true" ]; then
@@ -608,31 +624,26 @@ jobs:
               echo "result=success"
               echo "report_type=versioning"
               echo "details=Versioning was performed successfully. A new workflow will handle publishing and deployment."
-              # Get trigger info from actor only
               echo "trigger_actor=${{ needs.capture-trigger-info.outputs.trigger_actor }}"
             } >> "$GITHUB_OUTPUT"
           else
-            # Check if any job failed
             if [[ "${{ needs.build.result }}" != "success" || 
                   "${{ needs.test.result }}" != "success" || 
                   ("${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped") ||
                   ("${{ needs.create-releases-and-publish.result }}" != "success" && "${{ needs.create-releases-and-publish.result }}" != "skipped") ]]; then
               
-              # Collect what failed for detailed reporting
               FAILED_JOBS=""
               [[ "${{ needs.build.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Build, "
               [[ "${{ needs.test.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Test, "
               [[ "${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Site Deployment, "
               [[ "${{ needs.create-releases-and-publish.result }}" != "success" && "${{ needs.create-releases-and-publish.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Create Releases and Publish, "
               
-              # Remove trailing comma and space
               FAILED_JOBS="${FAILED_JOBS%, }"
               
               {
                 echo "result=failure"
                 echo "report_type=full_pipeline"
                 echo "details=Jobs failed: ${FAILED_JOBS}"
-                # Get trigger info from actor only
                 echo "trigger_actor=${{ needs.capture-trigger-info.outputs.trigger_actor }}"
               } >> "$GITHUB_OUTPUT"
             else
@@ -640,16 +651,14 @@ jobs:
                 echo "result=success"
                 echo "report_type=full_pipeline"
                 echo "details=Full pipeline completed successfully"
-                # Get trigger info from actor only
                 echo "trigger_actor=${{ needs.capture-trigger-info.outputs.trigger_actor }}"
               } >> "$GITHUB_OUTPUT"
             fi
           fi
-          
-      # Use the new action to report results
+
       - name: Checkout repository
         uses: actions/checkout@v4
-          
+
       - name: Report pipeline results
         uses: ./.github/actions/report-workflow-results
         with:
