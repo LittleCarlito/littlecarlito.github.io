@@ -187,8 +187,8 @@ export class TextContainer {
 					child.renderOrder = config.renderOrder;
 					
 					if (child.material) {
-						child.material.depthTest = false;
-						child.material.depthWrite = false;
+						child.material.depthTest = true;
+						child.material.depthWrite = true;
 						child.material.transparent = true;
 						
 						if (child.material.opacity === undefined) {
