@@ -19,9 +19,12 @@ const BANNER_SCALE = .6
 const GRAVITY = 0.15
 const OBJECT_SCALE = 1.2
 const LOGO_SCALE = 1.4
-const HORIZONTAL_OFFSET = 70
 const BASE_WIDTH = 2000 * BANNER_SCALE
-const BASE_HEIGHT = 800 * BANNER_SCALE
+const BASE_HEIGHT = 600 * BANNER_SCALE
+const HORIZONTAL_OFFSET = 70
+const VERTICAL_OFFSET = 0
+const ROW_SPACING = 100
+const COL_SPACING = 160
 
 interface LogoData {
   src: string
@@ -135,24 +138,25 @@ class PhysicsBanner extends React.Component {
     })
 
     const logoSize = 110 * BANNER_SCALE * OBJECT_SCALE * LOGO_SCALE
-    const spacing = 160 * BANNER_SCALE * OBJECT_SCALE
+    const rowSpacing = ROW_SPACING * BANNER_SCALE * OBJECT_SCALE
+    const colSpacing = COL_SPACING * BANNER_SCALE * OBJECT_SCALE
     
-    const gridWidth = 5 * spacing
-    const gridHeight = 2 * spacing
+    const gridWidth = 5 * colSpacing
+    const gridHeight = 2 * rowSpacing
     const startX = (BASE_WIDTH - gridWidth) / 2 + HORIZONTAL_OFFSET
-    const startY = (BASE_HEIGHT - gridHeight) / 2 - 100 * BANNER_SCALE * OBJECT_SCALE
+    const startY = (BASE_HEIGHT - gridHeight) / 2 + VERTICAL_OFFSET * BANNER_SCALE * OBJECT_SCALE
 
     const physicsBodies: Matter.Body[] = []
 
-    const nameCenterX = startX + (1.5 * spacing)
+    const nameCenterX = startX + (1.5 * colSpacing)
     
     this.logos.forEach((logo) => {
-      let x = startX + (logo.col * spacing)
-      const y = startY + (logo.row * spacing)
+      let x = startX + (logo.col * colSpacing)
+      const y = startY + (logo.row * rowSpacing)
       
       if (logo.row === 0 || logo.row === 2) {
-        const rowCenterOffset = nameCenterX - (startX + (2.5 * spacing))
-        x = startX + (logo.col * spacing) + rowCenterOffset
+        const rowCenterOffset = nameCenterX - (startX + (2.5 * colSpacing))
+        x = startX + (logo.col * colSpacing) + rowCenterOffset
       }
       
       const body = Bodies.circle(x, y, logoSize * 0.3, {
@@ -173,8 +177,8 @@ class PhysicsBanner extends React.Component {
 
     const stevenTexture = this.createTextTexture('Steven', 64 * BANNER_SCALE * OBJECT_SCALE)
     const stevenBody = Bodies.rectangle(
-      startX + (1 * spacing),
-      startY + spacing,
+      startX + (1 * colSpacing),
+      startY + rowSpacing,
       240 * BANNER_SCALE * OBJECT_SCALE, 
       100 * BANNER_SCALE * OBJECT_SCALE, 
       {
@@ -193,8 +197,8 @@ class PhysicsBanner extends React.Component {
 
     const meierTexture = this.createTextTexture('Meier', 64 * BANNER_SCALE * OBJECT_SCALE)
     const meierBody = Bodies.rectangle(
-      startX + (2 * spacing),
-      startY + spacing,
+      startX + (2 * colSpacing),
+      startY + rowSpacing,
       200 * BANNER_SCALE * OBJECT_SCALE, 
       100 * BANNER_SCALE * OBJECT_SCALE, 
       {
