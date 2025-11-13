@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.51.2 (2025-11-13)</small>
+
+- fix: diploma z ([c3857d4](https://github.com/littlecarlito/threejs_site/commit/c3857d4))
+- fix: label text sync ([80ecd4a](https://github.com/littlecarlito/threejs_site/commit/80ecd4a))
+- fix: z fighting overlay ([2412215](https://github.com/littlecarlito/threejs_site/commit/2412215))
+
 ## <small>0.51.1 (2025-08-20)</small>
 
 - fix(portfolio): dual local startup ([a58c3db](https://github.com/littlecarlito/threejs_site/commit/a58c3db))
