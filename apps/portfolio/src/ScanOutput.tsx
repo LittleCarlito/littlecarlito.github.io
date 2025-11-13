@@ -13,7 +13,7 @@ const WARNING_LINES = [
   "  - WebGL 2.0 support",
   "",
   "If your system cannot handle the load,",
-  "the page get stuck",
+  "the page will get stuck...",
   "",
   "Launch at your own risk.",
   ""
