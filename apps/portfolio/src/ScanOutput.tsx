@@ -2,74 +2,28 @@ import { useEffect, useState } from "react";
 
 const TYPING_SPEED = 1;
 
-const getHardwareInfo = () => {
-  const canvas = document.createElement('canvas');
-  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-  
-  if (!gl) {
-    return {
-      gpu: "WebGL not supported",
-      canRunThreeJS: false
-    };
-  }
-
-  const webglContext = gl as WebGLRenderingContext;
-  const renderer = webglContext.getParameter(webglContext.RENDERER);
-  
-  const memoryInfo = (navigator as any).deviceMemory || 0;
-  const cores = navigator.hardwareConcurrency || 1;
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  const hasWeakGPU = renderer.toLowerCase().includes('intel') || 
-                     renderer.toLowerCase().includes('gdi generic') ||
-                     renderer.toLowerCase().includes('microsoft basic');
-  const canRunThreeJS = gl !== null && 
-                        !isMobile && 
-                        !isTouch &&
-                        cores >= 8 && 
-                        (memoryInfo === 0 || memoryInfo >= 8) &&
-                        !hasWeakGPU;
-  
-  return {
-    gpu: renderer,
-    memory: memoryInfo,
-    cores: cores,
-    canRunThreeJS: canRunThreeJS
-  };
-};
-
-const generateScanLines = () => {
-  const hardware = getHardwareInfo();
-  
-  return [
-    "================================",
-    "HARDWARE SCAN INITIATED",
-    "================================",
-    "",
-    "Scanning hardware components...",
-    `CPU: ${hardware.cores} cores detected`,
-    `GPU: ${hardware.gpu}`,
-    `RAM: ${hardware.memory ? hardware.memory + 'GB' : 'Unknown'} available`,
-    "",
-    "Analyzing performance capabilities...",
-    "",
-    `Orbit Status: ${hardware.canRunThreeJS ? 'READY' : 'NOT READY'}`
-  ];
-};
+const WARNING_LINES = [
+  "================================",
+  "ORBIT LAUNCH",
+  "================================",
+  "",
+  "Warning: The 3D environment requires:",
+  "  - Modern GPU (2016 or newer)",
+  "  - 4GB+ available RAM",
+  "  - WebGL 2.0 support",
+  "",
+  "If your system cannot handle the load,",
+  "the page get stuck",
+  "",
+  "Launch at your own risk.",
+  ""
+];
 
 const handleLaunchClick = (e: React.MouseEvent) => {
-  console.log('Button clicked!');
-  console.log('Event:', e);
-  
   e.preventDefault();
   e.stopPropagation();
-  
   const currentHost = window.location.origin;
   const targetUrl = `${currentHost}/3d`;
-  
-  console.log('Current host:', currentHost);
-  console.log('Target URL:', targetUrl);
-  
   window.open(targetUrl, '_blank', 'noopener,noreferrer');
 };
 
@@ -80,28 +34,23 @@ interface ScanOutputProps {
 }
 
 export default function ScanOutput({ ip, onComplete, onContentUpdate }: ScanOutputProps) {
-  const [scanLines] = useState(() => generateScanLines());
-  const [scanDisplayed, setScanDisplayed] = useState<string[]>([]);
-  const [scanCurrentLine, setScanCurrentLine] = useState<string>("");
-  const [scanLineIdx, setScanLineIdx] = useState<number>(0);
-  const [scanCharIdx, setScanCharIdx] = useState<number>(0);
-  const [showLaunchButton, setShowLaunchButton] = useState<boolean>(false);
+  const [displayedLines, setDisplayedLines] = useState<string[]>([]);
+  const [currentLine, setCurrentLine] = useState<string>("");
+  const [lineIdx, setLineIdx] = useState<number>(0);
+  const [charIdx, setCharIdx] = useState<number>(0);
   const [isComplete, setIsComplete] = useState<boolean>(false);
 
   const getLineType = (line: string) => {
-    if (line === "HARDWARE SCAN INITIATED" || line === "SCAN COMPLETE") return "h1";
+    if (line === "ORBIT LAUNCH") return "h1";
     if (line === "================================") return "separator";
     if (line === "") return "empty";
-    if (line.includes("CPU:") || line.includes("GPU:") || line.includes("RAM:")) return "hardware";
-    if (line.includes("Orbit Status:")) {
-      return line.includes("READY") ? "ready" : "not-ready";
-    }
+    if (line.includes("Warning:")) return "warning";
+    if (line.startsWith("  -")) return "requirement";
     return "text";
   };
 
   const renderLine = (line: string, index: number) => {
     const lineType = getLineType(line);
-    
     switch (lineType) {
       case "h1":
         return <h1 key={index} className="text-2xl font-bold text-green-400 mb-4">{line}</h1>;
@@ -109,12 +58,10 @@ export default function ScanOutput({ ip, onComplete, onContentUpdate }: ScanOutp
         return <div key={index} className="text-green-400 mb-4">{line}</div>;
       case "empty":
         return <div key={index} className="mb-2">&nbsp;</div>;
-      case "hardware":
-        return <div key={index} className="text-cyan-400 mb-2">{line}</div>;
-      case "ready":
-        return <div key={index} className="text-green-400 mb-2 font-bold">{line}</div>;
-      case "not-ready":
-        return <div key={index} className="text-red-400 mb-2 font-bold">{line}</div>;
+      case "warning":
+        return <div key={index} className="text-yellow-400 mb-2 font-bold">{line}</div>;
+      case "requirement":
+        return <div key={index} className="text-cyan-400 mb-1">{line}</div>;
       default:
         return <div key={index} className="text-green-100 mb-2">{line}</div>;
     }
@@ -122,7 +69,6 @@ export default function ScanOutput({ ip, onComplete, onContentUpdate }: ScanOutp
 
   const renderCurrentLine = (line: string) => {
     const lineType = getLineType(line);
-    
     switch (lineType) {
       case "h1":
         return (
@@ -144,23 +90,16 @@ export default function ScanOutput({ ip, onComplete, onContentUpdate }: ScanOutp
             <span className="blinking-cursor">|</span>
           </div>
         );
-      case "hardware":
+      case "warning":
         return (
-          <div className="text-cyan-400 mb-2">
+          <div className="text-yellow-400 mb-2 font-bold">
             {line}
             <span className="blinking-cursor">|</span>
           </div>
         );
-      case "ready":
+      case "requirement":
         return (
-          <div className="text-green-400 mb-2 font-bold">
-            {line}
-            <span className="blinking-cursor">|</span>
-          </div>
-        );
-      case "not-ready":
-        return (
-          <div className="text-red-400 mb-2 font-bold">
+          <div className="text-cyan-400 mb-1">
             {line}
             <span className="blinking-cursor">|</span>
           </div>
@@ -177,34 +116,31 @@ export default function ScanOutput({ ip, onComplete, onContentUpdate }: ScanOutp
 
   useEffect(() => {
     onContentUpdate?.();
-  }, [scanDisplayed, scanCurrentLine, onContentUpdate]);
+  }, [displayedLines, currentLine, onContentUpdate]);
 
   useEffect(() => {
-    if (scanLineIdx < scanLines.length) {
-      const currentScanLine = scanLines[scanLineIdx];
-      
-      if (scanCharIdx < currentScanLine.length) {
+    if (lineIdx < WARNING_LINES.length) {
+      const currentWarningLine = WARNING_LINES[lineIdx];
+      if (charIdx < currentWarningLine.length) {
         const timeout = setTimeout(() => {
-          setScanCurrentLine(currentScanLine.slice(0, scanCharIdx + 1));
-          setScanCharIdx(scanCharIdx + 1);
+          setCurrentLine(currentWarningLine.slice(0, charIdx + 1));
+          setCharIdx(charIdx + 1);
         }, TYPING_SPEED);
         return () => clearTimeout(timeout);
       } else {
-        setScanDisplayed(prev => [...prev, currentScanLine]);
-        setScanCurrentLine("");
-        setScanLineIdx(scanLineIdx + 1);
-        setScanCharIdx(0);
+        setDisplayedLines(prev => [...prev, currentWarningLine]);
+        setCurrentLine("");
+        setLineIdx(lineIdx + 1);
+        setCharIdx(0);
       }
     } else {
-      const hardware = getHardwareInfo();
-      if (hardware.canRunThreeJS) {
-        setShowLaunchButton(true);
+      if (!isComplete) {
+        setIsComplete(true);
+        onContentUpdate?.();
       }
-      setIsComplete(true);
-      
       const htmlContent = `
         <div class="scan-section">
-          ${scanDisplayed.map(line => {
+          ${displayedLines.map(line => {
             const lineType = getLineType(line);
             switch (lineType) {
               case "h1":
@@ -213,30 +149,37 @@ export default function ScanOutput({ ip, onComplete, onContentUpdate }: ScanOutp
                 return `<div class="text-green-400 mb-4">${line}</div>`;
               case "empty":
                 return `<div class="mb-2">&nbsp;</div>`;
-              case "hardware":
-                return `<div class="text-cyan-400 mb-2">${line}</div>`;
-              case "ready":
-                return `<div class="text-green-400 mb-2 font-bold">${line}</div>`;
-              case "not-ready":
-                return `<div class="text-red-400 mb-2 font-bold">${line}</div>`;
+              case "warning":
+                return `<div class="text-yellow-400 mb-2 font-bold">${line}</div>`;
+              case "requirement":
+                return `<div class="text-cyan-400 mb-1">${line}</div>`;
               default:
                 return `<div class="text-green-100 mb-2">${line}</div>`;
             }
           }).join('')}
+          <div class="mt-4">
+            <button 
+              onclick="(function(e) { e.preventDefault(); e.stopPropagation(); const currentHost = window.location.origin; const targetUrl = currentHost + '/3d'; window.open(targetUrl, '_blank', 'noopener,noreferrer'); })(event)"
+              class="text-black bg-green-400 px-4 py-2 rounded hover:bg-green-300 active:bg-green-500 transition-colors font-bold cursor-pointer"
+              style="border: none; font-family: inherit;"
+            >
+              INITIATE LAUNCH
+            </button>
+          </div>
         </div>
       `;
       onComplete(htmlContent);
     }
-  }, [scanLineIdx, scanCharIdx, onComplete, ip, scanDisplayed, scanLines]);
+  }, [lineIdx, charIdx, onComplete, ip, displayedLines]);
 
   return (
     <div className="scan-section bg-black text-green-400 font-mono p-4">
       <div>
         <span className="prompt text-green-400">root@{ip} {">"} </span>
       </div>
-      {scanDisplayed.map((line: string, i: number) => renderLine(line, i))}
-      {!isComplete && scanCurrentLine && renderCurrentLine(scanCurrentLine)}
-      {showLaunchButton && (
+      {displayedLines.map((line: string, i: number) => renderLine(line, i))}
+      {!isComplete && currentLine && renderCurrentLine(currentLine)}
+      {isComplete && (
         <div className="mt-4">
           <button 
             onClick={handleLaunchClick}
@@ -246,7 +189,7 @@ export default function ScanOutput({ ip, onComplete, onContentUpdate }: ScanOutp
           </button>
         </div>
       )}
-      <style >{`
+      <style>{`
         .blinking-cursor {
           animation: blink 1s infinite;
         }

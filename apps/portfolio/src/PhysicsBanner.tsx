@@ -19,6 +19,7 @@ const BANNER_SCALE = .6
 const GRAVITY = 0.15
 const OBJECT_SCALE = 1.2
 const LOGO_SCALE = 1.4
+const HORIZONTAL_OFFSET = 70
 const BASE_WIDTH = 2000 * BANNER_SCALE
 const BASE_HEIGHT = 800 * BANNER_SCALE
 
@@ -138,7 +139,7 @@ class PhysicsBanner extends React.Component {
     
     const gridWidth = 5 * spacing
     const gridHeight = 2 * spacing
-    const startX = (BASE_WIDTH - gridWidth) / 2
+    const startX = (BASE_WIDTH - gridWidth) / 2 + HORIZONTAL_OFFSET
     const startY = (BASE_HEIGHT - gridHeight) / 2 - 100 * BANNER_SCALE * OBJECT_SCALE
 
     const physicsBodies: Matter.Body[] = []

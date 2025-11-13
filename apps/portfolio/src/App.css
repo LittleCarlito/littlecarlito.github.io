@@ -7,8 +7,6 @@ body {
 }
 
 #root {
-  width: 100%;
-  min-width: 100vw;
   min-height: 100vh;
   margin: 0 auto;
   background: transparent;
@@ -45,8 +43,7 @@ body {
   text-align: left;
   margin: auto;
   max-width: calc(100vw - 32px);
-  width: 800px;
-  height: 60vh;
+  width: 600px;
   max-height: 400px;
   overflow-y: auto;
   background: rgba(0, 0, 0, 0.9);
