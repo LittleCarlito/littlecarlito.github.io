@@ -89,8 +89,8 @@ export class OverlayContainer {
 	setMaterialOverlayProperties(material) {
 		const materials = Array.isArray(material) ? material : [material];
 		materials.forEach(mat => {
-			mat.depthTest = false;
-			mat.depthWrite = false;
+			mat.depthTest = true;
+			mat.depthWrite = true;
 			mat.transparent = true;
 			if (mat.opacity === undefined) {
 				mat.opacity = 1.0;
