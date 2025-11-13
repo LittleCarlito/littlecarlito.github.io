@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.1.3 (2025-11-13)</small>
+
+- fix: 2d bugs ([0f4c9eb](https://github.com/LittleCarlito/littlecarlito.github.io/commit/0f4c9eb))
+
 ## <small>0.1.2 (2025-08-20)</small>
 
 - fix(portfolio): actually opening new tab ([4d685c1](https://github.com/LittleCarlito/littlecarlito.github.io/commit/4d685c1))
