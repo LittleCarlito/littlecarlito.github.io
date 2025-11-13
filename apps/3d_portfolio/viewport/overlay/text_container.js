@@ -225,7 +225,7 @@ export class TextContainer {
 						useFixedScale: true,
 						positionOffsetX: 0,
 						positionOffsetY: 3,
-						positionOffsetZ: 0,
+						positionOffsetZ: 1,
 						rotation: { x: -Math.PI / 2, y: Math.PI, z: Math.PI },
 						renderOrder: 1002
 					});
@@ -233,7 +233,7 @@ export class TextContainer {
 						useFixedScale: true,
 						positionOffsetX: 0,
 						positionOffsetY: -3,
-						positionOffsetZ: 0,
+						positionOffsetZ: 1,
 						rotation: { x: -Math.PI / 2, y: Math.PI, z: Math.PI },
 						renderOrder: 1002
 					});
