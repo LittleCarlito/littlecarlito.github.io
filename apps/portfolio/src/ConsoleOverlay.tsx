@@ -56,7 +56,6 @@ export default function ConsoleOverlay() {
   const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean>(true);
   const [showingStartup, setShowingStartup] = useState<boolean>(true);
   const [showingMenu, setShowingMenu] = useState<boolean>(false);
-  const [scanCompleted, setScanCompleted] = useState<boolean>(false);
   const consoleRef = useRef<HTMLDivElement>(null);
 
   const getNextLineId = (): number => {
@@ -175,7 +174,6 @@ export default function ConsoleOverlay() {
       case "[6] Scan hardware for orbit":
         console.error("ORBITAL SCAN INITIATED");
         setIsPrintingScan(true);
-        setScanCompleted(false);
         setIsIdle(false);
         break;
       default:
@@ -274,9 +272,15 @@ export default function ConsoleOverlay() {
     setTimeout(() => printMenuOptions(), 0);
   };
 
-  const handleScanComplete = (): void => {
+  const handleScanComplete = (scanContent: string): void => {
+    setOutputLines(prev => [...prev, {
+      id: getNextLineId(),
+      type: 'scan',
+      content: scanContent,
+      isClickable: false
+    }]);
     setIsPrintingScan(false);
-    setScanCompleted(true);
+    setTimeout(() => printMenuOptions(), 0);
   };
 
   const handleEducationComplete = (educationContent: string): void => {
@@ -390,7 +394,7 @@ export default function ConsoleOverlay() {
       {outputLines.map((line: OutputLine) => (
         <div key={line.id}>
           <span className="prompt">root@{ip} {">"} </span>
-          {line.type === 'work' || line.type === 'about' || line.type === 'projects' || line.type === 'contact' || line.type === 'education' ? (
+          {line.type === 'work' || line.type === 'about' || line.type === 'projects' || line.type === 'contact' || line.type === 'education' || line.type === 'scan' ? (
             <div dangerouslySetInnerHTML={{ __html: line.content }} />
           ) : line.isClickable ? (
             <span 
@@ -449,7 +453,7 @@ export default function ConsoleOverlay() {
         />
       )}
 
-      {(isPrintingScan || scanCompleted) && (
+      {isPrintingScan && (
         <ScanOutput 
           ip={ip} 
           onComplete={handleScanComplete} 
