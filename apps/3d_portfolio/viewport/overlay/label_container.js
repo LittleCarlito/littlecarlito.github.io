@@ -61,10 +61,10 @@ export class LabelContainer {
 			outerTextMesh.strokeWidth = 0.1;
 			outerTextMesh.anchorX = 'center';
 			outerTextMesh.anchorY = 'middle';
-			outerTextMesh.position.set(0.02, -0.02, -0.01);
+			outerTextMesh.position.set(0.02, -0.02, -0.05);
 			outerTextMesh.renderOrder = 1000;
-			outerTextMesh.material.depthTest = false;
-			outerTextMesh.material.depthWrite = false;
+			outerTextMesh.material.depthTest = true;
+			outerTextMesh.material.depthWrite = true;
 			outerTextMesh.material.transparent = true;
 			
 			const fontPath = '/fonts/russo-one.woff';
@@ -78,10 +78,10 @@ export class LabelContainer {
 			textMesh.strokeWidth = 0.02;
 			textMesh.anchorX = 'center';
 			textMesh.anchorY = 'middle';
-			textMesh.position.z = 0.1;
+			textMesh.position.z = 0;
 			textMesh.renderOrder = 1001;
-			textMesh.material.depthTest = false;
-			textMesh.material.depthWrite = false;
+			textMesh.material.depthTest = true;
+			textMesh.material.depthWrite = true;
 			textMesh.material.transparent = true;
 			textMesh.simple_name = category.value;
 			textMesh.name = `${TYPES.LABEL}${category.value}`;
@@ -202,22 +202,19 @@ export class LabelContainer {
 		const object_name = target_object.name;
 		const simple_name = target_object.simple_name;
 		
-		// Check if we're already hovering this same label (by simple_name, not object reference)
 		const current_simple_name = this.current_intersected?.simple_name;
 		if (current_simple_name === simple_name) {
-			return; // Already hovering this label, don't restart animation
+			return;
 		}
 		
 		let in_tween = this.in_tween_map.get(object_name);
 		if(in_tween == null) {
-			// Reset previous intersection before setting new one
 			this.reset_previous_intersected();
 			this.current_intersected = target_object;
 			
 			if (FLAGS.COLLISION_VISUAL_DEBUG) {
 				container.children.forEach(child => {
 					if (child.material && child.material.wireframe) {
-						// Visual debug code here if needed
 					}
 				});
 			}
