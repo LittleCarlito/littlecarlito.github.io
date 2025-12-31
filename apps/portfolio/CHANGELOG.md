@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.1.4 (2025-12-31)</small>
+
+- fix: banner alignment ([f8fafed](https://github.com/LittleCarlito/littlecarlito.github.io/commit/f8fafed))
+- fix: scan wording ([1ab21fe](https://github.com/LittleCarlito/littlecarlito.github.io/commit/1ab21fe))
+
 ## <small>0.1.3 (2025-11-13)</small>
 
 - fix: 2d bugs ([0f4c9eb](https://github.com/LittleCarlito/littlecarlito.github.io/commit/0f4c9eb))

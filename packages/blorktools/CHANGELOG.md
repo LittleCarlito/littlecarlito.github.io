@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 0.51.0 (2025-12-31)
+
+- feat(blorktools): standalone launcher ([9226083](https://github.com/littlecarlito/threejs_site/commit/9226083))
+
 ## <small>0.50.4 (2025-08-20)</small>
 
 - fix(portfolio): dual local startup ([a58c3db](https://github.com/littlecarlito/threejs_site/commit/a58c3db))
