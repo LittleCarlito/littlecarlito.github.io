@@ -1,44 +1,25 @@
 import { defineConfig } from 'vite';
 import path from 'path';
-import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { gracefulShutdownPlugin } from '../../scripts/vite-plugins.js';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Helper function to find all HTML files in src directory
-/**
- *
- */
-function findHtmlEntries() {
-	const srcDir = path.resolve(__dirname, 'src');
-	const entries = {};
-
-	/**
-	 *
-	 */
-	function scanDirectory(dir) {
-		if (!fs.existsSync(dir)) return;
-		const files = fs.readdirSync(dir, { withFileTypes: true });
-		for (const file of files) {
-			const fullPath = path.join(dir, file.name);
-			if (file.isDirectory()) {
-				scanDirectory(fullPath);
-			} else if (file.name.endsWith('.html')) {
-				const relativePath = path.relative(srcDir, fullPath);
-				const entryName = relativePath.replace(/\.html$/, '');
-				entries[entryName] = fullPath;
-			}
+function gracefulShutdownPlugin() {
+	return {
+		name: 'graceful-shutdown',
+		configureServer(server) {
+			const shutdown = () => {
+				server.close();
+				process.exit(0);
+			};
+			process.on('SIGINT', shutdown);
+			process.on('SIGTERM', shutdown);
 		}
-	}
-
-	scanDirectory(srcDir);
-	return entries;
+	};
 }
 
 export default defineConfig({
-	// Set the root directory to the source files for development
 	root: path.resolve(__dirname, 'src'),
-	// For production build, configure as a library
 	build: {
 		lib: {
 			entry: path.resolve(__dirname, 'src/index.js'),
@@ -63,30 +44,23 @@ export default defineConfig({
 		port: 3001,
 		strictPort: true,
 		fs: {
-			// Allow serving files from one level up to the project root
-			allow: ['..', '../..'],
+			allow: [__dirname]
 		},
-		// Add MIME type configuration
-		middlewareMode: false,
+		middlewareMode: false
 	},
 	plugins: [
 		gracefulShutdownPlugin()
 	],
-	// Better handling of dynamic imports and externals
 	optimizeDeps: {
-		include: ['js-beautify'], // Include js-beautify for optimization
-		exclude: ['jszip'], // Let the dynamic import handle this
+		include: ['js-beautify'],
+		exclude: ['jszip'],
 		esbuildOptions: {
-			// Define global names for externalized dependencies
 			define: {
-				global: 'globalThis',
+				global: 'globalThis'
 			}
 		}
 	},
-	// Handle CDN fallbacks in development
 	resolve: {
-		alias: {
-			// If needed, define aliases here
-		}
+		alias: {}
 	}
-}); 
+});
