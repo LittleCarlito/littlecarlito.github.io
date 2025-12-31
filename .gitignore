@@ -76,3 +76,4 @@ development/**/.DS_Store
 **/node_modules/
 **/.cursor/
 
+*.tgz
