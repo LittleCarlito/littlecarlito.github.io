@@ -5,9 +5,34 @@ import path from 'path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(__dirname, '..');
+const SUBCOMMANDS = {
+	debugger: {
+		path: '/asset_debugger/index.html',
+		description: '3D asset debugger with drag-and-drop interface'
+	}
+};
+
+function printHelp() {
+	console.log(`
+blorktools - 3D Asset Development Tools
+
+Usage: blorktools [command] [options]
+
+Commands:
+  (none)      Open the tools index page
+  debugger    Open the asset debugger directly
+
+Options:
+  --port, -p <number>  Port to run on (default: 3001)
+  --host, -h <string>  Host to bind to (default: localhost)
+  --no-open            Don't open browser automatically
+  --help               Show this help message
+`);
+}
 
 function parseArgs(args) {
 	const result = {
+		command: null,
 		port: 3001,
 		host: 'localhost',
 		open: true
@@ -30,18 +55,16 @@ function parseArgs(args) {
 		} else if (arg === '--no-open') {
 			result.open = false;
 		} else if (arg === '--help') {
-			console.log(`
-blorktools - 3D Asset Development Tools
-
-Usage: blorktools [options]
-
-Options:
-  --port, -p <number>  Port to run on (default: 3001)
-  --host, -h <string>  Host to bind to (default: localhost)
-  --no-open            Don't open browser automatically
-  --help               Show this help message
-`);
+			printHelp();
 			process.exit(0);
+		} else if (!arg.startsWith('-')) {
+			if (SUBCOMMANDS[arg]) {
+				result.command = arg;
+			} else {
+				console.error(`Error: Unknown command "${arg}"`);
+				console.error('Run "blorktools --help" for available commands');
+				process.exit(1);
+			}
 		}
 	}
 	return result;
@@ -49,16 +72,15 @@ Options:
 
 async function main() {
 	const args = parseArgs(process.argv.slice(2));
+	const openPath = args.command ? SUBCOMMANDS[args.command].path : '/index.html';
 	const viteConfig = await import(path.join(packageRoot, 'vite.config.js'));
 	const config = viteConfig.default;
-	// Override with CLI args
 	config.server = {
 		...config.server,
 		port: args.port,
 		host: args.host,
-		open: args.open ? '/index.html' : false
+		open: args.open ? openPath : false
 	};
-	// Ensure root points to package src
 	config.root = path.join(packageRoot, 'src');
 	const server = await createServer(config);
 	await server.listen();
