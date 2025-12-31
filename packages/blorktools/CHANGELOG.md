@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 0.52.0 (2025-12-31)
+
+- feat(blorktools): launch specific tool through cli ([ce5e3ed](https://github.com/littlecarlito/threejs_site/commit/ce5e3ed))
+
 ## 0.51.0 (2025-12-31)
 
 - feat(blorktools): standalone launcher ([9226083](https://github.com/littlecarlito/threejs_site/commit/9226083))
