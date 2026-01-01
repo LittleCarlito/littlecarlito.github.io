@@ -1,6 +1,5 @@
 name: 'Create Releases and Publish'
 description: 'Create GitHub releases for existing tags and publish packages to GitHub npm'
-
 inputs:
   github-token:
     description: 'GitHub token for creating releases and commits'
@@ -12,7 +11,6 @@ inputs:
     description: 'Type of release to create (auto, patch, minor, major, etc.)'
     required: false
     default: 'auto'
-
 outputs:
   has-releases:
     description: 'Whether any releases were created'
@@ -20,7 +18,6 @@ outputs:
   releases-count:
     description: 'Number of releases created'
     value: ${{ steps.create-releases.outputs.releases_count }}
-
 runs:
   using: "composite"
   steps:
@@ -29,16 +26,16 @@ runs:
       with:
         node-version: 'lts/*'
         registry-url: 'https://npm.pkg.github.com'
-        
+
     - name: Setup pnpm
       uses: pnpm/action-setup@v3
       with:
         version: '8.15.4'
-        
+
     - name: Install dependencies
       shell: bash
       run: pnpm install
-    
+
     - name: Verify Lerna installation
       shell: bash
       run: |
@@ -50,14 +47,13 @@ runs:
         pnpm --version
         echo "Checking Node.js version..."
         node --version
-    
-    - name: Test Lerna commands 
+
+    - name: Test Lerna commands
       shell: bash
       run: |
         chmod +x tests/pipeline-tests/test-lerna-commands.sh
         ./tests/pipeline-tests/test-lerna-commands.sh
-    
-    # Create GitHub releases for existing tags
+
     - name: Create GitHub releases
       id: create-releases
       shell: bash
@@ -66,20 +62,33 @@ runs:
         .github/scripts/ci/manage-github-releases.sh --verbose
       env:
         GH_TOKEN: ${{ inputs.github-token }}
-    
-    # Publish to GitHub npm packages
+
     - name: Publish to GitHub npm packages
       if: steps.create-releases.outputs.has_new_releases == 'true'
       id: publish-npm
       shell: bash
       run: |
-        # Build packages before publishing
         echo "🏗️ Building packages..."
         pnpm build
-        
-        # Publish to GitHub npm registry
         echo "📦 Publishing packages from tags to GitHub npm registry..."
         pnpm lerna publish from-package --yes --loglevel=info --ignore-scripts --registry=https://npm.pkg.github.com || echo "Some packages may already be published, continuing"
       env:
         NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
-        GH_TOKEN: ${{ inputs.github-token }} 
+        GH_TOKEN: ${{ inputs.github-token }}
+
+    - name: Login to GHCR
+      if: steps.create-releases.outputs.has_new_releases == 'true'
+      shell: bash
+      run: |
+        chmod +x .github/scripts/ci/ghcr-login.sh
+        .github/scripts/ci/ghcr-login.sh
+      env:
+        GHCR_TOKEN: ${{ inputs.github-token }}
+        GHCR_USER: ${{ github.actor }}
+
+    - name: Publish blorktools Docker image
+      if: steps.create-releases.outputs.has_new_releases == 'true'
+      shell: bash
+      run: |
+        chmod +x .github/scripts/ci/publish-docker-blorktools.sh
+        .github/scripts/ci/publish-docker-blorktools.sh --verbose

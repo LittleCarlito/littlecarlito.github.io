@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(__dirname, '..');
 const SUBCOMMANDS = {
 	debugger: {
-		path: '/asset_debugger/index.html',
+		root: 'src/asset_debugger',
 		description: '3D asset debugger with drag-and-drop interface'
 	}
 };
@@ -72,16 +72,17 @@ function parseArgs(args) {
 
 async function main() {
 	const args = parseArgs(process.argv.slice(2));
-	const openPath = args.command ? SUBCOMMANDS[args.command].path : '/index.html';
+	const subcommand = args.command ? SUBCOMMANDS[args.command] : null;
+	const rootDir = subcommand ? path.join(packageRoot, subcommand.root) : path.join(packageRoot, 'src');
 	const viteConfig = await import(path.join(packageRoot, 'vite.config.js'));
 	const config = viteConfig.default;
 	config.server = {
 		...config.server,
 		port: args.port,
 		host: args.host,
-		open: args.open ? openPath : false
+		open: args.open ? '/index.html' : false
 	};
-	config.root = path.join(packageRoot, 'src');
+	config.root = rootDir;
 	const server = await createServer(config);
 	await server.listen();
 	server.printUrls();
