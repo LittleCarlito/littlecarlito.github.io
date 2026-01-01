@@ -515,6 +515,21 @@ jobs:
           
           echo "✅ Packages published to GitHub Packages!"
 
+      - name: Login to GHCR
+        if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
+        run: |
+          chmod +x .github/scripts/ci/ghcr-login.sh
+          .github/scripts/ci/ghcr-login.sh
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+
+      - name: Publish blorktools Docker image
+        if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
+        run: |
+          chmod +x .github/scripts/ci/publish-docker-blorktools.sh
+          .github/scripts/ci/publish-docker-blorktools.sh --verbose
+
   build-site:
     name: Build Site for GitHub Pages
     needs: [test, create-releases-and-publish]
