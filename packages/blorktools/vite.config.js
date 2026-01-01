@@ -43,6 +43,7 @@ export default defineConfig({
 		open: '/index.html',
 		port: 3001,
 		strictPort: true,
+		allowedHosts: true,
 		fs: {
 			allow: [__dirname]
 		},
