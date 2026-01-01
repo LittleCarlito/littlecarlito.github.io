@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>0.52.1 (2026-01-01)</small>
+
+- fix(blorktools): debugger cli launch state ([4d257e8](https://github.com/littlecarlito/threejs_site/commit/4d257e8))
+
 ## 0.52.0 (2025-12-31)
 
 - feat(blorktools): launch specific tool through cli ([ce5e3ed](https://github.com/littlecarlito/threejs_site/commit/ce5e3ed))
