@@ -26,33 +26,17 @@ debug_step "Found package changes: $PACKAGE_CHANGES"
 # Identify packages that need building
 detect_package_builds() {
   debug_step "Detecting packages that need building"
-  
+
   # Get staged files that are about to be committed
   STAGED_FILES=$(git diff --cached --name-only)
-  
+
   # Initialize flags for packages
-  BLORKPACK_NEEDS_BUILD=false
-  BLORKTOOLS_NEEDS_BUILD=false
-  BLORKVISOR_NEEDS_BUILD=false
   PORTFOLIO_NEEDS_BUILD=false
-  
+
   for file in $STAGED_FILES; do
     # Skip empty lines
     [ -z "$file" ] && continue
-    
-    # Check if file is in specific packages
-    if [[ "$file" =~ ^packages/blorkpack/ ]]; then
-      BLORKPACK_NEEDS_BUILD=true
-    fi
-    
-    if [[ "$file" =~ ^packages/blorktools/ ]]; then
-      BLORKTOOLS_NEEDS_BUILD=true
-    fi
-    
-    if [[ "$file" =~ ^packages/blorkvisor/ ]]; then
-      BLORKVISOR_NEEDS_BUILD=true
-    fi
-    
+
     if [[ "$file" =~ ^apps/portfolio/ ]]; then
       PORTFOLIO_NEEDS_BUILD=true
     fi
@@ -62,55 +46,13 @@ detect_package_builds() {
 # Function to verify and build packages as needed
 build_packages_if_needed() {
   detect_package_builds
-  
-  # Check and build blorkpack if needed
-  if [ "$BLORKPACK_NEEDS_BUILD" = true ]; then
-    if [ ! -d "packages/blorkpack/dist" ] || [ ! -f "packages/blorkpack/dist/index.js" ]; then
-      echo "🏗️ Building blorkpack package..."
-      if ! pnpm --filter @littlecarlito/blorkpack build; then
-        report_failure "Failed to build blorkpack package"
-        return 1
-      fi
-      echo "✅ blorkpack package built successfully"
-    else
-      echo "✅ blorkpack package is already built"
-    fi
-  fi
-  
-  # Check and build blorktools if needed
-  if [ "$BLORKTOOLS_NEEDS_BUILD" = true ]; then
-    if [ ! -d "packages/blorktools/dist" ]; then
-      echo "🏗️ Building blorktools package..."
-      if ! pnpm --filter @littlecarlito/blorktools build; then
-        report_failure "Failed to build blorktools package"
-        return 1
-      fi
-      echo "✅ blorktools package built successfully"
-    else
-      echo "✅ blorktools package is already built"
-    fi
-  fi
-  
-  # Check and build blorkvisor if needed
-  if [ "$BLORKVISOR_NEEDS_BUILD" = true ]; then
-    if [ ! -d "packages/blorkvisor/dist" ]; then
-      echo "🏗️ Building blorkvisor package..."
-      if ! pnpm --filter @littlecarlito/blorkvisor build; then
-        report_failure "Failed to build blorkvisor package"
-        return 1
-      fi
-      echo "✅ blorkvisor package built successfully"
-    else
-      echo "✅ blorkvisor package is already built"
-    fi
-  fi
-  
+
   # For portfolio, we would need to know what constitutes "built"
   # This is a placeholder and should be adjusted based on your project
   if [ "$PORTFOLIO_NEEDS_BUILD" = true ]; then
     echo "⚠️ Portfolio app changes detected. If you need to build it, please do so manually."
   fi
-  
+
   return 0
 }
 
@@ -227,43 +169,24 @@ RUN_CHECKS=false
 GITHUB_FILES_CHANGED=false
 
 # Flags to check if specific packages were modified
-BLORKPACK_CHANGED=false
-BLORKTOOLS_CHANGED=false
-BLORKVISOR_CHANGED=false
 PORTFOLIO_CHANGED=false
 
 # Check staged files to determine which checks to run
 for file in $STAGED_FILES; do
     # Skip empty lines
     [ -z "$file" ] && continue
-    
+
     # Check if file is in .github directory
     if [[ "$file" =~ ^\.github/ ]]; then
         echo "🔍 Found change in GitHub file: $file"
         GITHUB_FILES_CHANGED=true
     fi
-    
-    # Check if specific packages were modified
-    if [[ "$file" =~ ^packages/blorkpack/ ]]; then
-        echo "🔍 Found change in blorkpack package: $file"
-        BLORKPACK_CHANGED=true
-    fi
-    
-    if [[ "$file" =~ ^packages/blorktools/ ]]; then
-        echo "🔍 Found change in blorktools package: $file"
-        BLORKTOOLS_CHANGED=true
-    fi
-    
-    if [[ "$file" =~ ^packages/blorkvisor/ ]]; then
-        echo "🔍 Found change in blorkvisor package: $file"
-        BLORKVISOR_CHANGED=true
-    fi
-    
+
     if [[ "$file" =~ ^apps/portfolio/ ]]; then
         echo "🔍 Found change in portfolio app: $file"
         PORTFOLIO_CHANGED=true
     fi
-    
+
     # Check if file is NOT in development/ or public/ directories
     if ! [[ "$file" =~ ^(development/|public/) ]]; then
         echo "🔍 Found change in $file - will run standard checks"
@@ -407,13 +330,13 @@ if [ "$RUN_CHECKS" = true ]; then
     )
 
     # Run build dependency tests only if relevant packages were modified
-    if [ "$BLORKPACK_CHANGED" = true ] || [ "$BLORKTOOLS_CHANGED" = true ] || [ "$BLORKVISOR_CHANGED" = true ] || [ "$PORTFOLIO_CHANGED" = true ]; then
+    if [ "$PORTFOLIO_CHANGED" = true ]; then
         echo "🚀 Running build dependency tests for modified packages..."
         run_with_timeout "pnpm test:build-deps" 120 "Build dependency tests failed"
         if [ $? -ne 0 ]; then
             exit 1
         fi
-        
+
         echo "✅ Build dependency tests passed!"
     else
         echo "✅ No package changes detected that require build dependency tests."

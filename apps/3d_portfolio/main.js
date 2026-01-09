@@ -21,7 +21,7 @@ import {
 	InteractionManager,
 	MemoryAnalyzer,
 	UniversalMemoryManager
-	} from '@littlecarlito/blorkpack';
+	} from '@blorkfield/blorkpack';
 import { 
 	toggleDebugUI, 
 	createDebugUI as create_debug_UI, 
@@ -32,7 +32,7 @@ import {
 
 if (import.meta.hot) {
 	import.meta.hot.accept();
-	import.meta.hot.accept(['@littlecarlito/blorkpack'], (updatedModules) => {
+	import.meta.hot.accept(['@blorkfield/blorkpack'], (updatedModules) => {
 		AssetHandler.dispose_instance();
 		if (window.scene && window.physicsWorld) {
 			AssetHandler.get_instance(window.scene, window.physicsWorld);

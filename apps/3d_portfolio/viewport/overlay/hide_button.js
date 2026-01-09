@@ -1,6 +1,6 @@
 import { get_screen_size, get_associated_position, EAST, TYPES, HIDE_HEIGHT, HIDE_WIDTH } from './overlay_common';
 import { Easing, THREE, Tween } from '../../common';
-import { CustomTypeManager } from '@littlecarlito/blorkpack';
+import { CustomTypeManager } from '@blorkfield/blorkpack';
 import { FLAGS } from '../../common';
 
 const HIDE_BUTTON_IMAGE_ENABLED = 'images/moon_broke.png';

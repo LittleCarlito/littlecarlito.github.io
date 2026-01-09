@@ -18,19 +18,16 @@ module.exports = {
 	testPathIgnorePatterns: [
 		'/node_modules/',
 		'/dist/',
-		'packages/blorkpack/src/test/__mocks__/',
 		'tests/lint-tests/',
 		// Ignore ESM files that use import.meta.url syntax
 		'tests/apps/portfolio/environment/gh-pages-texture-test.js',
-		'tests/apps/portfolio/gh-pages-simulator.js'
+		'tests/apps/portfolio/gh-pages-simulator.js',
+		// Ignore obsolete package tests
+		'tests/packages/blorkpack/',
+		'tests/packages/blorktools/'
 	],
 	moduleNameMapper: {
-		'^(\\.{1,2}/.*)\\.js$': '$1',
-		// Simplify the mapping to ensure it works on all platforms
-		'@littlecarlito/blorkpack': '<rootDir>/packages/blorkpack/dist/index.js',
-		'@littlecarlito/blorkpack/(.*)': '<rootDir>/packages/blorkpack/dist/index.js',
-		'packages/blorkpack/src/(.*)': '<rootDir>/packages/blorkpack/src/$1',
-		'../dist/index.js': '<rootDir>/packages/blorkpack/dist/index.js'
+		'^(\\.{1,2}/.*)\\.js$': '$1'
 	},
 	modulePaths: ['<rootDir>'],
 	moduleDirectories: ['node_modules', '<rootDir>'],

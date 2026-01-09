@@ -2,10 +2,9 @@ import { defineConfig } from 'vite'
 import path from 'path'
 import fs from 'fs'
 import { ViteImageOptimizer } from 'vite-plugin-image-optimizer'
-import { 
-	gracefulShutdownPlugin, 
-	timestampPlugin,
-	createVirtualBlorkpackPlugin
+import {
+	gracefulShutdownPlugin,
+	timestampPlugin
 } from '../../scripts/vite-plugins.js'
 import baseConfig from '../../vite.config.base.js'
 import { fileURLToPath } from 'url'
@@ -60,9 +59,7 @@ export default defineConfig(({ command }) => {
 		base: base,
 		optimizeDeps: optimizeDepsConfig,
 		resolve: {
-			alias: {
-				'@littlecarlito/blorkpack': '@littlecarlito/blorkpack'
-			}
+			alias: {}
 		},
 		build: {
 			outDir: 'dist',
@@ -133,7 +130,6 @@ export default defineConfig(({ command }) => {
 			open: false
 		},
 		plugins: [
-			createVirtualBlorkpackPlugin(),
 			gracefulShutdownPlugin(),
 			{
 				name: 'debug-svg-copying',
