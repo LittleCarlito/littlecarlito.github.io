@@ -1,124 +1,17 @@
 /**
- * Script to run the blorkvisor dev command
- * Ensures proper workspace linking before running
+ * Script to run the 3d-portfolio dev command
  */
 
 const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
 
-// This function will attempt to repair workspace links
-function repairWorkspaceLinks() {
-  console.log('Repairing workspace links...');
-  
-  try {
-    // Force recreate all links between workspace packages
-    execSync('pnpm install --force', { 
-      stdio: 'inherit',
-      shell: true 
-    });
-    
-    // Ensure node_modules links are properly created
-    console.log('Establishing workspace links...');
-    execSync('pnpm install', {
-      stdio: 'inherit',
-      shell: true,
-      env: {
-        ...process.env,
-        PNPM_LINK_WORKSPACE_PACKAGES: 'true', // Force workspace linking
-      }
-    });
-    
-    return true;
-  } catch (error) {
-    console.error('Failed to repair workspace links:', error.message);
-    return false;
-  }
-}
+console.log('Running 3d-portfolio dev script...');
 
-// Build dependency packages first
-function buildDependencyPackages() {
-  console.log('Building dependency packages first...');
-  try {
-    // Build blorkpack
-    console.log('Building blorkpack...');
-    execSync('pnpm --filter="@littlecarlito/blorkpack" build', {
-      stdio: 'inherit',
-      shell: true,
-      env: {
-        ...process.env,
-        PATH: process.env.PATH
-      }
-    });
-    
-    // Build blorktools
-    console.log('Building blorktools...');
-    execSync('pnpm --filter="@littlecarlito/blorktools" build', {
-      stdio: 'inherit',
-      shell: true,
-      env: {
-        ...process.env,
-        PATH: process.env.PATH
-      }
-    });
-    
-    return true;
-  } catch (error) {
-    console.error('Failed to build dependency packages:', error.message);
-    return false;
-  }
-}
-
-// Check if blorkvisor package exists
 try {
-  fs.accessSync(path.join(__dirname, '../packages/blorkvisor/package.json'));
-  console.log('Running blorkvisor dev script...');
-  
-  // Build dependency packages first
-  if (!buildDependencyPackages()) {
-    console.error('Failed to build dependencies. Cannot proceed.');
-    process.exit(1);
-  }
-  
-  try {
-    // Use double quotes for Windows compatibility
-    execSync('pnpm --filter="@littlecarlito/blorkvisor" dev', { 
-      stdio: 'inherit',
-      shell: true
-    });
-  } catch (cmdError) {
-    console.error('Error running blorkvisor dev script. This is a workspace resolution issue.');
-    console.log('Attempting to repair workspace links...');
-    
-    // Attempt to repair links and try again
-    if (repairWorkspaceLinks()) {
-      console.log('Workspace links repaired. Trying again...');
-      execSync('pnpm --filter="@littlecarlito/blorkvisor" dev', {
-        stdio: 'inherit',
-        shell: true
-      });
-    } else {
-      console.error('Failed to run blorkvisor. Please check your pnpm configuration.');
-      process.exit(1);
-    }
-  }
-} catch (e) {
-  console.error('Error: Could not find blorkvisor package. Running install first...');
-  
-  if (repairWorkspaceLinks()) {
-    // Build dependency packages before dev
-    if (!buildDependencyPackages()) {
-      console.error('Failed to build dependencies. Cannot proceed.');
-      process.exit(1);
-    }
-    
-    console.log('\nNow trying to run dev script...');
-    execSync('pnpm --filter="@littlecarlito/blorkvisor" dev', { 
-      stdio: 'inherit',
-      shell: true
-    });
-  } else {
-    console.error('Failed to set up workspace. Please check your repository structure.');
-    process.exit(1);
-  }
-} 
+  execSync('pnpm --filter="@littlecarlito/3d-portfolio" dev', {
+    stdio: 'inherit',
+    shell: true
+  });
+} catch (error) {
+  console.error('Error running 3d-portfolio dev script:', error.message);
+  process.exit(1);
+}

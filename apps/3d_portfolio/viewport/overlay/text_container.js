@@ -9,7 +9,7 @@ import {
 	CSS3DFactory,
 	CustomTypeManager, 
 	BLORKPACK_FLAGS, 
-}  from '@littlecarlito/blorkpack';
+}  from '@blorkfield/blorkpack';
 
 const PROJECTS_FRAME_DELAY = 3500;
 

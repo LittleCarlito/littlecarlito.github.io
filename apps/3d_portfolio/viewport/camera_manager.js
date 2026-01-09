@@ -1,7 +1,7 @@
 import { FLAGS, THREE } from "../common";
-import { AssetHandler }  from '@littlecarlito/blorkpack';
-import { BLORKPACK_FLAGS } from "@littlecarlito/blorkpack";
-import { SystemAssetType } from "@littlecarlito/blorkpack";
+import { AssetHandler }  from '@blorkfield/blorkpack';
+import { BLORKPACK_FLAGS } from "@blorkfield/blorkpack";
+import { SystemAssetType } from "@blorkfield/blorkpack";
 
 // Initial camera rotation constants (in degrees)
 const INITIAL_PHI_DEGREES = 18;     // Vertical rotation (polar angle)

@@ -1,5 +1,5 @@
 import { THREE, FLAGS, RAPIER } from '../common';
-import { AssetHandler, AssetStorage, CustomTypeManager }  from '@littlecarlito/blorkpack';
+import { AssetHandler, AssetStorage, CustomTypeManager }  from '@blorkfield/blorkpack';
 import { CATEGORIES, TYPES } from "../viewport/overlay/overlay_common";
 import { SimpleFloorRectangle } from './simple_floor_rectangle.js';
 

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { THREE, BLORKPACK_FLAGS } from '@littlecarlito/blorkpack';
+import { THREE, BLORKPACK_FLAGS } from '@blorkfield/blorkpack';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 
 const BACKGROUND_PATH = 'images/orbit_sunset.jpg';
