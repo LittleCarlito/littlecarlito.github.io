@@ -6,7 +6,7 @@ const allowedTypes = [
   'perf', 'refactor', 'revert', 'style', 'test', 'slice'
 ];
 
-// Define scopes to be ignored by versioning (must match those in lerna.json)
+// Define scopes to be ignored by versioning
 const ignoredScopes = ['pipeline'];
 
 // Write types to files that shell scripts can read

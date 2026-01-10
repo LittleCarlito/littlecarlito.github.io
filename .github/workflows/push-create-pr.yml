@@ -185,7 +185,7 @@ jobs:
             --sha "${SHA}" \
             --workflow "Push and Create PR" \
             --timeout "300" \
-            --min-checks "2"
+            --min-checks "1"
             
           echo "All required checks have completed successfully!"
         env:

@@ -56,7 +56,7 @@ global.fetch = jest.fn(() =>
 global.requestAnimationFrame = jest.fn(callback => setTimeout(callback, 0));
 global.cancelAnimationFrame = jest.fn(id => clearTimeout(id));
 
-// Set up common mocks for the blorkpack package
+// Set up common mocks for the external blorkpack package (@blorkfield/blorkpack)
 const mockTHREE = {
 	Vector3: jest.fn(() => ({ x: 0, y: 0, z: 0 })),
 	Quaternion: jest.fn(() => ({ x: 0, y: 0, z: 0, w: 1 })),
@@ -151,8 +151,8 @@ const mockDebugFactory = {
 	})
 };
 
-// Register the combined mock for the entire blorkpack package
-jest.mock('@littlecarlito/blorkpack', () => ({
+// Register the combined mock for the external blorkpack package
+jest.mock('@blorkfield/blorkpack', () => ({
 	THREE: mockTHREE,
 	RAPIER: mockRAPIER,
 	BLORKPACK_FLAGS: mockFlags,
@@ -164,7 +164,7 @@ jest.mock('@littlecarlito/blorkpack', () => ({
 }), { virtual: true });
 
 // Also mock any potential subpaths to ensure they're handled correctly
-jest.mock('@littlecarlito/blorkpack/blorkpack-flags', () => ({
+jest.mock('@blorkfield/blorkpack/blorkpack-flags', () => ({
 	BLORKPACK_FLAGS: mockFlags
 }), { virtual: true });
 

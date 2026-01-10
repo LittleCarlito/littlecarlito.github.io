@@ -15,7 +15,7 @@ An interactive 3D portfolio website built with Three.js and the blorkpack asset 
 
 ### Core Technologies
 - **Three.js** - Foundation for 3D rendering and scene management
-- **@littlecarlito/blorkpack** - Asset management, physics integration, and scene optimization
+- **@blorkfield/blorkpack** - Asset management, physics integration, and scene optimization
 - **Rapier3D** - Physics engine for realistic object interactions
 - **Custom Shaders** - GLSL shaders for advanced visual effects and optimizations
 
