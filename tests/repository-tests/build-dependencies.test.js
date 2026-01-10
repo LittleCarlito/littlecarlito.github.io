@@ -276,15 +276,17 @@ describe('Build Dependencies', () => {
 		// Check that package dependencies are built in the correct order in GitHub workflows
 		const workflowPath = path.resolve(__dirname, '../../.github/workflows/main-pipeline.yml');
 		expect(fs.existsSync(workflowPath)).toBe(true);
-		
+
 		const workflowContent = fs.readFileSync(workflowPath, 'utf8');
 		const workflowConfig = jsYaml.load(workflowContent);
-		
-		// Check package build steps exist
-		expect(workflowConfig.jobs.build.steps).toBeDefined();
-		
+
+		// Check build job exists (could be 'build' or 'build-and-test')
+		const buildJob = workflowConfig.jobs['build-and-test'] || workflowConfig.jobs.build;
+		expect(buildJob).toBeDefined();
+		expect(buildJob.steps).toBeDefined();
+
 		// Find the build step(s)
-		const buildSteps = workflowConfig.jobs.build.steps.filter(step => 
+		const buildSteps = buildJob.steps.filter(step =>
 			step.name && (step.name.includes('Build') || step.name.includes('build')));
 		
 		expect(buildSteps.length).toBeGreaterThan(0);
