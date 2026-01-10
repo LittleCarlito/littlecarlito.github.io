@@ -12,8 +12,7 @@ module.exports = {
 	setupFilesAfterEnv: ['<rootDir>/tests/config/setup/jest.setup.cjs'],
 	testMatch: [
 		'<rootDir>/tests/**/*.test.js',
-		'<rootDir>/tests/**/*-test.js',
-		'<rootDir>/packages/**/src/test/**/*.js'
+		'<rootDir>/tests/**/*-test.js'
 	],
 	testPathIgnorePatterns: [
 		'/node_modules/',
@@ -21,10 +20,7 @@ module.exports = {
 		'tests/lint-tests/',
 		// Ignore ESM files that use import.meta.url syntax
 		'tests/apps/portfolio/environment/gh-pages-texture-test.js',
-		'tests/apps/portfolio/gh-pages-simulator.js',
-		// Ignore obsolete package tests
-		'tests/packages/blorkpack/',
-		'tests/packages/blorktools/'
+		'tests/apps/portfolio/gh-pages-simulator.js'
 	],
 	moduleNameMapper: {
 		'^(\\.{1,2}/.*)\\.js$': '$1'
@@ -38,10 +34,8 @@ module.exports = {
 	// Configure coverage settings
 	coverageDirectory: '<rootDir>/coverage',
 	collectCoverageFrom: [
-		'packages/*/src/**/*.js',
+		'apps/*/src/**/*.js',
 		'.github/**/*.{js,yml,yaml,sh}',
-		'!packages/*/src/test/**',
-		'!packages/*/dist/**',
 		'!**/node_modules/**'
 	],
 	coverageReporters: ['json', 'lcov', 'text', 'clover', 'html'],
@@ -53,4 +47,4 @@ module.exports = {
 			outputName: 'junit.xml'
 		}]
 	]
-}; 
+};

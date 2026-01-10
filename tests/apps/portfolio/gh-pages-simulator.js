@@ -141,13 +141,6 @@ const server = http.createServer((req, res) => {
 		}
 	}
   
-	// Handle blorkpack package files
-	if (safePath.startsWith('/packages/blorkpack/') || 
-		safePath.startsWith('/littlecarlito.github.io/packages/blorkpack/')) {
-		const normalizedPath = safePath.replace('/littlecarlito.github.io/', '/');
-		filePath = path.join(REPO_BASE, normalizedPath);
-	}
-  
 	// Log file paths for debugging
 	console.log(`Resolving path: ${safePath} to ${filePath}`);
   
@@ -215,28 +208,6 @@ function serveFile(filePath, contentType, res) {
 			'X-GitHub-Pages-Simulator': 'true'
 		});
     
-		// Special processing for HTML to inject GitHub Pages specific modules
-		if (contentType === 'text/html') {
-			let htmlContent = data.toString('utf8');
-			
-			// Inject Blorkpack import mapping for testing
-			htmlContent = htmlContent.replace(
-				/<script type="importmap">[^]*?<\/script>/s,
-				`<script type="importmap">
-				{
-					"imports": {
-						"three": "https://unpkg.com/three@0.161.0/build/three.module.js",
-						"three/addons/": "https://unpkg.com/three@0.161.0/examples/jsm/",
-						"@littlecarlito/blorkpack": "/littlecarlito.github.io/packages/blorkpack/dist/index.js"
-					}
-				}
-				</script>`
-			);
-			
-			// Send the modified HTML
-			res.end(htmlContent);
-			return;
-		}
     
 		// Special debug for image files
 		if (contentType.startsWith('image/')) {
