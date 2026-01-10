@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 0.53.0 (2026-01-10)
+
+- feat: blorktools migrated out ([f388cd3](https://github.com/littlecarlito/threejs_site/commit/f388cd3))
+
 ## <small>0.52.2 (2026-01-01)</small>
 
 - fix(blorktools): allow hosts ([3ea35c1](https://github.com/littlecarlito/threejs_site/commit/3ea35c1))

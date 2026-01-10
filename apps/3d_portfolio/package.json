@@ -1,6 +1,6 @@
 {
   "name": "@littlecarlito/3d-portfolio",
-  "version": "0.51.2",
+  "version": "0.52.0",
   "type": "module",
   "description": "Interactive 3D portfolio website showcasing web development and creative coding projects",
   "blorkType": "app",
@@ -20,8 +20,8 @@
     "test": "cd ../.. && jest apps/portfolio/src/test tests/apps/portfolio --config=tests/config/jest/jest.config.cjs --passWithNoTests"
   },
   "dependencies": {
-    "@dimforge/rapier3d-compat": "^0.14.0",
     "@blorkfield/blorkpack": "^0.53.2",
+    "@dimforge/rapier3d-compat": "^0.14.0",
     "three": "^0.172.0",
     "troika-three-text": "0.52.4"
   },

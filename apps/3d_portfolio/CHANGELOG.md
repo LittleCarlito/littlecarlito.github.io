@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 0.52.0 (2026-01-10)
+
+- feat: blorktools migrated out ([f388cd3](https://github.com/littlecarlito/threejs_site/commit/f388cd3))
+
 ## <small>0.51.2 (2025-11-13)</small>
 
 - fix: diploma z ([c3857d4](https://github.com/littlecarlito/threejs_site/commit/c3857d4))
