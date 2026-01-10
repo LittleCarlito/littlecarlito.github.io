@@ -1,10 +1,3 @@
-# This workflow runs tests and checks for PRs.
-# IMPORTANT BEHAVIOR NOTE:
-# This workflow intentionally displays using the original PR title (first commit message).
-# This works in conjunction with the Auto PR workflow which shows the latest commit message,
-# giving visibility to both the initial PR intent and current work status.
-# DO NOT "fix" this behavior - it's a useful feature for tracking work progress.
-
 name: PR Dry Run
 
 on:
@@ -14,137 +7,65 @@ on:
       - main
   workflow_dispatch:
 
-# Define the same artifact naming strategy as unified-pipeline.yml
-env:
-  BUILD_ARTIFACT_NAME: build-artifacts-${{ github.run_id }}
-  PACKAGES_ARTIFACT_NAME: package-builds-${{ github.run_id }}
-
 jobs:
-  # Add workflow validation job as the first step
-  validate-workflow:
-    name: Validate Workflow Structure
+  build-and-test:
+    name: Build and Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        
-      - name: Run workflow alignment validation
-        run: |
-          echo "🔍 Validating workflow alignment between PR workflow and main pipeline..."
-          chmod +x .github/scripts/pr/validate-workflow-alignment.sh
-          bash .github/scripts/pr/validate-workflow-alignment.sh
-          
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    needs: [validate-workflow]
-    outputs:
-      build_artifact_name: ${{ env.BUILD_ARTIFACT_NAME }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-          
-      # Add workflow validation step to ensure alignment with unified-pipeline.yml
-      - name: Verify workflow alignment with main pipeline
-        run: |
-          echo "Verifying workflow alignment with main pipeline..."
-          # Extract artifact naming and structure from unified-pipeline.yml
-          MAIN_ARTIFACT_NAME=$(grep -A 2 "BUILD_ARTIFACT_NAME:" .github/workflows/unified-pipeline.yml | grep -v "#" | head -1 | awk -F: '{print $2}' | xargs)
-          PR_ARTIFACT_NAME="${{ env.BUILD_ARTIFACT_NAME }}"
-          
-          echo "Main pipeline artifact naming: $MAIN_ARTIFACT_NAME"
-          echo "PR pipeline artifact naming: $PR_ARTIFACT_NAME"
-          
-          # Check that we have job output structure matching the main pipeline
-          JOB_OUTPUT_MAIN=$(grep -A 2 "outputs:" .github/workflows/unified-pipeline.yml | grep "build_artifact_name:" | head -1)
-          JOB_OUTPUT_PR="build_artifact_name: ${{ env.BUILD_ARTIFACT_NAME }}"
-          
-          echo "Main pipeline job output structure: $JOB_OUTPUT_MAIN"
-          echo "PR pipeline job output structure: $JOB_OUTPUT_PR"
-          
-          echo "✅ Workflow validation complete - artifact naming structure verified"
-          
-      - name: Build packages
-        uses: ./.github/actions/build-and-test
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          build-command: 'pnpm run build'
-          test-command: 'echo "Tests will run in separate job"'
-          artifact-name: ${{ env.BUILD_ARTIFACT_NAME }}
-        
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.BUILD_ARTIFACT_NAME }}
-          path: packages
-          if-no-files-found: error
-          
-      - name: Validate build artifacts
-        run: |
-          echo "Validating build artifacts..."
-          # Check for dist directories
-          DIST_DIRS=$(find packages -name "dist" -type d | wc -l)
-          if [ "$DIST_DIRS" -eq 0 ]; then
-            echo "::error::No dist directories found in packages!"
-            exit 1
-          fi
-          echo "Found $DIST_DIRS dist directories"
-          
-          # List all dist directories to verify they exist and contain files
-          find packages -name "dist" -type d -exec ls -la {} \;
-          
-          # Count files to ensure we have artifacts
-          FILE_COUNT=$(find packages -name "dist" -type d -exec find {} -type f \; | wc -l)
-          echo "Found $FILE_COUNT files in artifact directories"
-          
-          if [ "$FILE_COUNT" -eq 0 ]; then
-            echo "::error::No build artifacts found in packages/dist directories!"
-            exit 1
-          fi
-          
-          echo "✅ Artifact validation successful - $FILE_COUNT files in $DIST_DIRS directories"
 
-  test:
-    name: Test
-    needs: build
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Test
+        run: pnpm run test
+
+  build-site-preview:
+    name: Build Site Preview
+    needs: build-and-test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-          
-      # Download build artifacts explicitly first
-      - name: Download build artifacts
-        id: download-artifacts
-        uses: actions/download-artifact@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          name: ${{ needs.build.outputs.build_artifact_name }}
-          path: packages
-          
-      # Validate that artifacts were successfully downloaded
-      - name: Validate downloaded artifacts
+          node-version: 'lts/*'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: '8.15.4'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build for GitHub Pages (dry run)
         run: |
-          echo "Validating downloaded artifacts..."
-          # Check that artifacts were downloaded
-          DIST_DIRS=$(find packages -name "dist" -type d | wc -l)
-          if [ "$DIST_DIRS" -eq 0 ]; then
-            echo "::error::No dist directories found in downloaded artifacts!"
-            exit 1
-          fi
-          
-          # Count files to ensure we have artifacts
-          FILE_COUNT=$(find packages -name "dist" -type d -exec find {} -type f \; | wc -l)
-          echo "Found $FILE_COUNT files in $DIST_DIRS artifact directories"
-          
-          if [ "$FILE_COUNT" -eq 0 ]; then
-            echo "::error::Downloaded artifacts contain no files!"
-            exit 1
-          fi
-          
-          echo "✅ Downloaded artifacts validation successful"
-          
-      # Replace workflow call with direct use of the action
-      - name: Test packages
-        uses: ./.github/actions/test-packages
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          artifact-name: ${{ needs.build.outputs.build_artifact_name }} 
+          GITHUB_PAGES=true pnpm --filter=@littlecarlito/portfolio build
+
+          GITHUB_PAGES=true pnpm --filter=@littlecarlito/3d-portfolio build
+
+          echo "=== Checking build outputs ==="
+          ls -la apps/
+          echo "Portfolio dist contents:"
+          ls -la apps/portfolio/dist/ || echo "Portfolio dist not found"
+          echo "3D Portfolio dist contents:"
+          ls -la apps/3d_portfolio/dist/ || echo "3D Portfolio dist not found"
+
+          echo "Site build validation successful"

@@ -5,541 +5,50 @@ on:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      triggered_by:
-        description: 'Workflow that triggered this run'
-        required: false
-        default: 'manual'
 
 concurrency:
   group: main-pipeline-${{ github.sha }}
   cancel-in-progress: false
 
-env:
-  BUILD_ARTIFACT_NAME: build-artifacts-${{ github.run_id }}
-  PACKAGES_ARTIFACT_NAME: package-builds-${{ github.run_id }}
-  
 permissions:
-  contents: write
-  packages: write
-  pull-requests: write
-  statuses: write
+  contents: read
+  pages: write
   id-token: write
-  actions: write
-  issues: write
 
 jobs:
-  capture-trigger-info:
-    name: Capture Trigger Info
-    runs-on: ubuntu-latest
-    outputs:
-      trigger_actor: ${{ steps.set-trigger-info.outputs.trigger_actor }}
-      triggering_workflow: ${{ steps.set-trigger-info.outputs.triggering_workflow }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          
-      - name: Set trigger information
-        id: set-trigger-info
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.triggered_by }}" ]; then
-            {
-              echo "trigger_workflow=${{ github.event.inputs.triggered_by }}"
-              echo "triggering_workflow=${{ github.event.inputs.triggered_by }}"
-            } >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            {
-              echo "trigger_workflow=manual"
-              echo "triggering_workflow=manual"
-            } >> "$GITHUB_OUTPUT"
-          else
-            {
-              echo "trigger_workflow=direct_push"
-              echo "triggering_workflow=direct"
-            } >> "$GITHUB_OUTPUT"
-          fi
-          
-          echo "trigger_actor=${{ github.actor }}" >> "$GITHUB_OUTPUT"
-          
-          echo "Workflow triggered by: ${{ github.event_name }}"
-          echo "Actor: ${{ github.actor }}"
-          echo "Ref: ${{ github.ref }}"
-          echo "SHA: ${{ github.sha }}"
-
-  build:
-    name: Build
-    needs: capture-trigger-info
-    runs-on: ubuntu-latest
-    outputs:
-      build_artifact_name: ${{ env.BUILD_ARTIFACT_NAME }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-          
-      - name: Debug environment
-        run: |
-          echo "Debugging environment before build..."
-          echo "Node version: $(node -v)"
-          echo "NPM version: $(npm -v)"
-          command -v pnpm && echo "pnpm version: $(pnpm -v)" || echo "pnpm not found"
-          echo "Current directory: $(pwd)"
-          echo "Directory contents:"
-          ls -la
-          echo "Checking for package.json:"
-          grep -E 'name|scripts|build' package.json
-          echo "Installing dependencies explicitly:"
-          npm install -g pnpm
-          pnpm install
-          echo "Environment debug complete"
-          
-      - name: Update .npmrc files
-        run: |
-          chmod +x .github/scripts/maintenance/update-npmrc.js
-          node .github/scripts/maintenance/update-npmrc.js
-          
-      - name: Build packages
-        uses: ./.github/actions/build-and-test
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          build-command: 'pnpm run build'
-          test-command: 'echo "Tests will run in separate job"'
-          artifact-name: ${{ env.BUILD_ARTIFACT_NAME }}
-        
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.BUILD_ARTIFACT_NAME }}
-          path: packages
-          if-no-files-found: error
-          
-      - name: Validate build artifacts
-        run: |
-          echo "Validating build artifacts..."
-          DIST_DIRS=$(find packages -name "dist" -type d | wc -l)
-          if [ "${DIST_DIRS}" -eq 0 ]; then
-            echo "::error::No dist directories found in packages!"
-            exit 1
-          fi
-          echo "Found ${DIST_DIRS} dist directories"
-          
-          find packages -name "dist" -type d -exec ls -la {} \;
-          
-          FILE_COUNT=$(find packages -name "dist" -type d -exec find {} -type f \; | wc -l)
-          echo "Found ${FILE_COUNT} files in artifact directories"
-          
-          if [ "${FILE_COUNT}" -eq 0 ]; then
-            echo "::error::No build artifacts found in packages/dist directories!"
-            exit 1
-          fi
-          
-          echo "✅ Artifact validation successful - ${FILE_COUNT} files in ${DIST_DIRS} directories"
-
-  test:
-    name: Test
-    needs: build
+  build-and-test:
+    name: Build and Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-          
-      - name: Download build artifacts
-        id: download-artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ needs.build.outputs.build_artifact_name }}
-          path: packages
-        env:
-          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          
-      - name: Validate downloaded artifacts
-        run: |
-          echo "Validating downloaded artifacts..."
-          DIST_DIRS=$(find packages -name "dist" -type d | wc -l)
-          if [ "${DIST_DIRS}" -eq 0 ]; then
-            echo "::error::No dist directories found in downloaded artifacts!"
-            exit 1
-          fi
-          
-          FILE_COUNT=$(find packages -name "dist" -type d -exec find {} -type f \; | wc -l)
-          echo "Found ${FILE_COUNT} files in ${DIST_DIRS} artifact directories"
-          
-          if [ "${FILE_COUNT}" -eq 0 ]; then
-            echo "::error::Downloaded artifacts contain no files!"
-            exit 1
-          fi
-          
-          echo "✅ Downloaded artifacts validation successful"
-          
-      - name: Test packages
-        uses: ./.github/actions/test-packages
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          artifact-name: ${{ needs.build.outputs.build_artifact_name }}
-
-  create-releases-and-publish:
-    name: Create Releases and Publish
-    needs: [build, test]
-    if: github.ref == 'refs/heads/main' && needs.build.result == 'success' && needs.test.result == 'success'
-    runs-on: ubuntu-latest
-    outputs:
-      versioning_performed: ${{ steps.versioning.outputs.versioning_performed }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.8.0
-        with:
-          ssh-private-key: ${{ secrets.DEPLOY_KEY }}
-
-      - name: Configure git to use SSH
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
-          
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          
-          git remote set-url origin git@github.com:${{ github.repository }}.git
-          
-          ssh -T git@github.com || true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
-          
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v3
         with:
           version: '8.15.4'
 
-      - name: Clean working directory
-        run: |
-          echo "Cleaning working directory before dependency installation..."
-          git status --porcelain
-          git clean -fd
-          git checkout HEAD -- .
-          echo "Working directory cleaned"
+      - name: Install dependencies
+        run: pnpm install
 
-      - name: Install dependencies and handle lockfile changes
-        run: |
-          echo "Installing dependencies..."
-          pnpm install
-          
-          echo "Checking for lockfile changes after install..."
-          if [ -n "$(git status --porcelain pnpm-lock.yaml)" ]; then
-            echo "::warning::pnpm-lock.yaml was modified during install"
-            echo "This suggests platform-specific dependencies or lockfile drift"
-            
-            # Check if it's just platform-specific changes
-            LOCKFILE_CHANGES=$(git diff pnpm-lock.yaml | grep -c -E "^\+" | grep -v "^+++" || echo "0")
-            echo "Number of additions in lockfile: $LOCKFILE_CHANGES"
-            
-            if [ "$LOCKFILE_CHANGES" -lt 50 ]; then
-              echo "Small lockfile changes detected - likely platform-specific"
-              echo "Committing lockfile update to prevent interference with versioning..."
-              git add pnpm-lock.yaml
-              git commit -m "chore: update lockfile with platform-specific changes" || echo "No lockfile changes to commit"
-            else
-              echo "Large lockfile changes detected - may indicate dependency issues"
-              echo "::error::Significant lockfile drift detected. Please run 'pnpm install' locally and commit the changes."
-              git diff --stat pnpm-lock.yaml
-              exit 1
-            fi
-          fi
-          
-          # Check for other unintended changes
-          OTHER_CHANGES=$(git status --porcelain | grep -v pnpm-lock.yaml || true)
-          if [ -n "$OTHER_CHANGES" ]; then
-            echo "::warning::Non-lockfile changes detected after install:"
-            echo "$OTHER_CHANGES"
-            echo "Discarding these changes..."
-            git checkout HEAD -- . && git clean -fd
-            git checkout HEAD -- pnpm-lock.yaml || true
-          fi
+      - name: Build
+        run: pnpm run build
 
-      - name: Check for version-worthy commits
-        id: check-version-worthy
-        run: |
-          git fetch --tags origin
-          
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          echo "Latest tag: $LATEST_TAG"
-          
-          if [ -z "$LATEST_TAG" ]; then
-            echo "No tags found, will create initial versions"
-            echo "has_version_worthy_commits=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          
-          if [ -f ".husky/.versioning-types" ]; then
-            VERSION_TYPES=$(cat .husky/.versioning-types)
-            echo "Using versioning types from .husky/.versioning-types: $VERSION_TYPES"
-          else
-            echo "::error::FATAL ERROR: .husky/.versioning-types file not found!"
-            echo "This file is required for versioning decisions. Please ensure it exists and contains valid commit types."
-            echo "Pipeline cannot continue without proper versioning configuration."
-            exit 1
-          fi
-          
-          TYPES_REGEX=$(echo "$VERSION_TYPES" | tr ' ' '\n' | sed 's/^/^/' | sed 's/$/\\([^)]*\\)?:/' | tr '\n' '|' | sed 's/|$//')
-          echo "Using regex pattern: $TYPES_REGEX"
-          
-          IGNORED_SCOPES=""
-          if [ -f ".husky/.ignored-scopes" ]; then
-            IGNORED_SCOPES=$(cat .husky/.ignored-scopes)
-            echo "Using ignored scopes from .husky/.ignored-scopes: $IGNORED_SCOPES"
-          elif [ -f ".husky/.ignore-scopes" ]; then
-            IGNORED_SCOPES=$(cat .husky/.ignore-scopes)
-            echo "Using ignored scopes from .husky/.ignore-scopes: $IGNORED_SCOPES"
-          fi
-          
-          MERGE_COMMITS=$(git log "$LATEST_TAG"..HEAD --merges --pretty=format:"%h %s" | wc -l | tr -d ' ')
-          echo "Found $MERGE_COMMITS merge commits since last tag"
-          
-          VERSION_WORTHY_COMMITS=$(git log "$LATEST_TAG"..HEAD --pretty=format:"%h %s")
-          
-          VERSION_WORTHY=0
-          VERSION_WORTHY_LIST=""
-          
-          while IFS= read -r COMMIT; do
-            if [[ -n "$COMMIT" ]]; then
-              COMMIT_MSG=$(echo "$COMMIT" | cut -d' ' -f2-)
-              
-              if echo "$COMMIT_MSG" | grep -E "$TYPES_REGEX" > /dev/null; then
-                SHOULD_COUNT=true
-                
-                for SCOPE in $IGNORED_SCOPES; do
-                  if echo "$COMMIT_MSG" | grep -E "^[a-z]+\\($SCOPE\\):" > /dev/null; then
-                    echo "Skipping commit with ignored scope '$SCOPE': $COMMIT"
-                    SHOULD_COUNT=false
-                    break
-                  fi
-                done
-                
-                if [ "$SHOULD_COUNT" = true ]; then
-                  VERSION_WORTHY=$((VERSION_WORTHY + 1))
-                  VERSION_WORTHY_LIST="${VERSION_WORTHY_LIST}${COMMIT}\n"
-                fi
-              fi
-            fi
-          done <<< "$VERSION_WORTHY_COMMITS"
-          
-          echo "Found $VERSION_WORTHY version-worthy commits since last tag:"
-          if [ "$VERSION_WORTHY" -gt 0 ]; then
-            echo -e "$VERSION_WORTHY_LIST" | head -n 10
-            if [ "$VERSION_WORTHY" -gt 10 ]; then
-              echo "... and $((VERSION_WORTHY - 10)) more"
-            fi
-          fi
-          
-          if [ "$VERSION_WORTHY" -gt 0 ] || [ "$MERGE_COMMITS" -gt 0 ]; then
-            echo "has_version_worthy_commits=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_version_worthy_commits=false" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Test
+        run: pnpm run test
 
-      - name: Version and publish packages
-        id: versioning
-        if: steps.check-version-worthy.outputs.has_version_worthy_commits == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Creating versions based on conventional commits..."
-          
-          echo "Working directory status before versioning:"
-          git status --porcelain
-          
-          # Store the current commit hash to track what changes versioning made
-          BEFORE_COMMIT=$(git rev-parse HEAD)
-          
-          VERSION_OUTPUT=$(pnpm version:by-message)
-          VERSION_EXIT_CODE=$?
-          
-          echo "$VERSION_OUTPUT"
-          
-          if echo "$VERSION_OUTPUT" | grep -q "Changes:" && [ $VERSION_EXIT_CODE -eq 0 ]; then
-            echo "✅ Versioning detected and completed successfully"
-            
-            # Check if lerna already created a commit
-            AFTER_COMMIT=$(git rev-parse HEAD)
-            
-            if [ "$BEFORE_COMMIT" != "$AFTER_COMMIT" ]; then
-              echo "✅ Lerna already created version commit"
-              echo "Pushing existing commit and tags..."
-              git push --follow-tags origin main
-            else
-              # Lerna didn't commit, we need to commit manually
-              VERSIONED_PACKAGES=$(echo "$VERSION_OUTPUT" | grep -A 100 "Changes:" | grep -v "Changes:" | grep -E '^ - ' | sed 's/^ - \(@[^:]*\).*/\1/' | xargs)
-              
-              TOTAL_PACKAGES=$(find packages apps -maxdepth 1 -mindepth 1 -type d | wc -l)
-              VERSIONED_COUNT=$(echo "$VERSIONED_PACKAGES" | wc -w)
-              
-              if [ "$VERSIONED_COUNT" -eq "$TOTAL_PACKAGES" ]; then
-                COMMIT_MSG="chore(release): publish all"
-              elif [ "$VERSIONED_COUNT" -le 3 ]; then
-                COMMIT_MSG="chore(release): publish $VERSIONED_PACKAGES"
-              else
-                COMMIT_MSG="chore(release): publish $VERSIONED_COUNT packages"
-              fi
-              
-              echo "Commit message: $COMMIT_MSG"
-              
-              echo "Working directory status after versioning:"
-              git status --porcelain
-              
-              if [ -n "$(git status --porcelain)" ]; then
-                echo "Staging version changes for commit..."
-                
-                # Only stage package.json files and lerna.json changes - ignore other files
-                find . -name "package.json" -type f -exec git add {} \;
-                if [ -f lerna.json ]; then
-                  git add lerna.json
-                fi
-                if [ -f CHANGELOG.md ]; then
-                  git add CHANGELOG.md
-                fi
-                
-                echo "Files staged for commit:"
-                git diff --cached --name-only
-                
-                # Verify we're only committing version-related files
-                STAGED_FILES=$(git diff --cached --name-only)
-                NON_VERSION_FILES=$(echo "$STAGED_FILES" | grep -v -E "(package\.json|lerna\.json|CHANGELOG\.md)" || true)
-                
-                if [ -n "$NON_VERSION_FILES" ]; then
-                  echo "::warning::Non-version files detected in staging area:"
-                  echo "$NON_VERSION_FILES"
-                  echo "Unstaging non-version files..."
-                  echo "$NON_VERSION_FILES" | while read -r file; do
-                    if [ -n "$file" ]; then
-                      git reset HEAD -- "$file"
-                    fi
-                  done
-                fi
-                
-                # Only commit if we still have staged changes
-                if [ -n "$(git diff --cached --name-only)" ]; then
-                  git commit -m "$COMMIT_MSG"
-                  echo "Pushing changes and tags..."
-                  git push --follow-tags origin main
-                else
-                  echo "No version files to commit"
-                fi
-              else
-                echo "No changes to commit after versioning"
-              fi
-            fi
-            
-            echo "versioning_performed=true" >> "$GITHUB_OUTPUT"
-            
-            echo "Exiting workflow after versioning - a new workflow will be triggered for publishing and site deployment"
-            exit 0
-          else
-            echo "No version changes detected or versioning failed"
-            echo "versioning_performed=false" >> "$GITHUB_OUTPUT"
-          fi
-        
-      - name: Skip versioning message
-        if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
-        run: |
-          echo "ℹ️ No version-worthy commits found - skipping versioning step"
-          echo "✅ Proceeding directly to publishing existing packages (if any)"
-
-      - name: Publish to npm and GitHub Packages
-        if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
-        run: |
-          echo "Publishing packages to npm and GitHub Packages..."
-          
-          if ! grep -q '"publish:packages"' package.json; then
-            echo "::error::The publish:packages script is missing in package.json"
-            echo "Please add a publish:packages script to your package.json file."
-            echo "For example: \"publish:packages\": \"lerna publish from-package --yes\""
-            exit 1
-          fi
-          
-          git clean -fdx
-
-      - name: Setup Node.js for npm registry
-        if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-          registry-url: 'https://registry.npmjs.org/'
-          scope: '@littlecarlito'
-
-      - name: Publish to npm
-        if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          echo "Using npm registry: $(npm config get registry)"
-          
-          echo "Verifying npm authentication..."
-          if ! npm whoami; then
-            echo "::error::npm authentication failed! Cannot continue with publishing."
-            echo "Please check that your NPM_TOKEN secret is valid and has publish permissions."
-            exit 1
-          fi
-          
-          echo "Attempting to initialize npm scope (if needed):"
-          npm run npm:init-scope || echo "Could not initialize scope. This is expected if the scope already exists."
-          
-          echo "Publishing packages to npm..."
-          npx lerna publish from-package --yes --no-private --registry=https://registry.npmjs.org/
-          
-          echo "✅ Packages published to npm!"
-
-      - name: Setup Node.js for GitHub Packages
-        if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-          registry-url: 'https://npm.pkg.github.com/'
-          scope: '@littlecarlito'
-
-      - name: Publish to GitHub Packages
-        if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Using npm registry: $(npm config get registry)"
-          
-          npx lerna publish from-package --yes --no-private --registry=https://npm.pkg.github.com/
-          
-          echo "✅ Packages published to GitHub Packages!"
-
-      - name: Login to GHCR
-        if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
-        run: |
-          chmod +x .github/scripts/ci/ghcr-login.sh
-          bash .github/scripts/ci/ghcr-login.sh
-        env:
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GHCR_USER: ${{ github.actor }}
-
-      - name: Publish blorktools Docker image
-        if: steps.check-version-worthy.outputs.has_version_worthy_commits != 'true'
-        run: |
-          chmod +x .github/scripts/ci/publish-docker-blorktools.sh
-          bash .github/scripts/ci/publish-docker-blorktools.sh --verbose
-
-  build-site:
-    name: Build Site for GitHub Pages
-    needs: [test, create-releases-and-publish]
-    if: |
-      github.ref == 'refs/heads/main' && 
-      needs.create-releases-and-publish.outputs.versioning_performed != 'true' && 
-      needs.create-releases-and-publish.result == 'success'
+  deploy-site:
+    name: Deploy to GitHub Pages
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       pages: write
       id-token: write
     environment:
@@ -548,66 +57,40 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: main
-          
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
-          
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v3
         with:
           version: '8.15.4'
-          
+
       - name: Install dependencies
         run: pnpm install
-          
+
       - name: Build for GitHub Pages
         run: |
-          pnpm --filter=@littlecarlito/blorkpack build
-          
           GITHUB_PAGES=true pnpm --filter=@littlecarlito/portfolio build
-          
+
           GITHUB_PAGES=true pnpm --filter=@littlecarlito/3d-portfolio build
-          
+
           echo "=== Checking build outputs ==="
           ls -la apps/
           echo "Portfolio dist contents:"
           ls -la apps/portfolio/dist/ || echo "Portfolio dist not found"
           echo "3D Portfolio dist contents:"
           ls -la apps/3d_portfolio/dist/ || echo "3D Portfolio dist not found"
-          
+
           mkdir -p apps/portfolio/dist/3d
           cp -r apps/3d_portfolio/dist/* apps/portfolio/dist/3d/
-          
-          echo "✅ Both apps built and combined"
-          echo "Portfolio: apps/portfolio/dist/"
-          echo "3D Portfolio: apps/portfolio/dist/3d/"
 
-      - name: Ensure _headers file for GitHub Pages
-        run: |
-          if [ -f "apps/portfolio/public/_headers" ]; then
-            cp apps/portfolio/public/_headers apps/portfolio/dist/
-            echo "Copied _headers file to dist folder"
-          else
-            echo "Warning: _headers file not found"
-          fi
+          echo "Both apps built and combined"
 
       - name: Add .nojekyll file
         run: touch apps/portfolio/dist/.nojekyll
-
-      - name: Display pre-optimization directory stats
-        run: |
-          echo "Directory stats before optimization:"
-          du -sh apps/portfolio/dist
-          find apps/portfolio/dist -type f | wc -l
-
-      - name: Optimize files for GitHub Pages
-        uses: ./.github/actions/optimize-gh-pages
-        with:
-          dist-dir: 'apps/portfolio/dist'
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -620,71 +103,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-        with:
-          token: ${{ secrets.PACKAGE_TOKEN }}
-
-  report-results:
-    name: Report Pipeline Results
-    needs: [capture-trigger-info, build, test, create-releases-and-publish, build-site]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Determine workflow result
-        id: workflow-result
-        run: |
-          VERSIONING_PERFORMED="${{ needs.create-releases-and-publish.outputs.versioning_performed }}"
-          
-          if [ "$VERSIONING_PERFORMED" = "true" ]; then
-            {
-              echo "result=success"
-              echo "report_type=versioning"
-              echo "details=Versioning was performed successfully. A new workflow will handle publishing and deployment."
-              echo "trigger_actor=${{ needs.capture-trigger-info.outputs.trigger_actor }}"
-            } >> "$GITHUB_OUTPUT"
-          else
-            if [[ "${{ needs.build.result }}" != "success" || 
-                  "${{ needs.test.result }}" != "success" || 
-                  ("${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped") ||
-                  ("${{ needs.create-releases-and-publish.result }}" != "success" && "${{ needs.create-releases-and-publish.result }}" != "skipped") ]]; then
-              
-              FAILED_JOBS=""
-              [[ "${{ needs.build.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Build, "
-              [[ "${{ needs.test.result }}" != "success" ]] && FAILED_JOBS="${FAILED_JOBS}Test, "
-              [[ "${{ needs.build-site.result }}" != "success" && "${{ needs.build-site.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Site Deployment, "
-              [[ "${{ needs.create-releases-and-publish.result }}" != "success" && "${{ needs.create-releases-and-publish.result }}" != "skipped" ]] && FAILED_JOBS="${FAILED_JOBS}Create Releases and Publish, "
-              
-              FAILED_JOBS="${FAILED_JOBS%, }"
-              
-              {
-                echo "result=failure"
-                echo "report_type=full_pipeline"
-                echo "details=Jobs failed: ${FAILED_JOBS}"
-                echo "trigger_actor=${{ needs.capture-trigger-info.outputs.trigger_actor }}"
-              } >> "$GITHUB_OUTPUT"
-            else
-              {
-                echo "result=success"
-                echo "report_type=full_pipeline"
-                echo "details=Full pipeline completed successfully"
-                echo "trigger_actor=${{ needs.capture-trigger-info.outputs.trigger_actor }}"
-              } >> "$GITHUB_OUTPUT"
-            fi
-          fi
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Report pipeline results
-        uses: ./.github/actions/report-workflow-results
-        with:
-          workflow-name: 'Main Pipeline'
-          result: ${{ steps.workflow-result.outputs.result }}
-          branch: main
-          summary: >-
-            Main Pipeline ${{ steps.workflow-result.outputs.result }} 
-            (${{ steps.workflow-result.outputs.report_type }}). 
-            Triggered by ${{ steps.workflow-result.outputs.trigger_actor }}. 
-            Details: ${{ steps.workflow-result.outputs.details }}
-          source: 'dispatch'
-          discord-webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          github-token: ${{ secrets.PR_CREATION_TOKEN }}

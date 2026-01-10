@@ -111,20 +111,6 @@ jobs:
           # Ensure the target branch is properly tracked locally
           git branch --track "${TARGET_BRANCH}" origin/"${TARGET_BRANCH}" || echo "Branch already exists"
       
-      # Setup environment and tools
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-          
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: '8.15.4'
-          
-      - name: Install dependencies
-        run: pnpm install
-      
       # Create and switch to new branch (only for workflow_dispatch)
       - name: Create branch (for workflow_dispatch)
         if: github.event_name == 'workflow_dispatch'
